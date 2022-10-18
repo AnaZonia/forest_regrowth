@@ -196,9 +196,16 @@ if (import_GEDI == T){
 outdir <- "./worldclim_brazil" # Specify your preferred working directory
 
 # Downloading and unzipping
-url <- "http://biogeo.ucdavis.edu/data/worldclim/2_1/hist/wc2.1_2.5m_prec_1980-1989.zip"
+
+vars = c("tmin_", "tmax_", "prec_")
+ranges = c("1980-1989", "1990-1999", "2000-2009", "2010-2018")
+
+url = as.list(paste0("http://biogeo.ucdavis.edu/data/worldclim/v2.1/hist/wc2.1_2.5m_", do.call(paste0, expand.grid(vars, ranges)), ".zip"))
+
 zip <- file.path(outdir, basename(url))
- 
+download.file(url, zip)
+
+
 # 3 GB download!
 download.file(url, zip, mode = "wb")
 f <- unzip(zip, list = TRUE)

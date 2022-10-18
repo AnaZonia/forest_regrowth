@@ -16,9 +16,8 @@ panama <- sf::st_read(
 )
 
 
-dev.new(width=5, height=10, unit="cm")
-
 jpeg(file="panama_2021_lulc.jpeg")
+
 tm_shape(panama) +
   tm_fill("Categoria",style="cat",palette="Paired") +
   tm_layout(legend.outside = TRUE,
