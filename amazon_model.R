@@ -209,7 +209,7 @@ for (i in 1:length(url)){
 }
 
 # get all the zip files
-zipF <- list.files(path = outdir, pattern = "*.zip", full.names = TRUE)
+zipF <- list.files(path = outdir, pattern = "wc2.1_2.5m_tmin_2010-2018.zip", full.names = TRUE)
 # unzip all your files
 ldply(.data = zipF, .fun = unzip, exdir = outdir)
 # get the csv files
@@ -217,20 +217,6 @@ csv_files <- list.files(path = outDir, pattern = "*.csv")
 
 # read the csv files
 my_data <- ldply(.data = csv_files, .fun = read.csv)
-
-# Yearly data
-r1 <- stack(f1)
-r2 <- stack(f2)
-
-# Crop, mask, save by Burkina Faso boundary
-v <- getData("GADM", country = "BFA", level = 0, path = outdir) 
-r1 <- crop(r1, v)
-r2 <- crop(r2, v)
-
-# Each file has 12 bands (1:January ... 12:December)
-r1 <- mask(r1, v, filename = file.path(outdir, "BFA_2017_prec.tif"))
-r2 <- mask(r2, v, filename = file.path(outdir, "BFA_2018_prec.tif"))
-
 
 
 

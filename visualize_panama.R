@@ -7,6 +7,8 @@ library(sf)
 library(rgdal)
 library(tmap)
 library(ggplot2)
+library(mapview)
+
 
 setwd("/home/aavila/Documents/forest_regrowth")
 
@@ -15,12 +17,9 @@ panama <- sf::st_read(
   layer="CoberturaBoscosaUsoSuelo_2021_25k"
 )
 
-
-jpeg(file="panama_2021_lulc.jpeg")
-
 tm_shape(panama) +
   tm_fill("Categoria",style="cat",palette="Paired") +
-  tm_layout(legend.outside = TRUE,
+    tm_layout(legend.outside = TRUE,
             legend.width = 3,
             legend.text.size = 25,
             legend.outside.size = 1,
@@ -29,4 +28,16 @@ tm_shape(panama) +
             main.title.position = "centre") +
   tmap_options(max.categories = 33)
 
-dev.off()
+
+
+cafe = panama[panama$Categoria == "Café",]
+pasto = panama[panama$Categoria == "Pasto",]
+anual = panama[panama$Categoria == "Otro cultivo anual",]
+permanente = panama[panama$Categoria == "Otro cultivo permanente",]
+cana = panama[panama$Categoria == "Caña de azúcar",]
+banana = panama[panama$Categoria == "Plátano/banano" ,]
+citric = panama[panama$Categoria == "Cítrico" ,]
+maiz = panama[panama$Categoria == "Maíz" ,]
+
+
+mapview(pasto, col.regions = sf.colors(10))
