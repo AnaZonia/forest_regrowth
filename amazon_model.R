@@ -15,6 +15,8 @@ library(rhdf5)
 #remotes::install_github("VangiElia/GEDI4R")
 library(GEDI4R)
 library(stringr)
+library(tidyverse)
+library(plyr)
 
 setwd("/home/aavila/Documents/forest_regrowth")
 
@@ -193,30 +195,30 @@ if (import_GEDI == T){
 
 # TEMPERATURE AND RAINFALL
 
-outdir <- "./worldclim_brazil" # Specify your preferred working directory
-
 # Downloading and unzipping
 
+outdir <- "./worldclim_brazil" # Specify your preferred working directory
 vars = c("tmin_", "tmax_", "prec_")
 ranges = c("1980-1989", "1990-1999", "2000-2009", "2010-2018")
 
-url = as.list(paste0("http://biogeo.ucdavis.edu/data/worldclim/v2.1/hist/wc2.1_2.5m_", do.call(paste0, expand.grid(vars, ranges)), ".zip"))
-
+url = paste0("http://biogeo.ucdavis.edu/data/worldclim/v2.1/hist/wc2.1_2.5m_", do.call(paste0, expand.grid(vars, ranges)), ".zip")
 zip <- file.path(outdir, basename(url))
-download.file(url, zip)
 
+for (i in 1:length(url)){
+   download.file(url[i], zip[i])
+}
 
-# 3 GB download!
-download.file(url, zip, mode = "wb")
-f <- unzip(zip, list = TRUE)
+# get all the zip files
+zipF <- list.files(path = outdir, pattern = "*.zip", full.names = TRUE)
+# unzip all your files
+ldply(.data = zipF, .fun = unzip, exdir = outdir)
+# get the csv files
+csv_files <- list.files(path = outDir, pattern = "*.csv")
 
-# Only unzip 2017 and 2018
-j <- grep("2017|2018", f$Name, value = TRUE)
-ff <- unzip(zip, files = j, exdir = outdir)
+# read the csv files
+my_data <- ldply(.data = csv_files, .fun = read.csv)
 
 # Yearly data
-f1 <- grep("2017", ff, value = TRUE)
-f2 <- grep("2018", ff, value = TRUE)
 r1 <- stack(f1)
 r2 <- stack(f2)
 
