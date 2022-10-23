@@ -16,16 +16,16 @@ panama <- sf::st_read(
   layer="CoberturaBoscosaUsoSuelo_2021_25k"
 )
 
-tm_shape(panama) +
-  tm_fill("Categoria",style="cat",palette="Paired") +
-    tm_layout(legend.outside = TRUE,
-            legend.width = 3,
-            legend.text.size = 25,
-            legend.outside.size = 1,
-            legend.outside.position = "bottom",
-            main.title = "Panama 2021 LULC",
-            main.title.position = "centre") +
-  tmap_options(max.categories = 33)
+# tm_shape(panama) +
+#   tm_fill("Categoria",style="cat",palette="Paired") +
+#     tm_layout(legend.outside = TRUE,
+#             legend.width = 3,
+#             legend.text.size = 25,
+#             legend.outside.size = 1,
+#             legend.outside.position = "bottom",
+#             main.title = "Panama 2021 LULC",
+#             main.title.position = "centre") +
+#   tmap_options(max.categories = 33)
 
 
 

@@ -215,11 +215,13 @@ for (i in 1:length(url)){
 # get the csv files
 
 #remove all datapoints before landsat (1985)
-file.remove(list.files(path = outdir, pattern = "1980|1981|1982|1983|1984", full.names = TRUE))
+#file.remove(list.files(path = outdir, pattern = "1980|1981|1982|1983|1984", full.names = TRUE))
 
-tif_files <- as.list(list.files(path = outdir, pattern = "*.tif", full.names = TRUE))
+clim_files <- as.list(list.files(path = outdir, pattern = "*.tif", full.names = TRUE))
 # read the csv files
-my_data <- lapply(tif_files, raster)
+raster_clim <- lapply(clim_files, raster)
+df_clim = lapply(raster_clim, as.data.frame, xy=T)
+
 
 
 
