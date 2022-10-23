@@ -85,11 +85,7 @@ making_df = function(file, crop){
 
   files = list.files(path = './mapbiomas/regrowth', pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
 
-  # add all raw .tif files as rasters into one list
-  tmp_rasters = list()
-  for (i in 1:length(files)){
-    tmp_rasters = append(tmp_rasters,raster(files[i]))
-  }
+  tmp_rasters = lapply(files, raster)
 
   # if we are subsetting the data into our region of interest
   coord_oi = c(xmin, xmax, ymin, ymax) #this specifies the coordinates of Paragominas.
@@ -197,30 +193,46 @@ if (import_GEDI == T){
 
 # Downloading and unzipping
 
-outdir <- "./worldclim_brazil" # Specify your preferred working directory
-vars = c("tmin_", "tmax_", "prec_")
-ranges = c("1980-1989", "1990-1999", "2000-2009", "2010-2018")
+if (import_clim == T){
 
-url = paste0("http://biogeo.ucdavis.edu/data/worldclim/v2.1/hist/wc2.1_2.5m_", do.call(paste0, expand.grid(vars, ranges)), ".zip")
-zip <- file.path(outdir, basename(url))
+}else{
+  outdir <- "./worldclim_brazil" # Specify your preferred working directory
+  vars = c("tmin_", "tmax_", "prec_")
+  ranges = c("1980-1989", "1990-1999", "2000-2009", "2010-2018")
 
-for (i in 1:length(url)){
-   download.file(url[i], zip[i])
+  url = paste0("http://biogeo.ucdavis.edu/data/worldclim/v2.1/hist/wc2.1_2.5m_", do.call(paste0, expand.grid(vars, ranges)), ".zip")
+  zip <- file.path(outdir, basename(url))
+
+  for (i in 1:length(url)){
+    download.file(url[i], zip[i])
+  }
+
+  # get all the zip files
+  #zipF <- list.files(path = outdir, pattern = "*.zip", full.names = TRUE)
+  # unzip all your files
+  #ldply(.data = zipF, .fun = unzip, exdir = outdir)
+  # get the csv files
+
+  #remove all datapoints before landsat (1985)
+  #file.remove(list.files(path = outdir, pattern = "1980|1981|1982|1983|1984", full.names = TRUE))
+
+  clim_files <- as.list(list.files(path = outdir, pattern = "*.tif", full.names = TRUE))
+  # read the csv files
+  raster_clim <- lapply(clim_files, raster)
+  
+
 }
 
-# get all the zip files
-#zipF <- list.files(path = outdir, pattern = "*.zip", full.names = TRUE)
-# unzip all your files
-#ldply(.data = zipF, .fun = unzip, exdir = outdir)
-# get the csv files
 
-#remove all datapoints before landsat (1985)
-#file.remove(list.files(path = outdir, pattern = "1980|1981|1982|1983|1984", full.names = TRUE))
+  # if we are subsetting the data into our region of interest
+  coord_oi = c(xmin, xmax, ymin, ymax) #this specifies the coordinates of Paragominas.
+  e = as(extent(coord_oi), 'SpatialPolygons')
+  crs(e) = "+proj=longlat +datum=WGS84 +no_defs"
+  df_clim = lapply(raster_clim, crop, e) # subsects all rasters to area of interest
 
-clim_files <- as.list(list.files(path = outdir, pattern = "*.tif", full.names = TRUE))
-# read the csv files
-raster_clim <- lapply(clim_files, raster)
-df_clim = lapply(raster_clim, as.data.frame, xy=T)
+  df_clim = lapply(df_clim, as.data.frame, xy=T)
+
+
 
 
 
