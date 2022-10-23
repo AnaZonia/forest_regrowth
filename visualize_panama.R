@@ -9,7 +9,6 @@ library(tmap)
 library(ggplot2)
 library(mapview)
 
-
 setwd("/home/aavila/Documents/forest_regrowth")
 
 panama <- sf::st_read( 
@@ -27,6 +26,13 @@ tm_shape(panama) +
             main.title = "Panama 2021 LULC",
             main.title.position = "centre") +
   tmap_options(max.categories = 33)
+
+
+
+
+
+
+
 
 
 

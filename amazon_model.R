@@ -209,14 +209,17 @@ for (i in 1:length(url)){
 }
 
 # get all the zip files
-zipF <- list.files(path = outdir, pattern = "wc2.1_2.5m_tmin_2010-2018.zip", full.names = TRUE)
+#zipF <- list.files(path = outdir, pattern = "*.zip", full.names = TRUE)
 # unzip all your files
-ldply(.data = zipF, .fun = unzip, exdir = outdir)
+#ldply(.data = zipF, .fun = unzip, exdir = outdir)
 # get the csv files
-csv_files <- list.files(path = outDir, pattern = "*.csv")
 
+#remove all datapoints before landsat (1985)
+file.remove(list.files(path = outdir, pattern = "1980|1981|1982|1983|1984", full.names = TRUE))
+
+tif_files <- as.list(list.files(path = outdir, pattern = "*.tif", full.names = TRUE))
 # read the csv files
-my_data <- ldply(.data = csv_files, .fun = read.csv)
+my_data <- lapply(tif_files, raster)
 
 
 
