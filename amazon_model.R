@@ -32,6 +32,7 @@ ymax = -2.41036
 ####################################################################
 
 
+
 # find utm zone from longitude - allows to analyze data spanning multiple UTM zones
 long2UTMzone = function(long) {
   ## Function to get the UTM zone for a given longitude
@@ -75,8 +76,18 @@ LongLatToUTM = function(x,y){
   res_list[[1]]$x = round( res_list[[1]]$x/30 ) * 30
   res_list[[1]]$y = round( res_list[[1]]$y/30 ) * 30
 
+  result = res_list[[1]][ order(as.numeric(row.names(res_list[[1]]))), ]
+
   #returns dataframe with zone, x and y columns.
-  return(res_list[[1]])
+  return(result)
+}
+
+# unifies all dataframes in a list into a single dataframe with one column per year.
+df_merge = function(df){
+  for (i in 2:length(df)){
+    df[[1]] = cbind(df[[1]], df[[i]][3])
+  }
+  return(df[[1]])
 }
 
 # creating one processed dataframe from multiple raw Mapbiomas .tif files.
@@ -97,24 +108,21 @@ making_df = function(file, crop){
 
   tmp_dfs = lapply(tmp_rasters, as.data.frame, xy=T)
 
-  # unifies all rasters into a single raster with one column per year.
-  for (i in 2:length(tmp_dfs)){
-    tmp_dfs[[1]] = cbind(tmp_dfs[[1]], tmp_dfs[[i]][3])
-  }
+  merged_df = df_merge(tmp_dfs)
 
-  colnames(tmp_dfs[[1]]) = str_sub(colnames(tmp_dfs[[1]]), start= -4)   # makes column names only "yyyy"
+  colnames(merged_df) = str_sub(colnames(merged_df), start= -4)   # makes column names only "yyyy"
 
-  tmp_dfs[[1]] = tmp_dfs[[1]][order(tmp_dfs[[1]]$x),]   #order by longitude, so the pixels are separated by UTM zones.
+  merged_df = merged_df[order(merged_df$x),]   #order by longitude, so the pixels are separated by UTM zones.
 
-  tmp_dfs[[1]] = cbind(tmp_dfs[[1]], LongLatToUTM(tmp_dfs[[1]]$x, tmp_dfs[[1]]$y))   # converts lat, long coordinates to UTM
+  merged_df = cbind(merged_df, LongLatToUTM(merged_df$x, merged_df$y))   # converts lat, long coordinates to UTM
 
-  return(tmp_dfs[[1]])
+  return(merged_df)
 }
 
 # reduce date from "%Y-%m-%d %H:%M:%S" format into just the year
-extract_year = function(df){
-  df$date = as.POSIXct(df$date, format = "%Y-%m-%d %H:%M:%S")
-  df$date = format(df$date, format="%Y") 
+extract_year = function(df, in_format, out_format){
+  df$date = as.POSIXct(df$date, format = in_format)
+  df$date = format(df$date, format=out_format) 
   return(df)
 }
 
@@ -132,9 +140,9 @@ import_GEDI = T
 # REGROWTH/DEFORESTATION, FIRE AND LAND USE.
 # Mapbiomas data was manually downloaded.
 if (import_mapbiomas == T){
-  regrowth = readRDS("./regrowth.rds")
-  fire = readRDS("./fire.rds")
-  lulc = readRDS("./lulc.rds")
+  regrowth = readRDS("./scripts/regrowth.rds")
+  fire = readRDS("./scripts/fire.rds")
+  lulc = readRDS("./scripts/lulc.rds")
 }else{
   regrowth = making_df('./mapbiomas/regrowth', crop=F)
   # subset only for the pixels that show some regrowth history
@@ -152,7 +160,7 @@ if (import_mapbiomas == T){
 
 # biomass data
 if (import_GEDI == T){
-  biomass = readRDS("./biomass.rds")
+  biomass = readRDS("./scripts/biomass.rds")
 }else{
   
   lat_lon_oi = c(ymax, ymin, xmin, xmax)  #lat and lon of interest
@@ -168,7 +176,7 @@ if (import_GEDI == T){
   filepaths = paste0('./GEDI/', list.files("./GEDI"))
   GEDI_list = lapply(filepaths, l4_get, just_colnames = F)
   GEDI_list = lapply(GEDI_list, subset, select=c("date", "lat_lowestmode", "lon_lowestmode", "agbd_se", "agbd"))
-  GEDI_list = lapply(GEDI_list, extract_year)
+  GEDI_list = lapply(GEDI_list, extract_year, in_format = "%Y-%m-%d %H:%M:%S", out_format = "%Y")
 
   select_range = function(df){
     df = df[ymin < lat_lowestmode & lat_lowestmode < ymax & xmin < lon_lowestmode & lon_lowestmode < xmax,]
@@ -189,6 +197,9 @@ if (import_GEDI == T){
 
 }
 
+
+
+
 # TEMPERATURE AND RAINFALL
 
 # Downloading and unzipping
@@ -197,15 +208,15 @@ if (import_clim == T){
 
 }else{
   outdir <- "./worldclim_brazil" # Specify your preferred working directory
-  vars = c("tmin_", "tmax_", "prec_")
-  ranges = c("1980-1989", "1990-1999", "2000-2009", "2010-2018")
+  # vars = c("tmin_", "tmax_", "prec_")
+  # ranges = c("1980-1989", "1990-1999", "2000-2009", "2010-2018")
 
-  url = paste0("http://biogeo.ucdavis.edu/data/worldclim/v2.1/hist/wc2.1_2.5m_", do.call(paste0, expand.grid(vars, ranges)), ".zip")
-  zip <- file.path(outdir, basename(url))
+  # url = paste0("http://biogeo.ucdavis.edu/data/worldclim/v2.1/hist/wc2.1_2.5m_", do.call(paste0, expand.grid(vars, ranges)), ".zip")
+  # zip <- file.path(outdir, basename(url))
 
-  for (i in 1:length(url)){
-    download.file(url[i], zip[i])
-  }
+  # for (i in 1:length(url)){
+  #   download.file(url[i], zip[i])
+  # }
 
   # get all the zip files
   #zipF <- list.files(path = outdir, pattern = "*.zip", full.names = TRUE)
@@ -214,16 +225,12 @@ if (import_clim == T){
   # get the csv files
 
   #remove all datapoints before landsat (1985)
-  #file.remove(list.files(path = outdir, pattern = "1980|1981|1982|1983|1984", full.names = TRUE))
+  file.remove(list.files(path = outdir, pattern = "1980|1981|1982|1983|1984", full.names = TRUE))
 
   clim_files <- as.list(list.files(path = outdir, pattern = "*.tif", full.names = TRUE))
   # read the csv files
   raster_clim <- lapply(clim_files, raster)
   
-
-}
-
-
   # if we are subsetting the data into our region of interest
   coord_oi = c(xmin, xmax, ymin, ymax) #this specifies the coordinates of Paragominas.
   e = as(extent(coord_oi), 'SpatialPolygons')
@@ -232,8 +239,37 @@ if (import_clim == T){
 
   df_clim = lapply(df_clim, as.data.frame, xy=T)
 
+  #we have 409 entries for prec, tmax and tmin.
+  df_prec = df_clim[1:409]
+  df_tmax = df_clim[410:818]
+  df_tmin = df_clim[819:length(df_clim)]
+
+  prec = df_merge(df_prec)
+  tmax = df_merge(df_tmax)
+  tmin = df_merge(df_tmin)
+
+  colnames(prec) = str_sub(colnames(prec), start= -7)   # makes column names only "yyyy"
+  colnames(tmax) = str_sub(colnames(tmax), start= -7)   # makes column names only "yyyy"
+  colnames(tmin) = str_sub(colnames(tmin), start= -7)   # makes column names only "yyyy"
+
+  # reduce date from "%Y-%m-%d %H:%M:%S" format into just the year
+  extract_year = function(df, in_format, out_format){
+  colnames(prec[3:ncol(prec)]) = as.POSIXct(df$date, format = in_format)
+  df$date = format(df$date, format=out_format) 
+  return(df)
 
 
+
+}
+
+
+}
+
+#tst = as.POSIXct(colnames(, format = "%Y.%m")
+
+#as.Date(paste(prec[3:ncol(prec)]),1,sep="."),"%Y.%m.%d")
+
+#class(colnames(prec[3:ncol(prec)]))
 
 
 
@@ -268,11 +304,23 @@ tavg = tavg[,-c(1:2)]
 # within these, find 2019-year of last pixel flagged as "regrowth" -> this will give forest age.
 regrowth_instances = sapply(apply(regrowth[3:(ncol(regrowth)-4)], 1, function(x) which(x >= 500)),names) # returns rowname/index as well as years flagged as regrowth events
 last_regrowth = lapply(lapply(regrowth_instances, unlist), max) # select for only the most recent observed regrowth
-last_regrowth = as.data.frame(unlist(last_regrowth))
+#last_regrowth = as.data.frame(unlist(last_regrowth))
 
 # start AMAZON dataframe with forest age as first column
 amazon = as.data.frame(2019-as.integer(last_regrowth[,1])) # since AGB data is from 2019
 names(amazon) <- c('forest_age')
+amazon = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],amazon)
+
+ranges = list()
+for (i in 1:length(last_regrowth)){
+  tst = colnames(regrowth)[as.integer(colnames(regrowth)) > as.integer(last_regrowth[[i]])]
+  tst = tst[!is.na(tst)]
+  ranges = cbind(ranges,tst)
+  print(i)
+}
+
+
+head(regrowth[ranges])
 
 
 ########## LAND USE ##########
@@ -300,7 +348,6 @@ amazon$other_annual = rowSums(lulc == 41)
 #count number of total fires
 fire$num_fires = rowSums(fire[3:(ncol(fire)-3)])
 
-amazon = cbind(fire[(ncol(fire)-3):ncol(fire)],amazon)
 
 ########## ENVIRONMENTAL VARIABLES ##########
 
@@ -313,24 +360,44 @@ prec = prec[,-c(ncol(prec))]
 
 amazon$xy = paste0(amazon$zone, amazon$x, amazon$y)
 biomass$xy = paste0(biomass$zone, biomass$x, biomass$y)
-prec$xy = paste0(prec$zone, prec$x, prec$y)
-tavg$xy = paste0(tavg$zone, tavg$x, tavg$y)
+regrowth$xy = paste0(regrowth$zone, regrowth$x, regrowth$y)
 
 amazon = cbind(amazon, biomass[match(amazon$xy,biomass$xy),c("agbd")])
-prec = cbind(prec, amazon[match(prec$xy,amazon$xy),c("forest_age")])
-
 agb_amazon = amazon[complete.cases(amazon[, ncol(amazon)]), ]
+plot(agb_amazon$forest_age, agb_amazon$agbd)
+
+tst = subset(amazon, forest_age == 31)
+tst = subset(tst, agbd == 0)
+# 22 774690 9623820
+tst1 = subset(amazon, agbd > 2000)
+tst1 = subset(tst1, forest_age < 2)
+# 23 233190 9622260
+
+tst_1 = subset(biomass, xy == "227746909623820") # matches with four similar coordinates
+tst_2 = subset(biomass, xy == "232331909622260") # -3.414444 -47.40138 at biomass
+
+tst_3 = subset(regrowth, xy == "227746909623820") # -48.52776 -3.400078 at regrowth
+# this converts back to pasture right away..... that explains a lot.
+tst_4 = subset(regrowth, xy == "232331909622260") # -47.40127 -3.414362 at regrowth
+# young forest - how is agb so high?
+tst_biomass = subset(biomass, -3.4 > lat_lowestmode & lat_lowestmode > -3.5 & -48 < lon_lowestmode & lon_lowestmode < 47)
+
+tst = cbind(amazon, tst_biomass[match(amazon$xy,tst_biomass$xy),c("agbd")])
+agb_amazon = tst[complete.cases(tst[, ncol(tst)]), ]
+plot(agb_amazon$forest_age, agb_amazon$agbd)
+
 
 complete = agb_amazon[complete.cases(agb_amazon[, ]), ]
 
 saveRDS(complete, "complete.rds")
 
-complete = readRDS('complete.rds')
 
+complete = readRDS('./scripts/complete.rds')
 
 head(complete)
-
-
+plot(complete$forest_age, complete$agbd)
+tst = lm(agbd ~ forest_age + pasture, complete)
+# completely unrelated. but WHY? Should the fit improve with proper environmental variables?
 
 ################# passing into the model ##################
 
@@ -379,28 +446,3 @@ for (i in meth0){
 pred = G(o$par[1:9], complete$tavg, complete$prec, complete$other_perennial, complete$other_annual, complete$pasture, complete$soy, complete$forest_age)
 
 plot(complete$agbd, pred, abline(0,1))
-
-###################
-
-
-library(raster) # For convenience, shapefile function and show method for Spatial objects
-library(rgeos)
-library(magrittr)
-library(sf)
-library(rgdal)
-
-
-panama = sf::st_read( 
-  dsn= paste0(getwd(),"/2021map/") , 
-  layer="CoberturaBoscosaUsoSuelo_2021_25k"
-)
-
-ramp = rainbow(length(unique(panama$Categoria)))
-colors = ramp[as.factor(panama$Categoria)]
-
-panama$Categoria = as.factor(panama$Categoria)
-
-
-plot(panama, col=colors, border=NA, add=T)
-
-                               # Apply plot function
