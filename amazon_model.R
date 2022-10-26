@@ -194,7 +194,6 @@ if (import_GEDI == T){
   biomass = cbind(biomass, LongLatToUTM(biomass$lon_lowestmode, biomass$lat_lowestmode))
 
   saveRDS(biomass, "biomass.rds")
-
 }
 
 
@@ -204,9 +203,8 @@ if (import_GEDI == T){
 
 # Downloading and unzipping
 
-if (import_clim == T){
-
-}else{
+#if (import_clim == T){
+#}else{
   outdir <- "./worldclim_brazil" # Specify your preferred working directory
   # vars = c("tmin_", "tmax_", "prec_")
   # ranges = c("1980-1989", "1990-1999", "2000-2009", "2010-2018")
@@ -260,10 +258,10 @@ if (import_clim == T){
 
 
 
-}
+#}
 
 
-}
+
 
 #tst = as.POSIXct(colnames(, format = "%Y.%m")
 
@@ -302,14 +300,18 @@ tavg = tavg[,-c(1:2)]
 # 600 secondary suppression
 
 # within these, find 2019-year of last pixel flagged as "regrowth" -> this will give forest age.
-regrowth_instances = sapply(apply(regrowth[3:(ncol(regrowth)-4)], 1, function(x) which(x >= 500)),names) # returns rowname/index as well as years flagged as regrowth events
+regrowth_instances = sapply(apply(regrowth[3:(ncol(regrowth)-4)], 1, function(x) which(600 > x & x >= 500)),names) # returns rowname/index as well as years flagged as regrowth events
+regrowth_instances = sapply(apply(regrowth[3:(ncol(regrowth)-4)], 1, function(x) which(x >= 600)),names) # returns rowname/index as well as years flagged as regrowth events
+
 last_regrowth = lapply(lapply(regrowth_instances, unlist), max) # select for only the most recent observed regrowth
-#last_regrowth = as.data.frame(unlist(last_regrowth))
+last_regrowth_df = as.data.frame(unlist(last_regrowth))
 
 # start AMAZON dataframe with forest age as first column
-amazon = as.data.frame(2019-as.integer(last_regrowth[,1])) # since AGB data is from 2019
+amazon = as.data.frame(2019-as.integer(last_regrowth_df[,1])) # since AGB data is from 2019
 names(amazon) <- c('forest_age')
 amazon = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],amazon)
+
+lapply(regrowth, 1, function(x)(c(x+NA)-c(x-NA) == 2) )
 
 ranges = list()
 for (i in 1:length(last_regrowth)){
@@ -321,6 +323,8 @@ for (i in 1:length(last_regrowth)){
 
 
 head(regrowth[ranges])
+# why are the values for regrowth category all these different values?
+
 
 
 ########## LAND USE ##########
@@ -364,7 +368,16 @@ regrowth$xy = paste0(regrowth$zone, regrowth$x, regrowth$y)
 
 amazon = cbind(amazon, biomass[match(amazon$xy,biomass$xy),c("agbd")])
 agb_amazon = amazon[complete.cases(amazon[, ncol(amazon)]), ]
-plot(agb_amazon$forest_age, agb_amazon$agbd)
+plot(tst$forest_age, tst$agbd)
+tst = subset(agb_amazon, forest_age > 4)
+tst = subset(amazon, forest_age == 10)
+tst = subset(tst, agbd == 0)
+
+# 227374309602700
+# 227374609601620
+
+subset(regrowth, xy == 227374609601620)
+
 
 tst = subset(amazon, forest_age == 31)
 tst = subset(tst, agbd == 0)
@@ -389,14 +402,8 @@ plot(agb_amazon$forest_age, agb_amazon$agbd)
 
 complete = agb_amazon[complete.cases(agb_amazon[, ]), ]
 
-saveRDS(complete, "complete.rds")
 
 
-complete = readRDS('./scripts/complete.rds')
-
-head(complete)
-plot(complete$forest_age, complete$agbd)
-tst = lm(agbd ~ forest_age + pasture, complete)
 # completely unrelated. but WHY? Should the fit improve with proper environmental variables?
 
 ################# passing into the model ##################
