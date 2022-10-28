@@ -31,8 +31,6 @@ ymax = -2.41036
 ########## FUNCTIONS ##########
 ####################################################################
 
-
-
 # find utm zone from longitude - allows to analyze data spanning multiple UTM zones
 long2UTMzone = function(long) {
   ## Function to get the UTM zone for a given longitude
@@ -160,7 +158,7 @@ if (import_mapbiomas == T){
 
 # biomass data
 if (import_GEDI == T){
-  biomass = readRDS("./scripts/biomass.rds")
+  biomass = readRDS("./biomass.rds")
 }else{
   
   lat_lon_oi = c(ymax, ymin, xmin, xmax)  #lat and lon of interest
@@ -195,7 +193,6 @@ if (import_GEDI == T){
 
   saveRDS(biomass, "biomass.rds")
 }
-
 
 
 
@@ -301,17 +298,32 @@ tavg = tavg[,-c(1:2)]
 
 # within these, find 2019-year of last pixel flagged as "regrowth" -> this will give forest age.
 regrowth_instances = sapply(apply(regrowth[3:(ncol(regrowth)-4)], 1, function(x) which(600 > x & x >= 500)),names) # returns rowname/index as well as years flagged as regrowth events
-regrowth_instances = sapply(apply(regrowth[3:(ncol(regrowth)-4)], 1, function(x) which(x >= 600)),names) # returns rowname/index as well as years flagged as regrowth events
+suppression_instances = sapply(apply(regrowth[3:(ncol(regrowth)-4)], 1, function(x) which(600 <= x & x < 700)),names) # returns rowname/index as well as years flagged as regrowth events
 
 last_regrowth = lapply(lapply(regrowth_instances, unlist), max) # select for only the most recent observed regrowth
 last_regrowth_df = as.data.frame(unlist(last_regrowth))
+last_regrowth_df = as.data.frame(lapply(last_regrowth_df,as.numeric))
+last_regrowth_df = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],last_regrowth_df)
 
-# start AMAZON dataframe with forest age as first column
-amazon = as.data.frame(2019-as.integer(last_regrowth_df[,1])) # since AGB data is from 2019
-names(amazon) <- c('forest_age')
-amazon = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],amazon)
+suppression_instances = lapply(lapply(suppression_instances, unlist), max) # select for only the most recent observed regrowth
+suppression_instances_df = as.data.frame(unlist(suppression_instances))
+suppression_instances_df[is.na(suppression_instances_df)] = 0
+suppression_instances_df = as.data.frame(lapply(suppression_instances_df,as.numeric))
 
-lapply(regrowth, 1, function(x)(c(x+NA)-c(x-NA) == 2) )
+amazon = subset(last_regrowth_df, last_regrowth_df[,4]-suppression_instances_df > 0)
+
+amazon = cbind(amazon[,1:3], 'forest_age' = 2019-amazon[,4]) # since AGB data is from 2019
+
+#############################
+
+regrowth2 = regrowth[rownames(regrowth) %in% rownames(amazon), ] 
+regrowth_instances = sapply(apply(regrowth[3:(ncol(regrowth)-4)], 1, function(x) which(600 > x & x >= 500)),names) # returns rowname/index as well as years flagged as regrowth events
+
+tst = lapply(regrowth2, 1, function(x)(c(x+NA)-c(x-NA) == 2) )
+
+
+
+
 
 ranges = list()
 for (i in 1:length(last_regrowth)){
@@ -366,45 +378,17 @@ amazon$xy = paste0(amazon$zone, amazon$x, amazon$y)
 biomass$xy = paste0(biomass$zone, biomass$x, biomass$y)
 regrowth$xy = paste0(regrowth$zone, regrowth$x, regrowth$y)
 
-amazon = cbind(amazon, biomass[match(amazon$xy,biomass$xy),c("agbd")])
+
+
+amazon = cbind(amazon, agbd = biomass[match(amazon$xy,biomass$xy),c("agbd")])
 agb_amazon = amazon[complete.cases(amazon[, ncol(amazon)]), ]
-plot(tst$forest_age, tst$agbd)
-tst = subset(agb_amazon, forest_age > 4)
-tst = subset(amazon, forest_age == 10)
-tst = subset(tst, agbd == 0)
 
-# 227374309602700
-# 227374609601620
-
-subset(regrowth, xy == 227374609601620)
-
-
-tst = subset(amazon, forest_age == 31)
-tst = subset(tst, agbd == 0)
-# 22 774690 9623820
-tst1 = subset(amazon, agbd > 2000)
-tst1 = subset(tst1, forest_age < 2)
-# 23 233190 9622260
-
-tst_1 = subset(biomass, xy == "227746909623820") # matches with four similar coordinates
-tst_2 = subset(biomass, xy == "232331909622260") # -3.414444 -47.40138 at biomass
-
-tst_3 = subset(regrowth, xy == "227746909623820") # -48.52776 -3.400078 at regrowth
-# this converts back to pasture right away..... that explains a lot.
-tst_4 = subset(regrowth, xy == "232331909622260") # -47.40127 -3.414362 at regrowth
-# young forest - how is agb so high?
-tst_biomass = subset(biomass, -3.4 > lat_lowestmode & lat_lowestmode > -3.5 & -48 < lon_lowestmode & lon_lowestmode < 47)
-
-tst = cbind(amazon, tst_biomass[match(amazon$xy,tst_biomass$xy),c("agbd")])
-agb_amazon = tst[complete.cases(tst[, ncol(tst)]), ]
 plot(agb_amazon$forest_age, agb_amazon$agbd)
 
-
-complete = agb_amazon[complete.cases(agb_amazon[, ]), ]
-
+# repression without flagging is still an issue. fix it with jacqueline's code
 
 
-# completely unrelated. but WHY? Should the fit improve with proper environmental variables?
+
 
 ################# passing into the model ##################
 
