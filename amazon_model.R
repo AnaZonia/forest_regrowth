@@ -26,7 +26,6 @@ xmax = -46.41909
 ymin = -3.837333
 ymax = -2.41036
 
-
 ####################################################################
 ########## FUNCTIONS ##########
 ####################################################################
@@ -296,27 +295,15 @@ tavg = tavg[,-c(1:2)]
 # 500 regrowth
 # 600 secondary suppression
 
-regrowth2 = regrowth[rownames(regrowth) %in% rownames(amazon), ] 
-regrowth2[regrowth2 < 400 & regrowth2 >= 300] = 1 #secondary
-regrowth2[100 < regrowth2 & regrowth2 < 200] = 0 #anthropic
-
-
-tmp = cbind(regrowth2[,3:(ncol(regrowth)-3)],NA)
-tmp2 = cbind(NA, regrowth2[,3:(ncol(regrowth)-3)])
-res = apply(tmp-tmp2, 1, function(x) {any(x == -1)})
-res[is.na(res)] = FALSE
-
-tst = regrowth2[res,]
-
-
+# 600 > x & x >= 500
 # within these, find 2019-year of last pixel flagged as "regrowth" -> this will give forest age.
-regrowth_instances = sapply(apply(tst[3:(ncol(tst)-4)], 1, function(x) which(600 > x & x >= 500)),names) # returns rowname/index as well as years flagged as regrowth events
+regrowth_instances = sapply(apply(regrowth[3:(ncol(regrowth)-4)], 1, function(x) which(x == 503)),names) # returns rowname/index as well as years flagged as regrowth events
 suppression_instances = sapply(apply(regrowth[3:(ncol(regrowth)-4)], 1, function(x) which(600 <= x & x < 700)),names) # returns rowname/index as well as years flagged as regrowth events
 
 last_regrowth = lapply(lapply(regrowth_instances, unlist), max) # select for only the most recent observed regrowth
 last_regrowth_df = as.data.frame(unlist(last_regrowth))
 last_regrowth_df = as.data.frame(lapply(last_regrowth_df,as.numeric))
-last_regrowth_df = cbind(regrowth[(ncol(tst)-2):ncol(tst)],last_regrowth_df)
+last_regrowth_df = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],last_regrowth_df)
 
 suppression_instances = lapply(lapply(suppression_instances, unlist), max) # select for only the most recent observed regrowth
 suppression_instances_df = as.data.frame(unlist(suppression_instances))
@@ -327,14 +314,56 @@ amazon = subset(last_regrowth_df, last_regrowth_df[,4]-suppression_instances_df 
 
 amazon = cbind(amazon[,1:3], 'forest_age' = 2019-amazon[,4]) # since AGB data is from 2019
 
+# 
+
+
 #############################
 
+# if ambiguous, select to only clear obvious cases of regrowth.
+
+# this removes any instance of -600 coming after -500
+regrowth2 = regrowth[rownames(regrowth) %in% rownames(amazon), ] 
+regrowth2[regrowth2 < 400 & regrowth2 >= 300] = 0 #secondary
+regrowth2[100 <= regrowth2 & regrowth2 < 200] = 1 #anthropic
+regrowth2[regrowth2 == 515] = 1 #anthropic
+
+
+unique(tst[,30])
+
+regrowth2[1:20,]
+
+regrowth2[regrowth2 > 700 & regrowth2 < 800] <- NA
+regrowth2[regrowth2 > 400 & regrowth2 < 500] <- NA
+
+regrowth2 = regrowth2[complete.cases(regrowth2),]
+
+# remove dubious information
+
+# (ncol(regrowth2)-3)
+
+
+tmp = cbind(regrowth2[,3:(ncol(regrowth)-3)],NA)
+tmp2 = cbind(NA, regrowth2[,3:(ncol(regrowth)-3)])
+res = apply(tmp-tmp2, 1, function(x) {any(x == -1)})
+res[is.na(res)] = FALSE
+
+tst = regrowth2[res,]
+
+regrowth2[1:30,]
+
+regrowth_instances = sapply(apply(regrowth2[3:(ncol(regrowth2)-3)], 1, function(x) which(x == 503)),names) # returns rowname/index as well as years flagged as regrowth events
+last_regrowth = lapply(lapply(regrowth_instances, unlist), max) # select for only the most recent observed regrowth
+last_regrowth_df = as.data.frame(unlist(last_regrowth))
+last_regrowth_df = as.data.frame(lapply(last_regrowth_df,as.numeric))
+
+last_regrowth_df = cbind(regrowth2[(ncol(regrowth2)-2):ncol(regrowth2)],last_regrowth_df)
+amazon = cbind(last_regrowth_df[,1:3], 'forest_age' = 2019-last_regrowth_df[,4]) # since AGB data is from 2019
 
 
 
 ########## LAND USE ##########
 # VARIABLES OBTAINED
-# number of years under each land use type
+# number of years under each land use tnrype
 # time since last observation of each land use type
 
 # INDEX ## 3 = forest
@@ -376,10 +405,11 @@ regrowth$xy = paste0(regrowth$zone, regrowth$x, regrowth$y)
 amazon = cbind(amazon, agbd = biomass[match(amazon$xy,biomass$xy),c("agbd")])
 agb_amazon = amazon[complete.cases(amazon[, ncol(amazon)]), ]
 
+agb_amazon[1:30,]
+
 plot(agb_amazon$forest_age, agb_amazon$agbd)
 
 # repression without flagging is still an issue. fix it with jacqueline's code
-
 
 
 
