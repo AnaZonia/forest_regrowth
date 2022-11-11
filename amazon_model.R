@@ -124,6 +124,7 @@ extract_year = function(df, in_format, out_format){
 }
 
 
+
 ####################################################################
 ########## SWITCHES ##########
 ####################################################################
@@ -155,9 +156,9 @@ if (import_mapbiomas == T){
   saveRDS(lulc, "lulc.rds")
 }
 
-# biomass data
+# GEDI data
 if (import_GEDI == T){
-  biomass = readRDS("./biomass.rds")
+  biomass = readRDS("./biomass_GEDI.rds")
 }else{
   
   lat_lon_oi = c(ymax, ymin, xmin, xmax)  #lat and lon of interest
@@ -190,12 +191,264 @@ if (import_GEDI == T){
 
   biomass = cbind(biomass, LongLatToUTM(biomass$lon_lowestmode, biomass$lat_lowestmode))
 
-  saveRDS(biomass, "biomass.rds")
+  saveRDS(biomass, "biomass_GEDI.rds")
 }
 
+# Santoro et al 2018 data -> GlobBiomass
+biomass = raster("N00W060_agb.tif")
+biomass = as.data.frame(biomass, xy = TRUE)
+
+biomass = biomass[ymin < biomass$y & biomass$y < ymax & xmin < biomass$x & biomass$x < xmax,]
+
+biomass = cbind(biomass, LongLatToUTM(biomass$x, biomass$y))
+
+colnames(biomass) = c('lon', 'lat', 'agbd', 'zone', 'x', 'y')
+#biomass = biomass[,3:ncol(biomass)]
 
 
-# TEMPERATURE AND RAINFALL
+# how to add distance to nearest mature forest?
+
+sds = aggregate(agbd ~ forest_age, agb_amazon, sd)
+means = aggregate(agbd ~ forest_age, agb_amazon, mean)
+sum_stats = cbind(means, sds[,2])
+colnames(sum_stats) = c('age', 'mean', 'sd')
+
+ggplot(sum_stats,                               # ggplot2 plot with means & standard deviation
+       aes(x = age,
+           y = mean)) + 
+  geom_errorbar(aes(ymin = mean - sd,
+                    ymax = mean + sd)) +
+  geom_point()
+
+####################################################################
+########## ASSEMBLING THE DATASET ##########
+####################################################################
+
+########## REGROWTH ##########
+# VARIABLES OBTAINED
+# forest_age (time of last observed regrowth)
+
+# INDEX #
+# 100 anthropic
+# 200 mature
+# 300 secondary
+# 400 deforestation
+# 500 regrowth
+# 600 secondary suppression
+
+regrowth = cbind(regrowth[,1:25], regrowth[,(ncol(regrowth)-2):ncol(regrowth)])
+
+
+# select only years that have regrowth that hasn't been suppressed.
+
+regrowth_instances = sapply(apply(regrowth[3:(ncol(regrowth)-3)], 1, function(x) which(x == 503)),names) # returns rowname/index as well as years flagged as regrowth events
+suppression_instances = sapply(apply(regrowth[3:(ncol(regrowth)-3)], 1, function(x) which(600 <= x & x < 700)),names) # returns rowname/index as well as years flagged as repression events
+
+last_regrowth = lapply(lapply(regrowth_instances, unlist), max) # select for only the most recent observed regrowth
+last_regrowth_df = as.data.frame(unlist(last_regrowth))
+last_regrowth_df = as.data.frame(lapply(last_regrowth_df,as.numeric))
+last_regrowth_df = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],last_regrowth_df)
+
+suppression_instances = lapply(lapply(suppression_instances, unlist), max) # select for only the most recent observed repression
+suppression_instances_df = as.data.frame(unlist(suppression_instances))
+suppression_instances_df[is.na(suppression_instances_df)] = 0
+suppression_instances_df = as.data.frame(lapply(suppression_instances_df,as.numeric))
+
+amazon = subset(last_regrowth_df, last_regrowth_df[,4]-suppression_instances_df > 0)
+
+amazon = cbind(amazon[,1:3], 'forest_age' = 2010-amazon[,4]) # since AGB data is from 2019
+
+
+
+#############################
+
+# if ambiguous, select to only clear obvious cases of regrowth.
+
+unique(regrowth2[,25])
+
+# this removes any instance of -600 coming after -500
+regrowth2 = regrowth[rownames(regrowth) %in% rownames(amazon), ] 
+regrowth2[regrowth2 < 400 & regrowth2 >= 300] = 0 #secondary
+regrowth2[100 <= regrowth2 & regrowth2 < 200] = 1 #anthropic
+regrowth2[regrowth2 == 515] = 1 #anthropic
+regrowth2[regrowth2 == 215] = 1 #anthropic
+
+
+regrowth2[regrowth2 > 700 & regrowth2 < 800] <- NA
+regrowth2[regrowth2 > 400 & regrowth2 < 500] <- NA
+
+regrowth2 = regrowth2[complete.cases(regrowth2),]
+
+# remove dubious information
+
+tmp = cbind(NA, regrowth2[,3:(ncol(regrowth)-3)])
+tmp2 = cbind(regrowth2[,3:(ncol(regrowth)-3)],NA)
+tmp3 = tmp-tmp2
+
+# -1 is evidence of unflagged repression
+# 1 is unflagged regrowth
+tmp3[tmp3 == 1] <- NA
+tmp3[tmp3 == -1] <- NA
+tmp3 = tmp3[,2:(ncol(tmp)-1)]
+tmp3 = tmp3[complete.cases(tmp3),]
+
+
+regrowth = regrowth[rownames(regrowth) %in% rownames(tmp3), ] 
+
+regrowth_instances = sapply(apply(regrowth[3:(ncol(regrowth)-3)], 1, function(x) which(x == 503)),names) # returns rowname/index as well as years flagged as regrowth events
+last_regrowth = lapply(lapply(regrowth_instances, unlist), max) # select for only the most recent observed regrowth
+last_regrowth_df = as.data.frame(unlist(last_regrowth))
+last_regrowth_df = as.data.frame(lapply(last_regrowth_df,as.numeric))
+
+last_regrowth_df = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],last_regrowth_df)
+amazon = cbind(last_regrowth_df[,1:3], 'forest_age' = 2010-last_regrowth_df[,4]) # since AGB data is from 2019
+
+
+
+########## LAND USE ##########
+# VARIABLES OBTAINED
+# number of years under each land use tnrype
+# time since last observation of each land use type
+
+# INDEX ## 3 = forest
+# 15 = pasture
+# 39 = soy
+# 46 = coffee
+# 20 = sugar cane
+# 41 = other annual crop
+# 48 = other perennial crop
+
+amazon$pasture = rowSums(lulc == 15)
+amazon$soy = rowSums(lulc == 39)
+amazon$coffee = rowSums(lulc == 46)
+amazon$sugar = rowSums(lulc == 20)
+amazon$other_perennial = rowSums(lulc == 48)
+amazon$other_annual = rowSums(lulc == 41)
+
+########## FIRE ##########
+
+#count number of total fires
+fire$num_fires = rowSums(fire[3:(ncol(fire)-3)])
+
+
+########## ENVIRONMENTAL VARIABLES ##########
+
+amazon$tavg = mean(tavg$mean) #******* all the same since we're looking at only a city for now, to simplify
+amazon$prec = mean(prec$mean) #******* find temp and prec data for Brazil with time resolution
+
+amazon = amazon[,3:ncol(amazon)]
+amazon = amazon[,-c(1:2)]
+prec = prec[,-c(ncol(prec))]
+
+amazon$xy = paste0(amazon$zone, amazon$x, amazon$y)
+biomass$xy = paste0(biomass$zone, biomass$x, biomass$y)
+
+amazon = cbind(amazon, agbd = biomass[match(amazon$xy,biomass$xy),c("agbd")])
+agb_amazon = amazon[complete.cases(amazon[, ncol(amazon)]), ]
+
+plot(agb_amazon$forest_age, agb_amazon$agbd)
+
+# repression without flagging is still an issue. fix it with jacqueline's code
+
+######################### WHAT'S WRONG
+# 34182406   23 233190 9622260          1 232331909622260 2205.453
+# 15229309   23 306570 9684000         30 233065709684000 0.0192384105
+regrowth[rownames(regrowth) == 40507664, ] 
+# -48.85896 -3.60705
+# 449.0891 @ 3 yrs old
+# -3.607193 -48.85909
+
+tst = subset(amazon, agbd > 350)
+# 18412814   23 300000 9673650          2  233e+059673650  435.5806 435.5805969
+tst = subset(tst, forest_age == 1)
+
+# 30554059   22 773460 9634020         22 227734609634020    0
+
+biomass |>
+  subset(abs(N00W060_agb - 67) < 1e-3)
+
+
+biomass |>
+  subset(abs(Lon - -100.7) < 1e-5 & abs(Lat - 59.6) < 1e-5)
+
+
+
+
+
+
+savetmp = biomass
+
+head(biomass)
+hist(biomass$agbd)
+
+Q <- quantile(biomass$agbd, probs=c(.1, .9), na.rm = FALSE)
+iqr <- IQR(biomass$agbd)
+up <-  Q[2]+1.5*iqr # Upper Range  
+eliminated<- subset(biomass, biomass$agbd < (Q[2]+1.5*iqr))
+
+
+
+
+
+
+
+
+
+
+
+################# passing into the model ##################
+
+
+G = function(pars, tavg, rain, other_perennial, other_annual, pasture,soy, forest_age) {
+  # Extract parameters of the model
+  Gmax = pars[1] #asymptote
+  k = pars[2]*tavg+pars[3]*rain+pars[4]*other_perennial+pars[5]*pasture+pars[6]*soy+pars[7]*other_annual
+  # Prediction of the model
+  Gmax * (1 - exp(-k*(forest_age)))
+}
+
+####################
+#finding the right parameters
+par0 = c(50, 0.001, 0.0001,  0.0001,  0.0001,  0.0001, 0.0001, 0.1, 0.1)
+val = G(par0, mean(complete$tavg), mean(complete$prec), mean(complete$other_perennial), mean(complete$other_annual), mean(complete$pasture), mean(complete$soy), mean(complete$forest_age))
+
+NLL = function(pars, dat) {
+  # Values prediced by the model
+  if(pars[9] < 0){ #avoiding NAs by keeping the st dev positive
+    return(-Inf)
+  }
+  Gpred = G(pars, dat$tavg, dat$prec, dat$other_perennial, dat$other_annual, dat$pasture, dat$soy, dat$forest_age)
+  #print(Gpred)
+  # Negative log-likelihood 
+  fun = -sum(dnorm(x = dat$agbd, mean = Gpred, sd = pars[9], log = TRUE))
+  #print(pars)
+  return(fun)
+}
+
+par0 = c(50, 0.001, 0.0001,  0.0001,  0.0001,  0.0001,  0.0001, 0.1, 0.1)
+NLL(par0, dat=complete)
+
+o = optim(par = par0, fn = NLL, dat = complete, control = list(parscale = abs(par0)), 
+           hessian = FALSE, method = "SANN")
+print(o)
+
+meth0 = c("Nelder-Mead", "BFGS", "CG", "SANN")
+for (i in meth0){
+  o = optim(par = par0, fn = NLL, dat = complete, control = list(parscale = abs(par0)), 
+             hessian = FALSE, method = i)
+  print(i)
+  print(o)
+}
+
+pred = G(o$par[1:9], complete$tavg, complete$prec, complete$other_perennial, complete$other_annual, complete$pasture, complete$soy, complete$forest_age)
+
+plot(complete$agbd, pred, abline(0,1))
+
+
+#######################################
+
+
+# TEMPERATURE AND RAINFALL AND SOIL TYPE
 
 # Downloading and unzipping
 
@@ -257,14 +510,11 @@ if (import_GEDI == T){
 #}
 
 
-
-
 #tst = as.POSIXct(colnames(, format = "%Y.%m")
 
 #as.Date(paste(prec[3:ncol(prec)]),1,sep="."),"%Y.%m.%d")
 
 #class(colnames(prec[3:ncol(prec)]))
-
 
 
 tavg = readRDS("./mapbiomas/tavg")
@@ -276,187 +526,16 @@ tavg = cbind(tavg, LongLatToUTM(tavg$x, tavg$y))
 prec = prec[,-c(1:2)]
 tavg = tavg[,-c(1:2)]
 
-# SOIL TYPE
+######################
 
+biomass[biomass$agbd == 49 & biomass$x == 213210 & biomass$y == 9663510,]
 
-####################################################################
-########## ASSEMBLING THE DATASET ##########
-####################################################################
+regrowth[rownames(regrowth) == 11768979, ] 
 
-########## REGROWTH ##########
-# VARIABLES OBTAINED
-# forest_age (time of last observed regrowth)
+# -2.962419, -47.57374 # fragment of forest - old, low biomass
+# -3.027906, -47.57913 # old, low biomass - shows to be next to mature forest
+# -3.332974, -47.58803 # old, low biomass - also boundary.
 
-# INDEX #
-# 100 anthropic
-# 200 mature
-# 300 secondary
-# 400 deforestation
-# 500 regrowth
-# 600 secondary suppression
-
-# 600 > x & x >= 500
-# within these, find 2019-year of last pixel flagged as "regrowth" -> this will give forest age.
-regrowth_instances = sapply(apply(regrowth[3:(ncol(regrowth)-4)], 1, function(x) which(x == 503)),names) # returns rowname/index as well as years flagged as regrowth events
-suppression_instances = sapply(apply(regrowth[3:(ncol(regrowth)-4)], 1, function(x) which(600 <= x & x < 700)),names) # returns rowname/index as well as years flagged as regrowth events
-
-last_regrowth = lapply(lapply(regrowth_instances, unlist), max) # select for only the most recent observed regrowth
-last_regrowth_df = as.data.frame(unlist(last_regrowth))
-last_regrowth_df = as.data.frame(lapply(last_regrowth_df,as.numeric))
-last_regrowth_df = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],last_regrowth_df)
-
-suppression_instances = lapply(lapply(suppression_instances, unlist), max) # select for only the most recent observed regrowth
-suppression_instances_df = as.data.frame(unlist(suppression_instances))
-suppression_instances_df[is.na(suppression_instances_df)] = 0
-suppression_instances_df = as.data.frame(lapply(suppression_instances_df,as.numeric))
-
-amazon = subset(last_regrowth_df, last_regrowth_df[,4]-suppression_instances_df > 0)
-
-amazon = cbind(amazon[,1:3], 'forest_age' = 2019-amazon[,4]) # since AGB data is from 2019
-
-# 
-
-
-#############################
-
-# if ambiguous, select to only clear obvious cases of regrowth.
-
-# this removes any instance of -600 coming after -500
-regrowth2 = regrowth[rownames(regrowth) %in% rownames(amazon), ] 
-regrowth2[regrowth2 < 400 & regrowth2 >= 300] = 0 #secondary
-regrowth2[100 <= regrowth2 & regrowth2 < 200] = 1 #anthropic
-regrowth2[regrowth2 == 515] = 1 #anthropic
-
-
-unique(tst[,30])
-
-regrowth2[1:20,]
-
-regrowth2[regrowth2 > 700 & regrowth2 < 800] <- NA
-regrowth2[regrowth2 > 400 & regrowth2 < 500] <- NA
-
-regrowth2 = regrowth2[complete.cases(regrowth2),]
-
-# remove dubious information
-
-# (ncol(regrowth2)-3)
-
-
-tmp = cbind(regrowth2[,3:(ncol(regrowth)-3)],NA)
-tmp2 = cbind(NA, regrowth2[,3:(ncol(regrowth)-3)])
-res = apply(tmp-tmp2, 1, function(x) {any(x == -1)})
-res[is.na(res)] = FALSE
-
-tst = regrowth2[res,]
-
-regrowth2[1:30,]
-
-regrowth_instances = sapply(apply(regrowth2[3:(ncol(regrowth2)-3)], 1, function(x) which(x == 503)),names) # returns rowname/index as well as years flagged as regrowth events
-last_regrowth = lapply(lapply(regrowth_instances, unlist), max) # select for only the most recent observed regrowth
-last_regrowth_df = as.data.frame(unlist(last_regrowth))
-last_regrowth_df = as.data.frame(lapply(last_regrowth_df,as.numeric))
-
-last_regrowth_df = cbind(regrowth2[(ncol(regrowth2)-2):ncol(regrowth2)],last_regrowth_df)
-amazon = cbind(last_regrowth_df[,1:3], 'forest_age' = 2019-last_regrowth_df[,4]) # since AGB data is from 2019
-
-
-
-########## LAND USE ##########
-# VARIABLES OBTAINED
-# number of years under each land use tnrype
-# time since last observation of each land use type
-
-# INDEX ## 3 = forest
-# 15 = pasture
-# 39 = soy
-# 46 = coffee
-# 20 = sugar cane
-# 41 = other annual crop
-# 48 = other perennial crop
-
-amazon$pasture = rowSums(lulc == 15)
-amazon$soy = rowSums(lulc == 39)
-amazon$coffee = rowSums(lulc == 46)
-amazon$sugar = rowSums(lulc == 20)
-amazon$other_perennial = rowSums(lulc == 48)
-amazon$other_annual = rowSums(lulc == 41)
-
-########## FIRE ##########
-
-#count number of total fires
-fire$num_fires = rowSums(fire[3:(ncol(fire)-3)])
-
-
-########## ENVIRONMENTAL VARIABLES ##########
-
-amazon$tavg = mean(tavg$mean) #******* all the same since we're looking at only a city for now, to simplify
-amazon$prec = mean(prec$mean) #******* find temp and prec data for Brazil with time resolution
-
-amazon = amazon[,3:ncol(amazon)]
-amazon = amazon[,-c(1:2)]
-prec = prec[,-c(ncol(prec))]
-
-amazon$xy = paste0(amazon$zone, amazon$x, amazon$y)
-biomass$xy = paste0(biomass$zone, biomass$x, biomass$y)
-regrowth$xy = paste0(regrowth$zone, regrowth$x, regrowth$y)
-
-
-
-amazon = cbind(amazon, agbd = biomass[match(amazon$xy,biomass$xy),c("agbd")])
-agb_amazon = amazon[complete.cases(amazon[, ncol(amazon)]), ]
-
-agb_amazon[1:30,]
-
-plot(agb_amazon$forest_age, agb_amazon$agbd)
-
-# repression without flagging is still an issue. fix it with jacqueline's code
-
-
-
-################# passing into the model ##################
-
-
-G = function(pars, tavg, rain, other_perennial, other_annual, pasture,soy, forest_age) {
-  # Extract parameters of the model
-  Gmax = pars[1] #asymptote
-  k = pars[2]*tavg+pars[3]*rain+pars[4]*other_perennial+pars[5]*pasture+pars[6]*soy+pars[7]*other_annual
-  # Prediction of the model
-  Gmax * (1 - exp(-k*(forest_age)))
-}
-
-####################
-#finding the right parameters
-par0 = c(50, 0.001, 0.0001,  0.0001,  0.0001,  0.0001, 0.0001, 0.1, 0.1)
-val = G(par0, mean(complete$tavg), mean(complete$prec), mean(complete$other_perennial), mean(complete$other_annual), mean(complete$pasture), mean(complete$soy), mean(complete$forest_age))
-
-NLL = function(pars, dat) {
-  # Values prediced by the model
-  if(pars[9] < 0){ #avoiding NAs by keeping the st dev positive
-    return(-Inf)
-  }
-  Gpred = G(pars, dat$tavg, dat$prec, dat$other_perennial, dat$other_annual, dat$pasture, dat$soy, dat$forest_age)
-  #print(Gpred)
-  # Negative log-likelihood 
-  fun = -sum(dnorm(x = dat$agbd, mean = Gpred, sd = pars[9], log = TRUE))
-  #print(pars)
-  return(fun)
-}
-
-par0 = c(50, 0.001, 0.0001,  0.0001,  0.0001,  0.0001,  0.0001, 0.1, 0.1)
-NLL(par0, dat=complete)
-
-o = optim(par = par0, fn = NLL, dat = complete, control = list(parscale = abs(par0)), 
-           hessian = FALSE, method = "SANN")
-print(o)
-
-meth0 = c("Nelder-Mead", "BFGS", "CG", "SANN")
-for (i in meth0){
-  o = optim(par = par0, fn = NLL, dat = complete, control = list(parscale = abs(par0)), 
-             hessian = FALSE, method = i)
-  print(i)
-  print(o)
-}
-
-pred = G(o$par[1:9], complete$tavg, complete$prec, complete$other_perennial, complete$other_annual, complete$pasture, complete$soy, complete$forest_age)
-
-plot(complete$agbd, pred, abline(0,1))
+# -2.755986, -47.10536 #looks to be older forest in 2018.
+# -3.537521, -48.85735, young, high biomass
+# -3.141633, -47.73652 
