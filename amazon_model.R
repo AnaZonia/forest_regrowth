@@ -123,6 +123,15 @@ extract_year = function(df, in_format, out_format){
   return(df)
 }
 
+# find last instance of a value in a dataframe, and returns the year (column name) of that occurrence
+find_last_instance = function(df, fun){
+  instances = sapply(apply(df[3:(ncol(df)-3)], 1, fun),names) # returns rowname/index as well as years flagged as FIRE events
+  last = lapply(lapply(instances, unlist), max) # select for only the most recent observed regrowth
+  last_df = as.data.frame(unlist(last))
+  last_df = as.data.frame(lapply(last_df,as.numeric))
+  last_df[is.na(last_df)] = 0
+  return(last_df)
+}
 
 ####################################################################
 ########## SWITCHES ##########
@@ -309,48 +318,38 @@ if (import_potapov == T){
 
 if (import_santoro == T){
   regrowth = cbind(regrowth[,1:25], regrowth[,(ncol(regrowth)-2):ncol(regrowth)])
+  fire = cbind(fire[,1:28], fire[,(ncol(fire)-2):ncol(fire)])
+  lulc = cbind(lulc[,1:28], lulc[,(ncol(lulc)-2):ncol(lulc)])
 }
-
 
 # select only years that have regrowth that hasn't been suppressed.
 
-regrowth_instances = sapply(apply(regrowth[3:(ncol(regrowth)-3)], 1, function(x) which(x == 503)),names) # returns rowname/index as well as years flagged as regrowth events
-suppression_instances = sapply(apply(regrowth[3:(ncol(regrowth)-3)], 1, function(x) which(600 <= x & x < 700)),names) # returns rowname/index as well as years flagged as repression events
+regrowth_last_instance = find_last_instance(regrowth, function(x) which(x == 503))
+colnames(regrowth_last_instance) = "last_regrowth"
 
-last_regrowth = lapply(lapply(regrowth_instances, unlist), max) # select for only the most recent observed regrowth
-last_regrowth_df = as.data.frame(unlist(last_regrowth))
-last_regrowth_df = as.data.frame(lapply(last_regrowth_df,as.numeric))
-last_regrowth_df = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],last_regrowth_df)
-
-suppression_instances = lapply(lapply(suppression_instances, unlist), max) # select for only the most recent observed repression
-suppression_instances_df = as.data.frame(unlist(suppression_instances))
-suppression_instances_df[is.na(suppression_instances_df)] = 0
-suppression_instances_df = as.data.frame(lapply(suppression_instances_df,as.numeric))
-
-amazon = subset(last_regrowth_df, last_regrowth_df[,4]-suppression_instances_df > 0)
-
-amazon = cbind(amazon[,1:3], 'forest_age' = 2010-amazon[,4]) # since AGB data is from 2019
+suppression_last_instance = find_last_instance(regrowth, function(x) which(600 <= x & x < 700))
+colnames(suppression_last_instance) = "last_suppression"
 
 
+regrowth_unsuppressed = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],regrowth_last_instance)
+regrowth_unsuppressed = subset(regrowth_unsuppressed, regrowth_unsuppressed$last_regrowth-suppression_last_instance > 0)
+regrowth_unsuppressed = cbind(regrowth_unsuppressed[,(ncol(regrowth_unsuppressed)-2):ncol(regrowth_unsuppressed)], 'forest_age' = max(regrowth_unsuppressed$last_regrowth)-regrowth_unsuppressed$last_regrowth)
 
 #############################
 
 
 # this removes any instance of -600 coming after -500
-regrowth2 = regrowth[rownames(regrowth) %in% rownames(amazon), ] 
+regrowth2 = regrowth[rownames(regrowth) %in% rownames(regrowth_unsuppressed), ] 
 regrowth2[regrowth2 < 400 & regrowth2 >= 300] = 0 #secondary
 regrowth2[100 <= regrowth2 & regrowth2 < 200] = 1 #anthropic
-regrowth2[regrowth2 == 515] = 1 #anthropic
-regrowth2[regrowth2 == 215] = 1 #anthropic
+regrowth2[regrowth2 == 515] = 1 #anthropic - fixing typos
+regrowth2[regrowth2 == 215] = 1 #anthropic - fixing typos
 
-
-regrowth2[regrowth2 > 700 & regrowth2 < 800] <- NA
-regrowth2[regrowth2 > 400 & regrowth2 < 500] <- NA
-
+regrowth2[regrowth2 > 700 & regrowth2 < 800] <- NA # remove values that account for misclassification
+regrowth2[regrowth2 > 400 & regrowth2 < 500] <- NA # remove values that account for urban areas/misclassification
 regrowth2 = regrowth2[complete.cases(regrowth2),]
 
-# remove dubious information
-
+# now, we remove pixels that show unflagged moments of regrowth or repression.
 tmp = cbind(NA, regrowth2[,3:(ncol(regrowth)-3)])
 tmp2 = cbind(regrowth2[,3:(ncol(regrowth)-3)],NA)
 tmp3 = tmp-tmp2
@@ -362,31 +361,27 @@ tmp3[tmp3 == -1] <- NA
 tmp3 = tmp3[,2:(ncol(tmp)-1)]
 tmp3 = tmp3[complete.cases(tmp3),]
 
-
+#selects for cleaned rows
 regrowth = regrowth[rownames(regrowth) %in% rownames(tmp3), ] 
 
-regrowth_instances = sapply(apply(regrowth[3:(ncol(regrowth)-3)], 1, function(x) which(x == 503)),names) # returns rowname/index as well as years flagged as regrowth events
-last_regrowth = lapply(lapply(regrowth_instances, unlist), max) # select for only the most recent observed regrowth
-last_regrowth_df = as.data.frame(unlist(last_regrowth))
-last_regrowth_df = as.data.frame(lapply(last_regrowth_df,as.numeric))
+regrowth_last_instance = find_last_instance(regrowth, function(x) which(x == 503))
+colnames(regrowth_last_instance) = "last_regrowth"
 
-last_regrowth_df = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],last_regrowth_df)
-amazon = cbind(last_regrowth_df[,1:3], 'forest_age' = 2010-last_regrowth_df[,4]) # since AGB data is from 2019
+regrowth_cleaned = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],regrowth_last_instance)
+regrowth_cleaned = cbind(regrowth_cleaned[,1:3], 'forest_age' = max(regrowth_cleaned$last_regrowth)-regrowth_cleaned$last_regrowth)
 
-
-amazon$xy = paste0(amazon$zone, amazon$x, amazon$y)
+regrowth_cleaned$xy = paste0(regrowth_cleaned$zone, regrowth_cleaned$x, regrowth_cleaned$y)
 biomass$xy = paste0(biomass$zone, biomass$x, biomass$y)
 
-amazon = cbind(amazon, agbd = biomass[match(amazon$xy,biomass$xy),c("agbd")])
-agb_amazon = amazon[complete.cases(amazon[, ncol(amazon)]), ]
+agb_forest_age = cbind(regrowth_cleaned, agbd = biomass[match(regrowth_cleaned$xy,biomass$xy),c("agbd")])
+agb_forest_age = agb_forest_age[complete.cases(agb_forest_age[, ncol(agb_forest_age)]), ]
 
-plot(agb_amazon$forest_age, agb_amazon$agbd)
-
+plot(agb_forest_age$forest_age, agb_forest_age$agbd)
 
 # how to add distance to nearest mature forest?
 
-sds = aggregate(agbd ~ forest_age, agb_amazon, sd)
-means = aggregate(agbd ~ forest_age, agb_amazon, mean)
+sds = aggregate(agbd ~ forest_age, agb_forest_age, sd)
+means = aggregate(agbd ~ forest_age, agb_forest_age, mean)
 sum_stats = cbind(means, sds[,2])
 colnames(sum_stats) = c('age', 'mean', 'sd')
 
@@ -413,20 +408,38 @@ ggplot(sum_stats,                               # ggplot2 plot with means & stan
 # 41 = other annual crop
 # 48 = other perennial crop
 
-amazon$pasture = rowSums(lulc == 15)
-amazon$soy = rowSums(lulc == 39)
-amazon$coffee = rowSums(lulc == 46)
-amazon$sugar = rowSums(lulc == 20)
-amazon$other_perennial = rowSums(lulc == 48)
-amazon$other_annual = rowSums(lulc == 41)
+# total years under each land use type
+lulc$pasture = rowSums(lulc == 15)
+lulc$soy = rowSums(lulc == 39)
+lulc$coffee = rowSums(lulc == 46)
+lulc$sugar = rowSums(lulc == 20)
+lulc$other_perennial = rowSums(lulc == 48)
+lulc$other_annual = rowSums(lulc == 41)
+
+# time since last observation of each land use type
+lulc$ts_pasture = find_last_instance(lulc, function(x) which(x == 15))
+lulc$ts_soy = find_last_instance(lulc, function(x) which(x == 39))
+lulc$ts_coffee = find_last_instance(lulc, function(x) which(x == 46))
+lulc$ts_sugar = find_last_instance(lulc, function(x) which(x == 20))
+lulc$ts_other_perennial = rowSums(lulc == 48)
+lulc$ts_other_annual = rowSums(lulc == 41)
+
+lulc$xy = paste0(lulc$zone, lulc$x, lulc$y)
 
 ########## FIRE ##########
 
 #count number of total fires
 fire$num_fires = rowSums(fire[3:(ncol(fire)-3)])
+fire_last_instance = find_last_instance(fire, function(x) which(x == 1))
+colnames(fire_last_instance) = "last_burn"
+fire = cbind(fire,fire_last_instance)
+fire$last_burn = max(fire$last_burn) - fire$last_burn
+fire$last_burn[fire$last_burn == max(fire$last_burn)] = NA
+fire$xy = paste0(fire$zone, fire$x, fire$y)
 
-fire_instances = sapply(apply(fire[3:(ncol(fire)-3)], 1, function(x) which(x == 1)),names) # returns rowname/index as well as years flagged as FIRE events
-
+central_df = cbind(agb_forest_age, last_burn = fire[match(agb_forest_age$xy,fire$xy),c("last_burn")])
+central_df = cbind(central_df, num_fires = fire[match(central_df$xy,fire$xy),c("num_fires")])
+central_df = cbind(central_df, pasture = lulc[match(central_df$xy,lulc$xy),c("pasture")])
 
 
 ################# passing into the model ##################
