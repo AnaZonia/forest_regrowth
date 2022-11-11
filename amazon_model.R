@@ -124,18 +124,22 @@ extract_year = function(df, in_format, out_format){
 }
 
 
-
 ####################################################################
 ########## SWITCHES ##########
 ####################################################################
 import_mapbiomas = T
-import_GEDI = T
+import_clim == T
+import_dubayah = F
+import_santoro = F
+import_potapov = F
+
 
 ####################################################################
 ########## EXTRACTING DATA ##########
 ####################################################################
 
-# REGROWTH/DEFORESTATION, FIRE AND LAND USE.
+##########  REGROWTH/DEFORESTATION, FIRE AND LAND USE ##########
+
 # Mapbiomas data was manually downloaded.
 if (import_mapbiomas == T){
   regrowth = readRDS("./scripts/regrowth.rds")
@@ -156,9 +160,78 @@ if (import_mapbiomas == T){
   saveRDS(lulc, "lulc.rds")
 }
 
-# GEDI data
-if (import_GEDI == T){
-  biomass = readRDS("./biomass_GEDI.rds")
+##########  TEMPERATURE AND RAINFALL ##########
+
+if (import_clim == T){
+
+  climate_data_import = function(df){
+    colnames(df) = str_sub(colnames(df), start= -7)   # makes column names only "yyyy.mm"
+    result = t(apply(df[3:ncol(df)], 1, tapply, gl(34, 12), mean))
+    colnames(result) = c(1985:2018)
+    return(as.data.frame(cbind(tmp[,1:2], result)))
+  }
+
+  df_prec = readRDS('df_prec.rds')
+  df_tmin = readRDS('df_tmin.rds')
+  df_tmax = readRDS('df_tmax.rds')
+
+  prec = climate_data_import(df_prec)
+  tmax = climate_data_import(df_tmax)
+  tmin = climate_data_import(df_tmin)
+  temp = (tmax + tmin) / 2
+
+}else{
+
+  outdir <- "./worldclim_brazil" # Specify your preferred working directory
+  vars = c("tmin_", "tmax_", "prec_")
+  ranges = c("1980-1989", "1990-1999", "2000-2009", "2010-2018")
+
+  url = paste0("http://biogeo.ucdavis.edu/data/worldclim/v2.1/hist/wc2.1_2.5m_", do.call(paste0, expand.grid(vars, ranges)), ".zip")
+  zip <- file.path(outdir, basename(url))
+
+  for (i in 1:length(url)){
+    download.file(url[i], zip[i])
+  }
+
+  # get all the zip files
+  zipF <- list.files(path = outdir, pattern = "*.zip", full.names = TRUE)
+  # unzip all your files
+  ldply(.data = zipF, .fun = unzip, exdir = outdir)
+  # get the csv files
+  #remove all datapoints before landsat (1985)
+  file.remove(list.files(path = outdir, pattern = "1980|1981|1982|1983|1984", full.names = TRUE))
+
+  clim_files <- as.list(list.files(path = outdir, pattern = "*.tif", full.names = TRUE))
+  # read the csv files
+  raster_clim <- lapply(clim_files, raster)
+  
+  # if we are subsetting the data into our region of interest
+  coord_oi = c(xmin, xmax, ymin, ymax) #this specifies the coordinates of Paragominas.
+  e = as(extent(coord_oi), 'SpatialPolygons')
+  crs(e) = "+proj=longlat +datum=WGS84 +no_defs"
+  df_clim = lapply(raster_clim, crop, e) # subsects all rasters to area of interest
+
+  df_clim = lapply(df_clim, as.data.frame, xy=T)
+
+  #we have 409 entries for prec, tmax and tmin.
+  df_prec = df_merge(df_clim[1:408])
+  df_tmax = df_merge(df_clim[410:817])
+  df_tmin = df_merge(df_clim[819:c(length(df_clim))])
+
+  saveRDS(df_prec, "df_prec.rds")
+  saveRDS(df_tmax, "df_tmax.rds")
+  saveRDS(df_tmin, "df_tmin.rds")
+}
+
+##########  SOIL TYPE ##########
+
+
+##########  BIOMASS ##########
+
+# Dubayah et al 2022 -> GEDI L4A Footprint Level Aboveground Biomass Density (Mg/ha)
+# 1km resolution, 2019-2021
+if (import_dubayah == T){
+  biomass = readRDS("./biomass_dubayah.rds")
 }else{
   
   lat_lon_oi = c(ymax, ymin, xmin, xmax)  #lat and lon of interest
@@ -191,34 +264,32 @@ if (import_GEDI == T){
 
   biomass = cbind(biomass, LongLatToUTM(biomass$lon_lowestmode, biomass$lat_lowestmode))
 
-  saveRDS(biomass, "biomass_GEDI.rds")
+  saveRDS(biomass, "biomass_dubayah.rds")
 }
 
-# Santoro et al 2018 data -> GlobBiomass
-biomass = raster("N00W060_agb.tif")
-biomass = as.data.frame(biomass, xy = TRUE)
+# Santoro et al 2018 data -> GlobBiomass ESA (Mg/ha)
+# 100m resolution, 2010
+if (import_santoro == T){
+  biomass = readRDS("biomass_santoro.rds")
+}else{
+  biomass = raster("N00W060_agb.tif")
 
-biomass = biomass[ymin < biomass$y & biomass$y < ymax & xmin < biomass$x & biomass$x < xmax,]
+  biomass = as.data.frame(biomass, xy = TRUE)
 
-biomass = cbind(biomass, LongLatToUTM(biomass$x, biomass$y))
+  biomass = biomass[ymin < biomass$y & biomass$y < ymax & xmin < biomass$x & biomass$x < xmax,]
 
-colnames(biomass) = c('lon', 'lat', 'agbd', 'zone', 'x', 'y')
-#biomass = biomass[,3:ncol(biomass)]
+  biomass = cbind(biomass, LongLatToUTM(biomass$x, biomass$y))
 
+  colnames(biomass) = c('lon', 'lat', 'agbd', 'zone', 'x', 'y')
+  saveRDS(biomass, "biomass_santoro.rds")
+}
 
-# how to add distance to nearest mature forest?
-
-sds = aggregate(agbd ~ forest_age, agb_amazon, sd)
-means = aggregate(agbd ~ forest_age, agb_amazon, mean)
-sum_stats = cbind(means, sds[,2])
-colnames(sum_stats) = c('age', 'mean', 'sd')
-
-ggplot(sum_stats,                               # ggplot2 plot with means & standard deviation
-       aes(x = age,
-           y = mean)) + 
-  geom_errorbar(aes(ymin = mean - sd,
-                    ymax = mean + sd)) +
-  geom_point()
+# Potapov et al 2020 -> GLAD Forest Canopy Height (m)
+# 30m resolution, 2019
+if (import_potapov == T){
+  biomass = readRDS("biomass_potapov.rds")
+}else{
+}
 
 ####################################################################
 ########## ASSEMBLING THE DATASET ##########
@@ -236,7 +307,9 @@ ggplot(sum_stats,                               # ggplot2 plot with means & stan
 # 500 regrowth
 # 600 secondary suppression
 
-regrowth = cbind(regrowth[,1:25], regrowth[,(ncol(regrowth)-2):ncol(regrowth)])
+if (import_santoro == T){
+  regrowth = cbind(regrowth[,1:25], regrowth[,(ncol(regrowth)-2):ncol(regrowth)])
+}
 
 
 # select only years that have regrowth that hasn't been suppressed.
@@ -262,9 +335,6 @@ amazon = cbind(amazon[,1:3], 'forest_age' = 2010-amazon[,4]) # since AGB data is
 
 #############################
 
-# if ambiguous, select to only clear obvious cases of regrowth.
-
-unique(regrowth2[,25])
 
 # this removes any instance of -600 coming after -500
 regrowth2 = regrowth[rownames(regrowth) %in% rownames(amazon), ] 
@@ -304,6 +374,31 @@ last_regrowth_df = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],last_regrow
 amazon = cbind(last_regrowth_df[,1:3], 'forest_age' = 2010-last_regrowth_df[,4]) # since AGB data is from 2019
 
 
+amazon$xy = paste0(amazon$zone, amazon$x, amazon$y)
+biomass$xy = paste0(biomass$zone, biomass$x, biomass$y)
+
+amazon = cbind(amazon, agbd = biomass[match(amazon$xy,biomass$xy),c("agbd")])
+agb_amazon = amazon[complete.cases(amazon[, ncol(amazon)]), ]
+
+plot(agb_amazon$forest_age, agb_amazon$agbd)
+
+
+# how to add distance to nearest mature forest?
+
+sds = aggregate(agbd ~ forest_age, agb_amazon, sd)
+means = aggregate(agbd ~ forest_age, agb_amazon, mean)
+sum_stats = cbind(means, sds[,2])
+colnames(sum_stats) = c('age', 'mean', 'sd')
+
+ggplot(sum_stats,                               # ggplot2 plot with means & standard deviation
+       aes(x = age,
+           y = mean)) + 
+  geom_errorbar(aes(ymin = mean - sd,
+                    ymax = mean + sd)) +
+  geom_point()
+
+
+
 
 ########## LAND USE ##########
 # VARIABLES OBTAINED
@@ -330,69 +425,7 @@ amazon$other_annual = rowSums(lulc == 41)
 #count number of total fires
 fire$num_fires = rowSums(fire[3:(ncol(fire)-3)])
 
-
-########## ENVIRONMENTAL VARIABLES ##########
-
-amazon$tavg = mean(tavg$mean) #******* all the same since we're looking at only a city for now, to simplify
-amazon$prec = mean(prec$mean) #******* find temp and prec data for Brazil with time resolution
-
-amazon = amazon[,3:ncol(amazon)]
-amazon = amazon[,-c(1:2)]
-prec = prec[,-c(ncol(prec))]
-
-amazon$xy = paste0(amazon$zone, amazon$x, amazon$y)
-biomass$xy = paste0(biomass$zone, biomass$x, biomass$y)
-
-amazon = cbind(amazon, agbd = biomass[match(amazon$xy,biomass$xy),c("agbd")])
-agb_amazon = amazon[complete.cases(amazon[, ncol(amazon)]), ]
-
-plot(agb_amazon$forest_age, agb_amazon$agbd)
-
-# repression without flagging is still an issue. fix it with jacqueline's code
-
-######################### WHAT'S WRONG
-# 34182406   23 233190 9622260          1 232331909622260 2205.453
-# 15229309   23 306570 9684000         30 233065709684000 0.0192384105
-regrowth[rownames(regrowth) == 40507664, ] 
-# -48.85896 -3.60705
-# 449.0891 @ 3 yrs old
-# -3.607193 -48.85909
-
-tst = subset(amazon, agbd > 350)
-# 18412814   23 300000 9673650          2  233e+059673650  435.5806 435.5805969
-tst = subset(tst, forest_age == 1)
-
-# 30554059   22 773460 9634020         22 227734609634020    0
-
-biomass |>
-  subset(abs(N00W060_agb - 67) < 1e-3)
-
-
-biomass |>
-  subset(abs(Lon - -100.7) < 1e-5 & abs(Lat - 59.6) < 1e-5)
-
-
-
-
-
-
-savetmp = biomass
-
-head(biomass)
-hist(biomass$agbd)
-
-Q <- quantile(biomass$agbd, probs=c(.1, .9), na.rm = FALSE)
-iqr <- IQR(biomass$agbd)
-up <-  Q[2]+1.5*iqr # Upper Range  
-eliminated<- subset(biomass, biomass$agbd < (Q[2]+1.5*iqr))
-
-
-
-
-
-
-
-
+fire_instances = sapply(apply(fire[3:(ncol(fire)-3)], 1, function(x) which(x == 1)),names) # returns rowname/index as well as years flagged as FIRE events
 
 
 
@@ -445,97 +478,42 @@ pred = G(o$par[1:9], complete$tavg, complete$prec, complete$other_perennial, com
 plot(complete$agbd, pred, abline(0,1))
 
 
-#######################################
 
 
-# TEMPERATURE AND RAINFALL AND SOIL TYPE
+########################################################################################
 
-# Downloading and unzipping
-
-#if (import_clim == T){
-#}else{
-  outdir <- "./worldclim_brazil" # Specify your preferred working directory
-  # vars = c("tmin_", "tmax_", "prec_")
-  # ranges = c("1980-1989", "1990-1999", "2000-2009", "2010-2018")
-
-  # url = paste0("http://biogeo.ucdavis.edu/data/worldclim/v2.1/hist/wc2.1_2.5m_", do.call(paste0, expand.grid(vars, ranges)), ".zip")
-  # zip <- file.path(outdir, basename(url))
-
-  # for (i in 1:length(url)){
-  #   download.file(url[i], zip[i])
-  # }
-
-  # get all the zip files
-  #zipF <- list.files(path = outdir, pattern = "*.zip", full.names = TRUE)
-  # unzip all your files
-  #ldply(.data = zipF, .fun = unzip, exdir = outdir)
-  # get the csv files
-
-  #remove all datapoints before landsat (1985)
-  file.remove(list.files(path = outdir, pattern = "1980|1981|1982|1983|1984", full.names = TRUE))
-
-  clim_files <- as.list(list.files(path = outdir, pattern = "*.tif", full.names = TRUE))
-  # read the csv files
-  raster_clim <- lapply(clim_files, raster)
-  
-  # if we are subsetting the data into our region of interest
-  coord_oi = c(xmin, xmax, ymin, ymax) #this specifies the coordinates of Paragominas.
-  e = as(extent(coord_oi), 'SpatialPolygons')
-  crs(e) = "+proj=longlat +datum=WGS84 +no_defs"
-  df_clim = lapply(raster_clim, crop, e) # subsects all rasters to area of interest
-
-  df_clim = lapply(df_clim, as.data.frame, xy=T)
-
-  #we have 409 entries for prec, tmax and tmin.
-  df_prec = df_clim[1:409]
-  df_tmax = df_clim[410:818]
-  df_tmin = df_clim[819:length(df_clim)]
-
-  prec = df_merge(df_prec)
-  tmax = df_merge(df_tmax)
-  tmin = df_merge(df_tmin)
-
-  colnames(prec) = str_sub(colnames(prec), start= -7)   # makes column names only "yyyy"
-  colnames(tmax) = str_sub(colnames(tmax), start= -7)   # makes column names only "yyyy"
-  colnames(tmin) = str_sub(colnames(tmin), start= -7)   # makes column names only "yyyy"
-
-  # reduce date from "%Y-%m-%d %H:%M:%S" format into just the year
-  extract_year = function(df, in_format, out_format){
-  colnames(prec[3:ncol(prec)]) = as.POSIXct(df$date, format = in_format)
-  df$date = format(df$date, format=out_format) 
-  return(df)
-
-
-
-#}
-
-
-#tst = as.POSIXct(colnames(, format = "%Y.%m")
-
-#as.Date(paste(prec[3:ncol(prec)]),1,sep="."),"%Y.%m.%d")
-
-#class(colnames(prec[3:ncol(prec)]))
-
-
-tavg = readRDS("./mapbiomas/tavg")
-prec = readRDS("./mapbiomas/prec")
-tavg$mean = rowMeans(tavg[,c(3:14)])
-prec$mean = rowMeans(prec[,c(3:14)])
-prec = cbind(prec, LongLatToUTM(prec$x, prec$y))
-tavg = cbind(tavg, LongLatToUTM(tavg$x, tavg$y))
-prec = prec[,-c(1:2)]
-tavg = tavg[,-c(1:2)]
-
-######################
 
 biomass[biomass$agbd == 49 & biomass$x == 213210 & biomass$y == 9663510,]
 
 regrowth[rownames(regrowth) == 11768979, ] 
 
-# -2.962419, -47.57374 # fragment of forest - old, low biomass
-# -3.027906, -47.57913 # old, low biomass - shows to be next to mature forest
-# -3.332974, -47.58803 # old, low biomass - also boundary.
+# repression without flagging is still an issue. fix it with jacqueline's code
 
-# -2.755986, -47.10536 #looks to be older forest in 2018.
-# -3.537521, -48.85735, young, high biomass
-# -3.141633, -47.73652 
+######################### WHAT'S WRONG
+# 34182406   23 233190 9622260          1 232331909622260 2205.453
+# 15229309   23 306570 9684000         30 233065709684000 0.0192384105
+regrowth[rownames(regrowth) == 40507664, ] 
+# -48.85896 -3.60705
+# 449.0891 @ 3 yrs old
+# -3.607193 -48.85909
+
+tst = subset(amazon, agbd > 350)
+# 18412814   23 300000 9673650          2  233e+059673650  435.5806 435.5805969
+tst = subset(tst, forest_age == 1)
+
+# 30554059   22 773460 9634020         22 227734609634020    0
+
+biomass |>
+  subset(abs(N00W060_agb - 67) < 1e-3)
+
+
+biomass |>
+  subset(abs(Lon - -100.7) < 1e-5 & abs(Lat - 59.6) < 1e-5)
+
+
+
+Q <- quantile(biomass$agbd, probs=c(.1, .9), na.rm = FALSE)
+iqr <- IQR(biomass$agbd)
+up <-  Q[2]+1.5*iqr # Upper Range  
+eliminated<- subset(biomass, biomass$agbd < (Q[2]+1.5*iqr))
+
