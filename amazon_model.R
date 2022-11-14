@@ -17,6 +17,12 @@ library(GEDI4R)
 library(stringr)
 library(tidyverse)
 library(plyr)
+library(foreach)
+library(doParallel)
+## Brazil shapefile mask
+library(maptools)  ## For wrld_simpl
+data(wrld_simpl)
+SPDF <- subset(wrld_simpl, NAME=="Brazil")
 
 setwd("/home/aavila/Documents/forest_regrowth")
 
@@ -91,7 +97,7 @@ df_merge = function(df){
 # file is the path to the directory, and crop a Boolean (whether we are subsetting the data into our region of interest)
 making_df = function(file, crop){
 
-  files = list.files(path = './mapbiomas/regrowth', pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
+  files = list.files(path = file, pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
 
   tmp_rasters = lapply(files, raster)
 
@@ -140,8 +146,7 @@ import_mapbiomas = T
 import_clim == T
 import_dubayah = F
 import_santoro = F
-import_potapov = F
-
+#import_potapov = F
 
 ####################################################################
 ########## EXTRACTING DATA ##########
@@ -169,6 +174,43 @@ if (import_mapbiomas == T){
   saveRDS(lulc, "lulc.rds")
 }
 
+########### NOTE: Had issues using making_df() for the newly imported files, so I rewrote the code:
+# A few files were corrupted. Need to redownload the data.
+
+files = list.files(path = './mapbiomas/regrowth_amazon', pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
+
+regrowth_list = c()
+for (i in 1:length(files)){
+  regrowth_list[[i]] = try(raster(files[i]))
+  print(i)
+}
+
+tmp_dfs <- discard(regrowth_list, inherits, 'try-error')
+
+#selecting for southern amazon
+
+#extent = extent(c(xmin = -65, xmax = -45, ymin = -15, ymax = 0))
+#tst = crop(tmp_dfs[[1]], extent)
+
+tmp_dfs = lapply(tmp_dfs, crop, xy=T)
+
+
+tmp_dfs = lapply(tmp_dfs, as.data.frame, xy=T)
+
+
+
+merged_df = df_merge(tmp_dfs)
+
+colnames(merged_df) = str_sub(colnames(merged_df), start= -4)   # makes column names only "yyyy"
+
+merged_df = merged_df[order(merged_df$x),]   #order by longitude, so the pixels are separated by UTM zones.
+
+merged_df = cbind(merged_df, LongLatToUTM(merged_df$x, merged_df$y))   # converts lat, long coordinates to UTM
+
+
+
+
+
 ##########  TEMPERATURE AND RAINFALL ##########
 
 if (import_clim == T){
@@ -177,7 +219,7 @@ if (import_clim == T){
     colnames(df) = str_sub(colnames(df), start= -7)   # makes column names only "yyyy.mm"
     result = t(apply(df[3:ncol(df)], 1, tapply, gl(34, 12), mean))
     colnames(result) = c(1985:2018)
-    return(as.data.frame(cbind(tmp[,1:2], result)))
+    return(as.data.frame(cbind(df[,1:2], result)))
   }
 
   df_prec = readRDS('df_prec.rds')
@@ -188,6 +230,24 @@ if (import_clim == T){
   tmax = climate_data_import(df_tmax)
   tmin = climate_data_import(df_tmin)
   temp = (tmax + tmin) / 2
+
+  climate_data_cleanup = function(df){
+    df$mean = colMeans(df[3:ncol(df)])
+    df = cbind(df, LongLatToUTM(df$x, df$y))
+    df = df[,3:ncol(df)]
+    df$xy = paste0(df$zone, df$x, df$y)
+    return(df)
+  }
+
+  prec = climate_data_cleanup(prec)
+  temp = climate_data_cleanup(temp)
+
+  #resolution is about 4.5 km.
+  #Need to add temperature data for ALL cells within 4.5km of center point.
+
+
+
+
 
 }else{
 
@@ -233,6 +293,7 @@ if (import_clim == T){
 }
 
 ##########  SOIL TYPE ##########
+
 
 
 ##########  BIOMASS ##########
@@ -281,16 +342,24 @@ if (import_dubayah == T){
 if (import_santoro == T){
   biomass = readRDS("biomass_santoro.rds")
 }else{
-  biomass = raster("N00W060_agb.tif")
+  biomass1 = raster("N00W060_agb.tif")
+  biomass2 = raster("N00W100_agb.tif")
+  biomass3 = raster("N40W060_agb.tif")
+
+  biomass = merge(biomass1, biomass2, biomass3)
+
+  ## crop and mask
+  r2 <- crop(biomass, extent(SPDF))
+  r3 <- mask(r2, SPDF)
 
   biomass = as.data.frame(biomass, xy = TRUE)
 
-  biomass = biomass[ymin < biomass$y & biomass$y < ymax & xmin < biomass$x & biomass$x < xmax,]
+  #biomass = biomass[ymin < biomass$y & biomass$y < ymax & xmin < biomass$x & biomass$x < xmax,]
 
   biomass = cbind(biomass, LongLatToUTM(biomass$x, biomass$y))
 
   colnames(biomass) = c('lon', 'lat', 'agbd', 'zone', 'x', 'y')
-  saveRDS(biomass, "biomass_santoro.rds")
+  saveRDS(biomass, "biomass_santoro_Brazil.rds")
 }
 
 # Potapov et al 2020 -> GLAD Forest Canopy Height (m)
@@ -298,6 +367,46 @@ if (import_santoro == T){
 if (import_potapov == T){
   biomass = readRDS("biomass_potapov.rds")
 }else{
+  biomass = raster("Forest_height_2019_SAM.tif")
+
+  ## crop and mask
+  r2 <- crop(biomass, extent(SPDF))
+
+  #writeRaster(r3, "Forest_height_2019_Brazil.tif")
+
+cores <- 50
+cl <- makeCluster(cores) #output should make it spit errors
+registerDoParallel(cl)
+
+# The function spatially aggregates the original raster
+# it turns each aggregated cell into a polygon
+# then the extent of each polygon is used to crop
+# the original raster.
+# The function returns a list with all the pieces
+# in case you want to keep them in the memory. 
+# it saves and plots each piece
+# The arguments are:
+# raster = raster to be chopped            (raster object)
+# ppside = pieces per side                 (integer)
+SplitRas <- function(raster,ppside){
+  h        <- ceiling(ncol(raster)/ppside)
+  v        <- ceiling(nrow(raster)/ppside)
+  agg      <- aggregate(raster,fact=c(h,v))
+  agg[]    <- 1:ncell(agg)
+  agg_poly <- rasterToPolygons(agg)
+  names(agg_poly) <- "polis"
+  r_list <- list()
+  for(i in 1:ncell(agg)){
+    e1          <- extent(agg_poly[agg_poly$polis==i,])
+    r_list[[i]] <- crop(raster,e1)
+  }
+  return(r_list)
+}
+
+split_list = SplitRas(r2, 4)
+
+foreach(i=1:length(split_list)) %dopar% {
+  writeRaster(mask(split_list[i], SPDF))
 }
 
 ####################################################################
@@ -416,13 +525,22 @@ lulc$sugar = rowSums(lulc == 20)
 lulc$other_perennial = rowSums(lulc == 48)
 lulc$other_annual = rowSums(lulc == 41)
 
+
 # time since last observation of each land use type
-lulc$ts_pasture = find_last_instance(lulc, function(x) which(x == 15))
-lulc$ts_soy = find_last_instance(lulc, function(x) which(x == 39))
-lulc$ts_coffee = find_last_instance(lulc, function(x) which(x == 46))
-lulc$ts_sugar = find_last_instance(lulc, function(x) which(x == 20))
-lulc$ts_other_perennial = rowSums(lulc == 48)
-lulc$ts_other_annual = rowSums(lulc == 41)
+ts_pasture = find_last_instance(lulc, function(x) which(x == 15))
+lulc$ts_pasture = max(ts_pasture)-ts_pasture
+
+ts_soy = find_last_instance(lulc, function(x) which(x == 39))
+lulc$ts_soy = max(ts_soy)-ts_soy
+
+#ts_coffee = find_last_instance(lulc, function(x) which(x == 46))
+#ts_sugar = find_last_instance(lulc, function(x) which(x == 20))
+
+ts_other_perennial = rowSums(lulc == 48)
+lulc$ts_other_perennial = max(ts_other_perennial)-ts_other_perennial
+
+ts_other_annual = rowSums(lulc == 41)
+lulc$ts_other_annual = max(ts_other_annual)-ts_other_annual
 
 lulc$xy = paste0(lulc$zone, lulc$x, lulc$y)
 
@@ -440,30 +558,45 @@ fire$xy = paste0(fire$zone, fire$x, fire$y)
 central_df = cbind(agb_forest_age, last_burn = fire[match(agb_forest_age$xy,fire$xy),c("last_burn")])
 central_df = cbind(central_df, num_fires = fire[match(central_df$xy,fire$xy),c("num_fires")])
 central_df = cbind(central_df, pasture = lulc[match(central_df$xy,lulc$xy),c("pasture")])
+central_df = cbind(central_df, soy = lulc[match(central_df$xy,lulc$xy),c("soy")])
+central_df = cbind(central_df, other_perennial = lulc[match(central_df$xy,lulc$xy),c("other_perennial")])
+central_df = cbind(central_df, other_annual = lulc[match(central_df$xy,lulc$xy),c("other_annual")])
+central_df = cbind(central_df, tavg = temp[match(central_df$xy,temp$xy),c("mean")])
+central_df = cbind(central_df, prec = prec[match(central_df$xy,prec$xy),c("mean")])
+central_df$last_burn[is.na(central_df$last_burn)] = 1
 
-
+central_df = lapply(central_df, as.numeric)
 ################# passing into the model ##################
 
+# pars[2]*tavg+pars[3]*prec+
+# central_df$tavg, central_df$prec, 
+#  0.001, 0.0001, 
 
-G = function(pars, tavg, rain, other_perennial, other_annual, pasture,soy, forest_age) {
+
+
+
+G = function(pars, other_perennial, other_annual, pasture, soy, forest_age, num_fires, last_burn) {
   # Extract parameters of the model
   Gmax = pars[1] #asymptote
-  k = pars[2]*tavg+pars[3]*rain+pars[4]*other_perennial+pars[5]*pasture+pars[6]*soy+pars[7]*other_annual
+  k = pars[2]*other_perennial+pars[3]*pasture+pars[4]*soy+pars[5]*other_annual + pars[6]*other_annual + pars[7]*num_fires^(pars[8]*last_burn)
   # Prediction of the model
   Gmax * (1 - exp(-k*(forest_age)))
 }
 
 ####################
 #finding the right parameters
-par0 = c(50, 0.001, 0.0001,  0.0001,  0.0001,  0.0001, 0.0001, 0.1, 0.1)
-val = G(par0, mean(complete$tavg), mean(complete$prec), mean(complete$other_perennial), mean(complete$other_annual), mean(complete$pasture), mean(complete$soy), mean(complete$forest_age))
+par0 = c(50, 0.0001,  0.0001,  0.001, 0.001,  0.001, 0.1, 0.1)
+
+Gpred = G(par0, central_df$other_perennial, central_df$other_annual, central_df$pasture, central_df$soy, central_df$forest_age, central_df$num_fires, central_df$last_burn)
+
+# dat$tavg, dat$prec, 
 
 NLL = function(pars, dat) {
   # Values prediced by the model
   if(pars[9] < 0){ #avoiding NAs by keeping the st dev positive
     return(-Inf)
   }
-  Gpred = G(pars, dat$tavg, dat$prec, dat$other_perennial, dat$other_annual, dat$pasture, dat$soy, dat$forest_age)
+  Gpred = G(pars, dat$other_perennial, dat$other_annual, dat$pasture, dat$soy, dat$forest_age, dat$num_fires, dat$last_burn)
   #print(Gpred)
   # Negative log-likelihood 
   fun = -sum(dnorm(x = dat$agbd, mean = Gpred, sd = pars[9], log = TRUE))
@@ -472,24 +605,25 @@ NLL = function(pars, dat) {
 }
 
 par0 = c(50, 0.001, 0.0001,  0.0001,  0.0001,  0.0001,  0.0001, 0.1, 0.1)
-NLL(par0, dat=complete)
+NLL(par0, dat=central_df)
 
-o = optim(par = par0, fn = NLL, dat = complete, control = list(parscale = abs(par0)), 
-           hessian = FALSE, method = "SANN")
+o = optim(par = par0, fn = NLL, dat = central_df, control = list(parscale = abs(par0)), 
+           hessian = FALSE, method = "CG")
 print(o)
 
-meth0 = c("Nelder-Mead", "BFGS", "CG", "SANN")
+meth0 = c("Nelder-Mead", "BFGS", "CG")
 for (i in meth0){
-  o = optim(par = par0, fn = NLL, dat = complete, control = list(parscale = abs(par0)), 
+  o = optim(par = par0, fn = NLL, dat = central_df, control = list(parscale = abs(par0)), 
              hessian = FALSE, method = i)
   print(i)
   print(o)
 }
 
-pred = G(o$par[1:9], complete$tavg, complete$prec, complete$other_perennial, complete$other_annual, complete$pasture, complete$soy, complete$forest_age)
+#  central_df$tavg, central_df$prec, 
 
-plot(complete$agbd, pred, abline(0,1))
+pred = G(o$par[1:9], central_df$other_perennial, central_df$other_annual, central_df$pasture, central_df$soy, central_df$forest_age, central_df$num_fires, central_df$last_burn)
 
+plot(central_df$agbd, pred, abline(0,1))
 
 
 
@@ -500,7 +634,6 @@ biomass[biomass$agbd == 49 & biomass$x == 213210 & biomass$y == 9663510,]
 
 regrowth[rownames(regrowth) == 11768979, ] 
 
-# repression without flagging is still an issue. fix it with jacqueline's code
 
 ######################### WHAT'S WRONG
 # 34182406   23 233190 9622260          1 232331909622260 2205.453
@@ -522,8 +655,6 @@ biomass |>
 
 biomass |>
   subset(abs(Lon - -100.7) < 1e-5 & abs(Lat - 59.6) < 1e-5)
-
-
 
 Q <- quantile(biomass$agbd, probs=c(.1, .9), na.rm = FALSE)
 iqr <- IQR(biomass$agbd)
