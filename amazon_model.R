@@ -4,25 +4,24 @@
 # Ana Avila - Sept 2022
 ####################################################################
 
-library(raster) # handling spatial data
+library(terra) # handling spatial data
 library(geodata) # to extract worldclim with getData
 library(sp) # to extract worldclim with getData
-library(terra)
 #if (!require("BiocManager", quietly = TRUE))
 #  install.packages("BiocManager")
 #BiocManager::install("grimbough/rhdf5")
-library(rhdf5)
+library(rhdf5) # for handling raw GEDI data
 #remotes::install_github("VangiElia/GEDI4R")
-library(GEDI4R)
-library(stringr)
+library(GEDI4R) # for extracting raw GEDI data
+#library(stringr)
 library(tidyverse)
 library(plyr)
-library(foreach)
-library(doParallel)
+library(foreach) # for splitting heavy processing (masking, converting)
+library(doParallel) # for splitting heavy processing (masking, converting)
 ## Brazil shapefile mask
 library(maptools)  ## For wrld_simpl
 data(wrld_simpl)
-SPDF <- subset(wrld_simpl, NAME=="Brazil")
+BRA <- subset(wrld_simpl, NAME=="Brazil")
 
 setwd("/home/aavila/Documents/forest_regrowth")
 
@@ -36,14 +35,21 @@ ymax = -2.41036
 ########## FUNCTIONS ##########
 ####################################################################
 
-# find utm zone from longitude - allows to analyze data spanning multiple UTM zones
+# Finds utm zone from longitude - allows to analyze data spanning multiple UTM zones
+# This function is necessary for LongLatToUTM (below)
+# It intakes:
+# Longitude (numeric)
+# It outputs:
+# UTM zone (numeric)
 long2UTMzone = function(long) {
   ## Function to get the UTM zone for a given longitude
   (floor((long + 180)/6) %% 60) + 1
 }
 
-# Convert coodinates from lat/long to UTM.
-# this allows merging dataframes with different coordinates (converting all to 30m resolution)
+# Converts coodinates from lat/long to UTM.
+# this allows merging dataframes with different coordinates.
+# It converts all points to to 30m resolution by finding the nearest coordinate multiple of 30.
+# It intakes:
 LongLatToUTM = function(x,y){
   xy = data.frame(x = x, y = y)
   xy$zone = long2UTMzone(x)
@@ -189,14 +195,13 @@ tmp_dfs <- discard(regrowth_list, inherits, 'try-error')
 
 #selecting for southern amazon
 
-#extent = extent(c(xmin = -65, xmax = -45, ymin = -15, ymax = 0))
-#tst = crop(tmp_dfs[[1]], extent)
+extent = extent(c(xmin = -65, xmax = -45, ymin = -15, ymax = 0))
+tst = crop(tmp_dfs[[1]], extent)
 
-tmp_dfs = lapply(tmp_dfs, crop, xy=T)
 
+tst = as.data.frame(terra::getValues(tmp_dfs[[1]]))
 
 tmp_dfs = lapply(tmp_dfs, as.data.frame, xy=T)
-
 
 
 merged_df = df_merge(tmp_dfs)
@@ -349,8 +354,8 @@ if (import_santoro == T){
   biomass = merge(biomass1, biomass2, biomass3)
 
   ## crop and mask
-  r2 <- crop(biomass, extent(SPDF))
-  r3 <- mask(r2, SPDF)
+  r2 <- crop(biomass, extent(BRA))
+  r3 <- mask(r2, BRA)
 
   biomass = as.data.frame(biomass, xy = TRUE)
 
@@ -370,7 +375,7 @@ if (import_potapov == T){
   biomass = raster("Forest_height_2019_SAM.tif")
 
   ## crop and mask
-  r2 <- crop(biomass, extent(SPDF))
+  r2 <- crop(biomass, extent(BRA))
 
   #writeRaster(r3, "Forest_height_2019_Brazil.tif")
 
@@ -406,7 +411,7 @@ SplitRas <- function(raster,ppside){
 split_list = SplitRas(r2, 4)
 
 foreach(i=1:length(split_list)) %dopar% {
-  writeRaster(mask(split_list[i], SPDF))
+  writeRaster(mask(split_list[i], Brazil))
 }
 
 ####################################################################
@@ -566,16 +571,16 @@ central_df = cbind(central_df, prec = prec[match(central_df$xy,prec$xy),c("mean"
 central_df$last_burn[is.na(central_df$last_burn)] = 1
 
 central_df = lapply(central_df, as.numeric)
+
 ################# passing into the model ##################
 
 # pars[2]*tavg+pars[3]*prec+
 # central_df$tavg, central_df$prec, 
 #  0.001, 0.0001, 
 
+columns = c(other_perennial, other_annual, pasture, soy, forest_age, num_fires, last_burn)
 
-
-
-G = function(pars, other_perennial, other_annual, pasture, soy, forest_age, num_fires, last_burn) {
+G = function(pars, columns) {
   # Extract parameters of the model
   Gmax = pars[1] #asymptote
   k = pars[2]*other_perennial+pars[3]*pasture+pars[4]*soy+pars[5]*other_annual + pars[6]*other_annual + pars[7]*num_fires^(pars[8]*last_burn)
@@ -627,7 +632,7 @@ plot(central_df$agbd, pred, abline(0,1))
 
 
 
-########################################################################################
+################################## TESTING ZONE  ######################################################
 
 
 biomass[biomass$agbd == 49 & biomass$x == 213210 & biomass$y == 9663510,]
