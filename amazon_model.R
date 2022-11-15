@@ -1,9 +1,10 @@
 ####################################################################
 ########## Predicting forest regrowth from Mapbiomas data ##########
 # first applied to the district of Paragominas, in the Western Amazon.
-# Ana Avila - Sept 2022
+# Ana Avila - 2022
 ####################################################################
 
+library(raster) #  handling spatial data
 library(terra) # handling spatial data
 library(geodata) # to extract worldclim with getData
 library(sp) # to extract worldclim with getData
@@ -50,6 +51,9 @@ long2UTMzone = function(long) {
 # this allows merging dataframes with different coordinates.
 # It converts all points to to 30m resolution by finding the nearest coordinate multiple of 30.
 # It intakes:
+# x and y = longitude and latitude, respectively (numeric or vector)
+# It outputs:
+# Dataframe with zone, x and y columns in UTM format.
 LongLatToUTM = function(x,y){
   xy = data.frame(x = x, y = y)
   xy$zone = long2UTMzone(x)
@@ -91,7 +95,12 @@ LongLatToUTM = function(x,y){
   return(result)
 }
 
-# unifies all dataframes in a list into a single dataframe with one column per year.
+# Unifies all dataframes in a list into a single dataframe with one column per year.
+# Useful when you have a list with one dataframe per moment in time.
+# It intakes:
+# List of dataframes
+# It outputs:
+# One combined dataframe containing the THIRD column of every dataframe in the list
 df_merge = function(df){
   for (i in 2:length(df)){
     df[[1]] = cbind(df[[1]], df[[i]][3])
@@ -99,8 +108,12 @@ df_merge = function(df){
   return(df[[1]])
 }
 
-# creating one processed dataframe from multiple raw Mapbiomas .tif files.
-# file is the path to the directory, and crop a Boolean (whether we are subsetting the data into our region of interest)
+# Creating one unified dataframe from multiple raw Mapbiomas .tif files
+# It intakes:
+# file = the path to the directory (string)
+# crop = whether we are subsetting the data into our region of interest or maintaining it whole (Boolean)
+# It outputs:
+# Converts into dataframes with the year as column
 making_df = function(file, crop){
 
   files = list.files(path = file, pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
@@ -183,7 +196,7 @@ if (import_mapbiomas == T){
 ########### NOTE: Had issues using making_df() for the newly imported files, so I rewrote the code:
 # A few files were corrupted. Need to redownload the data.
 
-files = list.files(path = './mapbiomas/regrowth_amazon', pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
+files = list.files(path = './mapbiomas/regrowth_amazon', pattern='-2016-', full.names=TRUE)   # obtain paths for all files 
 
 regrowth_list = c()
 for (i in 1:length(files)){
@@ -193,24 +206,22 @@ for (i in 1:length(files)){
 
 tmp_dfs <- discard(regrowth_list, inherits, 'try-error')
 
-#selecting for southern amazon
+start = Sys.time()
+tmp = raster::stack(tmp_dfs)
+#tst = lapply(tmp_dfs, as.data.frame, xy=T)
+end = Sys.time()
+time_elapsed = start-end
 
-extent = extent(c(xmin = -65, xmax = -45, ymin = -15, ymax = 0))
-tst = crop(tmp_dfs[[1]], extent)
-
-
-tst = as.data.frame(terra::getValues(tmp_dfs[[1]]))
-
-tmp_dfs = lapply(tmp_dfs, as.data.frame, xy=T)
+tst = tmp[[2]]
 
 
-merged_df = df_merge(tmp_dfs)
+start = Sys.time()
+tst[tst!=503] <- NA
+end = Sys.time()
+time_elapsed = start-end
+time_elapsed
 
-colnames(merged_df) = str_sub(colnames(merged_df), start= -4)   # makes column names only "yyyy"
-
-merged_df = merged_df[order(merged_df$x),]   #order by longitude, so the pixels are separated by UTM zones.
-
-merged_df = cbind(merged_df, LongLatToUTM(merged_df$x, merged_df$y))   # converts lat, long coordinates to UTM
+tst = as.data.frame(raster("./mapbiomas/regrowth_amazon/mapbiomas-brazil-collection-60-2001-0000031744-0000000000.tif"))
 
 
 
@@ -378,41 +389,8 @@ if (import_potapov == T){
   r2 <- crop(biomass, extent(BRA))
 
   #writeRaster(r3, "Forest_height_2019_Brazil.tif")
-
-cores <- 50
-cl <- makeCluster(cores) #output should make it spit errors
-registerDoParallel(cl)
-
-# The function spatially aggregates the original raster
-# it turns each aggregated cell into a polygon
-# then the extent of each polygon is used to crop
-# the original raster.
-# The function returns a list with all the pieces
-# in case you want to keep them in the memory. 
-# it saves and plots each piece
-# The arguments are:
-# raster = raster to be chopped            (raster object)
-# ppside = pieces per side                 (integer)
-SplitRas <- function(raster,ppside){
-  h        <- ceiling(ncol(raster)/ppside)
-  v        <- ceiling(nrow(raster)/ppside)
-  agg      <- aggregate(raster,fact=c(h,v))
-  agg[]    <- 1:ncell(agg)
-  agg_poly <- rasterToPolygons(agg)
-  names(agg_poly) <- "polis"
-  r_list <- list()
-  for(i in 1:ncell(agg)){
-    e1          <- extent(agg_poly[agg_poly$polis==i,])
-    r_list[[i]] <- crop(raster,e1)
-  }
-  return(r_list)
 }
 
-split_list = SplitRas(r2, 4)
-
-foreach(i=1:length(split_list)) %dopar% {
-  writeRaster(mask(split_list[i], Brazil))
-}
 
 ####################################################################
 ########## ASSEMBLING THE DATASET ##########
@@ -583,7 +561,9 @@ columns = c(other_perennial, other_annual, pasture, soy, forest_age, num_fires, 
 G = function(pars, columns) {
   # Extract parameters of the model
   Gmax = pars[1] #asymptote
-  k = pars[2]*other_perennial+pars[3]*pasture+pars[4]*soy+pars[5]*other_annual + pars[6]*other_annual + pars[7]*num_fires^(pars[8]*last_burn)
+  for (i in 1:length(columns)){
+    k = pars[2]*other_perennial+pars[3]*pasture+pars[4]*soy+pars[5]*other_annual + pars[6]*other_annual + pars[7]*num_fires^(pars[8]*last_burn)
+  }
   # Prediction of the model
   Gmax * (1 - exp(-k*(forest_age)))
 }
@@ -666,3 +646,107 @@ iqr <- IQR(biomass$agbd)
 up <-  Q[2]+1.5*iqr # Upper Range  
 eliminated<- subset(biomass, biomass$agbd < (Q[2]+1.5*iqr))
 
+##################
+
+extent_list = lapply(tmp_dfs, extent)
+# make a matrix out of it, each column represents a raster, rows the values
+extent_list<-lapply(extent_list, as.matrix)
+matrix_extent<-matrix(unlist(extent_list), ncol=length(extent_list))
+rownames(matrix_extent)<-c("xmin", "ymin", "xmax", "ymax")
+
+best_extent = extent(min(matrix_extent[1,]), max(matrix_extent[3,]),
+min(matrix_extent[2,]), max(matrix_extent[4,]))
+
+# the range of your extent in degrees
+ranges<-apply(as.matrix(best_extent), 1, diff)
+# the resolution of your raster (pick one) or add a desired resolution
+reso<-res(tmp_dfs[[1]])
+# deviding the range by your desired resolution gives you the number of rows and columns
+nrow_ncol<-ranges/reso
+
+# create your raster with the following
+s<-raster(best_extent, nrows=nrow_ncol[2], ncols=nrow_ncol[1], crs=tmp_dfs[[1]]@crs)
+
+##########
+
+results <- list()
+
+for(i in 1:length(tmp_dfs)) {
+  print(i)
+  e <- extent(s)
+  r <-tmp_dfs[[i]] # raster(files[i])
+  rc <- crop(tmp_dfs[[i]], e)
+  if(sum(as.matrix(extent(rc))!= as.matrix(e)) == 0){ # edited
+    rc <- mask(rc, a) # You can't mask with extent, only with a Raster layer, RStack or RBrick
+  }else{
+    rc <- extend(rc,s)
+    rc<- mask(rc, s)
+  }
+
+  # commented for reproducible example      
+  results[[i]] <- rc # rw <- writeRaster(rc, outfiles[i], overwrite=TRUE)
+  # print(outfiles[i])
+}
+
+
+
+for (i in 1988:2019){
+  tmp = raster::stack(list.files(path = './mapbiomas/regrowth_amazon', pattern='2016', full.names=TRUE))
+  }
+
+xmin = -60
+xmax = -46
+ymin = -13
+ymax = 0
+
+#selecting for southern amazon
+#length(tmp_dfs)
+count = 0
+for (i in 1:length(tmp_dfs)){
+  print(i)
+  if (xmin(extent(tmp_dfs[[i]])) < -65 |
+    xmax(extent(tmp_dfs[[i]])) > -45 |
+    ymin(extent(tmp_dfs[[i]])) < -15 |
+    ymax(extent(tmp_dfs[[i]])) > 0 ) {
+      count = count + 1
+  }
+}
+
+library(usethis) 
+usethis::edit_r_environ()
+
+
+cores <- 50
+cl <- makeCluster(cores) #output should make it spit errors
+registerDoParallel(cl)
+
+# The function spatially aggregates the original raster
+# it turns each aggregated cell into a polygon
+# then the extent of each polygon is used to crop
+# the original raster.
+# The function returns a list with all the pieces
+# in case you want to keep them in the memory. 
+# it saves and plots each piece
+# The arguments are:
+# raster = raster to be chopped            (raster object)
+# ppside = pieces per side                 (integer)
+SplitRas <- function(raster,ppside){
+  h        <- ceiling(ncol(raster)/ppside)
+  v        <- ceiling(nrow(raster)/ppside)
+  agg      <- aggregate(raster,fact=c(h,v))
+  agg[]    <- 1:ncell(agg)
+  agg_poly <- rasterToPolygons(agg)
+  names(agg_poly) <- "polis"
+  r_list <- list()
+  for(i in 1:ncell(agg)){
+    e1          <- extent(agg_poly[agg_poly$polis==i,])
+    r_list[[i]] <- crop(raster,e1)
+  }
+  return(r_list)
+}
+
+split_list = SplitRas(r2, 4)
+
+foreach(i=1:length(split_list)) %dopar% {
+  writeRaster(mask(split_list[i], Brazil))
+}

@@ -28,14 +28,6 @@ panama <- sf::st_read(
 #   tmap_options(max.categories = 33)
 
 
-
-
-
-
-
-
-
-
 cafe = panama[panama$Categoria == "Café",]
 pasto = panama[panama$Categoria == "Pasto",]
 anual = panama[panama$Categoria == "Otro cultivo anual",]
@@ -45,5 +37,8 @@ banana = panama[panama$Categoria == "Plátano/banano" ,]
 citric = panama[panama$Categoria == "Cítrico" ,]
 maiz = panama[panama$Categoria == "Maíz" ,]
 
+class(cafe)
 
-mapview(pasto, col.regions = sf.colors(10))
+pasto_half = st_crop(pasto, c(xmin=273983.2, xmax=595076.6, ymin=796580, ymax=1066220))
+
+mapview(pasto_half, col.regions = sf.colors(10))
