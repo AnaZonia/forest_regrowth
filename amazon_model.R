@@ -4,6 +4,7 @@
 # Ana Avila - 2022
 ####################################################################
 
+library(sf)
 library(raster) #  handling spatial data
 library(terra) # handling spatial data
 library(geodata) # to extract worldclim with getData
@@ -196,7 +197,7 @@ if (import_mapbiomas == T){
 ########### NOTE: Had issues using making_df() for the newly imported files, so I rewrote the code:
 # A few files were corrupted. Need to redownload the data.
 
-files = list.files(path = './mapbiomas/regrowth_amazon', pattern='-2016-', full.names=TRUE)   # obtain paths for all files 
+files = list.files(path = './mapbiomas/regrowth_amazon', pattern='0000031744-0000000000', full.names=TRUE)   # obtain paths for all files 
 
 regrowth_list = c()
 for (i in 1:length(files)){
@@ -206,24 +207,25 @@ for (i in 1:length(files)){
 
 tmp_dfs <- discard(regrowth_list, inherits, 'try-error')
 
-start = Sys.time()
-tmp = raster::stack(tmp_dfs)
-#tst = lapply(tmp_dfs, as.data.frame, xy=T)
-end = Sys.time()
-time_elapsed = start-end
-
-tst = tmp[[2]]
-
 
 start = Sys.time()
-tst[tst!=503] <- NA
+for (i in c(1,3:length(tmp_dfs))){
+  tmp_dfs[[i]][tmp_dfs[[i]]!=503] <- NA
+  writeRaster(tmp_dfs[[i]], paste0(c(1988+i), ".tif"))
+}
 end = Sys.time()
 time_elapsed = start-end
 time_elapsed
 
+
 tst = as.data.frame(raster("./mapbiomas/regrowth_amazon/mapbiomas-brazil-collection-60-2001-0000031744-0000000000.tif"))
 
-
+tst = raster('1989.tif')
+for (i in 1990:2004){
+  tmp = raster(paste0(i, '.tif'))
+  tst = stack(tst, tmp)
+}
+tst_mrg = merge(tst)
 
 
 
@@ -310,7 +312,15 @@ if (import_clim == T){
 
 ##########  SOIL TYPE ##########
 
+soil <- sf::st_read( 
+  dsn= paste0(getwd(),"/soil/") , 
+  layer="DSMW"
+)
 
+brazil_soil = soil[soil$COUNTRY == "BRAZIL",]
+
+# SNUM - Soil mapping unit number
+# 
 
 ##########  BIOMASS ##########
 
