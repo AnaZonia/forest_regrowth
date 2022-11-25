@@ -209,10 +209,25 @@ tmp_dfs <- discard(regrowth_list, inherits, 'try-error')
 
 masked = lapply(tmp_dfs, mask, tst_mrg)
 
+tst = readRDS("masked.RData")
+
+stacked_tst = stack(tst)
+
+start = Sys.time()
+df_tst = as.data.frame(stacked_tst, xy = T, na.rm = T)
+end = Sys.time()
+print(end-start)
+
+saveRDS(df_tst, "df_tst.rds")
+
+
+
+
 writeRaster(tst, "masked_merged.tif")
 
 tst = raster("masked_merged.tif")
 
+colnames(df_tst) = str_sub(colnames(df_tst), start= -4)   # makes column names only "yyyy"
 
 
 
@@ -222,6 +237,8 @@ for (i in c(1,17:length(tmp_dfs))){
   writeRaster(tmp_dfs[[i]], paste0(c(1988+i), ".tif"))
 }
 end = Sys.time()
+
+
 time_elapsed = start-end
 time_elapsed
 

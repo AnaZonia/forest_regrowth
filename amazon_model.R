@@ -210,7 +210,7 @@ tmp_dfs <- discard(regrowth_list, inherits, 'try-error')
 masked = lapply(tmp_dfs, mask, tst_mrg)
 saveRDS(masked, file="masked.RData")
 
-
+masked = readRDS('masked.RData')
 
 stacked = stack(masked)
 
