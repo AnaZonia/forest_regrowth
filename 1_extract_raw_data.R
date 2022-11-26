@@ -28,9 +28,9 @@ BRA <- subset(wrld_simpl, NAME=="Brazil")
 setwd("/home/aavila/Documents/forest_regrowth")
 
 #specifying coordinates of interest - where would you like to crop the dataframe to?
-xmin = -48.89171
-xmax = -46.41909
-ymin = -3.837333
+xmin <- -48.89171
+xmax <- -46.41909
+ymin <- -3.837333
 ymax = -2.41036
 
 ####################################################################
@@ -196,8 +196,11 @@ if (import_mapbiomas == T){
 
 ########### NOTE: Had issues using making_df() for the newly imported files, so I rewrote the code:
 # A few files were corrupted. Need to redownload the data.
+files <- list.files(path = './mapbiomas/regrowth_amazon')
+locations <- str_sub(files, start= -25, end = -5)
+locations <- unique(locations)
 
-files = list.files(path = './mapbiomas/regrowth_amazon', pattern='0000031744-0000000000', full.names=TRUE)   # obtain paths for all files 
+files <- list.files(path = './mapbiomas/regrowth_amazon', pattern='0000031744-0000000000', full.names=TRUE)   # obtain paths for all files 
 
 regrowth_list = c()
 for (i in 1:length(files)){
@@ -206,6 +209,10 @@ for (i in 1:length(files)){
 }
 
 tmp_dfs <- discard(regrowth_list, inherits, 'try-error')
+
+
+
+
 
 masked = lapply(tmp_dfs, mask, tst_mrg)
 
@@ -222,12 +229,13 @@ saveRDS(df_tst, "df_tst.rds")
 
 
 
-
 writeRaster(tst, "masked_merged.tif")
 
 tst = raster("masked_merged.tif")
 
-colnames(df_tst) = str_sub(colnames(df_tst), start= -4)   # makes column names only "yyyy"
+colnames(df_tst) = c(sub(".0000031744.0000000000", "", colnames(df_tst[,1:c(ncol(df_tst)-2)])), "lon", "lat")
+df_tst <- df_tst[ , order(names(df_tst))]
+#missing 1990, 1994, 1999
 
 
 
@@ -237,12 +245,6 @@ for (i in c(1,17:length(tmp_dfs))){
   writeRaster(tmp_dfs[[i]], paste0(c(1988+i), ".tif"))
 }
 end = Sys.time()
-
-
-time_elapsed = start-end
-time_elapsed
-
-tst = as.data.frame(raster("./mapbiomas/regrowth_amazon/mapbiomas-brazil-collection-60-2001-0000031744-0000000000.tif"))
 
 tst = raster('1989.tif')
 for (i in 1990:2004){
@@ -407,7 +409,8 @@ if (import_santoro == T){
   biomass = cbind(biomass, LongLatToUTM(biomass$x, biomass$y))
 
   colnames(biomass) = c('lon', 'lat', 'agbd', 'zone', 'x', 'y')
-  saveRDS(biomass, "biomass_santoro_Brazil.rds")
+  saveRDS(biomass, "biomass_santoro.rds")
+  
 }
 
 # Potapov et al 2020 -> GLAD Forest Canopy Height (m)
@@ -421,5 +424,6 @@ if (import_potapov == T){
   r2 <- crop(biomass, extent(BRA))
   r3 <- mask(r2, BRA)
 
-  #writeRaster(r3, "Forest_height_2019_Brazil.tif")
+  writeRaster(r3, "Forest_height_2019_Brazil.tif")
+
 }

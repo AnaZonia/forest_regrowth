@@ -1,5 +1,23 @@
 
 
+xmin <- min(df_tst$lon)
+xmax <- max(df_tst$lon)
+ymin <- min(df_tst$lat)
+ymax = max(df_tst$lat)
+
+  lulc = making_df('./mapbiomas/lulc', crop=T)
+#  lulc = lulc[rownames(regrowth),] # subset only the coordinates that have some history of regrowth.
+  saveRDS(lulc, "lulc_tst.rds")
+
+e <- extent(xmin, xmax, ymin, ymax)
+
+biomass_cropped <- crop(biomass,e)
+biomass_df <- as.data.frame(biomass_cropped, xy=T)
+biomass = cbind(biomass_df, LongLatToUTM(biomass_df$x, biomass_df$y))
+
+
+
+
 ####################################################################
 ########## ASSEMBLING THE DATASET ##########
 ####################################################################
@@ -16,6 +34,7 @@
 # 500 regrowth
 # 600 secondary suppression
 
+
 if (import_santoro == T){
   regrowth = cbind(regrowth[,1:25], regrowth[,(ncol(regrowth)-2):ncol(regrowth)])
   fire = cbind(fire[,1:28], fire[,(ncol(fire)-2):ncol(fire)])
@@ -23,13 +42,13 @@ if (import_santoro == T){
 }
 
 # select only years that have regrowth that hasn't been suppressed.
+regrowth = df_tst
 
 regrowth_last_instance = find_last_instance(regrowth, function(x) which(x == 503))
 colnames(regrowth_last_instance) = "last_regrowth"
 
 suppression_last_instance = find_last_instance(regrowth, function(x) which(600 <= x & x < 700))
 colnames(suppression_last_instance) = "last_suppression"
-
 
 regrowth_unsuppressed = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],regrowth_last_instance)
 regrowth_unsuppressed = subset(regrowth_unsuppressed, regrowth_unsuppressed$last_regrowth-suppression_last_instance > 0)
@@ -61,8 +80,11 @@ tmp3[tmp3 == -1] <- NA
 tmp3 = tmp3[,2:(ncol(tmp)-1)]
 tmp3 = tmp3[complete.cases(tmp3),]
 
+
 #selects for cleaned rows
 regrowth = regrowth[rownames(regrowth) %in% rownames(tmp3), ] 
+
+
 
 regrowth_last_instance = find_last_instance(regrowth, function(x) which(x == 503))
 colnames(regrowth_last_instance) = "last_regrowth"
