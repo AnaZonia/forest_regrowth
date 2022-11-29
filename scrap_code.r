@@ -137,3 +137,65 @@ split_list = SplitRas(r2, 4)
 foreach(i=1:length(split_list)) %dopar% {
   writeRaster(mask(split_list[i], Brazil))
 }
+
+
+
+################################################
+
+
+# Mapbiomas data was manually downloaded.
+if (import_mapbiomas == T){
+  regrowth = readRDS("./scripts/regrowth.rds")
+  fire = readRDS("./scripts/fire.rds")
+  lulc = readRDS("./scripts/lulc.rds")
+}else{
+  regrowth = making_df('./mapbiomas/regrowth', crop=F)
+  # subset only for the pixels that show some regrowth history
+  regrowth = regrowth[rowSums(sapply(regrowth, '%in%', seq(500, 599, by=1))) > 0,]
+  saveRDS(regrowth, "regrowth.rds")
+
+  fire = making_df('./mapbiomas/fire', crop=F)
+  fire = fire[rownames(regrowth),] # subset only the coordinates that have some history of regrowth.
+  saveRDS(fire, "fire.rds")
+
+  lulc = making_df('./mapbiomas/lulc', crop=T)
+  lulc = lulc[rownames(regrowth),] # subset only the coordinates that have some history of regrowth.
+  saveRDS(lulc, "lulc.rds")
+}
+
+
+# Creating one unified dataframe from multiple raw Mapbiomas .tif files
+# It intakes:
+# file = the path to the directory (string)
+# crop = whether we are subsetting the data into our region of interest or maintaining it whole (Boolean)
+# It outputs:
+# Converts into dataframes with the year as column
+making_df = function(file, crop){
+
+  files = list.files(path = file, pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
+
+  tmp_rasters = lapply(files, raster)
+
+  # if we are subsetting the data into our region of interest
+  coord_oi = c(xmin, xmax, ymin, ymax) #this specifies the coordinates of Paragominas.
+  if(crop == T){
+    e = as(extent(coord_oi), 'SpatialPolygons')
+    crs(e) = "+proj=longlat +datum=WGS84 +no_defs"
+    tmp_rasters = lapply(tmp_rasters, crop, e) # subsects all rasters to area of interest
+  }
+
+  tmp_dfs = lapply(tmp_rasters, as.data.frame, xy=T)
+
+  merged_df = df_merge(tmp_dfs)
+
+  colnames(merged_df) = str_sub(colnames(merged_df), start= -4)   # makes column names only "yyyy"
+
+  merged_df = merged_df[order(merged_df$x),]   #order by longitude, so the pixels are separated by UTM zones.
+
+  merged_df = cbind(merged_df, LongLatToUTM(merged_df$x, merged_df$y))   # converts lat, long coordinates to UTM
+
+  return(merged_df)
+}
+
+
+tmp_dfs <- discard(regrowth_list, inherits, 'try-error')

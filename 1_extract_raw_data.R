@@ -22,16 +22,12 @@ library(foreach) # for splitting heavy processing (masking, converting)
 library(doParallel) # for splitting heavy processing (masking, converting)
 ## Brazil shapefile mask
 library(maptools)  ## For wrld_simpl
+library(​data.table​) #for faster reading of csv files with function fread
 data(wrld_simpl)
 BRA <- subset(wrld_simpl, NAME=="Brazil")
 
 setwd("/home/aavila/Documents/forest_regrowth")
 
-#specifying coordinates of interest - where would you like to crop the dataframe to?
-xmin <- -48.89171
-xmax <- -46.41909
-ymin <- -3.837333
-ymax = -2.41036
 
 ####################################################################
 ########## FUNCTIONS ##########
@@ -109,39 +105,6 @@ df_merge = function(df){
   return(df[[1]])
 }
 
-# Creating one unified dataframe from multiple raw Mapbiomas .tif files
-# It intakes:
-# file = the path to the directory (string)
-# crop = whether we are subsetting the data into our region of interest or maintaining it whole (Boolean)
-# It outputs:
-# Converts into dataframes with the year as column
-making_df = function(file, crop){
-
-  files = list.files(path = file, pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
-
-  tmp_rasters = lapply(files, raster)
-
-  # if we are subsetting the data into our region of interest
-  coord_oi = c(xmin, xmax, ymin, ymax) #this specifies the coordinates of Paragominas.
-  if(crop == T){
-    e = as(extent(coord_oi), 'SpatialPolygons')
-    crs(e) = "+proj=longlat +datum=WGS84 +no_defs"
-    tmp_rasters = lapply(tmp_rasters, crop, e) # subsects all rasters to area of interest
-  }
-
-  tmp_dfs = lapply(tmp_rasters, as.data.frame, xy=T)
-
-  merged_df = df_merge(tmp_dfs)
-
-  colnames(merged_df) = str_sub(colnames(merged_df), start= -4)   # makes column names only "yyyy"
-
-  merged_df = merged_df[order(merged_df$x),]   #order by longitude, so the pixels are separated by UTM zones.
-
-  merged_df = cbind(merged_df, LongLatToUTM(merged_df$x, merged_df$y))   # converts lat, long coordinates to UTM
-
-  return(merged_df)
-}
-
 # reduce date from "%Y-%m-%d %H:%M:%S" format into just the year
 extract_year = function(df, in_format, out_format){
   df$date = as.POSIXct(df$date, format = in_format)
@@ -166,7 +129,7 @@ import_mapbiomas = T
 import_clim == T
 import_dubayah = F
 import_santoro = F
-#import_potapov = F
+import_potapov = F
 
 ####################################################################
 ########## EXTRACTING DATA ##########
@@ -174,85 +137,78 @@ import_santoro = F
 
 ##########  REGROWTH/DEFORESTATION, FIRE AND LAND USE ##########
 
-# Mapbiomas data was manually downloaded.
-if (import_mapbiomas == T){
-  regrowth = readRDS("./scripts/regrowth.rds")
-  fire = readRDS("./scripts/fire.rds")
-  lulc = readRDS("./scripts/lulc.rds")
-}else{
-  regrowth = making_df('./mapbiomas/regrowth', crop=F)
-  # subset only for the pixels that show some regrowth history
-  regrowth = regrowth[rowSums(sapply(regrowth, '%in%', seq(500, 599, by=1))) > 0,]
-  saveRDS(regrowth, "regrowth.rds")
 
-  fire = making_df('./mapbiomas/fire', crop=F)
-  fire = fire[rownames(regrowth),] # subset only the coordinates that have some history of regrowth.
-  saveRDS(fire, "fire.rds")
+#specifying coordinates of interest - where would you like to crop the dataframe to?
 
-  lulc = making_df('./mapbiomas/lulc', crop=T)
-  lulc = lulc[rownames(regrowth),] # subset only the coordinates that have some history of regrowth.
-  saveRDS(lulc, "lulc.rds")
-}
+# EXTRACTING DATA FROM MULTIPLE REGIONS OF THE COUNTRY (larger scale)
 
-########### NOTE: Had issues using making_df() for the newly imported files, so I rewrote the code:
-# A few files were corrupted. Need to redownload the data.
 files <- list.files(path = './mapbiomas/regrowth_amazon')
 locations <- str_sub(files, start= -25, end = -5)
 locations <- unique(locations)
+dir.create('regrowth_dataframes')
 
-files <- list.files(path = './mapbiomas/regrowth_amazon', pattern='0000031744-0000000000', full.names=TRUE)   # obtain paths for all files 
+# the Amazon is divided in 12 parts, each with their own identifier
+# each location is an identifier.
+for (location in locations){
+  files_tmp <- list.files(path = './mapbiomas/regrowth_amazon', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
 
-regrowth_list = c()
-for (i in 1:length(files)){
-  regrowth_list[[i]] = try(raster(files[i]))
-  print(i)
+  dir.create(location)
+
+  # obtain the raster file for all years within that location
+  regrowth_list = c()
+  for (i in 1:length(files)){
+    regrowth_list[[i]] = raster(files[i])
+    print(i)
+  }
+
+  # NOTE: MAY NEED TO ORDER THE FILE NAMES BY YEAR
+
+  # to make processing lighter, subset only the pixels that have shown regrowth history.
+  # here, we are (1) making a mask registering all regrowth moments and (2) subsetting rasters based on that mask.
+  # a regrowth moment is flagged with the value "503", therefore:
+  for (i in 1:length(regrowth_list)){
+    regrowth_list[[i]][regrowth_list[[i]]!=503] <- NA # only leave behind values not including the regrowth moment
+    writeRaster(tmp_dfs[[i]], file.path(location, paste0(c(1984+i), ".tif"))) # save rasters with the year on the folder created for each location.
+  }
+
+  # the reason these files are being stored in the machine is to avoid losing all progress in case of a disconnection of the ssh,
+  # as well as avoid having to redo everything in case there is an error that could be fixed later.
+
+  # create a raster stack with one layer per year, for this location. This will be a large stack with only 0 or 503.
+  stacked_years = raster(paste0(location, '1985.tif'))
+  for (i in 1986:2018){
+    tmp = raster(paste0(i, '.tif'))
+    tst = stack(stacked_years, tmp)
+  }
+
+  #stacked files are merged to become one 
+  regrowth_mask = merge(stacked_years)
+
+  masked = lapply(regrowth_list, mask, regrowth_mask)
+
+  stacked_history = stack(masked)
+
+  # convert into dataframe for further manipulation
+  df_tst = as.data.frame(stacked_history, xy = T, na.rm = T)
+  saveRDS(df_tst, paste0(, ""))
+
+  #replace function from dplyr should work here
+  colnames(df_tst) = c(sub('mapbiomas.brazil.collection.60.', "", colnames(df_tst[,1:c(ncol(df_tst)-2)])), "lon", "lat")
+  df_tst <- df_tst[ , order(names(df_tst))]
+  #missing 1990, 1994, 1999
+
+
+
 }
 
-tmp_dfs <- discard(regrowth_list, inherits, 'try-error')
 
-
-
-
-
-masked = lapply(tmp_dfs, mask, tst_mrg)
-
-tst = readRDS("masked.RData")
-
-stacked_tst = stack(tst)
-
-start = Sys.time()
-df_tst = as.data.frame(stacked_tst, xy = T, na.rm = T)
-end = Sys.time()
-print(end-start)
 
 saveRDS(df_tst, "df_tst.rds")
-
-
 
 writeRaster(tst, "masked_merged.tif")
 
 tst = raster("masked_merged.tif")
 
-colnames(df_tst) = c(sub(".0000031744.0000000000", "", colnames(df_tst[,1:c(ncol(df_tst)-2)])), "lon", "lat")
-df_tst <- df_tst[ , order(names(df_tst))]
-#missing 1990, 1994, 1999
-
-
-
-start = Sys.time()
-for (i in c(1,17:length(tmp_dfs))){
-  tmp_dfs[[i]][tmp_dfs[[i]]!=503] <- NA
-  writeRaster(tmp_dfs[[i]], paste0(c(1988+i), ".tif"))
-}
-end = Sys.time()
-
-tst = raster('1989.tif')
-for (i in 1990:2004){
-  tmp = raster(paste0(i, '.tif'))
-  tst = stack(tst, tmp)
-}
-
-tst_mrg = merge(tst)
 writeRaster(tst_mrg, "merged_years.tif")
 
 
@@ -348,6 +304,19 @@ brazil_soil = soil[soil$COUNTRY == "BRAZIL",]
 
 ##########  BIOMASS ##########
 
+
+#The CRAN version:
+install.packages("rGEDI")
+
+#The development version:
+library(devtools)
+devtools::install_github("carlos-alberto-silva/rGEDI", dependencies = TRUE)
+
+# loading rGEDI package
+library(rGEDI)
+
+
+
 # Dubayah et al 2022 -> GEDI L4A Footprint Level Aboveground Biomass Density (Mg/ha)
 # 1km resolution, 2019-2021
 if (import_dubayah == T){
@@ -410,13 +379,13 @@ if (import_santoro == T){
 
   colnames(biomass) = c('lon', 'lat', 'agbd', 'zone', 'x', 'y')
   saveRDS(biomass, "biomass_santoro.rds")
-  
+
 }
 
 # Potapov et al 2020 -> GLAD Forest Canopy Height (m)
 # 30m resolution, 2019
 if (import_potapov == T){
-  biomass = readRDS("biomass_potapov.rds")
+  biomass = readRDS("Forest_height_2019_Brazil.rds")
 }else{
   biomass = raster("Forest_height_2019_SAM.tif")
 
@@ -424,6 +393,6 @@ if (import_potapov == T){
   r2 <- crop(biomass, extent(BRA))
   r3 <- mask(r2, BRA)
 
-  writeRaster(r3, "Forest_height_2019_Brazil.tif")
+  #writeRaster(r3, "Forest_height_2019_Brazil.tif")
 
 }

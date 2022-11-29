@@ -1,19 +1,49 @@
 
 
-xmin <- min(df_tst$lon)
-xmax <- max(df_tst$lon)
-ymin <- min(df_tst$lat)
-ymax = max(df_tst$lat)
+regrowth = readRDS("df_tst.rds")
 
-  lulc = making_df('./mapbiomas/lulc', crop=T)
+xmin <- min(regrowth$lon)
+xmax <- max(regrowth$lon)
+ymin <- min(regrowth$lat)
+ymax = max(regrowth$lat)
+
+
+files = list.files(path = './mapbiomas/lulc', pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
+
+tmp_rasters = lapply(files, raster)
+
+  # if we are subsetting the data into our region of interest
+coord_oi = c(xmin, xmax, ymin, ymax) #this specifies the coordinates of Paragominas.
+e = as(extent(coord_oi), 'SpatialPolygons')
+crs(e) = "+proj=longlat +datum=WGS84 +no_defs"
+tmp_rasters = lapply(tmp_rasters, crop, e) # subsects all rasters to area of interest
+
+stacked_tst = stack(tmp_rasters)
+lulc = as.data.frame(stacked_tst, xy = T, na.rm = T)
+
+
+saveRDS(lulc, "lulc_tst.rds")
+
+
+
+
+
 #  lulc = lulc[rownames(regrowth),] # subset only the coordinates that have some history of regrowth.
-  saveRDS(lulc, "lulc_tst.rds")
+saveRDS(lulc, "lulc_tst.rds")
+
 
 e <- extent(xmin, xmax, ymin, ymax)
 
+biomass = raster("Forest_height_2019_Brazil.tif")
 biomass_cropped <- crop(biomass,e)
-biomass_df <- as.data.frame(biomass_cropped, xy=T)
-biomass = cbind(biomass_df, LongLatToUTM(biomass_df$x, biomass_df$y))
+biomass_df <- as.data.frame(biomass_cropped, xy=T, na.rm=T)
+biomass = cbind(biomass_with_data, LongLatToUTM(biomass_with_data$x, biomass_with_data$y))
+
+saveRDS(biomass, "biomass_potapov_tst.rds")
+
+
+check = readRDS("biomass_potapov_tst.rds")
+
 
 
 
