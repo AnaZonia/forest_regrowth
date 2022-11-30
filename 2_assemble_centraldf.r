@@ -1,4 +1,26 @@
+library(sf)
+library(raster) #  handling spatial data
+library(terra) # handling spatial data
+library(geodata) # to extract worldclim with getData
+library(sp) # to extract worldclim with getData
+#if (!require("BiocManager", quietly = TRUE))
+#  install.packages("BiocManager")
+#BiocManager::install("grimbough/rhdf5")
+library(rhdf5) # for handling raw GEDI data
+#remotes::install_github("VangiElia/GEDI4R")
+library(GEDI4R) # for extracting raw GEDI data
+#library(stringr)
+library(tidyverse)
+library(plyr)
+library(foreach) # for splitting heavy processing (masking, converting)
+library(doParallel) # for splitting heavy processing (masking, converting)
+## Brazil shapefile mask
+library(maptools)  ## For wrld_simpl
+library(​data.table​) #for faster reading of csv files with function fread
+data(wrld_simpl)
+BRA <- subset(wrld_simpl, NAME=="Brazil")
 
+setwd("/home/aavila/Documents/forest_regrowth")
 
 regrowth = readRDS("df_tst.rds")
 
@@ -24,9 +46,7 @@ lulc = as.data.frame(stacked_tst, xy = T, na.rm = T)
 
 saveRDS(lulc, "lulc_tst.rds")
 
-
-
-
+saveRDS(biomass_na_rm, 'biomass_na_rm.rds')
 
 #  lulc = lulc[rownames(regrowth),] # subset only the coordinates that have some history of regrowth.
 saveRDS(lulc, "lulc_tst.rds")
@@ -36,14 +56,22 @@ e <- extent(xmin, xmax, ymin, ymax)
 
 biomass = raster("Forest_height_2019_Brazil.tif")
 biomass_cropped <- crop(biomass,e)
-biomass_df <- as.data.frame(biomass_cropped, xy=T, na.rm=T)
+#biomass_df <- as.data.frame(biomass_cropped, xy=T, na.rm = TRUE)
+bm_test <- values(biomass_cropped)
+
+bm_tst_complete <- na.omit(bm_test)
+
+bm_test <- getValues(biomass_cropped)
+bm_test <- data.frame(cell = 1:length(bm_test), value = bm_test)
+bm_test <- na.omit(bm_test)
+bm_test[,c("x","y")] <- xyFromCell(biomass_cropped, bm_test$cell)
+
+
+
+
 biomass = cbind(biomass_with_data, LongLatToUTM(biomass_with_data$x, biomass_with_data$y))
 
 saveRDS(biomass, "biomass_potapov_tst.rds")
-
-
-check = readRDS("biomass_potapov_tst.rds")
-
 
 
 

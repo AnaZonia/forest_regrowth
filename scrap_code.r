@@ -199,3 +199,36 @@ making_df = function(file, crop){
 
 
 tmp_dfs <- discard(regrowth_list, inherits, 'try-error')
+
+
+
+############ DIAGNOSE CORRUPTED FILES
+
+for (i in 1:12){
+  location = locations[i]
+  # the Amazon is divided in 12 parts, each with their own identifier
+  # each location is an identifier.
+  #for (location in locations){
+    files_tmp <- list.files(path = './mapbiomas/regrowth_amazon', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
+    files_tmp <- sort(files_tmp)
+
+    #dir.create(paste0('./regrowth_dataframes/', location))
+
+    # obtain the raster file for all years within that location
+
+    raster2 <- function(file, ...) {
+    tryCatch(raster(file, ...), error = function(c) {
+      c$message <- paste0(c$message, " (in ", file, ")")
+      print(c)
+    })
+    }
+
+    for (j in 1:length(files_tmp)){
+      tmp <- raster2(files_tmp[j])
+    }
+}
+
+# raising errors:
+# 1990
+# 1999
+getwd()

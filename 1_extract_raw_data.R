@@ -1,8 +1,16 @@
 ####################################################################
 ########## Predicting forest regrowth from Mapbiomas data ##########
 # first applied to the district of Paragominas, in the Western Amazon.
-# Ana Avila - 2022
+# Ana Avila - Nov 2022
 ####################################################################
+
+# TO DO:
+
+# ADD SOIL
+# ADD GEDI 4B
+# Finish unifying regrowth info for the entire amazon
+# Add fire info for the entire amazon
+# add lulc for entire amazon
 
 library(sf)
 library(raster) #  handling spatial data
@@ -27,7 +35,6 @@ data(wrld_simpl)
 BRA <- subset(wrld_simpl, NAME=="Brazil")
 
 setwd("/home/aavila/Documents/forest_regrowth")
-
 
 ####################################################################
 ########## FUNCTIONS ##########
@@ -141,43 +148,49 @@ import_potapov = F
 #specifying coordinates of interest - where would you like to crop the dataframe to?
 
 # EXTRACTING DATA FROM MULTIPLE REGIONS OF THE COUNTRY (larger scale)
+path = './mapbiomas/regrowth_amazon'
+files <- list.files(path)
+#newname <- sub('none-','', files) ## making names easier to read, standardizing the names
+#file.rename(file.path(path,files), file.path(path, newname)) ## renaming it.
 
-files <- list.files(path = './mapbiomas/regrowth_amazon')
 locations <- str_sub(files, start= -25, end = -5)
 locations <- unique(locations)
-dir.create('regrowth_dataframes')
 
-# the Amazon is divided in 12 parts, each with their own identifier
-# each location is an identifier.
-for (location in locations){
-  files_tmp <- list.files(path = './mapbiomas/regrowth_amazon', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
+# "0000000000-0000063488" is mostly done
 
-  dir.create(location)
+for (i in 1:length(locations)){
+  location = locations[i]
+  # the Amazon is divided in 12 parts, each with their own identifier
+  # each location is an identifier.
+  #for (location in locations){
+    files_tmp <- list.files(path = './mapbiomas/regrowth_amazon', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
+    files_tmp <- sort(files_tmp)
 
-  # obtain the raster file for all years within that location
-  regrowth_list = c()
-  for (i in 1:length(files)){
-    regrowth_list[[i]] = raster(files[i])
-    print(i)
-  }
+    #dir.create(paste0('./regrowth_dataframes/', location))
 
-  # NOTE: MAY NEED TO ORDER THE FILE NAMES BY YEAR
+    regrowth_list = c()
+    for (i in 1:length(files_tmp)){
+      regrowth_list[i] <- raster(files_tmp[i])
+      print(i)
+    }
+
+    # obtain the raster file for all years within that location
 
   # to make processing lighter, subset only the pixels that have shown regrowth history.
   # here, we are (1) making a mask registering all regrowth moments and (2) subsetting rasters based on that mask.
   # a regrowth moment is flagged with the value "503", therefore:
   for (i in 1:length(regrowth_list)){
     regrowth_list[[i]][regrowth_list[[i]]!=503] <- NA # only leave behind values not including the regrowth moment
-    writeRaster(tmp_dfs[[i]], file.path(location, paste0(c(1984+i), ".tif"))) # save rasters with the year on the folder created for each location.
+    writeRaster(tmp_dfs[[i]], file.path(paste0(path, '/regrowth_dataframes/', location, '_', c(1987+i), ".tif"))) # save rasters with the year on the folder created for each location.
   }
 
   # the reason these files are being stored in the machine is to avoid losing all progress in case of a disconnection of the ssh,
-  # as well as avoid having to redo everything in case there is an error that could be fixed later.
+  # as well as avoid having to redo everything in case there is an error that could be fixed later by editing the files.
 
   # create a raster stack with one layer per year, for this location. This will be a large stack with only 0 or 503.
-  stacked_years = raster(paste0(location, '1985.tif'))
-  for (i in 1986:2018){
-    tmp = raster(paste0(i, '.tif'))
+  stacked_years = raster(paste0(location, '_1988.tif')) #first year is 1988
+  for (i in 1989:2019){
+    tmp = raster(paste0(path, '/regrowth_dataframes/', location, '_', i, ".tif"))
     tst = stack(stacked_years, tmp)
   }
 
@@ -190,20 +203,14 @@ for (location in locations){
 
   # convert into dataframe for further manipulation
   df_tst = as.data.frame(stacked_history, xy = T, na.rm = T)
-  saveRDS(df_tst, paste0(, ""))
 
-  #replace function from dplyr should work here
   colnames(df_tst) = c(sub('mapbiomas.brazil.collection.60.', "", colnames(df_tst[,1:c(ncol(df_tst)-2)])), "lon", "lat")
   df_tst <- df_tst[ , order(names(df_tst))]
-  #missing 1990, 1994, 1999
-
-
+  saveRDS(df_tst, paste0(, ""))
 
 }
 
 
-
-saveRDS(df_tst, "df_tst.rds")
 
 writeRaster(tst, "masked_merged.tif")
 
@@ -298,6 +305,12 @@ soil <- sf::st_read(
 )
 
 brazil_soil = soil[soil$COUNTRY == "BRAZIL",]
+
+brazil_soil_tst = st_coordinates(brazil_soil$geometry[1])
+
+apply(brazil_soil, 1, )
+
+
 
 # SNUM - Soil mapping unit number
 # 
@@ -396,3 +409,15 @@ if (import_potapov == T){
   #writeRaster(r3, "Forest_height_2019_Brazil.tif")
 
 }
+
+
+
+
+#install.packages("unix") 
+library(unix)
+
+rlimit_all()
+
+rlimit_as(1e12)  #increases to ~12GB
+
+
