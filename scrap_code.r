@@ -1,25 +1,33 @@
 
 ################################## TESTING ZONE  ######################################################
-
+head(agb_forest_age)
 
 biomass[biomass$agbd == 49 & biomass$x == 213210 & biomass$y == 9663510,]
 
-regrowth[rownames(regrowth) == 11768979, ] 
+regrowth[rownames(regrowth) == 505845282, ] 
+biomass[biomass$xy == 228090109643800, ] 
 
 
-######################### WHAT'S WRONG
-# 34182406   23 233190 9622260          1 232331909622260 2205.453
-# 15229309   23 306570 9684000         30 233065709684000 0.0192384105
-regrowth[rownames(regrowth) == 40507664, ] 
-# -48.85896 -3.60705
-# 449.0891 @ 3 yrs old
-# -3.607193 -48.85909
+ggplot(agb_forest_age, aes(x=forest_age)) + 
+  geom_histogram(binwidth=1)
 
-tst = subset(amazon, agbd > 350)
-# 18412814   23 300000 9673650          2  233e+059673650  435.5806 435.5805969
-tst = subset(tst, forest_age == 1)
 
-# 30554059   22 773460 9634020         22 227734609634020    0
+# lots of low biomasses at all ages... why? Biomass is showing as lower than expected.
+# could be misalignment - showing nearby patches of low biomass.
+# could be misclassification
+#remove all cases of 305
+#remove all cases with 300-500-300
+#remove all cases of less than 4 consecutive years of 100-class before regrowth (seem to be accounting for high biomass, low age)
+# GEDI is showing some suspiciously low AGBD readings.
+
+
+tst = subset(agb_forest_age, agbd < 50)
+tst = subset(tst, agbd > 13)
+tst = subset(tst, forest_age == 29)
+
+
+hist(biomass$agbd, breaks=20)
+
 
 biomass |>
   subset(abs(N00W060_agb - 67) < 1e-3)
@@ -228,7 +236,37 @@ for (i in 1:12){
     }
 }
 
-# raising errors:
-# 1990
-# 1999
-getwd()
+
+
+
+GEDI = raster('./GEDI4B/GEDI04_B_MW019MW138_02_002_05_R01000M_MU.tif')
+
+GEDI_df = as.data.frame(GEDI, na.rm = TRUE, xy = TRUE)
+
+
+
+
+
+agb_forest_age = cbind(regrowth_cleaned, agbd = biomass[match(regrowth_cleaned$xy,biomass$xy),c("agbd")])
+agb_forest_age = agb_forest_age[complete.cases(agb_forest_age[, ncol(agb_forest_age)]), ]
+
+plot(tst$forest_age, tst$agbd)
+
+
+
+
+
+######## TESTING GEDI ##########
+
+
+
+
+# The issue with GEDI4R by VandiElia is that they are using hdf5r package, which doesn't work so well:
+# this generates the error:
+level4a_h5 <- hdf5r::H5File$new("./GEDI_mature/GEDI04_A_2020193231025_O08954_01_T00916_02_002_02_V002.h5", mode = "r")#mode="r" to open in reading mode
+
+# while this doesn't"
+level4a_h5 <- H5Fopen("./GEDI_mature/GEDI04_A_2020193231025_O08954_01_T00916_02_002_02_V002.h5")
+
+  groups_id <- grep("BEAM\\d{4}$", gsub("/", "", hdf5r::list.groups(level4a_h5,
+                                                                    recursive = F)), value = T)

@@ -1,28 +1,14 @@
 ####################################################################
 ########## Predicting forest regrowth from Mapbiomas data ##########
-# first applied to the district of Paragominas, in the Western Amazon.
-# Ana Avila - Nov 2022
+# Extracting biomass and regrowth information for the entire Amazon.
+# Ana Avila - Dec 2022
 ####################################################################
-
-# TO DO:
-
-# ADD SOIL
-# ADD GEDI 4B
-# Finish unifying regrowth info for the entire amazon
-# Add fire info for the entire amazon
-# add lulc for entire amazon
 
 library(sf)
 library(raster) #  handling spatial data
 library(terra) # handling spatial data
 library(geodata) # to extract worldclim with getData
 library(sp) # to extract worldclim with getData
-#if (!require("BiocManager", quietly = TRUE))
-#  install.packages("BiocManager")
-#BiocManager::install("grimbough/rhdf5")
-library(rhdf5) # for handling raw GEDI data
-#remotes::install_github("VangiElia/GEDI4R")
-library(GEDI4R) # for extracting raw GEDI data
 #library(stringr)
 library(tidyverse)
 library(plyr)
@@ -129,14 +115,6 @@ find_last_instance = function(df, fun){
   return(last_df)
 }
 
-####################################################################
-########## SWITCHES ##########
-####################################################################
-import_mapbiomas = T
-import_clim == T
-import_dubayah = F
-import_santoro = F
-import_potapov = F
 
 ####################################################################
 ########## EXTRACTING DATA ##########
@@ -156,9 +134,9 @@ files <- list.files(path)
 locations <- str_sub(files, start= -25, end = -5)
 locations <- unique(locations)
 
-# "0000000000-0000063488" is mostly done
+locations <- locations[1:length(locations)]
 
-for (i in 1:length(locations)){
+for (i in 3:length(locations)){
   location = locations[i]
   # the Amazon is divided in 12 parts, each with their own identifier
   # each location is an identifier.
@@ -170,7 +148,7 @@ for (i in 1:length(locations)){
 
     regrowth_list = c()
     for (i in 1:length(files_tmp)){
-      regrowth_list[i] <- raster(files_tmp[i])
+      regrowth_list <- c(regrowth_list, raster(files_tmp[i]))
       print(i)
     }
 
@@ -180,22 +158,26 @@ for (i in 1:length(locations)){
   # here, we are (1) making a mask registering all regrowth moments and (2) subsetting rasters based on that mask.
   # a regrowth moment is flagged with the value "503", therefore:
   for (i in 1:length(regrowth_list)){
+    print(i)
+    print(Sys.time())
     regrowth_list[[i]][regrowth_list[[i]]!=503] <- NA # only leave behind values not including the regrowth moment
-    writeRaster(tmp_dfs[[i]], file.path(paste0(path, '/regrowth_dataframes/', location, '_', c(1987+i), ".tif"))) # save rasters with the year on the folder created for each location.
+    writeRaster(regrowth_list[[i]], file.path(paste0('./mapbiomas/regrowth_rasters/', location, '_', c(1987+i), ".tif"))) # save rasters with the year on the folder created for each location.
   }
+}
+
 
   # the reason these files are being stored in the machine is to avoid losing all progress in case of a disconnection of the ssh,
   # as well as avoid having to redo everything in case there is an error that could be fixed later by editing the files.
 
   # create a raster stack with one layer per year, for this location. This will be a large stack with only 0 or 503.
-  stacked_years = raster(paste0(location, '_1988.tif')) #first year is 1988
-  for (i in 1989:2019){
-    tmp = raster(paste0(path, '/regrowth_dataframes/', location, '_', i, ".tif"))
-    tst = stack(stacked_years, tmp)
-  }
+for (i in 1:length(locations)){
+  filepaths <- paste0("/home/aavila/Documents/forest_regrowth/mapbiomas/regrowth_dataframes/", locations[1], '_', c(1988:2019), '.tif')
+  mask_raster_list <- lapply(filepaths, raster)
+  mask_raster_stack <- stack(mask_raster_list)
+}
 
   #stacked files are merged to become one 
-  regrowth_mask = merge(stacked_years)
+  regrowth_mask = merge(mask_raster_stack)
 
   masked = lapply(regrowth_list, mask, regrowth_mask)
 
@@ -204,12 +186,18 @@ for (i in 1:length(locations)){
   # convert into dataframe for further manipulation
   df_tst = as.data.frame(stacked_history, xy = T, na.rm = T)
 
-  colnames(df_tst) = c(sub('mapbiomas.brazil.collection.60.', "", colnames(df_tst[,1:c(ncol(df_tst)-2)])), "lon", "lat")
-  df_tst <- df_tst[ , order(names(df_tst))]
-  saveRDS(df_tst, paste0(, ""))
-
+subs = c('mapbiomas.brazil.collection.60.', '.0000000000.0000095232')
+for (cut in subs){
+  colnames(df_tst) = c(sub(cut, "", colnames(df_tst[,1:c(ncol(df_tst)-2)])), "lon", "lat")
 }
 
+
+df_tst = cbind(df_tst, LongLatToUTM(df_tst$lon, df_tst$lat))
+
+saveRDS(df_tst, paste0('0000000000.0000095232.rds'))
+
+
+df_tst = readRDS('0000000000.0000095232_df_colnames.rds')
 
 
 writeRaster(tst, "masked_merged.tif")
@@ -217,6 +205,54 @@ writeRaster(tst, "masked_merged.tif")
 tst = raster("masked_merged.tif")
 
 writeRaster(tst_mrg, "merged_years.tif")
+
+
+
+
+
+############## FIRE
+
+
+# EXTRACTING DATA FROM MULTIPLE REGIONS OF THE COUNTRY (larger scale)
+path = './mapbiomas/fire_amazon'
+files <- list.files(path)
+#newname <- sub('none-','', files) ## making names easier to read, standardizing the names
+#file.rename(file.path(path,files), file.path(path, newname)) ## renaming it.
+
+locations <- str_sub(files, start= -25, end = -5)
+locations <- unique(locations)
+
+for (i in 3:length(locations)){
+  location = locations[4]
+  # the Amazon is divided in 12 parts, each with their own identifier
+  # each location is an identifier.
+  #for (location in locations){
+    files_tmp <- list.files(path = './mapbiomas/fire_amazon', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
+    files_tmp <- sort(files_tmp)
+
+    #dir.create(paste0('./regrowth_dataframes/', location))
+
+    regrowth_list = c()
+    for (i in 4:length(files_tmp)){ # since regrowth info is only available 1988 onwards
+      regrowth_list <- c(regrowth_list, raster(files_tmp[i]))
+      print(i)
+    }
+
+    # obtain the raster file for all years within that location
+
+  # to make processing lighter, subset only the pixels that have shown regrowth history.
+
+}
+
+for (i in 1:length(locations)){
+  filepaths <- paste0("/home/aavila/Documents/forest_regrowth/mapbiomas/regrowth_rasters/0000000000-0000095232_", c(1988:2019), '.tif')
+  mask_raster_list <- lapply(filepaths, raster)
+  mask_raster_stack <- stack(mask_raster_list)
+}
+
+regrowth_mask = merge(mask_raster_stack)
+
+
 
 
 
@@ -306,118 +342,11 @@ soil <- sf::st_read(
 
 brazil_soil = soil[soil$COUNTRY == "BRAZIL",]
 
-brazil_soil_tst = st_coordinates(brazil_soil$geometry[1])
+test_coords <- lapply(brazil_soil$geometry, st_coordinates)
 
-apply(brazil_soil, 1, )
+soil <- cbind()
 
 
 
 # SNUM - Soil mapping unit number
-# 
-
-##########  BIOMASS ##########
-
-
-#The CRAN version:
-install.packages("rGEDI")
-
-#The development version:
-library(devtools)
-devtools::install_github("carlos-alberto-silva/rGEDI", dependencies = TRUE)
-
-# loading rGEDI package
-library(rGEDI)
-
-
-
-# Dubayah et al 2022 -> GEDI L4A Footprint Level Aboveground Biomass Density (Mg/ha)
-# 1km resolution, 2019-2021
-if (import_dubayah == T){
-  biomass = readRDS("./biomass_dubayah.rds")
-}else{
-  
-  lat_lon_oi = c(ymax, ymin, xmin, xmax)  #lat and lon of interest
-
-  GEDI_download = l4_download(
-    lat_lon_oi,
-    outdir = "./GEDI",
-    from = "2020-01-01",
-    to = "2020-07-31",
-    just_path = F
-  )
-
-  filepaths = paste0('./GEDI/', list.files("./GEDI"))
-  GEDI_list = lapply(filepaths, l4_get, just_colnames = F)
-  GEDI_list = lapply(GEDI_list, subset, select=c("date", "lat_lowestmode", "lon_lowestmode", "agbd_se", "agbd"))
-  GEDI_list = lapply(GEDI_list, extract_year, in_format = "%Y-%m-%d %H:%M:%S", out_format = "%Y")
-
-  select_range = function(df){
-    df = df[ymin < lat_lowestmode & lat_lowestmode < ymax & xmin < lon_lowestmode & lon_lowestmode < xmax,]
-    return(df)
-  }
-
-  GEDI_list = lapply(GEDI_list, select_range)
-
-  for (i in 2:length(GEDI_list)){
-  GEDI_list[[1]] = rbind(GEDI_list[[1]], GEDI_list[[i]])
-  }
-
-  biomass = GEDI_list[[1]]
-
-  biomass = cbind(biomass, LongLatToUTM(biomass$lon_lowestmode, biomass$lat_lowestmode))
-
-  saveRDS(biomass, "biomass_dubayah.rds")
-}
-
-# Santoro et al 2018 data -> GlobBiomass ESA (Mg/ha)
-# 100m resolution, 2010
-if (import_santoro == T){
-  biomass = readRDS("biomass_santoro_Brazil.rds")
-}else{
-  biomass1 = raster("N00W060_agb.tif")
-  biomass2 = raster("N00W100_agb.tif")
-  biomass3 = raster("N40W060_agb.tif")
-
-  biomass = merge(biomass1, biomass2, biomass3)
-
-  ## crop and mask
-  r2 <- crop(biomass, extent(BRA))
-  r3 <- mask(r2, BRA)
-
-  biomass = as.data.frame(biomass, xy = TRUE)
-
-  #biomass = biomass[ymin < biomass$y & biomass$y < ymax & xmin < biomass$x & biomass$x < xmax,]
-
-  biomass = cbind(biomass, LongLatToUTM(biomass$x, biomass$y))
-
-  colnames(biomass) = c('lon', 'lat', 'agbd', 'zone', 'x', 'y')
-  saveRDS(biomass, "biomass_santoro.rds")
-
-}
-
-# Potapov et al 2020 -> GLAD Forest Canopy Height (m)
-# 30m resolution, 2019
-if (import_potapov == T){
-  biomass = readRDS("Forest_height_2019_Brazil.rds")
-}else{
-  biomass = raster("Forest_height_2019_SAM.tif")
-
-  ## crop and mask
-  r2 <- crop(biomass, extent(BRA))
-  r3 <- mask(r2, BRA)
-
-  #writeRaster(r3, "Forest_height_2019_Brazil.tif")
-
-}
-
-
-
-
-#install.packages("unix") 
-library(unix)
-
-rlimit_all()
-
-rlimit_as(1e12)  #increases to ~12GB
-
 

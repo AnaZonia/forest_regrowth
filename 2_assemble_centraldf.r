@@ -1,3 +1,10 @@
+####################################################################
+########## Predicting forest regrowth from Mapbiomas data ##########
+# first applied to the district of Paragominas, in the Western Amazon.
+# Ana Avila - Dec 2022
+####################################################################
+
+
 library(sf)
 library(raster) #  handling spatial data
 library(terra) # handling spatial data
@@ -22,12 +29,13 @@ BRA <- subset(wrld_simpl, NAME=="Brazil")
 
 setwd("/home/aavila/Documents/forest_regrowth")
 
-regrowth = readRDS("df_tst.rds")
+regrowth = readRDS("0000000000.0000095232.rds")
+biomass <- readRDS('biomass_test.rds')
 
 xmin <- min(regrowth$lon)
 xmax <- max(regrowth$lon)
 ymin <- min(regrowth$lat)
-ymax = max(regrowth$lat)
+ymax <- max(regrowth$lat)
 
 
 files = list.files(path = './mapbiomas/lulc', pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
@@ -50,30 +58,6 @@ saveRDS(biomass_na_rm, 'biomass_na_rm.rds')
 
 #  lulc = lulc[rownames(regrowth),] # subset only the coordinates that have some history of regrowth.
 saveRDS(lulc, "lulc_tst.rds")
-
-
-e <- extent(xmin, xmax, ymin, ymax)
-
-biomass = raster("Forest_height_2019_Brazil.tif")
-biomass_cropped <- crop(biomass,e)
-#biomass_df <- as.data.frame(biomass_cropped, xy=T, na.rm = TRUE)
-bm_test <- values(biomass_cropped)
-
-bm_tst_complete <- na.omit(bm_test)
-
-bm_test <- getValues(biomass_cropped)
-bm_test <- data.frame(cell = 1:length(bm_test), value = bm_test)
-bm_test <- na.omit(bm_test)
-bm_test[,c("x","y")] <- xyFromCell(biomass_cropped, bm_test$cell)
-
-
-
-
-biomass = cbind(biomass_with_data, LongLatToUTM(biomass_with_data$x, biomass_with_data$y))
-
-saveRDS(biomass, "biomass_potapov_tst.rds")
-
-
 
 
 ####################################################################
@@ -100,7 +84,6 @@ if (import_santoro == T){
 }
 
 # select only years that have regrowth that hasn't been suppressed.
-regrowth = df_tst
 
 regrowth_last_instance = find_last_instance(regrowth, function(x) which(x == 503))
 colnames(regrowth_last_instance) = "last_regrowth"
@@ -142,8 +125,6 @@ tmp3 = tmp3[complete.cases(tmp3),]
 #selects for cleaned rows
 regrowth = regrowth[rownames(regrowth) %in% rownames(tmp3), ] 
 
-
-
 regrowth_last_instance = find_last_instance(regrowth, function(x) which(x == 503))
 colnames(regrowth_last_instance) = "last_regrowth"
 
@@ -151,6 +132,13 @@ regrowth_cleaned = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],regrowth_la
 regrowth_cleaned = cbind(regrowth_cleaned[,1:3], 'forest_age' = max(regrowth_cleaned$last_regrowth)-regrowth_cleaned$last_regrowth)
 
 regrowth_cleaned$xy = paste0(regrowth_cleaned$zone, regrowth_cleaned$x, regrowth_cleaned$y)
+
+saveRDS(regrowth_cleaned, 'regrowth_cleaned.rds')
+
+regrowth_cleaned = readRDS('regrowth_cleaned.rds')
+regrowth_cleaned$forest_age = regrowth_cleaned$forest_age-9
+regrowth_cleaned = subset(regrowth_cleaned, forest_age > 0)
+
 biomass$xy = paste0(biomass$zone, biomass$x, biomass$y)
 
 agb_forest_age = cbind(regrowth_cleaned, agbd = biomass[match(regrowth_cleaned$xy,biomass$xy),c("agbd")])
@@ -158,7 +146,10 @@ agb_forest_age = agb_forest_age[complete.cases(agb_forest_age[, ncol(agb_forest_
 
 plot(agb_forest_age$forest_age, agb_forest_age$agbd)
 
-# how to add distance to nearest mature forest?
+
+#saveRDS(agb_forest_age, 'agb_forest_age_santoro.rds')
+
+#agb_forest_age = readRDS('agb_forest_age.rds')
 
 sds = aggregate(agbd ~ forest_age, agb_forest_age, sd)
 means = aggregate(agbd ~ forest_age, agb_forest_age, mean)
@@ -170,7 +161,11 @@ ggplot(sum_stats,                               # ggplot2 plot with means & stan
            y = mean)) + 
   geom_errorbar(aes(ymin = mean - sd,
                     ymax = mean + sd)) +
-  geom_point()
+  geom_point() + theme(text = element_text(size = 20))  
+
+
+hist(gediL4$agbd, breaks=20) +
+ theme(text = element_text(size = 20))  
 
 
 
