@@ -126,7 +126,7 @@ find_last_instance = function(df, fun){
 #specifying coordinates of interest - where would you like to crop the dataframe to?
 
 # EXTRACTING DATA FROM MULTIPLE REGIONS OF THE COUNTRY (larger scale)
-path = './mapbiomas/regrowth_amazon'
+path <- './mapbiomas/regrowth_amazon'
 files <- list.files(path)
 #newname <- sub('none-','', files) ## making names easier to read, standardizing the names
 #file.rename(file.path(path,files), file.path(path, newname)) ## renaming it.
@@ -137,7 +137,7 @@ locations <- unique(locations)
 locations <- locations[1:length(locations)]
 
 for (i in 3:length(locations)){
-  location = locations[i]
+  location <- locations[i]
   # the Amazon is divided in 12 parts, each with their own identifier
   # each location is an identifier.
   #for (location in locations){
@@ -146,7 +146,7 @@ for (i in 3:length(locations)){
 
     #dir.create(paste0('./regrowth_dataframes/', location))
 
-    regrowth_list = c()
+    regrowth_list <- c()
     for (i in 1:length(files_tmp)){
       regrowth_list <- c(regrowth_list, raster(files_tmp[i]))
       print(i)
@@ -177,32 +177,32 @@ for (i in 1:length(locations)){
 }
 
   #stacked files are merged to become one 
-  regrowth_mask = merge(mask_raster_stack)
+  regrowth_mask <- merge(mask_raster_stack)
 
-  masked = lapply(regrowth_list, mask, regrowth_mask)
+  masked <- lapply(regrowth_list, mask, regrowth_mask)
 
-  stacked_history = stack(masked)
+  stacked_history <- stack(masked)
 
   # convert into dataframe for further manipulation
-  df_tst = as.data.frame(stacked_history, xy = T, na.rm = T)
+  df_tst <- as.data.frame(stacked_history, xy = T, na.rm = T)
 
-subs = c('mapbiomas.brazil.collection.60.', '.0000000000.0000095232')
+subs <- c('mapbiomas.brazil.collection.60.', '.0000000000.0000095232')
 for (cut in subs){
-  colnames(df_tst) = c(sub(cut, "", colnames(df_tst[,1:c(ncol(df_tst)-2)])), "lon", "lat")
+  colnames(df_tst) <- c(sub(cut, "", colnames(df_tst[,1:c(ncol(df_tst)-2)])), "lon", "lat")
 }
 
 
-df_tst = cbind(df_tst, LongLatToUTM(df_tst$lon, df_tst$lat))
+df_tst <- cbind(df_tst, LongLatToUTM(df_tst$lon, df_tst$lat))
 
 saveRDS(df_tst, paste0('0000000000.0000095232.rds'))
 
 
-df_tst = readRDS('0000000000.0000095232_df_colnames.rds')
+df_tst <- readRDS('0000000000.0000095232_df_colnames.rds')
 
 
 writeRaster(tst, "masked_merged.tif")
 
-tst = raster("masked_merged.tif")
+tst <- raster("masked_merged.tif")
 
 writeRaster(tst_mrg, "merged_years.tif")
 
@@ -214,7 +214,7 @@ writeRaster(tst_mrg, "merged_years.tif")
 
 
 # EXTRACTING DATA FROM MULTIPLE REGIONS OF THE COUNTRY (larger scale)
-path = './mapbiomas/fire_amazon'
+path <- './mapbiomas/fire_amazon'
 files <- list.files(path)
 #newname <- sub('none-','', files) ## making names easier to read, standardizing the names
 #file.rename(file.path(path,files), file.path(path, newname)) ## renaming it.
@@ -251,6 +251,67 @@ for (i in 1:length(locations)){
 }
 
 regrowth_mask = merge(mask_raster_stack)
+
+fire_list <- lapply(regrowth_list, crop, regrowth_mask)
+
+fire_mask <- crop(regrowth_mask, fire_list[[1]])
+
+masked <- lapply(fire_list, mask, fire_mask)
+fire_history <- stack(masked)
+
+
+
+df_tst <- as.data.frame(stacked_history, xy = T, na.rm = T)
+
+subs <- c('mapbiomas.brazil.collection.60.', '.0000000000.0000095232')
+for (cut in subs){
+  colnames(df_tst) <- c(sub(cut, "", colnames(df_tst[,1:c(ncol(df_tst)-2)])), "lon", "lat")
+}
+
+df_tst <- cbind(df_tst, LongLatToUTM(df_tst$lon, df_tst$lat))
+
+
+writeRaster(regrowth_mask, 'regrowth_mask.tif')
+
+
+
+################## Land Use/Land Cover ########################
+
+
+files <- list.files(path = './mapbiomas/lulc', pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
+
+tmp_rasters <- lapply(files, raster)
+
+# if we are subsetting the data into our region of interest
+coord_oi <- c(-48.31876, -43.99984, -3.282444, 5.269697)  #(xmin, xmax, ymin, ymax)
+e <- as(extent(coord_oi), 'SpatialPolygons')
+crs(e) <- "+proj=longlat +datum=WGS84 +no_defs"
+tmp_rasters <- lapply(tmp_rasters, crop, e) # subsects all rasters to area of interest
+
+stacked_tst <- stack(tmp_rasters)
+
+bm_test <- getValues(stacked_tst)
+bm_test <- data.frame(cell = 1:length(bm_test), value = bm_test)
+bm_test <- na.omit(bm_test)
+bm_test[,c("x","y")] <- xyFromCell(stacked_tst, bm_test$cell)
+
+
+saveRDS(bm_test, "lulc_0000000000.0000095232.rds")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
