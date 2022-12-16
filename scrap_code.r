@@ -195,5 +195,172 @@ for (i in 1:12){
     }
 }
 
+############ DOWNLOAD AND MANIPULATE LANDSAT FILES
+
+library(reticulate)
+py_config()
+
+Sys.setenv(RETICULATE_PYTHON = '/usr/local/lib/python2.7/')
+#use_python('/usr/local/lib/python2.7/')
+
+repl_python()
+
+# ~~~~ Begin Python environment
 
 
+import ee
+
+#automate
+folder <- 'LE07_L2SP_012054_20120217_20200909_02_T1'
+bands <- c('_SR_B1') #etc
+paste(folder, bands)
+
+x <- list(r1, r2)
+names(x) <- c("x", "y")
+x$filename <- 'test.tif'
+x$overwrite <- TRUE
+m <- do.call(merge, x)
+
+
+#how to deal if the UTM coordinates span zones?
+
+labels <- read.csv('./data/training.csv' )
+training <- getKMLcoordinates('./data/training.kml', ignoreAltitude=TRUE)
+names(training) <- labels$Name
+training <- training[5:length(training)]
+
+training <- lapply(training, as.data.frame)
+for (i in 1:length(training)){
+  training[[i]]$label <- names(training[i])
+}
+training <- do.call(rbind, training)
+colnames(training) <- c('x','y', 'label')
+
+utm <- LongLatToUTM(training$x,training$y,17)
+training <- cbind(utm, training)
+
+training <- training %>%
+  rename(x = 1,
+         y = 2,
+         long = 3,
+         lat = 4)
+training$label = as.factor(tolower(training$label))
+
+training <- training[c(5:nrow(training)), -c(5,7,8,9)]
+saveRDS(training, 'training.rds')
+
+
+
+########################################################################
+library(sf)
+library(raster) #  handling spatial data
+library(terra) # handling spatial data
+library(geodata) # to extract worldclim with getData
+library(sp) # to extract worldclim with getData
+#library(stringr)
+library(tidyverse)
+library(plyr)
+library(foreach) # for splitting heavy processing (masking, converting)
+library(doParallel) # for splitting heavy processing (masking, converting)
+## Brazil shapefile mask
+library(maptools)  ## For wrld_simpl
+library(​data.table​) #for faster reading of csv files with function fread
+
+# Finds utm zone from longitude - allows to analyze data spanning multiple UTM zones
+# This function is necessary for LongLatToUTM (below)
+# It intakes:
+# Longitude (numeric)
+# It outputs:
+# UTM zone (numeric)
+long2UTMzone <- function(long) {
+  ## Function to get the UTM zone for a given longitude
+  (floor((long + 180)/6) %% 60) + 1
+}
+
+# Converts coodinates from lat/long to UTM.
+# this allows merging dataframes with different coordinates.
+# It converts all points to to 30m resolution by finding the nearest coordinate multiple of 30.
+# It intakes:
+# x and y = longitude and latitude, respectively (numeric or vector)
+# It outputs:
+# Dataframe with zone, x and y columns in UTM format.
+LongLatToUTM <- function(x,y){
+  xy <- data.frame(x = x, y = y)
+  xy$zone <- long2UTMzone(x)
+
+  # split the dataframe by UTM zones
+  list_zones <- split(xy, xy$zone)
+
+  res_list <- list()
+
+  #must convert coodinates separately for different zones
+  for (i in 1:length(list_zones)){
+    z <- list_zones[[i]][1,ncol(list_zones[[i]])] #obtain zone value
+    coordinates(list_zones[[i]]) <- c("x", "y")
+    proj4string(list_zones[[i]]) <- CRS("+proj=longlat +datum=WGS84") #convert to spatial object
+    # EPSG code calculated for the southern hemisphere as 32700+UTM zone
+    # add converted coordinates back into the list
+    # obtain list of SpatialObjects, one per UTM zone, with the UTM coordinates.
+    res_list <- append(res_list, spTransform(list_zones[[i]], CRS(paste("+proj=utm +zone=", z, " +init=epsg:327", z, sep=''))) )
+  }
+
+  #convert SpatialObjects into data frames
+  res_list <- lapply(res_list, as.data.frame)
+
+  #if our data spans more than one UTM zone, res_list will have more than one element.
+  #in this case, we unite them all into a single dataframe with zone, x and y columns.
+  if (length(res_list) != 1){
+    for (i in 2:length(res_list)){
+    res_list[[1]] <- rbind(res_list[[1]], res_list[[i]])
+    }
+  }
+  
+  #convert all coordinates to the nearest multiple of 30 (nearest pixel present in Landsat resolution)
+  res_list[[1]]$x <- round( res_list[[1]]$x/30 ) * 30
+  res_list[[1]]$y <- round( res_list[[1]]$y/30 ) * 30
+
+  result <- res_list[[1]][ order(as.numeric(row.names(res_list[[1]]))), ]
+
+  #returns dataframe with zone, x and y columns.
+  return(result)
+}
+
+
+
+setwd("/home/aavila/Documents/forest_regrowth")
+
+
+
+biomass <- readRDS('df_unified.rds')
+regrowth <- readRDS('regrowth_cleaned.rds')
+
+
+biomass <- cbind(biomass, LongLatToUTM(biomass$lon, biomass$lat))
+
+biomass$xy <- paste0(biomass$zone, biomass$x, biomass$y)
+
+agb_forest_age <- cbind(regrowth, agbd = biomass[match(regrowth$xy,biomass$xy),c("agbd")])
+
+agb_forest_age <- agb_forest_age[complete.cases(agb_forest_age[, ncol(agb_forest_age)]), ]
+
+plot(agb_forest_age$forest_age, agb_forest_age$agbd)
+
+
+sds <- aggregate(agbd ~ forest_age, agb_forest_age, sd)
+means <- aggregate(agbd ~ forest_age, agb_forest_age, mean)
+sum_stats <- cbind(means, sds[,2])
+colnames(sum_stats) <- c('age', 'mean', 'sd')
+
+ggplot(sum_stats,                               # ggplot2 plot with means & standard deviation
+       aes(x = age,
+           y = mean)) + 
+  geom_errorbar(aes(ymin = mean - sd,
+                    ymax = mean + sd)) +
+  geom_point() + theme(text = element_text(size = 20))  
+
+tst = subset(agb_forest_age, forest_age == 28)
+tst = subset(tst, agbd < 25)
+
+
+regrowth[rownames(regrowth) == 473167959, ] 
+biomass[biomass$xy == 231981809940500, ] 

@@ -30,7 +30,6 @@ BRA <- subset(wrld_simpl, NAME=="Brazil")
 setwd("/home/aavila/Documents/forest_regrowth")
 
 regrowth = readRDS("0000000000.0000095232.rds")
-biomass <- readRDS('biomass_test.rds')
 
 xmin <- min(regrowth$lon)
 xmax <- max(regrowth$lon)
@@ -162,10 +161,6 @@ ggplot(sum_stats,                               # ggplot2 plot with means & stan
   geom_errorbar(aes(ymin = mean - sd,
                     ymax = mean + sd)) +
   geom_point() + theme(text = element_text(size = 20))  
-
-
-hist(gediL4$agbd, breaks=20) +
- theme(text = element_text(size = 20))  
 
 
 

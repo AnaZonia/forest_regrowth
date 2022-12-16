@@ -154,11 +154,14 @@ files <- list.files(path)
 
 locations <- str_sub(files, start= -25, end = -5)
 locations <- unique(locations)
+#locations <- locations[1:length(locations)]
 
-locations <- locations[1:length(locations)]
+list.files(path = './mapbiomas/regrowth_rasters', pattern=locations[3], full.names=TRUE)   # obtain paths for all files for that location
+
+
 
 for (i in 3:length(locations)){ 
-  location <- locations[i]
+  location <- locations[3]
   # the Amazon is divided in 12 parts, each with their own identifier
   # each location is an identifier.
   #for (location in locations){
@@ -173,17 +176,20 @@ for (i in 3:length(locations)){
     print(i)
   }
 
+regrowth_list <- regrowth_list[6:length(regrowth_list)]
+
   # obtain the raster file for all years within that location
 
   # to make processing lighter, subset only the pixels that have shown regrowth history.
   # here, we are (1) making a mask registering all regrowth moments and (2) subsetting rasters based on that mask.
   # a regrowth moment is flagged with the value "503", therefore:
-  for (i in 1:length(regrowth_list)){
-    print(i)
+  for (j in 1:length(regrowth_list)){
+    print(j)
     print(Sys.time())
-    regrowth_list[[i]][regrowth_list[[i]]!=503] <- NA # only leave behind values not including the regrowth moment
-    writeRaster(regrowth_list[[i]], file.path(paste0('./mapbiomas/regrowth_rasters/', location, '_', c(1987+i), ".tif"))) # save rasters with the year on the folder created for each location.
+    regrowth_list[[j]][regrowth_list[[j]]!=503] <- NA # only leave behind values not including the regrowth moment
+    writeRaster(regrowth_list[[j]], file.path(paste0('./mapbiomas/regrowth_rasters/', location, '_', c(1992+j), ".tif"))) # save rasters with the year on the folder created for each location.
   }
+
 }
 
 
@@ -268,18 +274,6 @@ for (i in 4:length(files_tmp)){ # since regrowth info is only available 1988 onw
 
 
 
-filepaths <- paste0("/home/aavila/Documents/forest_regrowth/mapbiomas/regrowth_rasters/0000000000-0000095232_", c(1988:2019), '.tif')
-mask_raster_list <- lapply(filepaths, raster)
-mask_raster_stack <- stack(mask_raster_list)
-# 508569084
-# 509649920
-
-
-
-
-bm_test <- values(mask_raster_stack)
-
-
 fire_mask <- raster('regrowth_mask.tif')
 
 fire_list <- lapply(fire_list, crop, fire_mask)
@@ -289,6 +283,11 @@ fire_mask <- crop(fire_mask, fire_list[[1]])
 masked <- lapply(fire_list, mask, fire_mask)
 
 fire_history <- stack(masked)
+
+df_tst <- as.data.frame(fire_history, xy = T, na.rm = T)
+
+
+
 
 bm_test <- values(fire_history)
 

@@ -17,12 +17,19 @@ library(rhdf5) # for handling raw GEDI data
 library(GEDI4R) # for extracting raw GEDI data
 library(raster) # Might not need this one
 library(ncdf4)
+library(tidyverse)
 
 setwd("/home/aavila/Documents/forest_regrowth")
 
 # Dubayah et al 2022 -> GEDI L4A Footprint Level Aboveground Biomass Density (Mg/ha)
 # more instructions on https://github.com/VangiElia/GEDI4R
 # a package built specially for processing GEDI4A biomass data.
+
+####################################################################
+##########               SWITCHES            #######################
+####################################################################
+
+
 
 ####################################################################
 ##########              FUNCTIONS            #######################
@@ -44,29 +51,28 @@ df_from_raster <- function(raster){
 ##########              BODY                 #######################
 ####################################################################
 
+dir.create("GEDI_amazon")
 
+if (download_GEDI == T){
 
-outdir <- ('./GEDI_mature')
-mature_coord <- c(-3.68658, -6.98754, -60.94691, -53.48623)
-# ordered ul_lat, lr_lat, ul_lon, lr_lon
+  outdir = c('GEDI_amazon')
+  GEDI_download = l4_download(
+    5.5, -9, -64, -45, # get the coordinates from regrowth data. The crop to the shapefile
+    outdir = outdir,
+    from = "2020-01-01",
+    to = "2020-07-31",
+    just_path = F
+  )
+}
 
-#outdir = tempdir()
-GEDI_download = l4_download(
-  -3.282444, 5.272392, -48.32658, -43.99984,
-  outdir = outdir,
-  from = "2020-01-01",
-  to = "2020-07-31",
-  just_path = F
-)
 
 # Read in
-nc_data <- c(paste0("./GEDI4A_0000000000.0000095232/", list.files("./GEDI4A_0000000000.0000095232/", pattern = '.h5')))
+nc_data <- c(paste0("./GEDI_amazon/", list.files("./GEDI_amazon/", pattern = '.h5')))
 nc_data2 <- lapply(nc_data, nc_open)
-coords <- c(-3.282444, -5.272392, -48.32658, -43.99984)
+coords <- c(-2, -9, -64, -45)
 
 df_from_nc <- function(nc_file, coords){
   # Get variable names
-  #nc_file <- nc_data2[[1]]
   nmv = names(nc_file$var)
 
   # Which ones are agbd
@@ -85,15 +91,26 @@ df_from_nc <- function(nc_file, coords){
   df2 <- subset(df1, agbd > 0)
 
   df3 <- subset(df2, lat < coords[1] & lat > coords[2] & lon > coords[3] & lon < coords[4])
+
   return(df3)
 }
 
+df_list <- lapply(nc_data2, df_from_nc, coords)
+
+df_unified <- bind_rows(df_list)
+
+hist(df_unified$agbd, xlim = c(0, 400), breaks <- 5000)
+#looks like it starts plateauing at 10-15 ton/ha
 
 
-hist(nc_dfs[[10]]$agbd, breaks=2000, xlim = c(0, 80))
+
+saveRDS(df_unified, 'df_unified.rds')
+
+df_unified <- readRDS('df_unified.rds')
 
 
-bind_rows(list_of_dataframes, .id = "column_label")
+
+
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
