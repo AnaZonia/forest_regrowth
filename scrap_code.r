@@ -1,5 +1,7 @@
 
 ################################## TESTING ZONE  ######################################################
+
+
 head(agb_forest_age)
 
 biomass[biomass$agbd == 49 & biomass$x == 213210 & biomass$y == 9663510,]
@@ -89,31 +91,14 @@ for (i in 1988:2019){
   tmp = raster::stack(list.files(path = './mapbiomas/regrowth_amazon', pattern='2016', full.names=TRUE))
   }
 
-xmin = -60
-xmax = -46
-ymin = -13
-ymax = 0
 
-#selecting for southern amazon
-#length(tmp_dfs)
-count = 0
-for (i in 1:length(tmp_dfs)){
-  print(i)
-  if (xmin(extent(tmp_dfs[[i]])) < -65 |
-    xmax(extent(tmp_dfs[[i]])) > -45 |
-    ymin(extent(tmp_dfs[[i]])) < -15 |
-    ymax(extent(tmp_dfs[[i]])) > 0 ) {
-      count = count + 1
-  }
-}
-
-library(usethis) 
-usethis::edit_r_environ()
 
 
 cores <- 50
 cl <- makeCluster(cores) #output should make it spit errors
 registerDoParallel(cl)
+
+############ Splitting a raster for easier handling
 
 # The function spatially aggregates the original raster
 # it turns each aggregated cell into a polygon
@@ -148,31 +133,9 @@ foreach(i=1:length(split_list)) %dopar% {
 
 
 
-################################################
+############ Creating one unified dataframe from multiple raw Mapbiomas .tif files
 
 
-# Mapbiomas data was manually downloaded.
-if (import_mapbiomas == T){
-  regrowth = readRDS("./scripts/regrowth.rds")
-  fire = readRDS("./scripts/fire.rds")
-  lulc = readRDS("./scripts/lulc.rds")
-}else{
-  regrowth = making_df('./mapbiomas/regrowth', crop=F)
-  # subset only for the pixels that show some regrowth history
-  regrowth = regrowth[rowSums(sapply(regrowth, '%in%', seq(500, 599, by=1))) > 0,]
-  saveRDS(regrowth, "regrowth.rds")
-
-  fire = making_df('./mapbiomas/fire', crop=F)
-  fire = fire[rownames(regrowth),] # subset only the coordinates that have some history of regrowth.
-  saveRDS(fire, "fire.rds")
-
-  lulc = making_df('./mapbiomas/lulc', crop=T)
-  lulc = lulc[rownames(regrowth),] # subset only the coordinates that have some history of regrowth.
-  saveRDS(lulc, "lulc.rds")
-}
-
-
-# Creating one unified dataframe from multiple raw Mapbiomas .tif files
 # It intakes:
 # file = the path to the directory (string)
 # crop = whether we are subsetting the data into our region of interest or maintaining it whole (Boolean)
@@ -206,10 +169,6 @@ making_df = function(file, crop){
 }
 
 
-tmp_dfs <- discard(regrowth_list, inherits, 'try-error')
-
-
-
 ############ DIAGNOSE CORRUPTED FILES
 
 for (i in 1:12){
@@ -238,35 +197,3 @@ for (i in 1:12){
 
 
 
-
-GEDI = raster('./GEDI4B/GEDI04_B_MW019MW138_02_002_05_R01000M_MU.tif')
-
-GEDI_df = as.data.frame(GEDI, na.rm = TRUE, xy = TRUE)
-
-
-
-
-
-agb_forest_age = cbind(regrowth_cleaned, agbd = biomass[match(regrowth_cleaned$xy,biomass$xy),c("agbd")])
-agb_forest_age = agb_forest_age[complete.cases(agb_forest_age[, ncol(agb_forest_age)]), ]
-
-plot(tst$forest_age, tst$agbd)
-
-
-
-
-
-######## TESTING GEDI ##########
-
-
-
-
-# The issue with GEDI4R by VandiElia is that they are using hdf5r package, which doesn't work so well:
-# this generates the error:
-level4a_h5 <- hdf5r::H5File$new("./GEDI_mature/GEDI04_A_2020193231025_O08954_01_T00916_02_002_02_V002.h5", mode = "r")#mode="r" to open in reading mode
-
-# while this doesn't"
-level4a_h5 <- H5Fopen("./GEDI_mature/GEDI04_A_2020193231025_O08954_01_T00916_02_002_02_V002.h5")
-
-  groups_id <- grep("BEAM\\d{4}$", gsub("/", "", hdf5r::list.groups(level4a_h5,
-                                                                    recursive = F)), value = T)

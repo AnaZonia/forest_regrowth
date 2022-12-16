@@ -2,6 +2,11 @@
 ########## Predicting forest regrowth from Mapbiomas data ##########
 # Downloading and processing GEDI4A data.
 # Ana Avila - Dec 2022
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# downloads GEDI4A product from cloud using GEDI4R package
+# converts hdf5 into netcdf files for easier handling
+# makes biomass dataframe from raw product with lat, lon, UTM coords, and AGBD info 
+# imports and makes dataframes from santoro and potapov raw data as well.
 ####################################################################
 
 #if (!require("BiocManager", quietly = TRUE))
@@ -10,68 +15,90 @@
 library(rhdf5) # for handling raw GEDI data
 #remotes::install_github("VangiElia/GEDI4R")
 library(GEDI4R) # for extracting raw GEDI data
+library(raster) # Might not need this one
+library(ncdf4)
 
 setwd("/home/aavila/Documents/forest_regrowth")
-
-mask <- raster('merged_years.tif')
 
 # Dubayah et al 2022 -> GEDI L4A Footprint Level Aboveground Biomass Density (Mg/ha)
 # more instructions on https://github.com/VangiElia/GEDI4R
 # a package built specially for processing GEDI4A biomass data.
 
+####################################################################
+##########              FUNCTIONS            #######################
+####################################################################
+
+
+# makes dataframe from large raster files, substituting as.data.frame()
+# assumes cells in the raster start from 1 for correct assignment of coordinates.
+df_from_raster <- function(raster){
+  bm_test <- getValues(raster)
+  bm_test <- data.frame(cell = 1:length(bm_test), value = bm_test)
+  bm_test <- na.omit(bm_test)
+  bm_test[,c("x","y")] <- xyFromCell(raster, bm_test$cell)
+  return(bm_test)
+}
+
+
+####################################################################
+##########              BODY                 #######################
+####################################################################
+
+
+
+outdir <- ('./GEDI_mature')
 mature_coord <- c(-3.68658, -6.98754, -60.94691, -53.48623)
 # ordered ul_lat, lr_lat, ul_lon, lr_lon
 
 #outdir = tempdir()
 GEDI_download = l4_download(
-  mature_coord,
+  -3.282444, 5.272392, -48.32658, -43.99984,
   outdir = outdir,
   from = "2020-01-01",
   to = "2020-07-31",
-  just_path = T
+  just_path = F
 )
 
-# GEDI4R tutorial suggests the use of the l4_getmulti function:
-# dataname <- l4_getmulti(filepaths[1],just_colnames = T)
-# but I have not been able to do it with downloaded data straight from l4_download.
-# the error states that the h5 file isn't valid somehow. Not sure why.
-# may have to do with the H5Fopen function from hdf5r package, which is used by GEDI4R.
-# I have not been able to use hdf5 to open a file.
+# Read in
+nc_data <- c(paste0("./GEDI4A_0000000000.0000095232/", list.files("./GEDI4A_0000000000.0000095232/", pattern = '.h5')))
+nc_data2 <- lapply(nc_data, nc_open)
+coords <- c(-3.282444, -5.272392, -48.32658, -43.99984)
 
-# to circumvent this issue, I used:
-GEDI_list_mature = lapply(filepaths, l4_get, just_colnames = T)
+df_from_nc <- function(nc_file, coords){
+  # Get variable names
+  #nc_file <- nc_data2[[1]]
+  nmv = names(nc_file$var)
 
+  # Which ones are agbd
+  nmv.values = nmv[grepl("/agbd$", nmv)]
 
-GEDI_list = lapply(GEDI_list, subset, select=c("date", "lat_lowestmode", "lon_lowestmode", "agbd_se", "agbd"))
-GEDI_list = lapply(GEDI_list, extract_year, in_format = "%Y-%m-%d %H:%M:%S", out_format = "%Y")
+  # Which ones are lat/lon
+  nmv.lat = nmv[grepl("/lat_lowestmode$", nmv)]
+  nmv.lon = nmv[grepl("/lon_lowestmode$", nmv)]
 
+  # Get data for the first one, might want to iterate over 1:length(nmv.values), or beams or whatever
+  # -9999 seems to be their way of doing NA
+  df1 = data.frame(agbd = ncvar_get(nc_file, nmv.values[1]),
+              lat = ncvar_get(nc_file, nmv.lat[1]),
+              lon = ncvar_get(nc_file, nmv.lon[1]))
 
-hist(GEDI_list[[5]]$agbd, breaks=2000, xlim = c(0, 80)) +
-theme(text = element_text(size = 20))  
+  df2 <- subset(df1, agbd > 0)
 
-
-select_range = function(df){
-  df = df[ymin < lat_lowestmode & lat_lowestmode < ymax & xmin < lon_lowestmode & lon_lowestmode < xmax,]
-  return(df)
+  df3 <- subset(df2, lat < coords[1] & lat > coords[2] & lon > coords[3] & lon < coords[4])
+  return(df3)
 }
 
-GEDI_list = lapply(GEDI_list, select_range)
-
-for (i in 2:length(GEDI_list)){
-GEDI_list[[1]] = rbind(GEDI_list[[1]], GEDI_list[[i]])
-}
-
-biomass = GEDI_list[[1]]
-
-biomass = cbind(biomass, LongLatToUTM(biomass$lon_lowestmode, biomass$lat_lowestmode))
-
-saveRDS(biomass, "biomass_0000000000.0000095232.rds")
 
 
-# manually downloaded two h5 files from GEDI straight into Janus:
-filepaths = c('./GEDI_mature/GEDI04_A_2020193104720_O08946_04_T01367_02_002_02_V002.h5', './GEDI_mature/GEDI04_A_2020193231025_O08954_01_T00916_02_002_02_V002.h5')
+hist(nc_dfs[[10]]$agbd, breaks=2000, xlim = c(0, 80))
 
-############################################ SANTORO #############################################
+
+bind_rows(list_of_dataframes, .id = "column_label")
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##########  SANTORO ##########
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Santoro et al 2018 data -> GlobBiomass ESA (Mg/ha)
 # 100m resolution, 2010
@@ -129,7 +156,10 @@ ggplot(sum_stats,                               # ggplot2 plot with means & stan
                     ymax = mean + sd)) +
   geom_point()
 
-############################################ POTAPOV #############################################
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##########  POTAPOV ##########
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Potapov et al 2020 -> GLAD Forest Canopy Height (m)
 # 30m resolution, 2019
@@ -146,6 +176,8 @@ e <- extent(xmin, xmax, ymin, ymax)
 
 biomass = raster("Forest_height_2019_Brazil.tif")
 biomass_cropped <- crop(biomass,e)
+
+
 #biomass_df <- as.data.frame(biomass_cropped, xy=T, na.rm = TRUE)
 bm_test <- values(biomass_cropped)
 
@@ -159,3 +191,4 @@ bm_test[,c("x","y")] <- xyFromCell(biomass_cropped, bm_test$cell)
 biomass = cbind(biomass_with_data, LongLatToUTM(biomass_with_data$x, biomass_with_data$y))
 
 saveRDS(biomass, "biomass_potapov_tst.rds")
+

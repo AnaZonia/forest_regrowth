@@ -38,9 +38,9 @@ ymin <- min(regrowth$lat)
 ymax <- max(regrowth$lat)
 
 
-files = list.files(path = './mapbiomas/lulc', pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
+files <-   list.files(path = './mapbiomas/lulc', pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
 
-tmp_rasters = lapply(files, raster)
+tmp_rasters <- lapply(files, raster)
 
   # if we are subsetting the data into our region of interest
 coord_oi = c(xmin, xmax, ymin, ymax) #this specifies the coordinates of Paragominas.
@@ -77,23 +77,23 @@ saveRDS(lulc, "lulc_tst.rds")
 # 600 secondary suppression
 
 
-if (import_santoro == T){
-  regrowth = cbind(regrowth[,1:25], regrowth[,(ncol(regrowth)-2):ncol(regrowth)])
-  fire = cbind(fire[,1:28], fire[,(ncol(fire)-2):ncol(fire)])
-  lulc = cbind(lulc[,1:28], lulc[,(ncol(lulc)-2):ncol(lulc)])
-}
+#if (import_santoro == T){
+#  regrowth = cbind(regrowth[,1:25], regrowth[,(ncol(regrowth)-2):ncol(regrowth)])
+#  fire = cbind(fire[,1:28], fire[,(ncol(fire)-2):ncol(fire)])
+#  lulc = cbind(lulc[,1:28], lulc[,(ncol(lulc)-2):ncol(lulc)])
+#}
 
 # select only years that have regrowth that hasn't been suppressed.
 
-regrowth_last_instance = find_last_instance(regrowth, function(x) which(x == 503))
-colnames(regrowth_last_instance) = "last_regrowth"
+regrowth_last_instance <- find_last_instance(regrowth, function(x) which(x == 503))
+colnames(regrowth_last_instance) <- "last_regrowth"
 
 suppression_last_instance = find_last_instance(regrowth, function(x) which(600 <= x & x < 700))
 colnames(suppression_last_instance) = "last_suppression"
 
-regrowth_unsuppressed = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],regrowth_last_instance)
-regrowth_unsuppressed = subset(regrowth_unsuppressed, regrowth_unsuppressed$last_regrowth-suppression_last_instance > 0)
-regrowth_unsuppressed = cbind(regrowth_unsuppressed[,(ncol(regrowth_unsuppressed)-2):ncol(regrowth_unsuppressed)], 'forest_age' = max(regrowth_unsuppressed$last_regrowth)-regrowth_unsuppressed$last_regrowth)
+regrowth_unsuppressed <- cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],regrowth_last_instance)
+regrowth_unsuppressed <- subset(regrowth_unsuppressed, regrowth_unsuppressed$last_regrowth-suppression_last_instance > 0)
+regrowth_unsuppressed <- cbind(regrowth_unsuppressed[,(ncol(regrowth_unsuppressed)-2):ncol(regrowth_unsuppressed)], 'forest_age' = max(regrowth_unsuppressed$last_regrowth)-regrowth_unsuppressed$last_regrowth)
 
 #############################
 
@@ -123,26 +123,26 @@ tmp3 = tmp3[complete.cases(tmp3),]
 
 
 #selects for cleaned rows
-regrowth = regrowth[rownames(regrowth) %in% rownames(tmp3), ] 
+regrowth <- regrowth[rownames(regrowth) %in% rownames(tmp3), ] 
 
-regrowth_last_instance = find_last_instance(regrowth, function(x) which(x == 503))
-colnames(regrowth_last_instance) = "last_regrowth"
+regrowth_last_instance <- find_last_instance(regrowth, function(x) which(x == 503))
+colnames(regrowth_last_instance) <- "last_regrowth"
 
-regrowth_cleaned = cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],regrowth_last_instance)
-regrowth_cleaned = cbind(regrowth_cleaned[,1:3], 'forest_age' = max(regrowth_cleaned$last_regrowth)-regrowth_cleaned$last_regrowth)
+regrowth_cleaned <- cbind(regrowth[(ncol(regrowth)-2):ncol(regrowth)],regrowth_last_instance)
+regrowth_cleaned <- cbind(regrowth_cleaned[,1:3], 'forest_age' = max(regrowth_cleaned$last_regrowth)-regrowth_cleaned$last_regrowth)
 
-regrowth_cleaned$xy = paste0(regrowth_cleaned$zone, regrowth_cleaned$x, regrowth_cleaned$y)
+regrowth_cleaned$xy <- paste0(regrowth_cleaned$zone, regrowth_cleaned$x, regrowth_cleaned$y)
 
 saveRDS(regrowth_cleaned, 'regrowth_cleaned.rds')
 
-regrowth_cleaned = readRDS('regrowth_cleaned.rds')
-regrowth_cleaned$forest_age = regrowth_cleaned$forest_age-9
-regrowth_cleaned = subset(regrowth_cleaned, forest_age > 0)
+regrowth_cleaned <- readRDS('regrowth_cleaned.rds')
+regrowth_cleaned$forest_age <- regrowth_cleaned$forest_age-9
+regrowth_cleaned <- subset(regrowth_cleaned, forest_age > 0)
 
-biomass$xy = paste0(biomass$zone, biomass$x, biomass$y)
+biomass$xy <- paste0(biomass$zone, biomass$x, biomass$y)
 
-agb_forest_age = cbind(regrowth_cleaned, agbd = biomass[match(regrowth_cleaned$xy,biomass$xy),c("agbd")])
-agb_forest_age = agb_forest_age[complete.cases(agb_forest_age[, ncol(agb_forest_age)]), ]
+agb_forest_age <- cbind(regrowth_cleaned, agbd = biomass[match(regrowth_cleaned$xy,biomass$xy),c("agbd")])
+agb_forest_age <- agb_forest_age[complete.cases(agb_forest_age[, ncol(agb_forest_age)]), ]
 
 plot(agb_forest_age$forest_age, agb_forest_age$agbd)
 
@@ -151,10 +151,10 @@ plot(agb_forest_age$forest_age, agb_forest_age$agbd)
 
 #agb_forest_age = readRDS('agb_forest_age.rds')
 
-sds = aggregate(agbd ~ forest_age, agb_forest_age, sd)
-means = aggregate(agbd ~ forest_age, agb_forest_age, mean)
-sum_stats = cbind(means, sds[,2])
-colnames(sum_stats) = c('age', 'mean', 'sd')
+sds <- aggregate(agbd ~ forest_age, agb_forest_age, sd)
+means <- aggregate(agbd ~ forest_age, agb_forest_age, mean)
+sum_stats <- cbind(means, sds[,2])
+colnames(sum_stats) <- c('age', 'mean', 'sd')
 
 ggplot(sum_stats,                               # ggplot2 plot with means & standard deviation
        aes(x = age,
@@ -184,52 +184,52 @@ hist(gediL4$agbd, breaks=20) +
 # 48 = other perennial crop
 
 # total years under each land use type
-lulc$pasture = rowSums(lulc == 15)
-lulc$soy = rowSums(lulc == 39)
-lulc$coffee = rowSums(lulc == 46)
-lulc$sugar = rowSums(lulc == 20)
-lulc$other_perennial = rowSums(lulc == 48)
-lulc$other_annual = rowSums(lulc == 41)
+lulc$pasture <- rowSums(lulc == 15)
+lulc$soy <- rowSums(lulc == 39)
+lulc$coffee <- rowSums(lulc == 46)
+lulc$sugar <- rowSums(lulc == 20)
+lulc$other_perennial <- rowSums(lulc == 48)
+lulc$other_annual <- rowSums(lulc == 41)
 
 
 # time since last observation of each land use type
-ts_pasture = find_last_instance(lulc, function(x) which(x == 15))
-lulc$ts_pasture = max(ts_pasture)-ts_pasture
+ts_pasture <- find_last_instance(lulc, function(x) which(x == 15))
+lulc$ts_pasture <- max(ts_pasture)-ts_pasture
 
-ts_soy = find_last_instance(lulc, function(x) which(x == 39))
-lulc$ts_soy = max(ts_soy)-ts_soy
+ts_soy <- find_last_instance(lulc, function(x) which(x == 39))
+lulc$ts_soy <- max(ts_soy)-ts_soy
 
 #ts_coffee = find_last_instance(lulc, function(x) which(x == 46))
 #ts_sugar = find_last_instance(lulc, function(x) which(x == 20))
 
-ts_other_perennial = rowSums(lulc == 48)
+ts_other_perennial <- rowSums(lulc == 48)
 lulc$ts_other_perennial = max(ts_other_perennial)-ts_other_perennial
 
-ts_other_annual = rowSums(lulc == 41)
-lulc$ts_other_annual = max(ts_other_annual)-ts_other_annual
+ts_other_annual <- rowSums(lulc == 41)
+lulc$ts_other_annual <- max(ts_other_annual)-ts_other_annual
 
-lulc$xy = paste0(lulc$zone, lulc$x, lulc$y)
+lulc$xy <- paste0(lulc$zone, lulc$x, lulc$y)
 
 ########## FIRE ##########
 
 #count number of total fires
-fire$num_fires = rowSums(fire[3:(ncol(fire)-3)])
-fire_last_instance = find_last_instance(fire, function(x) which(x == 1))
-colnames(fire_last_instance) = "last_burn"
-fire = cbind(fire,fire_last_instance)
-fire$last_burn = max(fire$last_burn) - fire$last_burn
+fire$num_fires <- rowSums(fire[3:(ncol(fire)-3)])
+fire_last_instance <- find_last_instance(fire, function(x) which(x == 1))
+colnames(fire_last_instance) <- "last_burn"
+fire <- cbind(fire,fire_last_instance)
+fire$last_burn <- max(fire$last_burn) - fire$last_burn
 fire$last_burn[fire$last_burn == max(fire$last_burn)] = NA
-fire$xy = paste0(fire$zone, fire$x, fire$y)
+fire$xy <- paste0(fire$zone, fire$x, fire$y)
 
-central_df = cbind(agb_forest_age, last_burn = fire[match(agb_forest_age$xy,fire$xy),c("last_burn")])
-central_df = cbind(central_df, num_fires = fire[match(central_df$xy,fire$xy),c("num_fires")])
-central_df = cbind(central_df, pasture = lulc[match(central_df$xy,lulc$xy),c("pasture")])
-central_df = cbind(central_df, soy = lulc[match(central_df$xy,lulc$xy),c("soy")])
-central_df = cbind(central_df, other_perennial = lulc[match(central_df$xy,lulc$xy),c("other_perennial")])
-central_df = cbind(central_df, other_annual = lulc[match(central_df$xy,lulc$xy),c("other_annual")])
-central_df = cbind(central_df, tavg = temp[match(central_df$xy,temp$xy),c("mean")])
-central_df = cbind(central_df, prec = prec[match(central_df$xy,prec$xy),c("mean")])
-central_df$last_burn[is.na(central_df$last_burn)] = 1
+central_df <- cbind(agb_forest_age, last_burn = fire[match(agb_forest_age$xy,fire$xy),c("last_burn")])
+central_df <- cbind(central_df, num_fires = fire[match(central_df$xy,fire$xy),c("num_fires")])
+central_df <- cbind(central_df, pasture = lulc[match(central_df$xy,lulc$xy),c("pasture")])
+central_df <- cbind(central_df, soy = lulc[match(central_df$xy,lulc$xy),c("soy")])
+central_df <- cbind(central_df, other_perennial = lulc[match(central_df$xy,lulc$xy),c("other_perennial")])
+central_df <- cbind(central_df, other_annual = lulc[match(central_df$xy,lulc$xy),c("other_annual")])
+central_df <- cbind(central_df, tavg = temp[match(central_df$xy,temp$xy),c("mean")])
+central_df <- cbind(central_df, prec = prec[match(central_df$xy,prec$xy),c("mean")])
+central_df$last_burn[is.na(central_df$last_burn)] <- 1
 
-central_df = lapply(central_df, as.numeric)
+central_df <- lapply(central_df, as.numeric)
 
