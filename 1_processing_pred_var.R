@@ -306,16 +306,21 @@ saveRDS(bm_test, 'fire_95232.rds')
 
 
 files <- list.files(path = './mapbiomas/lulc', pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
-
 tmp_rasters <- lapply(files, raster)
 
-# if we are subsetting the data into our region of interest
-coord_oi <- c(-48.31876, -43.99984, -3.282444, 5.269697)  #(xmin, xmax, ymin, ymax)
-e <- as(extent(coord_oi), 'SpatialPolygons')
-crs(e) <- "+proj=longlat +datum=WGS84 +no_defs"
-tmp_rasters <- lapply(tmp_rasters, crop, e) # subsects all rasters to area of interest
+regrowth_mask <- raster('./mapbiomas/regrowth_masks/0000000000.0000095232_mask.tif')
 
+# if we are subsetting the data into our region of interest
+# coord_oi <- c(-48.31876, -43.99984, -3.282444, 5.269697)  #(xmin, xmax, ymin, ymax)
+# e <- as(extent(coord_oi), 'SpatialPolygons')
+# crs(e) <- "+proj=longlat +datum=WGS84 +no_defs"
+
+tmp_rasters <- pbapply::pblapply(tmp_rasters, terra::crop, extent(regrowth_mask)) # subsects all rasters to area of interest
+tmp_rasters <- lapply(tmp_rasters, mask, regrowth_mask) # subsects all rasters to area of interest
 stacked_tst <- stack(tmp_rasters)
+
+writeRaster(stacked_tst, "0000000000.0000095232_lulc.tif")
+
 
 bm_test <- getValues(stacked_tst)
 bm_test <- data.frame(cell = 1:length(bm_test), value = bm_test)
@@ -323,7 +328,6 @@ bm_test <- na.omit(bm_test)
 bm_test[,c("x","y")] <- xyFromCell(stacked_tst, bm_test$cell)
 
 
-saveRDS(bm_test, "lulc_95232.rds")
 
 
 

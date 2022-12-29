@@ -364,3 +364,34 @@ tst = subset(tst, agbd < 25)
 
 regrowth[rownames(regrowth) == 473167959, ] 
 biomass[biomass$xy == 231981809940500, ] 
+
+
+##################################################################
+
+setwd("/home/aavila/Documents/forest_regrowth")
+
+regrowth = readRDS('./mapbiomas/dataframes/0000000000.0000095232_regrowth.rds')
+fire = readRDS('./mapbiomas/dataframes/0000000000.0000095232_fire.rds')
+lulc = readRDS('./test_files/lulc.rds')
+regrowth_mask <- raster('./mapbiomas/regrowth_masks/0000000000.0000095232_mask.tif')
+
+
+check = readRDS('./test_files/0000000000.0000095232_df_colnames.rds')
+
+
+
+
+sds <- aggregate(agbd ~ forest_age, agb_forest_age, sd)
+means <- aggregate(agbd ~ forest_age, agb_forest_age, mean)
+sum_stats <- cbind(means, sds[,2])
+colnames(sum_stats) <- c('age', 'mean', 'sd')
+
+ggplot(sum_stats,                               # ggplot2 plot with means & standard deviation
+       aes(x = age,
+           y = mean)) + 
+  geom_errorbar(aes(ymin = mean - sd,
+                    ymax = mean + sd)) +
+  geom_point() + theme(text = element_text(size = 20))  
+
+
+install.packages('pbapply')

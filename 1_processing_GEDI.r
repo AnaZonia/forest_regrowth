@@ -18,6 +18,7 @@ library(GEDI4R) # for extracting raw GEDI data
 library(raster) # Might not need this one
 library(ncdf4)
 library(tidyverse)
+library(rgdal)
 
 setwd("/home/aavila/Documents/forest_regrowth")
 
@@ -51,28 +52,31 @@ df_from_raster <- function(raster){
 ##########              BODY                 #######################
 ####################################################################
 
-dir.create("GEDI_amazon")
+shape <- readOGR(dsn = "./amazon_biome_border", layer = "amazon_biome_border")
+outdir <- ("./GEDI_amazon/")
+#   extent(shape)[4], extent(shape)[1], extent(shape)[3], extent(shape)[2],
+# 5.269581, -16.66202, -73.98318 ;  -43.39932
 
-if (download_GEDI == T){
 
-  outdir = c('GEDI_amazon')
-  GEDI_download = l4_download(
-    5.5, -9, -64, -45, # get the coordinates from regrowth data. The crop to the shapefile
-    outdir = outdir,
-    from = "2020-01-01",
-    to = "2020-07-31",
-    just_path = F
-  )
-}
+GEDI_download = l4_download(
+  5.269581, -16.66202, -73.98318 ,  -43.39932,
+  outdir = outdir,
+  from = "2020-01-01",
+  to = "2020-07-31",
+  just_path = F
+)
 
 
 # Read in
 nc_data <- c(paste0("./GEDI_amazon/", list.files("./GEDI_amazon/", pattern = '.h5')))
-nc_data2 <- lapply(nc_data, nc_open)
-coords <- c(-2, -9, -64, -45)
+test_convert <- function(nc_file) tryCatch(nc_open(nc_file), error = function(e) e)
+nc_data2 <- lapply(nc_data, test_convert)
 
-df_from_nc <- function(nc_file, coords){
+
+df_from_nc <- function(nc_file, shape){
   # Get variable names
+  nc_file <- crop(nc_file, shape)
+
   nmv = names(nc_file$var)
 
   # Which ones are agbd
@@ -90,27 +94,21 @@ df_from_nc <- function(nc_file, coords){
 
   df2 <- subset(df1, agbd > 0)
 
-  df3 <- subset(df2, lat < coords[1] & lat > coords[2] & lon > coords[3] & lon < coords[4])
+  #df3 <- subset(df2, lat < coords[1] & lat > coords[2] & lon > coords[3] & lon < coords[4])
 
   return(df3)
 }
 
-df_list <- lapply(nc_data2, df_from_nc, coords)
+df_list <- lapply(nc_data2, df_from_nc, shape)
 
 df_unified <- bind_rows(df_list)
 
 hist(df_unified$agbd, xlim = c(0, 400), breaks <- 5000)
 #looks like it starts plateauing at 10-15 ton/ha
 
-
-
 saveRDS(df_unified, 'df_unified.rds')
 
-df_unified <- readRDS('df_unified.rds')
-
-
-
-
+df_unified <- readRDS('./test_files/df_unified.rds')
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
