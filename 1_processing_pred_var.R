@@ -17,6 +17,7 @@ library(doParallel) # for splitting heavy processing (masking, converting)
 ## Brazil shapefile mask
 library(maptools)  ## For wrld_simpl
 library(​data.table​) #for faster reading of csv files with function fread
+library(pbapply) #progress bar for apply family of functions
 data(wrld_simpl)
 BRA <- subset(wrld_simpl, NAME=="Brazil")
 
@@ -26,7 +27,10 @@ setwd("/home/aavila/Documents/forest_regrowth")
 ####################################################################
 ##########              SWITCHES             #######################
 ####################################################################
-
+regrowth <- FALSE 
+lulc <- FALSE 
+fire <- FALSE 
+climate
 
 
 ####################################################################
@@ -132,7 +136,19 @@ df_from_raster <- function(raster){
   return(bm_test)
 }
 
+# imports raw regrowth data and returns the rasters in a list.
+import_regrowth <- function(location){
+  files_tmp <- list.files(path = './mapbiomas/regrowth_raw', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
+  files_tmp <- sort(files_tmp)
 
+  regrowth_list <- c()
+  for (i in 1:length(files_tmp)){
+    regrowth_list <- c(regrowth_list, raster(files_tmp[i]))
+    print(i)
+  }
+
+  return(regrowth_list)
+}
 
 ####################################################################
 ##########               BODY                #######################
@@ -147,7 +163,7 @@ df_from_raster <- function(raster){
 #specifying coordinates of interest - where would you like to crop the dataframe to?
 
 # EXTRACTING DATA FROM MULTIPLE REGIONS OF THE COUNTRY (larger scale)
-path <- './mapbiomas/regrowth_amazon'
+path <- './mapbiomas/regrowth_raw'
 files <- list.files(path)
 #newname <- sub('none-','', files) ## making names easier to read, standardizing the names
 #file.rename(file.path(path,files), file.path(path, newname)) ## renaming it.
@@ -156,86 +172,94 @@ locations <- str_sub(files, start= -25, end = -5)
 locations <- unique(locations)
 #locations <- locations[1:length(locations)]
 
-list.files(path = './mapbiomas/regrowth_rasters', pattern=locations[3], full.names=TRUE)   # obtain paths for all files for that location
 
+# the Amazon is divided in 12 parts, each with their own identifier (a location number).
+# here we go location by location:
+  # import raw data
+  # make a mask with only areas that show regrowth - this mask will be used to reduce the size of files we're handling
+  # save these rasters in the ./regrowth_rasters directory
+for (i in 1:length(locations)){ 
+  location <- '0000031744-0000063488'
+  regrowth_list <- import_regrowth(location)
 
-
-for (i in 3:length(locations)){ 
-  location <- locations[3]
-  # the Amazon is divided in 12 parts, each with their own identifier
-  # each location is an identifier.
-  #for (location in locations){
-  files_tmp <- list.files(path = './mapbiomas/regrowth_amazon', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
-  files_tmp <- sort(files_tmp)
-
-  #dir.create(paste0('./regrowth_dataframes/', location))
-
-  regrowth_list <- c()
-  for (i in 1:length(files_tmp)){
-    regrowth_list <- c(regrowth_list, raster(files_tmp[i]))
-    print(i)
-  }
-
-regrowth_list <- regrowth_list[6:length(regrowth_list)]
-
-  # obtain the raster file for all years within that location
-
+  # obtain the raster file for all years within that location.
   # to make processing lighter, subset only the pixels that have shown regrowth history.
   # here, we are (1) making a mask registering all regrowth moments and (2) subsetting rasters based on that mask.
   # a regrowth moment is flagged with the value "503", therefore:
-  for (j in 1:length(regrowth_list)){
-    print(j)
+  for (i in 1:1){
+    print(i)
     print(Sys.time())
-    regrowth_list[[j]][regrowth_list[[j]]!=503] <- NA # only leave behind values not including the regrowth moment
-    writeRaster(regrowth_list[[j]], file.path(paste0('./mapbiomas/regrowth_rasters/', location, '_', c(1992+j), ".tif"))) # save rasters with the year on the folder created for each location.
+    regrowth_list[[i]][regrowth_list[[i]]!=503] <- NA # only leave behind values not including the regrowth moment
+    writeRaster(regrowth_list[[i]], file.path(paste0('./mapbiomas/regrowth_rasters/', location, '_', c(1987+i), ".tif"))) # save rasters with the year on the folder created for each location.
   }
 
 }
 
+# the reason these files are being stored in the machine is to avoid losing all progress in case of a disconnection of the ssh,
+# as well as avoid having to redo everything in case there is an error that could be fixed later by editing the files.
+# create a raster stack with one layer per year, for this location.
+# this stack will be merged to make the regrowth-only mask.
+path <- './mapbiomas/regrowth_rasters'
+files <- list.files(path)
+locations <- str_sub(files, end = -10)
+locations <- unique(locations) #gets all locations currently already processed into filtered, regrowth-only rasters
 
-  # the reason these files are being stored in the machine is to avoid losing all progress in case of a disconnection of the ssh,
-  # as well as avoid having to redo everything in case there is an error that could be fixed later by editing the files.
-
-  # create a raster stack with one layer per year, for this location. This will be a large stack with only 0 or 503.
-for (i in 1:length(locations)){
-  filepaths <- paste0("/home/aavila/Documents/forest_regrowth/mapbiomas/regrowth_rasters/", locations[2], '_', c(1988:2019), '.tif')
+#for (location in locations){
+  location = "0000000000-0000095232"
+  filepaths <- paste0("/home/aavila/Documents/forest_regrowth/mapbiomas/regrowth_rasters/", location, '_', c(1988:2019), '.tif')
   mask_raster_list <- lapply(filepaths, raster)
   mask_raster_stack <- stack(mask_raster_list)
-}
-
-  #stacked files are merged to become one 
   regrowth_mask <- merge(mask_raster_stack)
+  regrowth_mask <- writeRaster(regrowth_mask, file.path(paste0('./mapbiomas/regrowth_masks/', location, '_mask.tif'))) # mask made and saved.
 
-  regrowth_mask <- raster('regrowth_mask.tif')
+  # now, we use the regrowth mask to make a regrowth stack with all history per location,
+  #containing data only on pixels that show any regrowth event in their history.
+  #regrowth_mask <- raster('./mapbiomas/regrowth_masks/0000000000-0000095232_mask.tif')
+  regrowth_list <- import_regrowth(location)
+  masked <- pbapply::pblapply(regrowth_list, terra::mask, regrowth_mask)
+  stacked_history <- stack(masked) # we have a stack with all history for a location.
 
-  masked <- lapply(regrowth_list, mask, regrowth_mask)
+  # This stack gets quite large. as.data.frame and getValues both break when handling it because of its size.
+  # even writeRaster takes 30min+ to work with a stack this size.
+  # My solution was to break it in half and work with smaller parts at a time.
+  
+  #writeRaster(stacked_history, "0000000000-0000095232_regrowth.tif")
 
-  stacked_history <- stack(masked)
+  # lulc = readRDS('./test_files/lulc.rds')
+  # lulc2 = lulc[,c(1:(ncol(lulc)-3))]
+  # x <- c(min(lulc2$lon), max(lulc2$lon))
+  # y <- c(min(lulc2$lat), max(lulc2$lat))
+  # e = extent(x, y)
+# > range(lulc$lat)
+# [1] -3.2823093 -0.5377764
+# > range(lulc$lon)
+# [1] -48.32644 -43.99998
+#  xmin, xmax, ymin, ymax
+
+  stacked_history1 <- terra::crop(stacked_history, e)
+
+  
+  convert_history <- getValues(stacked_history1)
+  convert_history <- data.frame(cell = 1:length(convert_history), value = convert_history)
+  convert_history <- na.omit(convert_history)
+  convert_history[,c("x","y")] <- xyFromCell(stacked_history1, convert_history$cell)
+  saveRDS(convert_history, file.path(paste0('./mapbiomas/dataframes/', location, '_regrowth.rds')))
+
+
+  stacked_history2 <- terra::crop(stacked_history, e)
+
 
   # convert into dataframe for further manipulation
-  df_tst <- as.data.frame(stacked_history, xy = T, na.rm = T)
+  # df_history <- as.data.frame(stacked_history, xy = T, na.rm = T)
+  # cleaning column names
+  location_colname <- paste0('.', gsub('-', '.', location))
+  subs <- c('mapbiomas.brazil.collection.60.', location_colname)
+  for (cut in subs){
+    colnames(df_tst) <- c(sub(cut, "", colnames(df_tst[,1:c(ncol(df_tst)-2)])), "lon", "lat")
+  }
+  df_history <- cbind(df_history, LongLatToUTM(df_history$lon, df_history$lat))
 
-subs <- c('mapbiomas.brazil.collection.60.', '.0000000000.0000095232')
-for (cut in subs){
-  colnames(df_tst) <- c(sub(cut, "", colnames(df_tst[,1:c(ncol(df_tst)-2)])), "lon", "lat")
-}
-
-
-df_tst <- cbind(df_tst, LongLatToUTM(df_tst$lon, df_tst$lat))
-
-saveRDS(df_tst, paste0('0000000000.0000095232.rds'))
-
-
-df_tst <- readRDS('0000000000.0000095232_df_colnames.rds')
-
-
-writeRaster(tst, "masked_merged.tif")
-
-tst <- raster("masked_merged.tif")
-
-writeRaster(tst_mrg, "merged_years.tif")
-
-
+#}
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -289,14 +313,7 @@ df_tst <- as.data.frame(fire_history, xy = T, na.rm = T)
 
 
 
-bm_test <- values(fire_history)
 
-bm_test <- getValues(fire_history)
-bm_test <- data.frame(cell = 1:length(bm_test), value = bm_test)
-bm_test <- na.omit(bm_test)
-bm_test[,c("x","y")] <- xyFromCell(fire_history, bm_test$cell)
-
-saveRDS(bm_test, 'fire_95232.rds')
 
 
 
@@ -308,7 +325,7 @@ saveRDS(bm_test, 'fire_95232.rds')
 files <- list.files(path = './mapbiomas/lulc', pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
 tmp_rasters <- lapply(files, raster)
 
-regrowth_mask <- raster('./mapbiomas/regrowth_masks/0000000000.0000095232_mask.tif')
+regrowth_mask <- raster('./mapbiomas/regrowth_masks/0000000000-0000095232_mask.tif')
 
 # if we are subsetting the data into our region of interest
 # coord_oi <- c(-48.31876, -43.99984, -3.282444, 5.269697)  #(xmin, xmax, ymin, ymax)
@@ -316,19 +333,18 @@ regrowth_mask <- raster('./mapbiomas/regrowth_masks/0000000000.0000095232_mask.t
 # crs(e) <- "+proj=longlat +datum=WGS84 +no_defs"
 
 tmp_rasters <- pbapply::pblapply(tmp_rasters, terra::crop, extent(regrowth_mask)) # subsects all rasters to area of interest
-tmp_rasters <- lapply(tmp_rasters, mask, regrowth_mask) # subsects all rasters to area of interest
-stacked_tst <- stack(tmp_rasters)
+tmp_rasters2 <-  pbapply::pblapply(tmp_rasters, terra::mask, regrowth_mask) # subsects all rasters to area of interest
 
-writeRaster(stacked_tst, "0000000000.0000095232_lulc.tif")
+stacked_tst <- stack(tmp_rasters2)
 
-
-bm_test <- getValues(stacked_tst)
-bm_test <- data.frame(cell = 1:length(bm_test), value = bm_test)
-bm_test <- na.omit(bm_test)
-bm_test[,c("x","y")] <- xyFromCell(stacked_tst, bm_test$cell)
+writeRaster(stacked_tst, "0000000000-0000095232_lulc.tif")
 
 
-
+convert_history <- getValues(stacked_history1)
+convert_history <- data.frame(cell = 1:length(convert_history), value = convert_history)
+convert_history <- na.omit(convert_history)
+convert_history[,c("x","y")] <- xyFromCell(stacked_history1, convert_history$cell)
+saveRDS(convert_history, file.path(paste0('./mapbiomas/dataframes/', location, '_regrowth.rds')))
 
 
 
@@ -338,38 +354,9 @@ bm_test[,c("x","y")] <- xyFromCell(stacked_tst, bm_test$cell)
 ##########  Temperature/Precipitation ##########
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-if (import_clim == T){
-
-  climate_data_import = function(df){
-    colnames(df) = str_sub(colnames(df), start= -7)   # makes column names only "yyyy.mm"
-    result = t(apply(df[3:ncol(df)], 1, tapply, gl(34, 12), mean))
-    colnames(result) = c(1985:2018)
-    return(as.data.frame(cbind(df[,1:2], result)))
-  }
-
-  df_prec = readRDS('df_prec.rds')
-  df_tmin = readRDS('df_tmin.rds')
-  df_tmax = readRDS('df_tmax.rds')
-
-  prec = climate_data_import(df_prec)
-  tmax = climate_data_import(df_tmax)
-  tmin = climate_data_import(df_tmin)
-  temp = (tmax + tmin) / 2
-
-  climate_data_cleanup = function(df){
-    df$mean = colMeans(df[3:ncol(df)])
-    df = cbind(df, LongLatToUTM(df$x, df$y))
-    df = df[,3:ncol(df)]
-    df$xy = paste0(df$zone, df$x, df$y)
-    return(df)
-  }
-
-  prec = climate_data_cleanup(prec)
-  temp = climate_data_cleanup(temp)
-
-  #resolution is about 4.5 km.
-  #Need to add temperature data for ALL cells within 4.5km of center point.
-
+if (import_clim == F){
+  temp <- readRDS('./worldclim_brazil/dataframes/temp.rds')
+  prec <- readRDS('./worldclim_brazil/dataframes/prec.rds')
 }else{
 
   outdir <- "./worldclim_brazil" # Specify your preferred working directory
@@ -408,15 +395,50 @@ if (import_clim == T){
   df_tmax = df_merge(df_clim[410:817])
   df_tmin = df_merge(df_clim[819:c(length(df_clim))])
 
-  saveRDS(df_prec, "df_prec.rds")
-  saveRDS(df_tmax, "df_tmax.rds")
-  saveRDS(df_tmin, "df_tmin.rds")
+  # saveRDS(df_prec, "df_prec.rds")
+  # saveRDS(df_tmax, "df_tmax.rds")
+  # saveRDS(df_tmin, "df_tmin.rds")
+
+    # processes the dataframes into yearly climate data
+  climate_data_import = function(df){
+    colnames(df) = str_sub(colnames(df), start= -7)   # makes column names only "yyyy.mm"
+    result = t(apply(df[3:ncol(df)], 1, tapply, gl(34, 12), mean)) #mean annual - data is originally monthly
+    colnames(result) = c(1985:2018)
+    return(as.data.frame(cbind(df[,1:2], result)))
+  }
+
+  # df_prec = readRDS('./worldclim_brazil/dataframes/df_prec.rds')
+  # df_tmin = readRDS('./worldclim_brazil/dataframes/df_tmin.rds')
+  # df_tmax = readRDS('./worldclim_brazil/dataframes/df_tmax.rds')
+
+  prec = climate_data_import(df_prec)
+  tmax = climate_data_import(df_tmax)
+  tmin = climate_data_import(df_tmin)
+  temp = (tmax + tmin) / 2
+
+  # gives proper names to the dataframes and adds UTM coordinates
+  climate_data_cleanup = function(df){
+    df$mean = colMeans(df[3:ncol(df)])
+    names(df)[names(df) == 'x'] <- 'lon'
+    names(df)[names(df) == 'y'] <- 'lat'
+    df = cbind(df, LongLatToUTM(df$lon, df$lat))
+    df$xy = paste0(df$zone, df$x, df$y)
+    return(df)
+  }
+
+  saveRDS(climate_data_cleanup(prec), file.path(paste0('./worldclim_brazil/dataframes/prec.rds')))
+  saveRDS(climate_data_cleanup(temp), file.path(paste0('./worldclim_brazil/dataframes/temp.rds')))
+  #resolution is about 4.5 km.
+  #Need to add temperature data for ALL cells within 4.5km of center point.
+
+
 }
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##########  Soil ##########
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 soil <- sf::st_read( 
   dsn= paste0(getwd(),"/soil/") , 
@@ -426,10 +448,14 @@ soil <- sf::st_read(
 brazil_soil = soil[soil$COUNTRY == "BRAZIL",]
 
 test_coords <- lapply(brazil_soil$geometry, st_coordinates)
+test_coords <- lapply(test_coords, as.data.frame)
+subset2 <- function(df){return(df[-c(3,4)])}
+test_coords <- lapply(test_coords, subset2)
 
-soil <- cbind()
+test_coords2 <- lapply(test_coords, cbind())
 
 
+tst <- lapply(soil$test_coords, as.data.frame)
 
 # SNUM - Soil mapping unit number
 

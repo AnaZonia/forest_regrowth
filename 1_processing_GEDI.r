@@ -52,14 +52,17 @@ df_from_raster <- function(raster){
 ##########              BODY                 #######################
 ####################################################################
 
-shape <- readOGR(dsn = "./amazon_biome_border", layer = "amazon_biome_border")
-outdir <- ("./GEDI_amazon/")
+#shape <- readOGR(dsn = "./amazon_biome_border", layer = "amazon_biome_border")
+outdir <- ("./GEDI_raw/")
 #   extent(shape)[4], extent(shape)[1], extent(shape)[3], extent(shape)[2],
 # 5.269581, -16.66202, -73.98318 ;  -43.39932
-
+# > range(GEDI_mat$lat)
+# [1] -8.999994 -2.000006
+# > range(GEDI_mat$lon)
+# [1] -63.99999 -45.00000
 
 GEDI_download = l4_download(
-  5.269581, -16.66202, -73.98318 ,  -43.39932,
+  -8.999994, -16.66202, -73.98318 ,  -43.39932,
   outdir = outdir,
   from = "2020-01-01",
   to = "2020-07-31",

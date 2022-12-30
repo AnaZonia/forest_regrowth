@@ -252,19 +252,6 @@ saveRDS(training, 'training.rds')
 
 
 ########################################################################
-library(sf)
-library(raster) #  handling spatial data
-library(terra) # handling spatial data
-library(geodata) # to extract worldclim with getData
-library(sp) # to extract worldclim with getData
-#library(stringr)
-library(tidyverse)
-library(plyr)
-library(foreach) # for splitting heavy processing (masking, converting)
-library(doParallel) # for splitting heavy processing (masking, converting)
-## Brazil shapefile mask
-library(maptools)  ## For wrld_simpl
-library(​data.table​) #for faster reading of csv files with function fread
 
 # Finds utm zone from longitude - allows to analyze data spanning multiple UTM zones
 # This function is necessary for LongLatToUTM (below)
@@ -370,16 +357,35 @@ biomass[biomass$xy == 231981809940500, ]
 
 setwd("/home/aavila/Documents/forest_regrowth")
 
-regrowth = readRDS('./mapbiomas/dataframes/0000000000.0000095232_regrowth.rds')
-fire = readRDS('./mapbiomas/dataframes/0000000000.0000095232_fire.rds')
+fire = readRDS('./mapbiomas/dataframes/0000000000-0000095232_fire.rds')
+# > range(fire$x)
+# [1] -48.31863 -43.99998
+# > range(fire$y)
+# [1] -3.2823093 -0.5377764
 lulc = readRDS('./test_files/lulc.rds')
-regrowth_mask <- raster('./mapbiomas/regrowth_masks/0000000000.0000095232_mask.tif')
+# > range(lulc$lat)
+# [1] -3.2823093 -0.5377764
+# > range(lulc$lon)
+# [1] -48.32644 -43.99998
+regrowth_mask <- raster('./mapbiomas/regrowth_masks/0000000000-0000095232_mask.tif')
+# class      : Extent 
+# xmin       : -48.32658 
+# xmax       : -43.99984 
+# ymin       : -3.282444 
+# ymax       : 5.272392 
+GEDI = readRDS('./GEDI_dataframes/0000000000-0000095232_GEDI.rds')
+# > range(GEDI$lat_lowestmode)
+# [1] -3.2823053 -0.5379698
+# > range(GEDI$lon_lowestmode)
+# [1] -48.32643 -43.99999
 
 
-check = readRDS('./test_files/0000000000.0000095232_df_colnames.rds')
+check = readRDS('./test_files/regrowth_cleaned.rds')
+head(check)
+# 22 833940 9940500 
 
-
-
+check2 = raster('./test_files/merged_years.tif')
+# merged for mask of different year
 
 sds <- aggregate(agbd ~ forest_age, agb_forest_age, sd)
 means <- aggregate(agbd ~ forest_age, agb_forest_age, mean)
@@ -395,3 +401,26 @@ ggplot(sum_stats,                               # ggplot2 plot with means & stan
 
 
 install.packages('pbapply')
+
+######################
+
+path <- './mapbiomas/regrowth_rasters'
+files <- list.files(path)
+locations <- str_sub(files, end = -10)
+locations <- unique(locations)
+locations[3]
+
+
+list.files(path = './mapbiomas/regrowth_rasters', pattern=locations[6], full.names=TRUE)   # obtain paths for all files for that location
+
+raster::extent(raster('./mapbiomas/regrowth_rasters/0000031744-0000000000_1988.tif'))
+
+# > range(regrowth$lat)
+# [1] -11.141041  -3.282579
+# > range(regrowth$lon)
+# [1] -73.86052 -65.43638
+
+
+# [1] "/home/aavila/Documents/forest_regrowth/mapbiomas/regrowth_rasters/0000000000-0000031744_2006.tif"
+# has different extent - something went wrong there.
+# [31] "./mapbiomas/regrowth_rasters/0000000000-0000000000_2019.tif" is missing
