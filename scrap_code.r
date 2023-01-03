@@ -379,3 +379,26 @@ ggplot(agb_forest_age, aes(x=agbd)) +
 # ymax       : 5.272392 
 
 
+
+######################
+
+path <- './mapbiomas/regrowth_rasters'
+files <- list.files(path)
+locations <- str_sub(files, end = -10)
+locations <- unique(locations)
+locations[3]
+
+
+list.files(path = './mapbiomas/regrowth_rasters', pattern=locations[6], full.names=TRUE)   # obtain paths for all files for that location
+
+raster::extent(raster('./mapbiomas/regrowth_rasters/0000031744-0000000000_1988.tif'))
+
+# > range(regrowth$lat)
+# [1] -11.141041  -3.282579
+# > range(regrowth$lon)
+# [1] -73.86052 -65.43638
+
+
+# [1] "/home/aavila/Documents/forest_regrowth/mapbiomas/regrowth_rasters/0000000000-0000031744_2006.tif"
+# has different extent - something went wrong there.
+# [31] "./mapbiomas/regrowth_rasters/0000000000-0000000000_2019.tif" is missing
