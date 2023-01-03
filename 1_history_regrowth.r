@@ -76,8 +76,7 @@ for (cut in subs){
 
 # adding UTM coordinates in case it's needed
 df_history <- cbind(df_history, LongLatToUTM(df_history$lon, df_history$lat))
-saveRDS(convert_history, file.path(paste0('./mapbiomas/dataframes/', location, '_regrowth.rds')))
-#regrowth = readRDS('0000000000-0000095232_regrowth.rds')
+#saveRDS(convert_history, file.path(paste0('./mapbiomas/dataframes/', location, '_regrowth.rds')))
 
 ###################################
 ########## DATA CLEANING ##########
@@ -96,6 +95,8 @@ saveRDS(convert_history, file.path(paste0('./mapbiomas/dataframes/', location, '
 #  fire = cbind(fire[,1:28], fire[,(ncol(fire)-2):ncol(fire)])
 #  lulc = cbind(lulc[,1:28], lulc[,(ncol(lulc)-2):ncol(lulc)])
 #}
+
+regrowth = readRDS('0000000000-0000095232_regrowth.rds')
 
 # select only years that have regrowth that hasn't been suppressed.
 regrowth_last_instance <- find_last_instance(regrowth, function(x) which(x == 503))
@@ -144,4 +145,5 @@ regrowth_cleaned <- cbind(regrowth[(ncol(regrowth)-1):ncol(regrowth)],regrowth_l
 regrowth_cleaned <- cbind(regrowth_cleaned[,1:3], 'forest_age' = max(regrowth_cleaned$last_regrowth)-regrowth_cleaned$last_regrowth)
 regrowth_cleaned <- cbind(regrowth_cleaned, LongLatToUTM(regrowth_cleaned$lon, regrowth_cleaned$lat)) # add UTM coordinates as new columns
 regrowth_cleaned$xy <- paste0(regrowth_cleaned$zone, regrowth_cleaned$x, regrowth_cleaned$y) # create unique identifier
-saveRDS(regrowth_cleaned, file.path(paste0('./mapbiomas/dataframes/', location, '_forest_age.rds')))
+#saveRDS(regrowth_cleaned, file.path(paste0('./mapbiomas/dataframes/', location, '_forest_age.rds')))
+saveRDS(regrowth_cleaned, paste0(location, '_forest_age.rds'))

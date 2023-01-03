@@ -87,5 +87,6 @@ fire$last_burn[fire$last_burn == max(fire$last_burn)] = NA
 
 fire <- cbind(fire, LongLatToUTM(fire$lon, fire$lat)) # add UTM coordinates as new columns
 fire$xy <- paste0(fire$zone, fire$x, fire$y)
-saveRDS(fire, paste0(location, '_burn_history.rds'))
+
+saveRDS(fire[,c(c(ncol(fire)-7): ncol(fire))], paste0(location, '_burn_history.rds'))
 #saveRDS(fire, file.path(paste0('./mapbiomas/dataframes/', location, '_burn_history.rds')))

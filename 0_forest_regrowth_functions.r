@@ -69,9 +69,10 @@ LongLatToUTM <- function(x,y){
 # List of dataframes
 # It outputs:
 # One combined dataframe containing the THIRD column of every dataframe in the list
-df_merge <- function(df){
+df_merge <- function(df, col){
   for (i in 2:length(df)){
-    df[[1]] <- cbind(df[[1]], df[[i]][3])
+    print(i)
+    df[[1]] <- cbind(df[[1]], df[[i]][col])
   }
   return(df[[1]])
 }

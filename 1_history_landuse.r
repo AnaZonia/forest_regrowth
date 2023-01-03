@@ -24,7 +24,6 @@ library(rhdf5) # for handling raw GEDI data
 library(GEDI4R) # for extracting raw GEDI data
 #library(stringr)
 library(tidyverse)
-library(plyr)
 library(foreach) # for splitting heavy processing (masking, converting)
 library(doParallel) # for splitting heavy processing (masking, converting)
 ## Brazil shapefile mask
@@ -60,10 +59,42 @@ for (i in 1:35){ #total number of years
   saveRDS(convert_history, file.path(paste0('0000000000-0000095232_lulc_', c(1984+i),'.rds')))
 }
 
-files_tmp <- list.files(path = './lulc/', full.names=TRUE)   # obtain paths for all files for that location
-lulc = pbapply::pblapply(files_tmp, readRDS)
-lulc_df <- df_merge(lulc)
+files_tmp <- list.files(path = './lulc', full.names=TRUE)   # obtain paths for all files for that location
+lulc <- pbapply::pblapply(files_tmp[1:10], readRDS) #1985-1994
+lulc_df <- df_merge(lulc, 2)
+head(lulc_df)
+lulc_df <- lulc_df[,c(3,4,2,5:ncol(lulc_df))]
+colnames(lulc_df) <- c('lon', 'lat', c(1985:1994))
+saveRDS(lulc_df, file.path(paste0('0000000000-0000095232_lulc.rds')))
 
+files_tmp <- list.files(path = './lulc', full.names=TRUE)   # obtain paths for all files for that location
+dec_1 <- readRDS('0000000000-0000095232_lulc.rds')
+lulc2 <- pbapply::pblapply(files_tmp[11:20], readRDS) #1995-2004
+lulc_df <- df_merge(lulc2, 2) #merge second columns
+head(lulc_df)
+lulc_df <- lulc_df[,c(3,4,2,5:ncol(lulc_df))]
+colnames(lulc_df) <- c('lon', 'lat', c(1995:2004))
+dec_1_2 <- cbind(dec_1, lulc_df[,c(3:ncol(lulc_df))])
+saveRDS(dec_1_2, file.path(paste0('0000000000-0000095232_lulc.rds')))
+
+dec_1_2 <- readRDS('0000000000-0000095232_lulc.rds')
+lulc3 <- pbapply::pblapply(files_tmp[21:30], readRDS) #2005 - 2014
+lulc_df <- df_merge(lulc3, 2) #merge second columns
+head(lulc_df)
+lulc_df <- lulc_df[,c(3,4,2,5:ncol(lulc_df))]
+colnames(lulc_df) <- c('lon', 'lat', c(2005:2014))
+dec_1_2_3 <- cbind(dec_1_2, lulc_df[,c(3:ncol(lulc_df))])
+saveRDS(dec_1_2_3, file.path(paste0('0000000000-0000095232_lulc.rds')))
+
+lulc3 <- pbapply::pblapply(files_tmp[31:35], readRDS) #2015 - 2019
+lulc_df <- df_merge(lulc3, 2) #merge second columns
+head(lulc_df)
+lulc_df <- lulc_df[,c(3,4,2,5:ncol(lulc_df))]
+colnames(lulc_df) <- c('lon', 'lat', c(2015:2019))
+dec_1_2_3_4 <- cbind(dec_1_2_3, lulc_df[,c(3:ncol(lulc_df))])
+head(dec_1_2_3_4)
+saveRDS(dec_1_2_3_4, file.path(paste0('0000000000-0000095232_lulc.rds')))
+lulc <- dec_1_2_3_4
 #################################################################################
 
 ########## LAND USE ##########
@@ -80,12 +111,12 @@ lulc_df <- df_merge(lulc)
 # 48 = other perennial crop
 
 # total years under each land use type
-lulc$pasture <- rowSums(lulc == 15)
-lulc$soy <- rowSums(lulc == 39)
-lulc$coffee <- rowSums(lulc == 46)
-lulc$sugar <- rowSums(lulc == 20)
-lulc$other_perennial <- rowSums(lulc == 48)
-lulc$other_annual <- rowSums(lulc == 41)
+lulc$pasture <- rowSums(lulc[,c(3:37)] == 15)
+lulc$soy <- rowSums(lulc[,c(3:37)] == 39)
+lulc$coffee <- rowSums(lulc[,c(3:37)] == 46)
+lulc$sugar <- rowSums(lulc[,c(3:37)] == 20)
+lulc$other_perennial <- rowSums(lulc[,c(3:37)] == 48)
+lulc$other_annual <- rowSums(lulc[,c(3:37)] == 41)
 
 # time since last observation of each land use type
 ts_pasture <- find_last_instance(lulc, function(x) which(x == 15))
@@ -99,6 +130,16 @@ lulc$ts_other_perennial = max(ts_other_perennial)-ts_other_perennial
 ts_other_annual <- find_last_instance(lulc, function(x) which(x == 41))
 lulc$ts_other_annual <- max(ts_other_annual)-ts_other_annual
 
+# the column names all came out as 'unlist.last.', so we change them here
+colnames(lulc[,c(9:12)]) <- c('ts_pasture', 'ts_soy', 'ts_other_perennial', 'ts_other_annual')
+lulc <- lulc[,c(1:2, 38:ncol(lulc))]
+# the time since last observed land use type, when not observed, shows as "2019" rather than NA. fixing that:
+for (i in 10:12){
+  lulc[,c(i)][lulc[,i] == 2019] <- NA
+}
+
 lulc <- cbind(lulc, LongLatToUTM(lulc$lon, lulc$lat)) # add UTM coordinates as new columns
 lulc$xy <- paste0(lulc$zone, lulc$x, lulc$y)
-saveRDS(fire, file.path(paste0('./mapbiomas/dataframes/', location, '_lulc_history.rds')))
+saveRDS(lulc, file.path(paste0(location, '_lulc_history.rds')))
+
+
