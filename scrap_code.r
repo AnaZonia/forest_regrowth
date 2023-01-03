@@ -10,9 +10,6 @@ regrowth[rownames(regrowth) == 505845282, ]
 biomass[biomass$xy == 228090109643800, ] 
 
 
-ggplot(agb_forest_age, aes(x=forest_age)) + 
-  geom_histogram(binwidth=1)
-
 
 # lots of low biomasses at all ages... why? Biomass is showing as lower than expected.
 # could be misalignment - showing nearby patches of low biomass.
@@ -250,83 +247,6 @@ training <- training[c(5:nrow(training)), -c(5,7,8,9)]
 saveRDS(training, 'training.rds')
 
 
-
-########################################################################
-library(sf)
-library(raster) #  handling spatial data
-library(terra) # handling spatial data
-library(geodata) # to extract worldclim with getData
-library(sp) # to extract worldclim with getData
-#library(stringr)
-library(tidyverse)
-library(plyr)
-library(foreach) # for splitting heavy processing (masking, converting)
-library(doParallel) # for splitting heavy processing (masking, converting)
-## Brazil shapefile mask
-library(maptools)  ## For wrld_simpl
-library(​data.table​) #for faster reading of csv files with function fread
-
-# Finds utm zone from longitude - allows to analyze data spanning multiple UTM zones
-# This function is necessary for LongLatToUTM (below)
-# It intakes:
-# Longitude (numeric)
-# It outputs:
-# UTM zone (numeric)
-long2UTMzone <- function(long) {
-  ## Function to get the UTM zone for a given longitude
-  (floor((long + 180)/6) %% 60) + 1
-}
-
-# Converts coodinates from lat/long to UTM.
-# this allows merging dataframes with different coordinates.
-# It converts all points to to 30m resolution by finding the nearest coordinate multiple of 30.
-# It intakes:
-# x and y = longitude and latitude, respectively (numeric or vector)
-# It outputs:
-# Dataframe with zone, x and y columns in UTM format.
-LongLatToUTM <- function(x,y){
-  xy <- data.frame(x = x, y = y)
-  xy$zone <- long2UTMzone(x)
-
-  # split the dataframe by UTM zones
-  list_zones <- split(xy, xy$zone)
-
-  res_list <- list()
-
-  #must convert coodinates separately for different zones
-  for (i in 1:length(list_zones)){
-    z <- list_zones[[i]][1,ncol(list_zones[[i]])] #obtain zone value
-    coordinates(list_zones[[i]]) <- c("x", "y")
-    proj4string(list_zones[[i]]) <- CRS("+proj=longlat +datum=WGS84") #convert to spatial object
-    # EPSG code calculated for the southern hemisphere as 32700+UTM zone
-    # add converted coordinates back into the list
-    # obtain list of SpatialObjects, one per UTM zone, with the UTM coordinates.
-    res_list <- append(res_list, spTransform(list_zones[[i]], CRS(paste("+proj=utm +zone=", z, " +init=epsg:327", z, sep=''))) )
-  }
-
-  #convert SpatialObjects into data frames
-  res_list <- lapply(res_list, as.data.frame)
-
-  #if our data spans more than one UTM zone, res_list will have more than one element.
-  #in this case, we unite them all into a single dataframe with zone, x and y columns.
-  if (length(res_list) != 1){
-    for (i in 2:length(res_list)){
-    res_list[[1]] <- rbind(res_list[[1]], res_list[[i]])
-    }
-  }
-  
-  #convert all coordinates to the nearest multiple of 30 (nearest pixel present in Landsat resolution)
-  res_list[[1]]$x <- round( res_list[[1]]$x/30 ) * 30
-  res_list[[1]]$y <- round( res_list[[1]]$y/30 ) * 30
-
-  result <- res_list[[1]][ order(as.numeric(row.names(res_list[[1]]))), ]
-
-  #returns dataframe with zone, x and y columns.
-  return(result)
-}
-
-
-
 setwd("/home/aavila/Documents/forest_regrowth")
 
 
@@ -370,16 +290,35 @@ biomass[biomass$xy == 231981809940500, ]
 
 setwd("/home/aavila/Documents/forest_regrowth")
 
-regrowth = readRDS('./mapbiomas/dataframes/0000000000.0000095232_regrowth.rds')
-fire = readRDS('./mapbiomas/dataframes/0000000000.0000095232_fire.rds')
+fire = readRDS('./mapbiomas/dataframes/0000000000-0000095232_fire.rds')
+# > range(fire$x)
+# [1] -48.31863 -43.99998
+# > range(fire$y)
+# [1] -3.2823093 -0.5377764
 lulc = readRDS('./test_files/lulc.rds')
-regrowth_mask <- raster('./mapbiomas/regrowth_masks/0000000000.0000095232_mask.tif')
+# > range(lulc$lat)
+# [1] -3.2823093 -0.5377764
+# > range(lulc$lon)
+# [1] -48.32644 -43.99998
+regrowth_mask <- raster('./mapbiomas/regrowth_masks/0000000000-0000095232_mask.tif')
+# class      : Extent 
+# xmin       : -48.32658 
+# xmax       : -43.99984 
+# ymin       : -3.282444 
+# ymax       : 5.272392 
+GEDI = readRDS('./GEDI_dataframes/0000000000-0000095232_GEDI.rds')
+# > range(GEDI$lat_lowestmode)
+# [1] -3.2823053 -0.5379698
+# > range(GEDI$lon_lowestmode)
+# [1] -48.32643 -43.99999
 
 
-check = readRDS('./test_files/0000000000.0000095232_df_colnames.rds')
+check = readRDS('./test_files/regrowth_cleaned.rds')
+head(check)
+# 22 833940 9940500 
 
-
-
+check2 = raster('./test_files/merged_years.tif')
+# merged for mask of different year
 
 sds <- aggregate(agbd ~ forest_age, agb_forest_age, sd)
 means <- aggregate(agbd ~ forest_age, agb_forest_age, mean)
@@ -395,3 +334,48 @@ ggplot(sum_stats,                               # ggplot2 plot with means & stan
 
 
 install.packages('pbapply')
+
+######################
+
+path <- './mapbiomas/regrowth_rasters'
+files <- list.files(path)
+locations <- str_sub(files, end = -10)
+locations <- unique(locations)
+locations[3]
+
+
+list.files(path = './mapbiomas/regrowth_rasters', pattern=locations[6], full.names=TRUE)   # obtain paths for all files for that location
+
+raster::extent(raster('0000000000-0000095232_lulc.tif'))
+
+# > range(regrowth$lat)
+# [1] -11.141041  -3.282579
+# > range(regrowth$lon)
+# [1] -73.86052 -65.43638
+
+
+# [1] "/home/aavila/Documents/forest_regrowth/mapbiomas/regrowth_rasters/0000000000-0000031744_2006.tif"
+# has different extent - something went wrong there.
+# [31] "./mapbiomas/regrowth_rasters/0000000000-0000000000_2019.tif" is missing
+
+
+check = readRDS('0000000000-0000095232_fire.rds')
+
+
+
+[1] -63.99999 -45.00000
+[1] -8.999994 -2.000006
+
+-2.000006, -45.00000
+-8.999994, -63.99999
+
+ggplot(agb_forest_age, aes(x=agbd)) + 
+  geom_histogram(binwidth=1)
+
+
+# xmin       : -48.32658 
+# xmax       : -43.99984 
+# ymin       : -3.282444 
+# ymax       : 5.272392 
+
+

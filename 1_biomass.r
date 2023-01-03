@@ -27,39 +27,20 @@ setwd("/home/aavila/Documents/forest_regrowth")
 # a package built specially for processing GEDI4A biomass data.
 
 ####################################################################
-##########               SWITCHES            #######################
-####################################################################
-
-
-
-####################################################################
-##########              FUNCTIONS            #######################
-####################################################################
-
-
-# makes dataframe from large raster files, substituting as.data.frame()
-# assumes cells in the raster start from 1 for correct assignment of coordinates.
-df_from_raster <- function(raster){
-  bm_test <- getValues(raster)
-  bm_test <- data.frame(cell = 1:length(bm_test), value = bm_test)
-  bm_test <- na.omit(bm_test)
-  bm_test[,c("x","y")] <- xyFromCell(raster, bm_test$cell)
-  return(bm_test)
-}
-
-
-####################################################################
 ##########              BODY                 #######################
 ####################################################################
 
-shape <- readOGR(dsn = "./amazon_biome_border", layer = "amazon_biome_border")
-outdir <- ("./GEDI_amazon/")
+#shape <- readOGR(dsn = "./amazon_biome_border", layer = "amazon_biome_border")
+outdir <- ("./GEDI_raw/")
 #   extent(shape)[4], extent(shape)[1], extent(shape)[3], extent(shape)[2],
 # 5.269581, -16.66202, -73.98318 ;  -43.39932
-
+# > range(GEDI_mat$lat)
+# [1] -8.999994 -2.000006
+# > range(GEDI_mat$lon)
+# [1] -63.99999 -45.00000
 
 GEDI_download = l4_download(
-  5.269581, -16.66202, -73.98318 ,  -43.39932,
+  -8.999994, -16.66202, -73.98318 ,  -43.39932,
   outdir = outdir,
   from = "2020-01-01",
   to = "2020-07-31",
