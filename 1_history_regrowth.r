@@ -75,13 +75,17 @@ for (cut in subs){
 }
 
 # adding UTM coordinates in case it's needed
-df_history <- cbind(df_history, LongLatToUTM(df_history$lon, df_history$lat))
 saveRDS(convert_history, file.path(paste0('./mapbiomas/dataframes/', location, '_regrowth.rds')))
 #regrowth = readRDS('0000000000-0000095232_regrowth.rds')
 
 ###################################
 ########## DATA CLEANING ##########
 ###################################
+
+setwd("/home/aavila/forest_regrowth/mapbiomas/dataframes")
+source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r") # sourcing functions
+regrowth = readRDS('0000000000-0000095232_regrowth_2.rds')
+head(regrowth)
 
 # INDEX #
 # 100 anthropic
@@ -137,11 +141,13 @@ tmp3 = tmp3[complete.cases(tmp3),]
 #selects for cleaned rows
 regrowth <- regrowth[rownames(regrowth) %in% rownames(tmp3), ]
 regrowth_last_instance <- find_last_instance(regrowth, function(x) which(x == 503))
+head(regrowth_last_instance)
 colnames(regrowth_last_instance) <- "last_regrowth"
 
 regrowth_cleaned <- cbind(regrowth[(ncol(regrowth)-1):ncol(regrowth)],regrowth_last_instance) # create dataframe with years and last instance of growth
 # calculate age of forest, having as reference year in which regrowth was detected last (2019, for when we have biomass data)
-regrowth_cleaned <- cbind(regrowth_cleaned[,1:3], 'forest_age' = max(regrowth_cleaned$last_regrowth)-regrowth_cleaned$last_regrowth)
+regrowth_cleaned <- cbind(regrowth_cleaned, 'forest_age' = max(regrowth_cleaned$last_regrowth)-regrowth_cleaned$last_regrowth)
 regrowth_cleaned <- cbind(regrowth_cleaned, LongLatToUTM(regrowth_cleaned$lon, regrowth_cleaned$lat)) # add UTM coordinates as new columns
 regrowth_cleaned$xy <- paste0(regrowth_cleaned$zone, regrowth_cleaned$x, regrowth_cleaned$y) # create unique identifier
-saveRDS(regrowth_cleaned, file.path(paste0('./mapbiomas/dataframes/', location, '_forest_age.rds')))
+
+saveRDS(regrowth_cleaned, paste0(location, '_forest_age.rds'))
