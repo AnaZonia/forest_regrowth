@@ -17,14 +17,22 @@ source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
 # The issue with matching UTM coordinates directly is a lot of points are lost. what we are plotting is actually a very small percentage of what is actually matching.
 # with raster::resample, we can use nearest-neighbor.
 
-GEDI_mid_amazon = readRDS('GEDI_midamazon_dfunified.rds')
-GEDI = readRDS("0000000000-0000095232_GEDI.rds") #for some reason, the method doesn't work with this file?
-soil <- readRDS('./soil/soil.rds')
 temp <- readRDS('./worldclim_dataframes/temp.rds')
 prec <- readRDS('./worldclim_dataframes/prec.rds')
 lulc <- readRDS('0000000000-0000095232_lulc_history.rds')
 age <- readRDS('0000000000-0000095232_forest_age.rds')
 burn <- readRDS('0000000000-0000095232_burn_history.rds')
+GEDI_mid_amazon <- readRDS('GEDI_midamazon_dfunified.rds')
+  GEDI_mid_amazon <- GEDI_mid_amazon[,c(3,2,1)]
+GEDI <- readRDS("0000000000-0000095232_GEDI.rds") #for some reason, the method doesn't work with this file?
+  GEDI <- GEDI[,c(3,2,5,6,7,8)]
+  colnames(GEDI) <- c('lon', 'lat', 'agbd', 'zone', 'x', 'y')
+soil <- readRDS('./soil/soil.rds')
+  colnames(soil) <- c('lon', 'lat', 'type')
+  soil <- soil[max(age$lon) > soil$lon, ] # this code needs to be simplified
+  soil <- soil[min(age$lon) < soil$lon, ]
+  soil <- soil[max(age$lat) > soil$lat, ]
+  soil <- soil[min(age$lat) < soil$lat, ]
 
 temp_raster <- rasterFromXYZ(temp[,c(1:37)], crs = "+init=epsg:4326")
 prec_raster <- rasterFromXYZ(prec[,c(1:37)], crs = "+init=epsg:4326")
@@ -32,31 +40,27 @@ lulc_raster <- rasterFromXYZ(lulc[,c(1:12)], crs = "+init=epsg:4326")
 age_raster <- rasterFromXYZ(age[,c(1,2,4)], crs = "+init=epsg:4326")
 burn_raster <- rasterFromXYZ(burn[,c(1:4)], crs = "+init=epsg:4326")
 
-r2resampled <- projectRaster(temp_raster,age_raster,method = 'ngb')
-prec_raster <- crop(prec_raster, extent(age_raster))
-
 # preds <- c(temp[,c(1:37)], prec[,c(1:37)], age[,c(1,2,4)])
 # preds2 <- pbapply::pblapply(preds, rasterFromXYZ, crs = "+init=epsg:4326")  <------ not sure why this is returning an incorrect number of dimensions error?
 
 # resampling the rasters
-
+temp_resampled <- projectRaster(temp_raster,age_raster,method = 'ngb') #nearest neighbor
+prec_resampled <- projectRaster(prec_raster,age_raster,method = 'ngb')
 
 # GEDI and soil data is irregular and can't be converted directly into a regular raster.
 # making a raster from irregular data, using another raster as reference of size and resolution.
 # df must be in form [lon;lat;data].
 rasterFromXYX_irr <- function(df, ref_raster){   # dataframe to be converted, reference raster
-  df = soil
+  df = setDT(GEDI)
+  class(df)
+  head(df)
   ref_raster = age_raster
   e <- extent(min(df$lon), max(df$lon), min(df$lat), max(df$lat))
   # set up an 'empty' raster
   r <- raster(e, ncol = ncol(ref_raster), nrow = nrow(ref_raster))
 
-  #GEDI <- GEDI[,c(1,3,2,4,5,6,7,8)]
   df[,3] <- as.factor(df[,3])
-  x <- rasterize(df[, 1:2], r, df[,3])
-  #x <- rasterize(GEDI[, 2:3], r, GEDI[,5])
-  x
-
+  x <- rasterize(df[, 1:2], r, df$agbd)
 }
 
 

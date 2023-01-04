@@ -138,3 +138,6 @@ for (i in 2:length(brazil_soil$DOMSOI)){
 }
 
 saveRDS(test_coords2, 'soil.rds')
+
+# library(fasterize)
+# brazil_soil_raster <- fasterize(brazil_soil, age_raster, field = 'DOMSOI')
