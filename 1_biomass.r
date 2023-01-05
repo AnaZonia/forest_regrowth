@@ -11,7 +11,7 @@
 
 #if (!require("BiocManager", quietly = TRUE))
 #  install.packages("BiocManager")
-#BiocManager::install("grimbough/rhdf5")
+BiocManager::install("grimbough/rhdf5")
 library(rhdf5) # for handling raw GEDI data
 #remotes::install_github("VangiElia/GEDI4R")
 library(GEDI4R) # for extracting raw GEDI data
@@ -21,7 +21,14 @@ library(tidyverse)
 library(rgdal)
 
 setwd("/home/aavila/Documents/forest_regrowth")
+regrowth_mask <- raster('0000000000-0000095232_mask.tif')
+coords <- c(-0.5377764, -3.2823093, -48.32644, -43.99998)
 
+
+# > range(age$lon)
+# [1] -48.32644 -43.99998
+# > range(age$lat)
+# [1] -3.2823093 -0.5377764
 # Dubayah et al 2022 -> GEDI L4A Footprint Level Aboveground Biomass Density (Mg/ha)
 # more instructions on https://github.com/VangiElia/GEDI4R
 # a package built specially for processing GEDI4A biomass data.
@@ -40,29 +47,23 @@ outdir <- ("./GEDI_raw/")
 # [1] -63.99999 -45.00000
 
 GEDI_download = l4_download(
-  -8.999994, -16.66202, -73.98318 ,  -43.39932,
+  coords[1], coords[2], coords[3], coords[4],
   outdir = outdir,
   from = "2020-01-01",
-  to = "2020-07-31",
-  just_path = F
-)
-
+  to = "2020-12-31",
+  just_path = F )
 
 # Read in
 nc_data <- c(paste0("./GEDI_amazon/", list.files("./GEDI_amazon/", pattern = '.h5')))
 test_convert <- function(nc_file) tryCatch(nc_open(nc_file), error = function(e) e)
 nc_data2 <- lapply(nc_data, test_convert)
 
-
 df_from_nc <- function(nc_file, shape){
   # Get variable names
   nc_file <- crop(nc_file, shape)
-
   nmv = names(nc_file$var)
-
   # Which ones are agbd
   nmv.values = nmv[grepl("/agbd$", nmv)]
-
   # Which ones are lat/lon
   nmv.lat = nmv[grepl("/lat_lowestmode$", nmv)]
   nmv.lon = nmv[grepl("/lon_lowestmode$", nmv)]
@@ -74,7 +75,6 @@ df_from_nc <- function(nc_file, shape){
               lon = ncvar_get(nc_file, nmv.lon[1]))
 
   df2 <- subset(df1, agbd > 0)
-
   #df3 <- subset(df2, lat < coords[1] & lat > coords[2] & lon > coords[3] & lon < coords[4])
 
   return(df3)
@@ -86,10 +86,6 @@ df_unified <- bind_rows(df_list)
 
 hist(df_unified$agbd, xlim = c(0, 400), breaks <- 5000)
 #looks like it starts plateauing at 10-15 ton/ha
-
-saveRDS(df_unified, 'df_unified.rds')
-
-df_unified <- readRDS('./test_files/df_unified.rds')
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -119,39 +115,6 @@ bm_test[,c("x","y")] <- xyFromCell(r4, bm_test$cell)
 #biomass = biomass[ymin < biomass$y & biomass$y < ymax & xmin < biomass$x & biomass$x < xmax,]
 
 biomass = cbind(biomass, LongLatToUTM(biomass$x, biomass$y))
-
-biomass <- as.data.frame(r4, xy = TRUE)
-colnames(biomass) = c('lon', 'lat', 'agbd', 'zone', 'x', 'y')
-saveRDS(biomass, "biomass_test.rds")
-
-#################################################################################
-
-agb_forest_age = readRDS('agb_forest_age.rds')
-
-plot(agb_forest_age$forest_age, agb_forest_age$agbd)
-
-agb_forest_age_2 = subset(agb_forest_age, agbd > 100)
-
-plot(agb_forest_age_2$forest_age, agb_forest_age_2$agbd)
-
-
-
-agb_forest_age = readRDS('agb_forest_age.rds')
-
-# how to add distance to nearest mature forest?
-
-sds = aggregate(agbd ~ forest_age, agb_forest_age, sd)
-means = aggregate(agbd ~ forest_age, agb_forest_age, mean)
-sum_stats = cbind(means, sds[,2])
-colnames(sum_stats) = c('age', 'mean', 'sd')
-
-ggplot(sum_stats,                               # ggplot2 plot with means & standard deviation
-       aes(x = age,
-           y = mean)) + 
-  geom_errorbar(aes(ymin = mean - sd,
-                    ymax = mean + sd)) +
-  geom_point()
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##########  POTAPOV ##########
@@ -185,6 +148,3 @@ bm_test <- na.omit(bm_test)
 bm_test[,c("x","y")] <- xyFromCell(biomass_cropped, bm_test$cell)
 
 biomass = cbind(biomass_with_data, LongLatToUTM(biomass_with_data$x, biomass_with_data$y))
-
-saveRDS(biomass, "biomass_potapov_tst.rds")
-

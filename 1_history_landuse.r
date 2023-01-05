@@ -11,26 +11,12 @@
 #   lulc_history dataframe (time since last observed land use; total number of years under each land use)
 ####################################################################
 
+library(data.table) #for faster reading of csv files with function fread
 library(sf)
 library(raster) #  handling spatial data
 library(terra) # handling spatial data
-library(geodata) # to extract worldclim with getData
-library(sp) # to extract worldclim with getData
-#if (!require("BiocManager", quietly = TRUE))
-#  install.packages("BiocManager")
-#BiocManager::install("grimbough/rhdf5")
-library(rhdf5) # for handling raw GEDI data
-#remotes::install_github("VangiElia/GEDI4R")
-library(GEDI4R) # for extracting raw GEDI data
-#library(stringr)
 library(tidyverse)
-library(foreach) # for splitting heavy processing (masking, converting)
-library(doParallel) # for splitting heavy processing (masking, converting)
-## Brazil shapefile mask
-library(maptools)  ## For wrld_simpl
-library(​data.table​) #for faster reading of csv files with function fread
-data(wrld_simpl)
-BRA <- subset(wrld_simpl, NAME=="Brazil")
+library(pbapply) #progress bar for apply family of functions
 
 setwd("/home/aavila/forest_regrowth/dataframes")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
@@ -45,7 +31,7 @@ regrowth_mask <- raster('./mapbiomas/regrowth_masks/0000000000-0000095232_mask.t
 
 tmp_rasters <- pbapply::pblapply(tmp_rasters, terra::crop, extent(regrowth_mask)) # subsects all rasters to area of interest
 tmp_rasters2 <-  pbapply::pblapply(tmp_rasters, terra::mask, regrowth_mask) # mask all raw files, leaving behind only the cells containing any regrowth instance.
-stacked_history <- stack(tmp_rasters2)
+stacked_history <- raster::stack(tmp_rasters2)
 writeRaster(stacked_tst, "0000000000-0000095232_lulc.tif")
 
 # since, for some reason, lulc turned out with years as different bands rather than different layers (check why once Janus access is regained)

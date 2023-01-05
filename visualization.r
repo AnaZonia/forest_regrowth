@@ -35,6 +35,6 @@ ggplot(GEDI_mid_amazon, aes(x=agbd)) +
 # -4, -60 (upper left)
 # -6.5, -56.5
 GEDI_mat <- GEDI_mid_amazon[,]
-
+-4, -60
 
 GEDI <- readRDS("0000000000-0000095232_GEDI.rds")

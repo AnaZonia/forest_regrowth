@@ -13,18 +13,8 @@
 library(sf)
 library(raster) #  handling spatial data
 library(terra) # handling spatial data
-library(geodata) # to extract worldclim with getData
-library(sp) # to extract worldclim with getData
 library(tidyverse)
-library(plyr)
-library(foreach) # for splitting heavy processing (masking, converting)
-library(doParallel) # for splitting heavy processing (masking, converting)
-## Brazil shapefile mask
-library(maptools)  ## For wrld_simpl
-library(​data.table​) #for faster reading of csv files with function fread
 library(pbapply) #progress bar for apply family of functions
-data(wrld_simpl)
-BRA <- subset(wrld_simpl, NAME=="Brazil")
 
 setwd("/home/aavila/forest_regrowth/dataframes")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r") # sourcing functions
@@ -75,8 +65,7 @@ for (cut in subs){
 }
 
 # adding UTM coordinates in case it's needed
-saveRDS(convert_history, file.path(paste0('./mapbiomas/dataframes/', location, '_regrowth.rds')))
-#regrowth = readRDS('0000000000-0000095232_regrowth.rds')
+saveRDS(convert_history, file.path(paste0('./mapbiomas/dataframes/', location, '_regrowth.RDS')))
 
 ###################################
 ########## DATA CLEANING ##########
@@ -84,8 +73,7 @@ saveRDS(convert_history, file.path(paste0('./mapbiomas/dataframes/', location, '
 
 setwd("/home/aavila/forest_regrowth/mapbiomas/dataframes")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r") # sourcing functions
-regrowth = readRDS('0000000000-0000095232_regrowth_2.rds')
-head(regrowth)
+#regrowth = write.csv('0000000000-0000095232_regrowth.csv')
 
 # INDEX #
 # 100 anthropic
@@ -100,8 +88,6 @@ head(regrowth)
 #  fire = cbind(fire[,1:28], fire[,(ncol(fire)-2):ncol(fire)])
 #  lulc = cbind(lulc[,1:28], lulc[,(ncol(lulc)-2):ncol(lulc)])
 #}
-
-regrowth = readRDS('0000000000-0000095232_regrowth.rds')
 
 # select only years that have regrowth that hasn't been suppressed.
 regrowth_last_instance <- find_last_instance(regrowth, function(x) which(x == 503))
@@ -152,4 +138,4 @@ regrowth_cleaned <- cbind(regrowth_cleaned, 'forest_age' = max(regrowth_cleaned$
 regrowth_cleaned <- cbind(regrowth_cleaned, LongLatToUTM(regrowth_cleaned$lon, regrowth_cleaned$lat)) # add UTM coordinates as new columns
 regrowth_cleaned$xy <- paste0(regrowth_cleaned$zone, regrowth_cleaned$x, regrowth_cleaned$y) # create unique identifier
 
-saveRDS(regrowth_cleaned, paste0(location, '_forest_age.rds'))
+saveRDS(regrowth_cleaned, paste0(location, '_forest_age.RDS'))

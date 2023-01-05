@@ -402,3 +402,45 @@ raster::extent(raster('./mapbiomas/regrowth_rasters/0000031744-0000000000_1988.t
 # [1] "/home/aavila/Documents/forest_regrowth/mapbiomas/regrowth_rasters/0000000000-0000031744_2006.tif"
 # has different extent - something went wrong there.
 # [31] "./mapbiomas/regrowth_rasters/0000000000-0000000000_2019.tif" is missing
+
+# central_df <- cbind(agb_forest_age, last_burn = fire[match(agb_forest_age$xy,fire$xy),c("last_burn")])
+# central_df <- cbind(central_df, num_fires = fire[match(central_df$xy,fire$xy),c("num_fires")])
+# central_df <- cbind(central_df, pasture = lulc[match(central_df$xy,lulc$xy),c("pasture")])
+# central_df <- cbind(central_df, soy = lulc[match(central_df$xy,lulc$xy),c("soy")])
+# central_df <- cbind(central_df, other_perennial = lulc[match(central_df$xy,lulc$xy),c("other_perennial")])
+# central_df <- cbind(central_df, other_annual = lulc[match(central_df$xy,lulc$xy),c("other_annual")])
+# central_df <- cbind(central_df, tavg = temp[match(central_df$xy,temp$xy),c("mean")])
+# central_df <- cbind(central_df, prec = prec[match(central_df$xy,prec$xy),c("mean")])
+# central_df$last_burn[is.na(central_df$last_burn)] <- 1
+# central_df <- lapply(central_df, as.numeric)
+
+
+writeRaster(df_prec, "df_prec_BRA.tif")
+writeRaster(df_tmin, "df_tmin_BRA.tif")
+writeRaster(df_tmax, "df_tmax_BRA.tif")
+
+
+
+
+tmin <- as.list(intersect(list.files(path = outdir, pattern = "*.tif", full.names = TRUE), list.files(path = outdir, pattern = "tmin", full.names = TRUE)))
+tmax <- as.list(intersect(list.files(path = outdir, pattern = "*.tif", full.names = TRUE), list.files(path = outdir, pattern = "tmax", full.names = TRUE)))
+prec <- as.list(intersect(list.files(path = outdir, pattern = "*.tif", full.names = TRUE), list.files(path = outdir, pattern = "prec", full.names = TRUE)))
+# read the files
+raster_tmin <- lapply(tmin, raster)
+raster_tmax <- lapply(tmax, raster)
+raster_prec <- lapply(prec, raster)
+
+# if we are subsetting the data into our region of interest
+BRA <- subset(wrld_simpl, NAME=="Brazil") # get Brazil mask
+# coord_oi = c(xmin, xmax, ymin, ymax)
+# e = as(extent(coord_oi), 'SpatialPolygons')
+# crs(e) = "+proj=longlat +datum=WGS84 +no_defs"
+df_tmin = pbapply::pblapply(raster_tmin, terra::crop, BRA) # subsects all rasters to area of interest
+df_tmin = pbapply::pblapply(raster_tmax, terra::crop, BRA) # subsects all rasters to area of interest
+df_tmin = pbapply::pblapply(raster_prec, terra::crop, BRA) # subsects all rasters to area of interest
+
+df_tmin = pbapply::pblapply(raster_tmin, terra::mask, BRA) # subsects all rasters to area of interest
+df_tmin = pbapply::pblapply(raster_tmax, terra::mask, BRA) # subsects all rasters to area of interest
+df_tmin = pbapply::pblapply(raster_prec, terra::mask, BRA) # subsects all rasters to area of interest
+
+df_clim = lapply(df_clim, as.data.frame, xy=T)
