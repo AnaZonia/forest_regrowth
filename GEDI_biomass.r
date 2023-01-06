@@ -94,64 +94,20 @@ hist(df_unified$agbd,breaks <- 5000)
 ####################################################################
 
 # Using GEDI4R package: (guideline in https://github.com/VangiElia/GEDI4R)
+l4 <- c(paste0("./GEDI_raw/", list.files("./GEDI_raw/", pattern = '.h5')))
 
-dataname <- l4_get(nc_data[[1]],just_colnames = T)  # the following error is returned:
-# gediL4_path has lenght==1,l4_get will be used in single thread mode
-# Error in H5File.open(filename, mode, file_create_pl, file_access_pl) : 
-#   HDF5-API Errors:
-#     error #000: ../../../src/H5F.c in H5Fopen(): line 509: unable to open file
-#         class: HDF5
-#         major: File accessibilty
-#         minor: Unable to open file
-
-#     error #001: ../../../src/H5Fint.c in H5F__open(): line 1400: unable to open file
-#         class: HDF5
-#         major: File accessibilty
-#         minor: Unable to open file
-
-#     error #002: ../../../src/H5Fint.c in H5F_open(): line 1738: file close degree doesn't match
-#         class: HDF5
-#         major: File accessibilty
-#         minor: Unable to initialize object
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-# Looking into the function l4_getmulti, I find that it uses the following snippet to read code:
-
-level4a_h5 <- hdf5r::H5File$new(nc_data[[1]], mode = "r") #mode="r" to open in reading mode
-# which is where the mentioned error happens. Somehow, hdf5r can't open this file.
-
-# However, when I use an alternative package, this command runs just fine:
-level4a_h5 <- rhdf5::h5ls(nc_data[[1]])
-# the file is there, and it's readable. However,
-level4a_h5 <- rhdf5::H5Fopen(nc_data[[1]])
-# Error in rhdf5::H5Fopen(nc_data[[1]]) : 
-#   HDF5. File accessibility. Unable to open file.
-
-# This, however, works fine:
-level4a_h5 <- rhdf5::h5read(nc_data[[1]], "BEAM1011/agbd")
-
-# Bit 
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-#To make sure that l4_download isn't the issue,
-#(the files aren't corrupted from the download function):
-
-man_dwnld <- "/home/aavila/forest_regrowth/GEDI_manual_dwnld/GEDI04_A_2020019064709_O06246_04_T00785_02_002_02_V002.h5"
-
-gediL4_path <- l4_get(man_dwnld)
-
-hist(gediL4_path$agbd,breaks <- 5000)
-
-level4a_h5 <- hdf5r::H5File$new(man_dwnld, mode = "r") #mode="r" to open in reading mode
-
-# However, when I use an alternative package, this command runs just fine:
-level4a_h5 <- rhdf5::h5ls(man_dwnld)
-# the file is there, and it's readable. However,
-level4a_h5 <- rhdf5::H5Fopen(nc_data[[1]])
-# Error in rhdf5::H5Fopen(nc_data[[1]]) : 
-#   HDF5. File accessibility. Unable to open file.
-
-# This, however, works fine:
-level4a_h5 <- rhdf5::h5read(nc_data[[1]], "BEAM1011/agbd")
+dataname <- l4_get(l4[[1]],just_colnames = T) 
+head(dataname,10)
+#read all footprint and merge them together.
+gediL4_path <- l4_getmulti(l4,merge=T)
+#select other columns to add to the default output.
+#if columns are already present in the default output they will be dropped
+col <-
+  c("land_cover_data/leaf_off_flag",
+    "agbd_pi_lower",
+    "agbd_pi_upper",
+    "agbd"#this will be dropped as it is already included by default in the output.
+    )
+#get level 4 data with the user defined column binded and with the source path of each observation
+#with source=T a column with the source path for each observation will be added
+gediL4 <- l4_getmulti(l4,add_col = col,source=T)
