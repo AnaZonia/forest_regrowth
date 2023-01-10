@@ -67,7 +67,7 @@ climate_BRA <- function (var){
   BRA <- subset(wrld_simpl, NAME=="Brazil") # get Brazil mask
   rstr <- pbapply::pblapply(raster_clim, terra::crop, BRA) # subsects all rasters to area of interest
   rstr <- pbapply::pblapply(rstr, terra::mask, BRA) # subsects all rasters to area of interest
-  rstr <- raster::stack(rstr)
+  rstr <- brick(rstr)
   return(rstr)}
 
 writeRaster(climate_BRA(vars[1]), "prec_BRA.tif")
@@ -82,6 +82,10 @@ df_prec <- raster("/home/aavila/forest_regrowth/worldclim_dataframes/prec_BRA.ti
 
 location <- '0000000000-0000095232'
 regrowth_mask <- raster(paste0('./dataframes/', location, '_mask.tif'))
+
+df_prec <- terra::crop(df_prec, regrowth_mask)
+df_tmin <- terra::crop(df_tmin, regrowth_mask)
+df_tmax <- terra::crop(df_tmax, regrowth_mask)
 
 df_prec <- as.data.frame(df_prec, xy=TRUE)
 df_tmin <- as.data.frame(df_tmin, xy=TRUE)

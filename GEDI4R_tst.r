@@ -1,9 +1,18 @@
-library(GEDI4R)
+#if (!require("BiocManager", quietly = TRUE))
+#  install.packages("BiocManager")
+#BiocManager::install("grimbough/rhdf5")
+library(rhdf5) # for handling raw GEDI data
+#remotes::install_github("VangiElia/GEDI4R")
+library(GEDI4R) # for extracting raw GEDI data
+library(raster) # Might not need this one
+library(ncdf4)
+library(tidyverse)
+library(rgdal)
+library(hdf5r)
+
 setwd("/home/aavila/forest_regrowth")
 #coords <- c(-0.5377764, -3.2823093, -48.32644, -43.99998) #coordinates for a test region in the northeastern Amazon
 coords <- c(-1, -8.3, -56, -49) #coordinates for a test region in the northeastern Amazon
-
-coords <- c(max(age$lat), min(age$lat), min(age$lon), max(age$lon)) #coordinates for a test region in the northeastern Amazon
 
 outdir <- './GEDI_tst'
 #173 output files
@@ -14,15 +23,23 @@ from = "2020-01-01",
 to = "2020-12-31",
 just_path = F)
 
-#jpeg("rplot.jpg", width = 350, height = "350")
-GEDI_download <- paste0('./GEDI_tst/', list.files('./GEDI_tst/', pattern = '.h5'))
-l4 <- l4_getmulti(GEDI_download,just_colnames = F)
+outdir <- './GEDI_mature'
+GEDI_download <- paste0('./GEDI_mature/', list.files('./GEDI_mature/', pattern = '.h5'))
+l4 <- l4_getmulti(GEDI_download, just_colnames = F)
 l4 <- subset(l4, l4_quality_flag == 1)
+l4 <- subset(l4, degrade_flag == 0)
+
+#coords <- c(max(age$lat), min(age$lat), min(age$lon), max(age$lon)) #coordinates for a test region in the northeastern Amazon
 clipped <- l4_clip(l4,c(coords[3], coords[2], coords[4], coords[1]))
+clipped <- subset(clipped, agbd < 600)
+jpeg("rplot_mat.jpg")
 l4_plotagb(clipped,n=100,h=c(100,100))
+dev.off()
+
 saveRDS(clipped, '0000000000-0000095232_GEDI.rds')
-l4_convert(clipped,4326,filename=paste0(outdir,"amazon_gedi_l4.shp"), append=FALSE)
-#def.off()
+#l4_convert(clipped,4326,filename=paste0(outdir,"amazon_gedi_l4.shp"), append=FALSE)
+
+
 
 # in the mature patch:
 # 15% are smaller than 5
