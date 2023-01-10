@@ -58,6 +58,25 @@ regrowth_list <- c()
     writeRaster(regrowth_list[[i]], file.path(paste0('./mapbiomas/regrowth_rasters/', location, '_', c(1987+i), ".tif"))) # save rasters with the year on the folder created for each location.
   }
 }
+  regrowth_list <- c()
+  for (i in 1:length(files_tmp)){
+    regrowth_list <- c(regrowth_list, raster(files_tmp[i]))
+    print(i)
+  }
+
+  # obtain the raster file for all years within that location
+
+  # obtain the raster file for all years within that location.
+  # to make processing lighter, subset only the pixels that have shown regrowth history.
+  # here, we are (1) making a mask registering all regrowth moments and (2) subsetting rasters based on that mask.
+  # a regrowth moment is flagged with the value "503", therefore:
+  for (i in 1:length(regrowth_list)){
+    print(i)
+    print(Sys.time())
+    regrowth_list[[i]][regrowth_list[[i]]!=503] <- NA # only leave behind values not including the regrowth moment
+    writeRaster(regrowth_list[[i]], file.path(paste0('./mapbiomas/regrowth_rasters/', location, '_', c(1987+i), ".tif"))) # save rasters with the year on the folder created for each location.
+  }
+}
 
 # now, we use the regrowth mask to make a regrowth stack with all history per location,
 #containing data only on pixels that show any regrowth event in their history.

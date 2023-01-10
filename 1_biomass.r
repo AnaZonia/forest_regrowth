@@ -1,12 +1,9 @@
 ####################################################################
 ########## Predicting forest regrowth from Mapbiomas data ##########
-# Downloading and processing GEDI4A data.
-# Ana Avila - Dec 2022
+# Downloading and processing non-GEDI biomass data.
+# Ana Avila - Jan 2023
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# downloads GEDI4A product from cloud using GEDI4R package
-# converts hdf5 into netcdf files for easier handling
-# makes biomass dataframe from raw product with lat, lon, UTM coords, and AGBD info 
-# imports and makes dataframes from santoro and potapov raw data as well.
+# imports and makes dataframes from santoro and potapov raw data
 ####################################################################
 
 #if (!require("BiocManager", quietly = TRUE))
@@ -36,57 +33,6 @@ coords <- c(-0.5377764, -3.2823093, -48.32644, -43.99998)
 ####################################################################
 ##########              BODY                 #######################
 ####################################################################
-
-#shape <- readOGR(dsn = "./amazon_biome_border", layer = "amazon_biome_border")
-outdir <- ("./GEDI_raw/")
-#   extent(shape)[4], extent(shape)[1], extent(shape)[3], extent(shape)[2],
-# 5.269581, -16.66202, -73.98318 ;  -43.39932
-# > range(GEDI_mat$lat)
-# [1] -8.999994 -2.000006
-# > range(GEDI_mat$lon)
-# [1] -63.99999 -45.00000
-
-GEDI_download = l4_download(
-  coords[1], coords[2], coords[3], coords[4],
-  outdir = outdir,
-  from = "2020-01-01",
-  to = "2020-12-31",
-  just_path = F )
-
-# Read in
-nc_data <- c(paste0("./GEDI_amazon/", list.files("./GEDI_amazon/", pattern = '.h5')))
-test_convert <- function(nc_file) tryCatch(nc_open(nc_file), error = function(e) e)
-nc_data2 <- lapply(nc_data, test_convert)
-
-df_from_nc <- function(nc_file, shape){
-  # Get variable names
-  nc_file <- crop(nc_file, shape)
-  nmv = names(nc_file$var)
-  # Which ones are agbd
-  nmv.values = nmv[grepl("/agbd$", nmv)]
-  # Which ones are lat/lon
-  nmv.lat = nmv[grepl("/lat_lowestmode$", nmv)]
-  nmv.lon = nmv[grepl("/lon_lowestmode$", nmv)]
-
-  # Get data for the first one, might want to iterate over 1:length(nmv.values), or beams or whatever
-  # -9999 seems to be their way of doing NA
-  df1 = data.frame(agbd = ncvar_get(nc_file, nmv.values[1]),
-              lat = ncvar_get(nc_file, nmv.lat[1]),
-              lon = ncvar_get(nc_file, nmv.lon[1]))
-
-  df2 <- subset(df1, agbd > 0)
-  #df3 <- subset(df2, lat < coords[1] & lat > coords[2] & lon > coords[3] & lon < coords[4])
-
-  return(df3)
-}
-
-df_list <- lapply(nc_data2, df_from_nc, shape)
-
-df_unified <- bind_rows(df_list)
-
-hist(df_unified$agbd, xlim = c(0, 400), breaks <- 5000)
-#looks like it starts plateauing at 10-15 ton/ha
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##########  SANTORO ##########
