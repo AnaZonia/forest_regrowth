@@ -1,7 +1,8 @@
 
 setwd("/home/aavila/forest_regrowth/dataframes")
 
-agb_forest_age <- readRDS("agb_forest_age.rds")
+#agb_forest_age <- readRDS("agb_forest_age.rds")
+agb_forest_age <- readRDS('./test_files/agb_forest_age_santoro_paragominas.rds')
 
 # agb_forest_age <- cbind(regrowth, agbd = GEDI[match(regrowth_cleaned$xy,GEDI$xy),c("agbd")])
 agb_forest_age <- agb_forest_age[complete.cases(agb_forest_age[, ncol(agb_forest_age)]), ]
@@ -15,7 +16,7 @@ plot(agb_forest_age2$forest_age, agb_forest_age2$agbd)
 # saveRDS(agb_forest_age, 'agb_forest_age.rds')
 # agb_forest_age = readRDS('agb_forest_age.rds')
 
-ggplot(data = agb_forest_age2, aes(x = forest_age, y = agbd)) + 
+ggplot(data = agb_forest_age, aes(x = forest_age, y = agbd)) + 
   geom_point() +
   stat_summary(geom = "point", fun = "mean", col = "black",
     size = 6, shape = 23,fill = "red")
@@ -24,7 +25,7 @@ ggplot(data = agb_forest_age2, aes(x = forest_age, y = agbd)) +
 
 GEDI_mid_amazon <- readRDS('GEDI_midamazon_dfunified.rds')
 # > range(GEDI_mid_amazon$agbd) ---------> [1] 2.870049e-10 5.423377e+03
-ggplot(GEDI_mid_amazon, aes(x=agbd)) + 
+ggplot(agb_forest_age, aes(x=agbd)) + 
     geom_histogram(binwidth=1) + 
     theme(axis.text=element_text(size=18),
         axis.title=element_text(size=18,face="bold")) + 

@@ -1,6 +1,6 @@
 
 ################################## TESTING ZONE  ######################################################
-
+tst <- readRDS('./test_files/agb_forest_age_santoro_paragominas.rds')
 
 head(agb_forest_age)
 
@@ -357,28 +357,6 @@ raster::extent(raster('0000000000-0000095232_lulc.tif'))
 # [1] "/home/aavila/Documents/forest_regrowth/mapbiomas/regrowth_rasters/0000000000-0000031744_2006.tif"
 # has different extent - something went wrong there.
 # [31] "./mapbiomas/regrowth_rasters/0000000000-0000000000_2019.tif" is missing
-
-
-check = readRDS('0000000000-0000095232_fire.rds')
-
-
-
-[1] -63.99999 -45.00000
-[1] -8.999994 -2.000006
-
--2.000006, -45.00000
--8.999994, -63.99999
-
-ggplot(agb_forest_age, aes(x=agbd)) + 
-  geom_histogram(binwidth=1)
-
-
-# xmin       : -48.32658 
-# xmax       : -43.99984 
-# ymin       : -3.282444 
-# ymax       : 5.272392 
-
-
 
 ######################
 

@@ -20,7 +20,7 @@ library(ncdf4)
 library(tidyverse)
 library(rgdal)
 
-setwd("/home/aavila/Documents/forest_regrowth")
+setwd("/home/aavila/forest_regrowth")
 regrowth_mask <- raster('0000000000-0000095232_mask.tif')
 coords <- c(-0.5377764, -3.2823093, -48.32644, -43.99998)
 
