@@ -27,35 +27,27 @@ burn <- readRDS('0000000000-0000095232_burn_history.rds')
 # GEDI_mid_amazon <- readRDS('GEDI_midamazon_dfunified.rds')
 #   GEDI_mid_amazon <- GEDI_mid_amazon[,c(3,2,1)]
 GEDI <- readRDS("0000000000-0000095232_GEDI.rds") #for some reason, the method doesn't work with this file?
-  GEDI <- GEDI[,c(3,2,5,6,7,8)]
-  colnames(GEDI) <- c('lon', 'lat', 'agbd', 'zone', 'x', 'y')
+  GEDI <- GEDI[,c(10, 9, 15)]
+  colnames(GEDI) <- c('lon', 'lat', 'agbd')
   GEDI <- setDT(GEDI)
 
-lons <- c(GEDI[,1], age[,1], burn[,1], lulc[,1])
-lats <- c(GEDI[,2], age[,2], burn[,2], lulc[,2])
-e_min <- c(max(lapply(lons, min)), min(lapply(lons, max)), max(lapply(lats, min)), min(lapply(lats, max)))
+max_lons <- c(max(GEDI[,1]), max(age[,1]), max(burn[,1]), max(lulc[,1]))
+min_lons <- c(min(GEDI[,1]), min(age[,1]), min(burn[,1]), min(lulc[,1]))
+max_lats <- c(max(GEDI[,2]), max(age[,2]), max(burn[,2]), max(lulc[,2]))
+min_lats <- c(min(GEDI[,2]), min(age[,2]), min(burn[,2]), min(lulc[,2]))
+
+e_min <- extent(max(min_lons), min(max_lons), max(min_lats), min(max_lats))
 e_min # extent object containing the smallest possible extent encompassing all dataframes.
 # crop the dataframes with extent different from e_min
-
-dfs <- c(GEDI, age, burn, lulc)
-
-tst = lapply(lons, min)
-min(tst)
-
-range(lulc$lon)
-range(lulc$lat)
-range(age$lon)
-range(age$lat)
-range(burn$lon)
-range(burn$lat)
-range(GEDI$lon)
-range(GEDI$lat)
 
 # temp_raster <- rasterFromXYZ(temp[,c(1:37)], crs = "+init=epsg:4326")
 # prec_raster <- rasterFromXYZ(prec[,c(1:37)], crs = "+init=epsg:4326")
 lulc_raster <- rasterFromXYZ(lulc[,c(1:12)], crs = "+init=epsg:4326")
 age_raster <- rasterFromXYZ(age[,c(1,2,4)], crs = "+init=epsg:4326")
 burn_raster <- rasterFromXYZ(burn[,c(1:4)], crs = "+init=epsg:4326")
+burn_raster <- rasterFromXYZ(burn[,c(1:4)], crs = "+init=epsg:4326")
+burn_raster <- rasterFromXYZ(burn[,c(1:4)], crs = "+init=epsg:4326")
+GEDI_raster <- rasterFromXYZ(GEDI[,c(1:3)], crs = "+init=epsg:4326")
 
 # checking extents for equivalency - finding the extent that will encompass all.
 # due to variation within the data, there's some risk of small differences.
@@ -65,14 +57,13 @@ burn_raster <- rasterFromXYZ(burn[,c(1:4)], crs = "+init=epsg:4326")
 # extent(burn_raster)
 raster_list <- c(lulc_raster, burn_raster, age_raster, temp_resampled, prec_resampled)
 raster_list <- pbapply::pblapply(raster_list, terra::crop, e_min)
-writeRaster(lulc_raster, '0000000000-0000095232_lulc_raster.tif')
+#writeRaster(lulc_raster, '0000000000-0000095232_lulc_raster.tif')
 writeRaster(burn_raster, '0000000000-0000095232_burn_raster.tif')
 writeRaster(age_raster, '0000000000-0000095232_age_raster.tif')
 writeRaster(prec_resampled, '0000000000-0000095232_prec_resampled.tif')
 writeRaster(temp_resampled, '0000000000-0000095232_temp_resampled.tif')
 
-
-soil <- readRDS('./soil/soil.rds')
+soil <- readRDS('soil.rds')
   colnames(soil) <- c('lon', 'lat', 'type')
   soil <- soil[max(age$lon) > soil$lon, ] # this code needs to be simplified
   soil <- soil[min(age$lon) < soil$lon, ]
@@ -84,30 +75,41 @@ soil <- readRDS('./soil/soil.rds')
 # preds2 <- pbapply::pblapply(preds, rasterFromXYZ, crs = "+init=epsg:4326")  <------ not sure why this is returning an incorrect number of dimensions error?
 
 # resampling the rasters
-temp_resampled <- resample(temp_raster,age_raster,method = 'ngb') #nearest neighbor
+soil_resampled <- resample(temp_raster,age_raster,method = 'ngb') #nearest neighbor
 prec_resampled <- resample(prec_raster,age_raster,method = 'ngb')
-
+GEDI_resampled <- resample(GEDI_raster,age_raster,method = 'ngb')
 
 # GEDI and soil data is irregular and can't be converted directly into a regular raster.
 # making a raster from irregular data, using another raster as reference of size and resolution.
 # df must be in form [lon;lat;data].
+library(sf)
+library(fasterize)
+
+GEDI <- cbind(GEDI, LongLatToUTM(GEDI$lon, GEDI$lat))
+
+GEDI_raster <- fasterize(GEDI_sf, )
+
 rasterFromXYZ_irr <- function(df, ref_raster, col){   # dataframe to be converted, reference raster
-  df <- GEDI
+  df <- soil
   ref_raster <- age_raster
-  e <- extent(min(df$lon), max(df$lon), min(df$lat), max(df$lat))
+  #e <- e_min
+  # e <- extent(min(df$lon), max(df$lon), min(df$lat), max(df$lat))
   # set up an 'empty' raster
-  r <- raster(e, ncol = ncol(ref_raster), nrow = nrow(ref_raster))
-  df[,3] <- as.factor(df[,3])
-  x <- rasterize(df[, 1:2], r, col)
+  r <- raster(e, ncol = ncol(ref_raster), nrow = nrow(ref_raster), crs = "+proj=longlat +elips=WGS84")
+  #df[,3] <- as.factor(df[,3])
+  df$type <- as.factor(df$type)
+  ras <- rasterize(df[,1:2], r, field = df$type, fun=first)
   return(x)
 }
 
+GEDI_raster <- ras
 GEDI_raster <- rasterFromXYZ_irr(GEDI, age_raster, GEDI$agbd)
 soil_raster <- rasterFromXYZ_irr(soil, age_raster, soil$type)
 #writeRaster(GEDI_raster, '0000000000-0000095232_GEDI_tst.tif')
-GEDI_raster <- raster('0000000000-0000095232_GEDI_tst.tif')
+GEDI_raster <- writeRaster(GEDI_raster, '0000000000-0000095232_GEDI_tst.tif')
 
 writeRaster(central_stack, '0000000000-0000095232_central_stack.tif')
+# 163.520.175
 
 central_stack <- stack(raster_list)
 # The other strategy is using the match() function.
