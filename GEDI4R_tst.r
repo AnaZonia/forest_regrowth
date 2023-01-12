@@ -1,4 +1,15 @@
-library(GEDI4R)
+#if (!require("BiocManager", quietly = TRUE))
+#  install.packages("BiocManager")
+#BiocManager::install("grimbough/rhdf5")
+library(rhdf5) # for handling raw GEDI data
+#remotes::install_github("VangiElia/GEDI4R")
+library(GEDI4R) # for extracting raw GEDI data
+library(raster) # Might not need this one
+library(ncdf4)
+library(tidyverse)
+library(rgdal)
+library(hdf5r)
+
 setwd("/home/aavila/forest_regrowth")
 #coords <- c(-0.5377764, -3.2823093, -48.32644, -43.99998) #coordinates for a test region in the northeastern Amazon
 coords <- c(-1, -8.3, -56, -49) #coordinates for a test region in the northeastern Amazon
@@ -6,8 +17,7 @@ coords <- c(-1, -8.3, -56, -49) #coordinates for a test region in the northeaste
 -1,-56
  -8.3, -49
 
-
-outdir <- './GEDI_raw'
+outdir <- tempdir()
 #173 output files
 GEDI_download <- l4_download(
 coords[1], coords[2], coords[3], coords[4], # ul_lat,lr_lat,ul_lon,lr_lon
@@ -30,6 +40,9 @@ l4_plotagb(clipped,n=100,h=c(100,100))
 dev.off()
 
 saveRDS(clipped, '0000000000-0000095232_GEDI.rds')
+#l4_convert(clipped,4326,filename=paste0(outdir,"amazon_gedi_l4.shp"), append=FALSE)
+
+
 
 # in the mature patch:
 # 15% are smaller than 5

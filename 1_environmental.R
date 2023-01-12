@@ -67,25 +67,33 @@ climate_BRA <- function (var){
   BRA <- subset(wrld_simpl, NAME=="Brazil") # get Brazil mask
   rstr <- pbapply::pblapply(raster_clim, terra::crop, BRA) # subsects all rasters to area of interest
   rstr <- pbapply::pblapply(rstr, terra::mask, BRA) # subsects all rasters to area of interest
-  rstr <- raster::stack(rstr)
-  return(rstr)}
+  rstr <- brick(rstr) 
+return(rstr)}
 
-writeRaster(climate_BRA(vars[1]), "prec_BRA.tif")
-writeRaster(climate_BRA(vars[2]), "tmax_BRA.tif")
-writeRaster(climate_BRA(vars[3]), "tmin_BRA.tif")
+prec_BRA <- climate_BRA(vars[1])
+tmax_BRA <- climate_BRA(vars[2])
+tmin_BRA <- climate_BRA(vars[3])
 
-##################################################################
-# Subset by region.
-df_tmin <- raster("/home/aavila/forest_regrowth/worldclim_dataframes/tmin_BRA.tif")
-df_tmax <- raster("/home/aavila/forest_regrowth/worldclim_dataframes/tmax_BRA.tif")
-df_prec <- raster("/home/aavila/forest_regrowth/worldclim_dataframes/prec_BRA.tif")
+# writeRaster(climate_BRA(vars[1]), "prec_BRA.tif")
+# writeRaster(climate_BRA(vars[2]), "tmax_BRA.tif")
+# writeRaster(climate_BRA(vars[3]), "tmin_BRA.tif")
+
+# ##################################################################
+# # Subset by region.
+# df_tmin <- brick("/home/aavila/forest_regrowth/worldclim_dataframes/tmin_BRA.tif")
+# df_tmax <- brick("/home/aavila/forest_regrowth/worldclim_dataframes/tmax_BRA.tif")
+# df_prec <- brick("/home/aavila/forest_regrowth/worldclim_dataframes/prec_BRA.tif")
 
 location <- '0000000000-0000095232'
 regrowth_mask <- raster(paste0('./dataframes/', location, '_mask.tif'))
 
-df_prec <- as.data.frame(df_prec, xy=TRUE)
-df_tmin <- as.data.frame(df_tmin, xy=TRUE)
-df_tmax <- as.data.frame(df_tmax, xy=TRUE)
+df_prec <- terra::crop(df_prec, regrowth_mask)
+df_tmin <- terra::crop(df_tmin, regrowth_mask)
+df_tmax <- terra::crop(df_tmax, regrowth_mask)
+
+df_prec <- as.data.frame(prec, xy=TRUE)
+df_tmin <- as.data.frame(tmin, xy=TRUE)
+df_tmax <- as.data.frame(tmax, xy=TRUE)
 
 # processes the dataframes into yearly climate data
 climate_data_import = function(df){
@@ -110,10 +118,10 @@ climate_data_cleanup = function(df){
   return(df)
 }
 
-tst <- climate_data_cleanup(prec)
+#tst <- climate_data_cleanup(prec)
 
-saveRDS(climate_data_cleanup(prec), file.path(paste0('./worldclim_brazil/dataframes/prec.rds')))
-saveRDS(climate_data_cleanup(temp), file.path(paste0('./worldclim_brazil/dataframes/temp.rds')))
+saveRDS(climate_data_cleanup(prec), file.path(paste0('./worldclim_dataframes/prec.rds')))
+saveRDS(climate_data_cleanup(temp), file.path(paste0('./worldclim_dataframes/temp.rds')))
 #resolution is about 4.5 km.
 #Need to add temperature data for ALL cells within 4.5km of center point.
 

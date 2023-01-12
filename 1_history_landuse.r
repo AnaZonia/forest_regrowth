@@ -31,56 +31,18 @@ regrowth_mask <- raster('./mapbiomas/regrowth_masks/0000000000-0000095232_mask.t
 
 tmp_rasters <- pbapply::pblapply(tmp_rasters, terra::crop, extent(regrowth_mask)) # subsects all rasters to area of interest
 tmp_rasters2 <-  pbapply::pblapply(tmp_rasters, terra::mask, regrowth_mask) # mask all raw files, leaving behind only the cells containing any regrowth instance.
-stacked_history <- raster::stack(tmp_rasters2)
+stacked_history <- brick(tmp_rasters2)
 writeRaster(stacked_tst, "0000000000-0000095232_lulc.tif")
 
-# since, for some reason, lulc turned out with years as different bands rather than different layers (check why once Janus access is regained)
-for (i in 1:35){ #total number of years
-  print(i)
-  lulc_raster = raster('0000000000-0000095232_lulc.tif', band = i)
-  convert_history <- getValues(lulc_raster)
-  convert_history <- data.frame(cell = 1:length(convert_history), value = convert_history)
-  convert_history <- na.omit(convert_history)
-  convert_history[,c("x","y")] <- xyFromCell(lulc_raster, convert_history$cell)
-  saveRDS(convert_history, file.path(paste0('0000000000-0000095232_lulc_', c(1984+i),'.rds')))
-}
+lulc_raster = raster('0000000000-0000095232_lulc.tif', band = i)
+convert_history <- getValues(lulc_raster)
+convert_history <- data.frame(cell = 1:length(convert_history), value = convert_history)
+convert_history <- na.omit(convert_history)
+convert_history[,c("x","y")] <- xyFromCell(lulc_raster, convert_history$cell)
+saveRDS(convert_history, file.path(paste0('0000000000-0000095232_lulc_', c(1984+i),'.rds')))
 
-files_tmp <- list.files(path = './lulc', full.names=TRUE)   # obtain paths for all files for that location
-lulc <- pbapply::pblapply(files_tmp[1:10], readRDS) #1985-1994
-lulc_df <- df_merge(lulc, 2)
-head(lulc_df)
-lulc_df <- lulc_df[,c(3,4,2,5:ncol(lulc_df))]
-colnames(lulc_df) <- c('lon', 'lat', c(1985:1994))
-saveRDS(lulc_df, file.path(paste0('0000000000-0000095232_lulc.rds')))
 
-files_tmp <- list.files(path = './lulc', full.names=TRUE)   # obtain paths for all files for that location
-dec_1 <- readRDS('0000000000-0000095232_lulc.rds')
-lulc2 <- pbapply::pblapply(files_tmp[11:20], readRDS) #1995-2004
-lulc_df <- df_merge(lulc2, 2) #merge second columns
-head(lulc_df)
-lulc_df <- lulc_df[,c(3,4,2,5:ncol(lulc_df))]
-colnames(lulc_df) <- c('lon', 'lat', c(1995:2004))
-dec_1_2 <- cbind(dec_1, lulc_df[,c(3:ncol(lulc_df))])
-saveRDS(dec_1_2, file.path(paste0('0000000000-0000095232_lulc.rds')))
 
-dec_1_2 <- readRDS('0000000000-0000095232_lulc.rds')
-lulc3 <- pbapply::pblapply(files_tmp[21:30], readRDS) #2005 - 2014
-lulc_df <- df_merge(lulc3, 2) #merge second columns
-head(lulc_df)
-lulc_df <- lulc_df[,c(3,4,2,5:ncol(lulc_df))]
-colnames(lulc_df) <- c('lon', 'lat', c(2005:2014))
-dec_1_2_3 <- cbind(dec_1_2, lulc_df[,c(3:ncol(lulc_df))])
-saveRDS(dec_1_2_3, file.path(paste0('0000000000-0000095232_lulc.rds')))
-
-lulc3 <- pbapply::pblapply(files_tmp[31:35], readRDS) #2015 - 2019
-lulc_df <- df_merge(lulc3, 2) #merge second columns
-head(lulc_df)
-lulc_df <- lulc_df[,c(3,4,2,5:ncol(lulc_df))]
-colnames(lulc_df) <- c('lon', 'lat', c(2015:2019))
-dec_1_2_3_4 <- cbind(dec_1_2_3, lulc_df[,c(3:ncol(lulc_df))])
-head(dec_1_2_3_4)
-saveRDS(dec_1_2_3_4, file.path(paste0('0000000000-0000095232_lulc.rds')))
-lulc <- dec_1_2_3_4
 #################################################################################
 
 ########## LAND USE ##########
