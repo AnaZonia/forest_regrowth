@@ -6,6 +6,34 @@
 # imports and makes dataframes from santoro and potapov raw data
 ####################################################################
 
+#if (!require("BiocManager", quietly = TRUE))
+#  install.packages("BiocManager")
+BiocManager::install("grimbough/rhdf5")
+library(rhdf5) # for handling raw GEDI data
+#remotes::install_github("VangiElia/GEDI4R")
+library(GEDI4R) # for extracting raw GEDI data
+library(raster) # Might not need this one
+library(ncdf4)
+library(tidyverse)
+library(rgdal)
+
+setwd("/home/aavila/forest_regrowth")
+regrowth_mask <- raster('0000000000-0000095232_mask.tif')
+coords <- c(-0.5377764, -3.2823093, -48.32644, -43.99998)
+
+
+# > range(age$lon)
+# [1] -48.32644 -43.99998
+# > range(age$lat)
+# [1] -3.2823093 -0.5377764
+# Dubayah et al 2022 -> GEDI L4A Footprint Level Aboveground Biomass Density (Mg/ha)
+# more instructions on https://github.com/VangiElia/GEDI4R
+# a package built specially for processing GEDI4A biomass data.
+
+####################################################################
+##########              BODY                 #######################
+####################################################################
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##########  SANTORO ##########
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

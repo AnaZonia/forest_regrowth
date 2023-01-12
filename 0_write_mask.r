@@ -9,6 +9,14 @@
 # The output masks are input into 1_processing_pred_var.R
 ####################################################################
 
+library(sf)
+library(raster) #  handling spatial data
+library(terra) # handling spatial data
+library(tidyverse)
+library(pbapply) #progress bar for apply family of functions
+
+setwd("/home/aavila/forest_regrowth")
+source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r") # sourcing functions
 
 # EXTRACTING DATA FROM MULTIPLE REGIONS OF THE COUNTRY (larger scale)
 path <- './mapbiomas/regrowth_raw'

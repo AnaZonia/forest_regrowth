@@ -1,7 +1,8 @@
 library(ggplot2)
 setwd("/home/aavila/forest_regrowth/dataframes")
 
-agb_forest_age <- readRDS("agb_forest_age.rds")
+#agb_forest_age <- readRDS("agb_forest_age.rds")
+agb_forest_age <- readRDS('./test_files/agb_forest_age_santoro_paragominas.rds')
 
 
 GEDI <- cbind(GEDI, LongLatToUTM(GEDI$lon, GEDI$lat))
@@ -19,7 +20,7 @@ plot(agb_forest_age2$forest_age, agb_forest_age2$agbd)
 # saveRDS(agb_forest_age, 'agb_forest_age.rds')
 # agb_forest_age = readRDS('agb_forest_age.rds')
 
-ggplot(data = agb_forest_age2, aes(x = forest_age, y = agbd)) + 
+ggplot(data = agb_forest_age, aes(x = forest_age, y = agbd)) + 
   geom_point() +
   stat_summary(geom = "point", fun = "mean", col = "black",
     size = 6, shape = 23,fill = "red")
