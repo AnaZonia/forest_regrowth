@@ -45,9 +45,6 @@ e_min # extent object containing the smallest possible extent encompassing all d
 lulc_raster <- rasterFromXYZ(lulc[,c(1:12)], crs = "+init=epsg:4326")
 age_raster <- rasterFromXYZ(age[,c(1,2,4)], crs = "+init=epsg:4326")
 burn_raster <- rasterFromXYZ(burn[,c(1:4)], crs = "+init=epsg:4326")
-burn_raster <- rasterFromXYZ(burn[,c(1:4)], crs = "+init=epsg:4326")
-burn_raster <- rasterFromXYZ(burn[,c(1:4)], crs = "+init=epsg:4326")
-GEDI_raster <- rasterFromXYZ(GEDI[,c(1:3)], crs = "+init=epsg:4326")
 
 # checking extents for equivalency - finding the extent that will encompass all.
 # due to variation within the data, there's some risk of small differences.
@@ -57,7 +54,7 @@ GEDI_raster <- rasterFromXYZ(GEDI[,c(1:3)], crs = "+init=epsg:4326")
 # extent(burn_raster)
 raster_list <- c(lulc_raster, burn_raster, age_raster, temp_resampled, prec_resampled)
 raster_list <- pbapply::pblapply(raster_list, terra::crop, e_min)
-#writeRaster(lulc_raster, '0000000000-0000095232_lulc_raster.tif')
+writeRaster(lulc_raster, '0000000000-0000095232_lulc_raster.tif')
 writeRaster(burn_raster, '0000000000-0000095232_burn_raster.tif')
 writeRaster(age_raster, '0000000000-0000095232_age_raster.tif')
 writeRaster(prec_resampled, '0000000000-0000095232_prec_resampled.tif')
@@ -74,10 +71,13 @@ soil <- readRDS('soil.rds')
 # preds <- c(temp[,c(1:37)], prec[,c(1:37)], age[,c(1,2,4)])
 # preds2 <- pbapply::pblapply(preds, rasterFromXYZ, crs = "+init=epsg:4326")  <------ not sure why this is returning an incorrect number of dimensions error?
 
+lulc_raster <- brick('0000000000-0000095232_lulc.tif')
+burn_raster <- brick('0000000000-0000095232_burn_raster.tif')
+age_raster <- brick('0000000000-0000095232_age_raster.tif')
+
 # resampling the rasters
 soil_resampled <- resample(temp_raster,age_raster,method = 'ngb') #nearest neighbor
 prec_resampled <- resample(prec_raster,age_raster,method = 'ngb')
-GEDI_resampled <- resample(GEDI_raster,age_raster,method = 'ngb')
 
 # GEDI and soil data is irregular and can't be converted directly into a regular raster.
 # making a raster from irregular data, using another raster as reference of size and resolution.
@@ -90,7 +90,7 @@ GEDI <- cbind(GEDI, LongLatToUTM(GEDI$lon, GEDI$lat))
 GEDI_raster <- fasterize(GEDI_sf, )
 
 rasterFromXYZ_irr <- function(df, ref_raster, col){   # dataframe to be converted, reference raster
-  df <- soil
+  df <- GEDI
   ref_raster <- age_raster
   #e <- e_min
   # e <- extent(min(df$lon), max(df$lon), min(df$lat), max(df$lat))
