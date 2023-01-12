@@ -14,7 +14,7 @@ setwd("/home/aavila/forest_regrowth")
 #coords <- c(-0.5377764, -3.2823093, -48.32644, -43.99998) #coordinates for a test region in the northeastern Amazon
 coords <- c(-1, -8.3, -56, -49) #coordinates for a test region in the northeastern Amazon
 
-outdir <- './GEDI_tst'
+outdir <- tempdir()
 #173 output files
 GEDI_download <- l4_download(
 coords[1], coords[2], coords[3], coords[4], # ul_lat,lr_lat,ul_lon,lr_lon
