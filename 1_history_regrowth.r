@@ -107,7 +107,7 @@ for (cut in subs){
 }
 
 # adding UTM coordinates in case it's needed
-saveRDS(convert_history, file.path(paste0('./mapbiomas/dataframes/', location, '_regrowth.RDS')))
+saveRDS(convert_history, file.path(paste0('./mapbiomas/dataframes/', location, '_regrowth.rds')))
 
 ###################################
 ########## DATA CLEANING ##########
@@ -180,4 +180,4 @@ regrowth_cleaned <- cbind(regrowth_cleaned, 'forest_age' = max(regrowth_cleaned$
 regrowth_cleaned <- cbind(regrowth_cleaned, LongLatToUTM(regrowth_cleaned$lon, regrowth_cleaned$lat)) # add UTM coordinates as new columns
 regrowth_cleaned$xy <- paste0(regrowth_cleaned$zone, regrowth_cleaned$x, regrowth_cleaned$y) # create unique identifier
 
-saveRDS(regrowth_cleaned, paste0(location, '_forest_age.RDS'))
+saveRDS(regrowth_cleaned, paste0(location, '_regrowth_history.rds'))

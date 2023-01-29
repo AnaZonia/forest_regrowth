@@ -14,8 +14,6 @@ setwd("/home/aavila/forest_regrowth")
 #coords <- c(-0.5377764, -3.2823093, -48.32644, -43.99998) #coordinates for a test region in the northeastern Amazon
 coords <- c(-1, -8.3, -56, -49) #coordinates for a test region in the northeastern Amazon
 #coords <- c(max(age$lat), min(age$lat), min(age$lon), max(age$lon)) #coordinates for a test region in the northeastern Amazon
--1,-56
- -8.3, -49
 
 outdir <- tempdir()
 #173 output files

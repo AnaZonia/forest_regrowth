@@ -17,7 +17,6 @@ library(raster) #  handling spatial data
 library(terra) # handling spatial data
 library(tidyverse)
 library(pbapply) #progress bar for apply family of functions
-
 setwd("/home/aavila/forest_regrowth/dataframes")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
 

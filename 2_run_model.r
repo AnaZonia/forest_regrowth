@@ -6,115 +6,74 @@
 ####################################################################
 
 library(terra) # handling spatial data
-library(raster)
 library(data.table) #to use data.table objects in the rasterFromXYZ_irr() function
 library(pbapply) #progress bar for apply family of functions
-
-setwd("/home/aavila/forest_regrowth/dataframes")
+library(sf)
+setwd("/home/aavila/forest_regrowth")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
+
+##################      Switches     ##################
+
+import_mapbiomas = TRUE
 
 ######################################################################
 #################      unify data into central df   ##################
 ######################################################################
-
 # The issue with matching UTM coordinates directly is a lot of points are lost. what we are plotting is actually a very small percentage of what is actually matching.
 # with raster::resample, we can use nearest-neighbor.
 
-lulc <- readRDS('0000000000-0000095232_lulc_history.rds')
-age <- readRDS('0000000000-0000095232_forest_age.rds')
-burn <- readRDS('0000000000-0000095232_burn_history.rds')
+# Making rasters from MAPBIOMAS data
 
-# GEDI_mid_amazon <- readRDS('GEDI_midamazon_dfunified.rds')
-#   GEDI_mid_amazon <- GEDI_mid_amazon[,c(3,2,1)]
-GEDI <- readRDS("0000000000-0000095232_GEDI.rds") #for some reason, the method doesn't work with this file?
-  GEDI <- GEDI[,c(10, 9, 15)]
-  colnames(GEDI) <- c('lon', 'lat', 'agbd')
-  GEDI <- setDT(GEDI)
+lulc <- readRDS(paste0('./dataframes/', '0000000000-0000095232_lulc_history.rds'))
+regrowth <- readRDS(paste0('./dataframes/', '0000000000-0000095232_regrowth_history.rds'))
+fire <- readRDS(paste0('./dataframes/','0000000000-0000095232_fire_history.rds'))
 
-max_lons <- c(max(GEDI[,1]), max(age[,1]), max(burn[,1]), max(lulc[,1]))
-min_lons <- c(min(GEDI[,1]), min(age[,1]), min(burn[,1]), min(lulc[,1]))
-max_lats <- c(max(GEDI[,2]), max(age[,2]), max(burn[,2]), max(lulc[,2]))
-min_lats <- c(min(GEDI[,2]), min(age[,2]), min(burn[,2]), min(lulc[,2]))
+lulc_raster <- rast(lulc[,c(1:12)], type="xyz") #lon, lat, values    , crs = "+init=epsg:4326"
+regrowth_raster <- rast(regrowth[,c(1,2,4)], type="xyz")
+fire_raster <- rast(fire[,c(1:4)], type="xyz")
 
-e_min <- extent(max(min_lons), min(max_lons), max(min_lats), min(max_lats))
-e_min # extent object containing the smallest possible extent encompassing all dataframes.
-# crop the dataframes with extent different from e_min
 
-# temp_raster <- rasterFromXYZ(temp[,c(1:37)], crs = "+init=epsg:4326")
-# prec_raster <- rasterFromXYZ(prec[,c(1:37)], crs = "+init=epsg:4326")
-lulc_raster <- rasterFromXYZ(lulc[,c(1:12)], crs = "+init=epsg:4326")
-age_raster <- rasterFromXYZ(age[,c(1,2,4)], crs = "+init=epsg:4326")
-burn_raster <- rasterFromXYZ(burn[,c(1:4)], crs = "+init=epsg:4326")
 
-# checking extents for equivalency - finding the extent that will encompass all.
-# due to variation within the data, there's some risk of small differences.
-# extent(temp_raster)
-# extent(lulc_raster)
-# extent(age_raster)
-# extent(burn_raster)
-raster_list <- c(lulc_raster, burn_raster, age_raster, temp_resampled, prec_resampled)
-raster_list <- pbapply::pblapply(raster_list, terra::crop, e_min)
-writeRaster(lulc_raster, '0000000000-0000095232_lulc_raster.tif')
-writeRaster(lulc_raster, '0000000000-0000095232_lulc_raster.tif')
-writeRaster(burn_raster, '0000000000-0000095232_burn_raster.tif')
-writeRaster(age_raster, '0000000000-0000095232_age_raster.tif')
-writeRaster(prec_resampled, '0000000000-0000095232_prec_resampled.tif')
-writeRaster(temp_resampled, '0000000000-0000095232_temp_resampled.tif')
-
-soil <- readRDS('soil.rds')
-  colnames(soil) <- c('lon', 'lat', 'type')
-  soil <- soil[max(age$lon) > soil$lon, ] # this code needs to be simplified
-  soil <- soil[min(age$lon) < soil$lon, ]
-  soil <- soil[max(age$lat) > soil$lat, ]
-  soil <- soil[min(age$lat) < soil$lat, ]
-  soil <- setDT(soil)
-
-# preds <- c(temp[,c(1:37)], prec[,c(1:37)], age[,c(1,2,4)])
-# preds2 <- pbapply::pblapply(preds, rasterFromXYZ, crs = "+init=epsg:4326")  <------ not sure why this is returning an incorrect number of dimensions error?
-
-lulc_raster <- brick('0000000000-0000095232_lulc.tif')
-burn_raster <- brick('0000000000-0000095232_burn_raster.tif')
-age_raster <- brick('0000000000-0000095232_age_raster.tif')
-
-# resampling the rasters
-soil_resampled <- resample(temp_raster,age_raster,method = 'ngb') #nearest neighbor
-prec_resampled <- resample(prec_raster,age_raster,method = 'ngb')
-
+# Making rasters from GEDI and soil data
 # GEDI and soil data is irregular and can't be converted directly into a regular raster.
 # making a raster from irregular data, using another raster as reference of size and resolution.
 # df must be in form [lon;lat;data].
-library(sf)
-library(fasterize)
 
-GEDI <- cbind(GEDI, LongLatToUTM(GEDI$lon, GEDI$lat))
+GEDI <- readRDS(paste0('./dataframes/',"0000000000-0000095232_GEDI.rds")) #for some reason, the method doesn't work with this file?
+  GEDI <- GEDI[,c(3, 2, 5)]
+  colnames(GEDI) <- c('lon', 'lat', 'agbd')
 
-GEDI_raster <- fasterize(GEDI_sf, )
+soil <- readRDS('./soil/soil.rds') #loads in country-wide soil data
+  colnames(soil) <- c('lon', 'lat', 'type')
+  soil$type <- as.factor(soil$type)
 
-rasterFromXYZ_irr <- function(df, ref_raster, col){   # dataframe to be converted, reference raster
-  df <- GEDI
-  ref_raster <- age_raster
-  #e <- e_min
-  # e <- extent(min(df$lon), max(df$lon), min(df$lat), max(df$lat))
-  # set up an 'empty' raster
-  r <- raster(e, ncol = ncol(ref_raster), nrow = nrow(ref_raster), crs = "+proj=longlat +elips=WGS84")
-  #df[,3] <- as.factor(df[,3])
-  df$type <- as.factor(df$type)
-  ras <- rasterize(df[,1:2], r, field = df$type, fun=first)
-  return(x)
-}
+# I am having a hard time making this a single function - to be discovered why.
+proj <- "+proj=longlat +elips=WGS84"
+GEDI_vect <- terra::vect(GEDI[,c("lon", "lat", "agbd")], crs = proj)
+GEDI_raster <- terra::rasterize(GEDI_vect, regrowth_raster, field = "agbd")
 
-GEDI_raster <- ras
-GEDI_raster <- rasterFromXYZ_irr(GEDI, age_raster, GEDI$agbd)
-soil_raster <- rasterFromXYZ_irr(soil, age_raster, soil$type)
-#writeRaster(GEDI_raster, '0000000000-0000095232_GEDI_tst.tif')
-GEDI_raster <- writeRaster(GEDI_raster, '0000000000-0000095232_GEDI_tst.tif')
+soil_vect <- terra::vect(soil[,c("lon", "lat", "type")], crs = proj)
+soil_raster <- terra::rasterize(soil_vect, regrowth_raster, field = "type")
 
-writeRaster(central_stack, '0000000000-0000095232_central_stack.tif')
-# 163.520.175
+temp <- rast(paste0('./worldclim_dataframes/','temp_BRA_mean.tif'))
+prec <- rast(paste0('./worldclim_dataframes/','prec_BRA_mean.tif'))
 
-central_stack <- stack(raster_list)
-# The other strategy is using the match() function.
-# However, this is somehow missing a lot of matches. To be investigated why that is the case.
+# resampling the rasters
+# soil and GEDI don't need to be resampled as they have already been rasterized
+# with regrowth_raster as reference
+prec_resampled <- resample(prec,regrowth_raster,method = 'near')
+temp_resampled <- resample(prec,regrowth_raster,method = 'near')
+fire_resampled <- resample(fire_raster,regrowth_raster,method = 'near')
+
+names(GEDI_raster) <- 'agbd'
+names(regrowth_raster) <- 'age'
+names(fire_resampled) <- c('num_fires', 'ts_last_fire')
+names(prec_resampled)
+names(temp_resampled)
+names(soil_raster)
+
+central_df <- c(GEDI_raster, regrowth_raster, lulc_resampled,
+                fire_resampled, prec_resampled, temp_resampled, soil_raster)
 
 ######################################################################
 #################        passing into the model     ##################
@@ -122,11 +81,7 @@ central_stack <- stack(raster_list)
 
 # fit the sum of total temperature
 # fit soil as categorical
-temp_hist <- central_stack
-prec_hist <- 
-columns <- c(other_perennial, other_annual, pasture, soy,
-            ts_other_perennial, ts_other_annual, ts_pasture, ts_soy,
-            forest_age, num_fires, last_burn, soil)
+
 
 G <- function(pars, columns) {
   # Extract parameters of the model

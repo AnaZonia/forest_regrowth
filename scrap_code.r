@@ -532,3 +532,22 @@ hdf5r::list.datasets(level4a_i) == "shot_number"
 
 rhs <- data.table::data.table(level4a_h5[["shot_number"]][])
 
+
+
+rasterFromXYZ_irr <- function(df, ref_raster, field){   # dataframe to be converted, reference raster
+  proj <- "+proj=longlat +elips=WGS84"
+  presence <- terra::vect(df[,c("lon", "lat", field)], crs = proj)
+  # sum within cells, using field "value"
+  convertedRaster <- terra::rasterize(presence, ref_raster, field = field, fun = 'max')
+  return(convertedRaster)
+}
+
+df = GEDI
+field = 'agbd'
+presence <- terra::vect(df[,c("lon", "lat", field)], crs = proj)
+# sum within cells, using field "value"
+convertedRaster <- terra::rasterize(presence, ref_raster, field = field, fun = 'max')
+#Error in p@ptr$read(x, layer, query, extent, filter, proxy, what) : 
+#  Expecting a single string value: [type=character; extent=3].
+GEDI_raster <- rasterFromXYZ_irr(GEDI, age_raster, "agbd")
+soil_raster <- rasterFromXYZ_irr(soil, age_raster, 'type')
