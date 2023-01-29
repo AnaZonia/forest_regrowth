@@ -21,7 +21,6 @@ library(plyr) # for function ldply
 library(maptools)  ## For wrld_simpl
 library(pbapply) #progress bar for apply family of functions
 data(wrld_simpl)
-
 setwd("/home/aavila/forest_regrowth")
 # sourcing functions
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
@@ -32,8 +31,8 @@ download_worldclim = FALSE
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##########  Temperature/Precipitation ##########
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 outdir <- "./worldclim_dataframes" # Specify your preferred working directory
+location <- '0000000000-0000095232'
 
 if (download_worldclim == T){
   vars = c("tmin_", "tmax_", "prec_")
@@ -57,73 +56,47 @@ if (download_worldclim == T){
 mk_list <- function(x)  {as.list(intersect(list.files(path = outdir, pattern = "*.tif", full.names = TRUE),
                                            list.files(path = outdir, pattern = x, full.names = TRUE)))}
 
-vars <- c("tmin", "tmax", "prec")
+vars <- c("prec", "tmax", "tmin")
 
 climate_BRA <- function (var){
   list_clim <- mk_list(var)
   # read the files
-  raster_clim <- lapply(list_clim, raster)
+  raster_clim <- lapply(list_clim, raster) # this is correct
   # if we are subsetting the data into our region of interest
   BRA <- subset(wrld_simpl, NAME=="Brazil") # get Brazil mask
   rstr <- pbapply::pblapply(raster_clim, terra::crop, BRA) # subsects all rasters to area of interest
   rstr <- pbapply::pblapply(rstr, terra::mask, BRA) # subsects all rasters to area of interest
-  rstr <- brick(rstr) 
+  rstr <- brick(rstr)
 return(rstr)}
 
 prec_BRA <- climate_BRA(vars[1])
 tmax_BRA <- climate_BRA(vars[2])
 tmin_BRA <- climate_BRA(vars[3])
 
-# writeRaster(climate_BRA(vars[1]), "prec_BRA.tif")
-# writeRaster(climate_BRA(vars[2]), "tmax_BRA.tif")
-# writeRaster(climate_BRA(vars[3]), "tmin_BRA.tif")
-
-# ##################################################################
-# # Subset by region.
-# df_tmin <- brick("/home/aavila/forest_regrowth/worldclim_dataframes/tmin_BRA.tif")
-# df_tmax <- brick("/home/aavila/forest_regrowth/worldclim_dataframes/tmax_BRA.tif")
-# df_prec <- brick("/home/aavila/forest_regrowth/worldclim_dataframes/prec_BRA.tif")
-
-location <- '0000000000-0000095232'
-regrowth_mask <- raster(paste0('./dataframes/', location, '_mask.tif'))
-
-df_prec <- terra::crop(df_prec, regrowth_mask)
-df_tmin <- terra::crop(df_tmin, regrowth_mask)
-df_tmax <- terra::crop(df_tmax, regrowth_mask)
-
-df_prec <- as.data.frame(prec, xy=TRUE)
-df_tmin <- as.data.frame(tmin, xy=TRUE)
-df_tmax <- as.data.frame(tmax, xy=TRUE)
-
 # processes the dataframes into yearly climate data
-climate_data_import = function(df){
-  colnames(df) = str_sub(colnames(df), start= -7)   # makes column names only "yyyy.mm"
-  result = t(apply(df[3:ncol(df)], 1, tapply, gl(34, 12), mean)) #mean annual - data is originally monthly
-  colnames(result) = c(1985:2018)
-  return(as.data.frame(cbind(df[,1:2], result)))
+climate_yearly = function(tif, fun){
+  dates = substr(names(tif), start = 17, stop = 24)   # makes column names only "yyyy.mm"
+  dates
+  #sum layers, get variance
+  indices <- rep(1:34,each=12)
+  yearly_data <- stackApply(tif, 1:34, fun = fun)
+  names(yearly_data) = c(1985:2018)
+  return(yearly_data)
 }
 
-prec = climate_data_import(df_prec)
-tmax = climate_data_import(df_tmax)
-tmin = climate_data_import(df_tmin)
-temp = (tmax + tmin) / 2
+temp_BRA = (tmax_BRA + tmin_BRA) / 2
 
-# gives proper names to the dataframes and adds UTM coordinates
-climate_data_cleanup = function(df){
-  df$mean = colMeans(df[3:ncol(df)])
-  names(df)[names(df) == 'x'] <- 'lon'
-  names(df)[names(df) == 'y'] <- 'lat'
-  df = cbind(df, LongLatToUTM(df$lon, df$lat))
-  df$xy = paste0(df$zone, df$x, df$y)
-  return(df)
-}
+prec_BRA_mean <- climate_yearly(prec_BRA, mean)
+prec_BRA_sd <- climate_yearly(prec_BRA, sd)
+temp_BRA_mean <- climate_yearly(temp_BRA, mean)
+temp_BRA_sd <- climate_yearly(temp_BRA, sd)
 
-#tst <- climate_data_cleanup(prec)
+writeRaster(prec_BRA_mean, filename='prec_BRA_mean.tif', format="GTiff", overwrite=TRUE,options=c("INTERLEAVE=BAND","COMPRESS=LZW"))
+writeRaster(prec_BRA_sd, filename='prec_BRA_sd.tif', format="GTiff", overwrite=TRUE,options=c("INTERLEAVE=BAND","COMPRESS=LZW"))
+writeRaster(temp_BRA_mean, filename='temp_BRA_mean.tif', format="GTiff", overwrite=TRUE,options=c("INTERLEAVE=BAND","COMPRESS=LZW"))
+writeRaster(temp_BRA_sd, filename='temp_BRA_sd.tif', format="GTiff", overwrite=TRUE,options=c("INTERLEAVE=BAND","COMPRESS=LZW"))
 
-saveRDS(climate_data_cleanup(prec), file.path(paste0('./worldclim_dataframes/prec.rds')))
-saveRDS(climate_data_cleanup(temp), file.path(paste0('./worldclim_dataframes/temp.rds')))
 #resolution is about 4.5 km.
-#Need to add temperature data for ALL cells within 4.5km of center point.
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##########  Soil ##########
