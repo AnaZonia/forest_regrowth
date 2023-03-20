@@ -13,15 +13,14 @@
 
 library(data.table) #for faster reading of csv files with function fread
 library(sf)
-library(raster) #  handling spatial data
 library(terra) # handling spatial data
 library(tidyverse)
 library(pbapply) #progress bar for apply family of functions
-setwd("/home/aavila/forest_regrowth/dataframes")
+setwd("/home/aavila/forest_regrowth")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
 
 location <- '0000000000-0000095232'
-regrowth_mask <- raster(paste0('./mapbiomas/regrowth_masks/', location, '_mask.tif'))
+regrowth_mask <- rast(paste0('./mapbiomas/regrowth_masks/', location, '_mask.tif'))
 
 files <- list.files(path = './mapbiomas/lulc', pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
 tmp_rasters <- lapply(files, raster)

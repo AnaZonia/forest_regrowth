@@ -18,7 +18,7 @@ library(tidyverse)
 library(rgdal)
 
 setwd("/home/aavila/forest_regrowth")
-regrowth_mask <- rast('0000000000-0000095232_mask.tif')
+regrowth_mask <- rast(paste0('./mapbiomas/regrowth_masks/', '0000000000-0000095232_mask.tif'))
 coords <- c(-0.5377764, -3.2823093, -48.32644, -43.99998) #ext(regrowth_mask)
 
 # Dubayah et al 2022 -> GEDI L4A Footprint Level Aboveground Biomass Density (Mg/ha)
@@ -29,9 +29,7 @@ coords <- c(-0.5377764, -3.2823093, -48.32644, -43.99998) #ext(regrowth_mask)
 ##########              BODY                 #######################
 ####################################################################
 
-
 outdir <- tempdir()
-#173 output files
 GEDI_download <- l4_download(
 coords[1], coords[2], coords[3], coords[4], # ul_lat,lr_lat,ul_lon,lr_lon
 outdir = outdir,
@@ -40,14 +38,14 @@ to = "2020-12-31",
 just_path = F)
 
 #jpeg("rplot.jpg", width = 350, height = "350")
-GEDI_download <- paste0('./GEDI_raw/', list.files('./GEDI_raw/', pattern = '.h5'))
+GEDI_download <- list.files(outdir)
+#paste0('./GEDI_raw/', list.files('./GEDI_raw/', pattern = '.h5'))
 l4 <- l4_getmulti(GEDI_download,just_colnames = F)
-l4 <- subset(l4, l4_quality_flag == 1)
-l4 <- subset(l4, degrade_flag == 0)
+l4 <- subset(l4, l4_quality_flag == 1) # quality filter
+l4 <- subset(l4, degrade_flag == 0) # quality filter
 
-#coords <- c(max(age$lat), min(age$lat), min(age$lon), max(age$lon)) #coordinates for a test region in the northeastern Amazon
 clipped <- l4_clip(l4,c(coords[3], coords[2], coords[4], coords[1]))
-clipped <- subset(clipped, agbd < 600)
+clipped <- subset(clipped, agbd < 600) # select
 jpeg("rplot_mat.jpg")
 l4_plotagb(clipped,n=100,h=c(100,100))
 dev.off()

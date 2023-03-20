@@ -551,3 +551,10 @@ convertedRaster <- terra::rasterize(presence, ref_raster, field = field, fun = '
 #  Expecting a single string value: [type=character; extent=3].
 GEDI_raster <- rasterFromXYZ_irr(GEDI, age_raster, "agbd")
 soil_raster <- rasterFromXYZ_irr(soil, age_raster, 'type')
+
+
+regrowth_list <- c()
+for (i in 1:length(files_tmp)){
+  regrowth_list <- c(regrowth_list, rast(files_tmp[i]))
+  print(i)
+}

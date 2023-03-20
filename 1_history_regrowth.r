@@ -11,12 +11,12 @@
 ####################################################################
 
 library(sf)
-library(raster) #  handling spatial data
 library(terra) # handling spatial data
-library(tidyverse)
-library(pbapply) #progress bar for apply family of functions
+library(stringr)
+library(pbapply)
+#install.packages('pbapply') #progress bar for apply family of functions
 
-setwd("/home/aavila/forest_regrowth/dataframes")
+setwd("/home/aavila/forest_regrowth")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r") # sourcing functions
 
 path <- './mapbiomas/regrowth_rasters'
@@ -30,60 +30,26 @@ location = '0000000000-0000095232'
 files_tmp <- list.files(path = './mapbiomas/regrowth_raw', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
 files_tmp <- sort(files_tmp)
 
+# the Amazon is divided in 12 parts, each with their own identifier
+# each location is an identifier.
+#for (location in locations){
+
+#dir.create(paste0('./regrowth_dataframes/', location))
+
 regrowth_list <- c()
-  # the Amazon is divided in 12 parts, each with their own identifier
-  # each location is an identifier.
-  #for (location in locations){
-  files_tmp <- list.files(path = './mapbiomas/regrowth_amazon', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
-  files_tmp <- sort(files_tmp)
-
-  #dir.create(paste0('./regrowth_dataframes/', location))
-
-  regrowth_list <- c()
-  for (i in 1:length(files_tmp)){
-    regrowth_list <- c(regrowth_list, raster(files_tmp[i]))
-    print(i)
-  }
-
-  # obtain the raster file for all years within that location
-
-  # obtain the raster file for all years within that location.
-  # to make processing lighter, subset only the pixels that have shown regrowth history.
-  # here, we are (1) making a mask registering all regrowth moments and (2) subsetting rasters based on that mask.
-  # a regrowth moment is flagged with the value "503", therefore:
-  for (i in 1:length(regrowth_list)){
-    print(i)
-    print(Sys.time())
-    regrowth_list[[i]][regrowth_list[[i]]!=503] <- NA # only leave behind values not including the regrowth moment
-    writeRaster(regrowth_list[[i]], file.path(paste0('./mapbiomas/regrowth_rasters/', location, '_', c(1987+i), ".tif"))) # save rasters with the year on the folder created for each location.
-  }
+for (i in 1:length(files_tmp)){
+  regrowth_list <- c(regrowth_list, raster(files_tmp[i]))
+  print(i)
 }
-  regrowth_list <- c()
-  for (i in 1:length(files_tmp)){
-    regrowth_list <- c(regrowth_list, raster(files_tmp[i]))
-    print(i)
-  }
 
-  # obtain the raster file for all years within that location
-
-  # obtain the raster file for all years within that location.
-  # to make processing lighter, subset only the pixels that have shown regrowth history.
-  # here, we are (1) making a mask registering all regrowth moments and (2) subsetting rasters based on that mask.
-  # a regrowth moment is flagged with the value "503", therefore:
-  for (i in 1:length(regrowth_list)){
-    print(i)
-    print(Sys.time())
-    regrowth_list[[i]][regrowth_list[[i]]!=503] <- NA # only leave behind values not including the regrowth moment
-    writeRaster(regrowth_list[[i]], file.path(paste0('./mapbiomas/regrowth_rasters/', location, '_', c(1987+i), ".tif"))) # save rasters with the year on the folder created for each location.
-  }
-}
+# obtain the raster file for all years within that location
 
 # now, we use the regrowth mask to make a regrowth stack with all history per location,
 #containing data only on pixels that show any regrowth event in their history.
 regrowth_mask <- raster(paste0('./mapbiomas/regrowth_masks/', location, '_mask.tif'))
-masked <- pbapply::pblapply(regrowth_list, terra::mask, regrowth_mask) # mask all raw files, leaving behind only the cells containing any regrowth instance.
+masked <- lapply(regrowth_list, terra::mask, regrowth_mask) # mask all raw files, leaving behind only the cells containing any regrowth instance.
 stacked_history <- stack(masked) # now, we have a stack with all regrowth/deforestation history for a location.
-#writeRaster(stacked_history, "0000000000-0000095232_regrowth.tif")
+# writeRaster(stacked_history, "0000000000-0000095232_regrowth.tif")
 # convert into dataframe for further manipulation
 # df_history <- as.data.frame(stacked_history, xy = T, na.rm = T)
 
@@ -108,6 +74,9 @@ for (cut in subs){
 
 # adding UTM coordinates in case it's needed
 saveRDS(convert_history, file.path(paste0('./mapbiomas/dataframes/', location, '_regrowth.rds')))
+
+tst1 <- readRDS('./dataframes/0000000000-0000095232_regrowth.rds')
+
 
 ###################################
 ########## DATA CLEANING ##########
