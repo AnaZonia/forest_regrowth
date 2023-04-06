@@ -78,6 +78,15 @@ fire_resampled <- resample(fire_raster,regrowth_raster,method = 'near')
 GEDI_resampled <- resample(GEDI_raster,regrowth_raster,method = 'near')
 lulc_resampled <- resample(lulc_raster,regrowth_raster,method = 'near')
 
+lulc_masked <- mask(lulc_raster, regrowth_raster, maskvalue = NaN, updatevalue = NA)
+GEDI_masked <- mask(GEDI_resampled, regrowth_raster, maskvalue = NaN, updatevalue = NA)
+fire_masked <- mask(fire_resampled, regrowth_raster, maskvalue = NaN, updatevalue = NA)
+
+global(regrowth_raster, 'notNA')
+global(lulc_masked$soy, 'notNA')
+global(GEDI_masked, 'notNA')
+
+
 sum_prec <- mask(sum(prec_resampled), regrowth_raster)
 sum_temp <- mask(sum(temp_resampled), regrowth_raster)
 sum_prec_sd <- mask(sum(prec_sd_resampled), regrowth_raster)
@@ -95,19 +104,63 @@ names(sum_temp_sd) <- 'sum_temp_sd'
 ######################################################################
 #################        Sampling     ##################
 ######################################################################
+
+combined <- c(regrowth_raster, lulc_masked)
+combined_df <- terra::as.data.frame(combined, xy=TRUE, cells = TRUE)
+
+combined1 <- c(regrowth_raster, GEDI_masked)
+combined1_df <- terra::as.data.frame(combined1, xy=TRUE, cells = TRUE)
+
+combined2 <- c(regrowth_raster, fire_masked)
+combined2_df <- terra::as.data.frame(combined2, xy=TRUE, cells = TRUE)
+
+combined3 <- c(regrowth_raster, fire_masked, GEDI_masked)
+combined3_df <- terra::as.data.frame(combined3, xy=TRUE, cells = TRUE)
+
+
 agbd <- terra::as.data.frame(GEDI_resampled, xy=TRUE, na.rm=TRUE)
-regrowth <- terra::as.data.frame(regrowth_raster, xy=TRUE, na.rm=TRUE)
-lulc <- terra::as.data.frame(lulc_resampled, xy=TRUE)
+regrowth <- terra::as.data.frame(regrowth_raster, xy=TRUE, cells = TRUE)
+#lulc <- terra::as.data.frame(lulc_resampled, xy=TRUE, cells = TRUE)
+lulc_masked_df <- terra::as.data.frame(lulc_masked, xy=TRUE, cells = TRUE)
+fire <- terra::as.data.frame(fire_masked, xy=TRUE, cells = TRUE)
 
-# select random ones within each category
-regrowth_subset <- regrowth %>% 
-  #Grouping by the variable study
-  group_by(age) %>% 
-  #Sampling 3 observations for each study
-  sample_n(size = 2)
+
+
+
+mature_mask <- rast('./mapbiomas/mature_masks/0000000000-0000095232_mask.tif')
+mature_mask <- terra::crop(mature_mask, regrowth_raster)
+# nrow <- 10185
+# ncol <- 16055
+mature_mask[mature_mask > 0] <- 1
+mature_mask <- subst(mature_mask, NA, 0)
+
+regrowth_subset <- lapply(split(regrowth, regrowth$age),
+   function(subdf) subdf[sample(1:nrow(subdf), 3),]
+)
+
+regrowth_subset <- do.call('rbind', regrowth_subset)
+head(regrowth_subset)
+
+# look for indices in the mature_mask
 # 
+# convert straight directions to x and y values
+covered_area <- function(reg_index, b){
+  #b <- 40
+  #reg_index <- regrowth_subset$cell[1]
+  col_num <- (reg_index - (reg_index %% nrow(mature_mask)))/nrow(mature_mask) + 1
+  row_num <- reg_index %% nrow(mature_mask)
+  x <- mature_mask[(row_num-b):(row_num+b), (col_num-b):(col_num+b), drop=FALSE]
+  return(global(x, sum))
+}
 
-# regrowth_subset <- by(regrowth, age, sample, 2)
+sums <- lapply(regrowth_subset$cell, covered_area, 400)
+# converting the cells from one to the other is not needed here since I am using two rasters
+# add total of b neighboring cells
+
+# 41% of cells in mature_mask are not NA
+global(lulc_raster$pasture, 'isNA')
+global(regrowth_raster, 'isNA')
+
 
 ######################################################################
 #################        passing into the model     ##################
@@ -117,14 +170,6 @@ regrowth_subset <- regrowth %>%
 # fit the sum of total temperature/tmp/Rtmp6q4gQ6/vscode-R/plot.png
 # fit soil as categorical
 
-par(bg = 'black')
-plot(central_raster)
-
-par(bg = 'blue')
-plot(regrowth_raster)
-
-par(bg = 'blue')
-plot(GEDI_raster)
 
 # Information within lulc_raster:
 # lulc_raster[[1]] <- pasture

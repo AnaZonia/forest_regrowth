@@ -558,3 +558,68 @@ for (i in 1:length(files_tmp)){
   regrowth_list <- c(regrowth_list, rast(files_tmp[i]))
   print(i)
 }
+
+library(terra)
+
+mat_rix <- matrix(1:15,ncol=3)
+mat <- rast(mat_rix)
+
+# index is 8
+reg_index <- 8
+b=1
+
+# and to go from col_num and row_num to a reg_index:
+reg_index <- (nrow(mat) * (col_num - 1) ) + row_num
+
+# for all values of 
+sum(mat[(reg_index-b):(reg_index+b)]) # horizontal sum, since this is a raster
+sum(mat[(reg_index-(ncol(mat)*b)):(reg_index+(ncol(mat)*b))]) # vertical sum, since this is a raster
+
+# indices - depend on 
+xy <- cbind(3,2) #col_num, row_num
+terra::cellFromXY(mat, xy)
+
+e <- ext(c(1, 4, 2, 5))  # xmin, xmax, ymin, ymax
+
+tst <- crop(mat, e)
+
+index_list <- cbind(cbind(3,2), cbind(3,3))
+lapply(index_list, terra::cellFromXY, mat)
+
+x <- mat[2:4, 1:3, drop=FALSE]
+
+
+
+
+
+for (i in 1:35){
+  convert_history <- getValues(tst[[i]])
+  convert_history <- data.frame(cell = 1:length(convert_history), value = convert_history)
+  convert_history <- na.omit(convert_history)
+  convert_history[,c("x","y")] <- xyFromCell(tst, convert_history$cell)
+  saveRDS(convert_history, file.path(paste0('0000000000-0000095232_lulc_', c(1984+i),'.rds')))
+  print(i)
+  Sys.time()
+}
+
+
+
+
+# cleaning column names (which come out long and messy)
+# we want each column name to contain only the year of the data.
+location_colname <- paste0('.', gsub('-', '.', location))
+subs <- c('mapbiomas.brazil.collection.60.', location_colname)
+for (cut in subs){
+  colnames(convert_history) <- c(sub(cut, "", colnames(convert_history[,1:c(ncol(convert_history)-2)])), "lon", "lat")
+}
+
+
+library(terra)
+
+r <- rast(ncols=10, nrows=10)
+values(r) <- 1:ncell(r)
+x <- c(r, sqrt(r), r-50)
+s <- app(x, fun=function(x) {where.min(x)})
+s
+
+where.max(tst)

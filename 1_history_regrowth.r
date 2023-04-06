@@ -13,9 +13,8 @@
 library(sf)
 library(terra) # handling spatial data
 library(stringr)
-library(pbapply)
 #install.packages('pbapply') #progress bar for apply family of functions
-
+library(raster) # because we need to use the getValues function
 setwd("/home/aavila/forest_regrowth")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r") # sourcing functions
 
@@ -29,62 +28,20 @@ locations <- unique(locations) #gets all locations currently already processed i
 location = '0000000000-0000095232'
 files_tmp <- list.files(path = './mapbiomas/regrowth_raw', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
 files_tmp <- sort(files_tmp)
+regrowth_mask <- rast(paste0('./mapbiomas/regrowth_masks/', location, '_regrowth_mask.tif'))
 
-# the Amazon is divided in 12 parts, each with their own identifier
-# each location is an identifier.
-#for (location in locations){
+tmp_rasters <- lapply(files_tmp, rast)
+reg_brick <- rast(tmp_rasters)
 
-#dir.create(paste0('./regrowth_dataframes/', location))
-
-regrowth_list <- c()
-for (i in 1:length(files_tmp)){
-  regrowth_list <- c(regrowth_list, raster(files_tmp[i]))
-  print(i)
-}
-
-# obtain the raster file for all years within that location
+reg_brick_cropped <- crop(reg_brick, ext(regrowth_mask))
+reg_brick_masked <- mask(reg_brick_cropped, regrowth_mask)
 
 # now, we use the regrowth mask to make a regrowth stack with all history per location,
 #containing data only on pixels that show any regrowth event in their history.
-regrowth_mask <- raster(paste0('./mapbiomas/regrowth_masks/', location, '_mask.tif'))
-masked <- lapply(regrowth_list, terra::mask, regrowth_mask) # mask all raw files, leaving behind only the cells containing any regrowth instance.
-stacked_history <- stack(masked) # now, we have a stack with all regrowth/deforestation history for a location.
-# writeRaster(stacked_history, "0000000000-0000095232_regrowth.tif")
-# convert into dataframe for further manipulation
-# df_history <- as.data.frame(stacked_history, xy = T, na.rm = T)
-
-# This stack gets quite large. as.data.frame and getValues both break when handling it because of its size.
-# even writeRaster takes 30min+ to work with a stack this size.
-# My solution was to work with a smaller part at a time.
-e = extent(-48.31863, -43.99998, -3.2823093, -0.5377764)
-stacked_history1 <- terra::crop(stacked_history, e)
-
-convert_history <- getValues(stacked_history1)
-convert_history <- data.frame(cell = 1:length(convert_history), value = convert_history)
-convert_history <- na.omit(convert_history)
-convert_history[,c("x","y")] <- xyFromCell(stacked_history1, convert_history$cell)
-
-# cleaning column names (which come out long and messy)
-# we want each column name to contain only the year of the data.
-location_colname <- paste0('.', gsub('-', '.', location))
-subs <- c('mapbiomas.brazil.collection.60.', location_colname)
-for (cut in subs){
-  colnames(convert_history) <- c(sub(cut, "", colnames(convert_history[,1:c(ncol(convert_history)-2)])), "lon", "lat")
-}
-
-# adding UTM coordinates in case it's needed
-saveRDS(convert_history, file.path(paste0('./mapbiomas/dataframes/', location, '_regrowth.rds')))
-
-tst1 <- readRDS('./dataframes/0000000000-0000095232_regrowth.rds')
-
 
 ###################################
 ########## DATA CLEANING ##########
 ###################################
-
-setwd("/home/aavila/forest_regrowth/mapbiomas/dataframes")
-source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r") # sourcing functions
-#regrowth = write.csv('0000000000-0000095232_regrowth.csv')
 
 # INDEX #
 # 100 anthropic
@@ -93,60 +50,43 @@ source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r") # s
 # 400 deforestation
 # 500 regrowth
 # 600 secondary suppression
-
-#if (import_santoro == T){    # since santoro data is available for 2010 rather than 2019,
-#  regrowth = cbind(regrowth[,1:25], regrowth[,(ncol(regrowth)-2):ncol(regrowth)])
-#  fire = cbind(fire[,1:28], fire[,(ncol(fire)-2):ncol(fire)])
-#  lulc = cbind(lulc[,1:28], lulc[,(ncol(lulc)-2):ncol(lulc)])
-#}
-
 # select only years that have regrowth that hasn't been suppressed.
-regrowth_last_instance <- find_last_instance(regrowth, function(x) which(x == 503))
-colnames(regrowth_last_instance) <- "last_regrowth"
 
-suppression_last_instance = find_last_instance(regrowth, function(x) which(600 <= x & x < 700))
-colnames(suppression_last_instance) = "last_suppression"
+regrowth_instances <- which.lyr(reg_brick_masked == 503)
+regrowth_last_instance <- where.max(regrowth_instances)
+suppression_instances <- which.lyr(600 <= reg_brick_masked & reg_brick_masked < 700)
+suppression_last_instance <- where.max(suppression_instances)
 
-# find instances in which the last regrowth detected hasn't been followed by suppression
-regrowth_unsuppressed <- cbind(regrowth[(ncol(regrowth)-1):ncol(regrowth)],regrowth_last_instance)
-regrowth_unsuppressed <- subset(regrowth_unsuppressed, regrowth_unsuppressed$last_regrowth-suppression_last_instance > 0)
-regrowth_unsuppressed <- cbind(regrowth_unsuppressed[,(ncol(regrowth_unsuppressed)-2):ncol(regrowth_unsuppressed)], 'forest_age' = max(regrowth_unsuppressed$last_regrowth)-regrowth_unsuppressed$last_regrowth)
+# removing all instances of suppression happening after regrowth
+delta_regrowth <- regrowth_last_instance - suppression_last_instance
+delta_regrowth[delta_regrowth < 0] <- NA
+delta_regrowth[delta_regrowth > 0] <- 1
+reg_brick_masked <- mask(reg_brick_masked, delta_regrowth)
 
 ##################################################################################################
 
 # this removes any instance of -600 coming after -500
-regrowth2 = regrowth[rownames(regrowth) %in% rownames(regrowth_unsuppressed), ] 
-regrowth2[regrowth2 < 400 & regrowth2 >= 300] = 0 #secondary
-regrowth2[100 <= regrowth2 & regrowth2 < 200] = 1 #anthropic
-regrowth2[regrowth2 == 515] = 1 #anthropic - fixing typos
-regrowth2[regrowth2 == 215] = 1 #anthropic - fixing typos
+reg_brick_masked[reg_brick_masked < 400 & reg_brick_masked >= 300] <- 0 #secondary
+reg_brick_masked[100 <= reg_brick_masked & reg_brick_masked < 200] <- 1 #anthropic
+reg_brick_masked[reg_brick_masked == 515] <- 1 #anthropic - fixing typos
+reg_brick_masked[reg_brick_masked == 215] <- 1 #anthropic - fixing typos
+reg_brick_masked[reg_brick_masked > 700 & reg_brick_masked < 800] <- NA # remove values that account for misclassification
+reg_brick_masked[reg_brick_masked > 400 & reg_brick_masked < 500] <- NA # remove values that account for urban areas/misclassification
 
-regrowth2[regrowth2 > 700 & regrowth2 < 800] <- NA # remove values that account for misclassification
-regrowth2[regrowth2 > 400 & regrowth2 < 500] <- NA # remove values that account for urban areas/misclassification
-regrowth2 = regrowth2[complete.cases(regrowth2),]
-
-# now, we remove pixels that show unflagged moments of regrowth or repression. (shoutout to Jacqueline Oehri for method!)
-tmp = cbind(NA, regrowth2[,3:(ncol(regrowth)-3)])
-tmp2 = cbind(regrowth2[,3:(ncol(regrowth)-3)],NA)
+# now, we remove pixels that show unflagged moments of regrowth or repression
+r1 <- terra::rast(ncol = ncol(reg_brick_masked), nrow = nrow(reg_brick_masked))
+r1 <- terra::setValues(r1, NA)
+tmp = c(r1, regrowth_last_instance)
+tmp2 = c(regrowth_last_instance,r1)
 tmp3 = tmp-tmp2
 
 # -1 is evidence of unflagged repression
 # 1 is unflagged regrowth
 tmp3[tmp3 == 1] <- NA
 tmp3[tmp3 == -1] <- NA
-tmp3 = tmp3[,2:(ncol(tmp)-1)]
-tmp3 = tmp3[complete.cases(tmp3),]
+tmp3 = tmp3[,2:(nlyr(tmp)-1)]
 
-#selects for cleaned rows
-regrowth <- regrowth[rownames(regrowth) %in% rownames(tmp3), ]
-regrowth_last_instance <- find_last_instance(regrowth, function(x) which(x == 503))
-head(regrowth_last_instance)
-colnames(regrowth_last_instance) <- "last_regrowth"
-
-regrowth_cleaned <- cbind(regrowth[(ncol(regrowth)-1):ncol(regrowth)],regrowth_last_instance) # create dataframe with years and last instance of growth
 # calculate age of forest, having as reference year in which regrowth was detected last (2019, for when we have biomass data)
 regrowth_cleaned <- cbind(regrowth_cleaned, 'forest_age' = max(regrowth_cleaned$last_regrowth)-regrowth_cleaned$last_regrowth)
-regrowth_cleaned <- cbind(regrowth_cleaned, LongLatToUTM(regrowth_cleaned$lon, regrowth_cleaned$lat)) # add UTM coordinates as new columns
-regrowth_cleaned$xy <- paste0(regrowth_cleaned$zone, regrowth_cleaned$x, regrowth_cleaned$y) # create unique identifier
 
-saveRDS(regrowth_cleaned, paste0(location, '_regrowth_history.rds'))
+writeRaster(regrowth_cleaned, paste0(location, '_regrowth_history.rds'))
