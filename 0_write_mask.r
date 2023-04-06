@@ -11,20 +11,17 @@
 
 library(sf)
 library(terra) # handling spatial data
-library(stringr) # when possible, change to tidyverse
-#library(pbapply) #progress bar for apply family of functions
+library(tidyverse)
 setwd("/home/aavila/forest_regrowth")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r") # sourcing functions
 
 # EXTRACTING DATA FROM MULTIPLE REGIONS OF THE COUNTRY (larger scale)
-path <- './mapbiomas/regrowth_raw'
+path <- './mapbiomas/regrowth'
 files <- list.files(path)
 #newname <- sub('none-','', files) ## making names easier to read, standardizing the names
 #file.rename(file.path(path,files), file.path(path, newname)) ## renaming it.
 locations <- str_sub(files, start= -25, end = -5)
 locations <- unique(locations)
-locations <- locations[-2]
-locations <- locations[-4]
 
 # create a raster stack with one layer per year, for this location.
 # this stack will be merged to make the regrowth-only mask.
@@ -46,18 +43,4 @@ for (location in locations){
   last_year_mature[last_year_mature > 300] <- NA
   last_year_mature[last_year_mature < 200] <- NA # only leave behind values not including the regrowth moment
   writeRaster(last_year_mature, file.path(paste0('./mapbiomas/mature_masks/', location, '_mature_mask.tif'))) # save rasters with the year on the folder created for each location.
-
-  # regrowth_list <- c()
-  # for (i in 1:length(files_tmp)){
-  #   print('ith iteration of regrowth_list')
-  #   regrowth_list <- c(regrowth_list, rast(files_tmp[i]))
-  #   regrowth_list[[i]][regrowth_list[[i]]!=503] <- NA # only leave behind values not including the regrowth moment
-  # }
-
-  # writeRaster(regrowth_list[[i]], file.path(paste0('./mapbiomas/regrowth_rasters/', location, '_', c(1987+i), ".tif"))) # save rasters with the year on the folder created for each location.
-
-  # obtain the raster file for all years within that location.
-  # to make processing lighter, subset only the pixels that have shown regrowth history.
-  # here, we are (1) making a mask registering all regrowth moments and (2) subsetting rasters based on that mask.
-  # a regrowth moment is flagged with the value "503", therefore:
 }

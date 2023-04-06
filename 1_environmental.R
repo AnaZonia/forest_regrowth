@@ -116,13 +116,10 @@ test_coords <- lapply(test_coords, subset2)
 test_coords2 <- cbind(test_coords[[1]],type = brazil_soil$DOMSOI[1]) 
 colnames(test_coords2) <- c('lon', 'lat', 'type')
 for (i in 2:length(brazil_soil$DOMSOI)){
-  print(i)
+  print(i) 
   df = cbind(test_coords[[i]],type = brazil_soil$DOMSOI[i]) # add the 
   #print(df[1,])
   test_coords2 <- rbind(test_coords2, df)
 }
 
 saveRDS(test_coords2, 'soil.rds')
-
-# library(fasterize)
-# brazil_soil_raster <- fasterize(brazil_soil, age_raster, field = 'DOMSOI')

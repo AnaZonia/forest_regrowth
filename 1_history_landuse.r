@@ -10,25 +10,22 @@
 #   lulc dataframe (full history for all pixels showing yes/no burning detected)
 #   lulc_history dataframe (time since last observed land use; total number of years under each land use)
 ####################################################################
-library(raster)
-library(data.table) #for faster reading of csv files with function fread
 library(sf)
 library(terra) # handling spatial data
 library(tidyverse)
-#library(pbapply) #progress bar for apply family of functions
-setwd("/home/aavila/forest_regrowth")
+setwd("/home/aavila/forest_regrowth/dataframes")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
 
 location <- '0000000000-0000095232'
 
 # take in mask with only locations of current regrowth
-regrowth_mask <- rast(paste0('./mapbiomas/regrowth_masks/', location, '_regrowth_mask.tif'))
+regrowth_mask <- rast(paste0('./model_ready_rasters/', location, '_forest_age.tif'))
 
 files <- list.files(path = './mapbiomas/lulc', pattern='\\.tif$', full.names=TRUE)   # obtain paths for all files 
 tmp_rasters <- lapply(files, rast)
 lulc_brick <- rast(tmp_rasters)
 
-lulc_brick_cropped <- crop(lulc_brick, extent(regrowth_mask))
+lulc_brick_cropped <- crop(lulc_brick, ext(regrowth_mask))
 lulc_brick_masked <- mask(lulc_brick_cropped, regrowth_mask)
 
 #################################################################################
@@ -46,36 +43,43 @@ lulc_brick_masked <- mask(lulc_brick_cropped, regrowth_mask)
 # 41 = other annual crop
 # 48 = other perennial crop
 
-tst <- rast('0000000000-0000095232_lulc_2.tif')
 # total years under each land use type
-
-calc_total_yrs <- function(raw_raster, val){
-  raw_raster[raw_raster != val] <- 0
-  total_past_years <- app(raw_raster, fun=sum)
+calc_total_yrs <- function(masked_brick, val){
+  masked_brick[masked_brick != val] <- 0
+  total_past_years <- app(masked_brick, fun=sum)
   return(total_past_years/val)
 }
 
-pasture_total <- calc_total_yrs(tst, 15)
-soy_total <- calc_total_yrs(tst, 39)
-coffee_total <- calc_total_yrs(tst, 46)
-sugar_total <- calc_total_yrs(tst, 20)
-other_annual_total <- calc_total_yrs(tst, 41)
-other_perennial_total <- calc_total_yrs(tst, 48)
+pasture_total <- calc_total_yrs(lulc_brick_masked, 15)
+soy_total <- calc_total_yrs(lulc_brick_masked, 39)
+coffee_total <- calc_total_yrs(lulc_brick_masked, 46)
+sugar_total <- calc_total_yrs(lulc_brick_masked, 20)
+other_annual_total <- calc_total_yrs(lulc_brick_masked, 41)
+other_perennial_total <- calc_total_yrs(lulc_brick_masked, 48)
 
 # not necessary to create a function for last observed;
 # just use regrowth mask and ages, and look for the land use in that position.
 # we reach the column by tst[[lyr_num]][age]
 
-pasture_instances <- which.lyr(tst == 15)
-pasture_last_instance <- where.max(pasture_instances)
-time_since_pasture <- max(pasture_last_instance) - pasture_last_instance
-
-lulc <- lulc[,c(1:2, 38:ncol(lulc))]
-# the time since last observed land use type, when not observed, shows as "2019" rather than NA. fixing that:
-for (i in 10:12){
-  lulc[,c(i)][lulc[,i] == 2019] <- NA
+calc_time_since_lu <- function(masked_brick, val){
+  lu_instances <- which.lyr(masked_brick == val) # position of layer with 
+  lu_last_instance <- where.max(lu_instances)
+  return(max(lu_last_instance) - lu_last_instance)
 }
 
-writeRaster(lulc, file.path(paste0(location, '_lulc_history.tif')))
+ts_pasture <- calc_time_since_lu(lulc_brick_masked, 15)
+ts_soy <- calc_time_since_lu(lulc_brick_masked, 39)
+ts_coffee <- calc_time_since_lu(lulc_brick_masked, 46)
+ts_sugar <- calc_time_since_lu(lulc_brick_masked, 20)
+ts_other_annual <- calc_time_since_lu(lulc_brick_masked, 41)
+ts_other_perennial <- calc_time_since_lu(lulc_brick_masked, 48)
 
+# last observed land use type
+layer_indices <- regrowth_mask - 1 # previous year
 
+last_LU <- selectRange(brick, layer_indices)
+
+lulc <- c(last_LU, ts_pasture, ts_soy, ts_coffee, ts_sugar, ts_other_annual, ts_other_perennial,
+pasture_total, soy_total, coffee_total, sugar_total, other_annual_total, other_perennial_total)
+
+writeRaster(lulc, paste0('./model_ready_rasters/', location, '_lulc_history.tif'))

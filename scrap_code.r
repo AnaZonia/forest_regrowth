@@ -618,8 +618,60 @@ library(terra)
 
 r <- rast(ncols=10, nrows=10)
 values(r) <- 1:ncell(r)
-x <- c(r, sqrt(r), r-50)
-s <- app(x, fun=function(x) {where.min(x)})
+a <- c(r, sqrt(r), r-50)
+s <- app(x, fun=function(x) {where.max(a)})
 s
 
-where.max(tst)
+where.max(a)
+
+
+library(terra)
+a <- rast(ncol = 2, nrow = 2)
+values(a) <- c(1,2,3,4)
+names(a) <- "layer_one"
+
+b <- rast(ncol = 2, nrow = 2)
+values(b) <- c(5,6,7,8)
+names(b) <- "layer_two"
+
+c <- rast(ncol = 2, nrow = 2)
+values(c) <- c(9,10,11,12)
+names(c) <- "layer_three"
+
+stack <- c(a,b,c)
+
+layer_indices <- rast(ncol = 2, nrow = 2)
+values(layer_indices) <- c(1,3,2,3)
+names(layer_indices) <- "layer_indices"
+
+out <- selectRange(stack, layer_indices)
+
+stack <- c(a,b,c)
+stack[stack != 2 & stack != 1] <- NA
+
+# desired output
+output <- rast(ncol = 2, nrow = 2)
+values(output) <- c(1,10,7,12)
+
+# select only years that have regrowth that hasn't been suppressed.
+
+regrowth_instances <- which.lyr(reg_brick_masked == 503)
+regrowth_last_instance <- where.max(regrowth_instances)
+suppression_instances <- which.lyr(600 <= reg_brick_masked & reg_brick_masked < 700)
+suppression_last_instance <- where.max(suppression_instances)
+
+# removing all instances of suppression happening after regrowth
+delta_regrowth <- regrowth_last_instance - suppression_last_instance
+delta_regrowth[delta_regrowth < 0] <- NA
+delta_regrowth[delta_regrowth > 0] <- 1
+reg_brick_masked <- mask(reg_brick_masked, delta_regrowth)
+
+##################################################################################################
+
+
+
+brazil_soil_sp <- as(brazil_soil, "Spatial")
+
+# regrowth_mask <- 
+example_raster <- raster(crs = crs(example_points), vals = 0, resolution = c(0.5, 0.5), ext = extent(regrowth_mask) %>%
+   rasterize(example_points, .)

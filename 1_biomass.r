@@ -6,7 +6,6 @@
 # imports and makes dataframes from santoro and potapov raw data
 ####################################################################
 
-#if (!require("BiocManager", quietly = TRUE))
 #  install.packages("BiocManager")
 BiocManager::install("grimbough/rhdf5")
 library(rhdf5) # for handling raw GEDI data
@@ -18,8 +17,8 @@ library(tidyverse)
 library(rgdal)
 
 setwd("/home/aavila/forest_regrowth")
-regrowth_mask <- rast(paste0('./mapbiomas/regrowth_masks/', '0000000000-0000095232_mask.tif'))
-coords <- c(-0.5377764, -3.2823093, -48.32644, -43.99998) #ext(regrowth_mask)
+regrowth_mask <- rast(paste0('./model_ready_rasters/', '0000000000-0000095232_forest_age.tif'))
+coords <- c(ymax(regrowth_mask), ymin(regrowth_mask), xmin(regrowth_mask), xmax(regrowth_mask)) #ext(regrowth_mask)
 
 # Dubayah et al 2022 -> GEDI L4A Footprint Level Aboveground Biomass Density (Mg/ha)
 # more instructions on https://github.com/VangiElia/GEDI4R
@@ -46,6 +45,7 @@ l4 <- subset(l4, degrade_flag == 0) # quality filter
 
 clipped <- l4_clip(l4,c(coords[3], coords[2], coords[4], coords[1]))
 clipped <- subset(clipped, agbd < 600) # select
+
 jpeg("rplot_mat.jpg")
 l4_plotagb(clipped,n=100,h=c(100,100))
 dev.off()
@@ -73,15 +73,6 @@ r3 <- mask(r2, BRA) #save this somewhere
 e <- extent(-48.32644, -43.99998, -3.2823093, -0.5377764) # for testing purposes, the coordinates of region 0000000000.0000095232
 r4 <- crop(biomass1, e)
 
-bm_test <- getValues(r4)
-bm_test <- data.frame(cell = 1:length(bm_test), value = bm_test)
-bm_test <- na.omit(bm_test)
-bm_test[,c("x","y")] <- xyFromCell(r4, bm_test$cell)
-
-#biomass = biomass[ymin < biomass$y & biomass$y < ymax & xmin < biomass$x & biomass$x < xmax,]
-
-biomass = cbind(biomass, LongLatToUTM(biomass$x, biomass$y))
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##########  POTAPOV ##########
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -101,16 +92,3 @@ e <- extent(xmin, xmax, ymin, ymax)
 
 biomass = raster("Forest_height_2019_Brazil.tif")
 biomass_cropped <- crop(biomass,e)
-
-
-#biomass_df <- as.data.frame(biomass_cropped, xy=T, na.rm = TRUE)
-bm_test <- values(biomass_cropped)
-
-bm_tst_complete <- na.omit(bm_test)
-
-bm_test <- getValues(biomass_cropped)
-bm_test <- data.frame(cell = 1:length(bm_test), value = bm_test)
-bm_test <- na.omit(bm_test)
-bm_test[,c("x","y")] <- xyFromCell(biomass_cropped, bm_test$cell)
-
-biomass = cbind(biomass_with_data, LongLatToUTM(biomass_with_data$x, biomass_with_data$y))

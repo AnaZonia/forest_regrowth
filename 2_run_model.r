@@ -12,32 +12,15 @@ library(sf)
 setwd("/home/aavila/forest_regrowth")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
 
-##################      Switches     ##################
-import_mapbiomas = TRUE
-
 ######################################################################
 #################      unify data into central df   ##################
 ######################################################################
 # The issue with matching UTM coordinates directly is a lot of points are lost. what we are plotting is actually a very small percentage of what is actually matching.
 # with raster::resample, we can use nearest-neighbor.
 # Making rasters from MAPBIOMAS data
-if (import_mapbiomas == T){
-  lulc_raster <- rast('./dataframes/0000000000-0000095232_lulc_raster.tif') 
-  regrowth_raster <- rast('./dataframes/0000000000-0000095232_regrowth_raster.tif')
-  fire_raster <- rast('./dataframes/0000000000-0000095232_fire_raster.tif')
-}else{
-  lulc <- readRDS('./dataframes/0000000000-0000095232_lulc_history.rds') #this can be time consuming to read, so I wrote the rasters themselves here to save time.
-  regrowth <- readRDS('./dataframes/0000000000-0000095232_regrowth_history.rds')
-  fire <- readRDS('./dataframes/0000000000-0000095232_fire_history.rds')
-
-  lulc_raster <- rast(lulc[,c(1:12)], type="xyz") #lon, lat, values 
-  regrowth_raster <- rast(regrowth[,c(1,2,4)], type="xyz")
-  fire_raster <- rast(fire[,c(1:4)], type="xyz")
-
-  writeRaster(lulc_raster, filename = './dataframes/0000000000-0000095232_lulc_raster.tif')
-  writeRaster(regrowth_raster, filename = './dataframes/0000000000-0000095232_regrowth_raster.tif')
-  writeRaster(fire_raster, filename = './dataframes/0000000000-0000095232_fire_raster.tif')
-}
+lulc <- rast('./model_ready_rasters/0000000000-0000095232_lulc_history.tif') 
+regrowth <- rast('./model_ready_rasters/0000000000-0000095232_forest_age.tif')
+fire <- rast('./model_ready_rasters/0000000000-0000095232_fire_historu.tif')
 
 # Making rasters from GEDI and soil data
 # GEDI and soil data is irregular and can't be converted directly into a regular raster.
@@ -104,19 +87,6 @@ names(sum_temp_sd) <- 'sum_temp_sd'
 ######################################################################
 #################        Sampling     ##################
 ######################################################################
-
-combined <- c(regrowth_raster, lulc_masked)
-combined_df <- terra::as.data.frame(combined, xy=TRUE, cells = TRUE)
-
-combined1 <- c(regrowth_raster, GEDI_masked)
-combined1_df <- terra::as.data.frame(combined1, xy=TRUE, cells = TRUE)
-
-combined2 <- c(regrowth_raster, fire_masked)
-combined2_df <- terra::as.data.frame(combined2, xy=TRUE, cells = TRUE)
-
-combined3 <- c(regrowth_raster, fire_masked, GEDI_masked)
-combined3_df <- terra::as.data.frame(combined3, xy=TRUE, cells = TRUE)
-
 
 agbd <- terra::as.data.frame(GEDI_resampled, xy=TRUE, na.rm=TRUE)
 regrowth <- terra::as.data.frame(regrowth_raster, xy=TRUE, cells = TRUE)
