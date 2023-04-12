@@ -638,7 +638,6 @@ c <- rast(ncol = 2, nrow = 2)
 values(c) <- c(9,10,11,12)
 names(c) <- "layer_three"
 
-stack <- c(a,b,c)
 
 layer_indices <- rast(ncol = 2, nrow = 2)
 values(layer_indices) <- c(1,3,2,3)
@@ -653,12 +652,16 @@ stack[stack != 2 & stack != 1] <- NA
 output <- rast(ncol = 2, nrow = 2)
 values(output) <- c(1,10,7,12)
 
+
+stack <- c(a,b,c)
+values(app(stack, fun = sum))
+
+
+
 # select only years that have regrowth that hasn't been suppressed.
 
 regrowth_instances <- which.lyr(reg_brick_masked == 503)
-regrowth_last_instance <- where.max(regrowth_instances)
 suppression_instances <- which.lyr(600 <= reg_brick_masked & reg_brick_masked < 700)
-suppression_last_instance <- where.max(suppression_instances)
 
 # removing all instances of suppression happening after regrowth
 delta_regrowth <- regrowth_last_instance - suppression_last_instance

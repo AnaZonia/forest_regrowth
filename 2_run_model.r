@@ -7,7 +7,6 @@
 
 library(terra) # handling spatial data
 library(data.table) #to use data.table objects in the rasterFromXYZ_irr() function
-library(pbapply) #progress bar for apply family of functions
 library(sf)
 setwd("/home/aavila/forest_regrowth")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
@@ -20,14 +19,14 @@ source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
 # Making rasters from MAPBIOMAS data
 lulc <- rast('./model_ready_rasters/0000000000-0000095232_lulc_history.tif') 
 regrowth <- rast('./model_ready_rasters/0000000000-0000095232_forest_age.tif')
-fire <- rast('./model_ready_rasters/0000000000-0000095232_fire_historu.tif')
+fire <- rast('./model_ready_rasters/0000000000-0000095232_fire_history.tif')
 
 # Making rasters from GEDI and soil data
 # GEDI and soil data is irregular and can't be converted directly into a regular raster.
 # making a raster from irregular data, using another raster as reference of size and resolution.
 # df must be in form [lon;lat;data].
 
-GEDI <- readRDS(paste0('./dataframes/',"0000000000-0000095232_GEDI.rds")) #for some reason, the method doesn't work with this file?
+GEDI <- readRDS(paste0('./dataframes/',"0000000000-0000095232_GEDI.rds"))
   GEDI <- GEDI[,c(3, 2, 5)]
   colnames(GEDI) <- c('lon', 'lat', 'agbd')
 
@@ -35,78 +34,82 @@ soil <- readRDS('./soil/soil.rds') #loads in country-wide soil data
   colnames(soil) <- c('lon', 'lat', 'type')
   soil$type <- as.factor(soil$type)
 
-# I am having a hard time making this a single function - to be discovered why.
+temp <- rast(paste0('./model_ready_rasters/','temp_BRA_mean.tif'))
+prec <- rast(paste0('./model_ready_rasters/','prec_BRA_mean.tif'))
+prec_sd <- rast(paste0('./model_ready_rasters/','prec_BRA_sd.tif'))
+temp_sd <- rast(paste0('./model_ready_rasters/','temp_BRA_sd.tif'))
+
+# just for testing sake, for now:
+tst_raster <- rast('./dataframes/0000000000-0000095232_regrowth_raster.tif')
 proj <- "+proj=longlat +elips=WGS84"
 GEDI_vect <- terra::vect(GEDI[,c("lon", "lat", "agbd")], crs = proj)
-GEDI_raster <- terra::rasterize(GEDI_vect, regrowth_raster, field = "agbd")
-
+GEDI_raster <- terra::rasterize(GEDI_vect, tst_raster, field = "agbd")
 soil_vect <- terra::vect(soil[,c("lon", "lat", "type")], crs = proj)
-soil_raster <- terra::rasterize(soil_vect, regrowth_raster, field = "type")
-soil_rasample <- resample(soil_raster, regrowth_raster, method = 'near')
+soil_raster <- terra::rasterize(soil_vect, tst_raster, field = "type")
 
-temp <- rast(paste0('./worldclim_dataframes/','temp_BRA_mean.tif'))
-prec <- rast(paste0('./worldclim_dataframes/','prec_BRA_mean.tif'))
-prec_sd <- rast(paste0('./worldclim_dataframes/','prec_BRA_sd.tif'))
-temp_sd <- rast(paste0('./worldclim_dataframes/','temp_BRA_sd.tif'))
+# x = 1.5, y = 1.9
+# x = 1.6 ...
+# as.integer, divide by cell size of landsat, 1.6 goes to 1.5
+# gives cell index. relate everything to cell indices.
+# 
+
+fire_cropped <- crop(fire, GEDI_raster)
+GEDI_raster_cropped <- crop(GEDI_raster, fire)
+regrowth_cropped <- crop(regrowth, GEDI_raster_cropped)
+lulc_cropped <- crop(lulc, GEDI_raster_cropped)
+soil_cropped <- crop(soil_raster, GEDI_raster_cropped)
 
 # resampling the rasters
-# soil and GEDI don't need to be resampled as they have already been rasterized
-# with regrowth_raster as reference
-prec_resampled <- resample(prec,regrowth_raster,method = 'near')
-temp_resampled <- resample(temp,regrowth_raster,method = 'near')
-prec_sd_resampled <- resample(prec_sd,regrowth_raster,method = 'near')
-temp_sd_resampled <- resample(temp_sd,regrowth_raster,method = 'near')
-fire_resampled <- resample(fire_raster,regrowth_raster,method = 'near')
+prec_resampled <- resample(prec,regrowth_cropped,method = 'near')
+temp_resampled <- resample(temp,regrowth_cropped,method = 'near')
+prec_sd_resampled <- resample(prec_sd,regrowth_cropped,method = 'near')
+temp_sd_resampled <- resample(temp_sd,regrowth_cropped,method = 'near')
+# isn't working perfectly. some areas with land use don't have climate data.
 
-GEDI_resampled <- resample(GEDI_raster,regrowth_raster,method = 'near')
-lulc_resampled <- resample(lulc_raster,regrowth_raster,method = 'near')
+sum_prec <- mask(sum(prec_resampled), regrowth_cropped)
+sum_temp <- mask(sum(temp_resampled), regrowth_cropped)
+sum_prec_sd <- mask(sum(prec_sd_resampled), regrowth_cropped)
+sum_temp_sd <- mask(sum(temp_sd_resampled), regrowth_cropped)
 
-lulc_masked <- mask(lulc_raster, regrowth_raster, maskvalue = NaN, updatevalue = NA)
-GEDI_masked <- mask(GEDI_resampled, regrowth_raster, maskvalue = NaN, updatevalue = NA)
-fire_masked <- mask(fire_resampled, regrowth_raster, maskvalue = NaN, updatevalue = NA)
-
-global(regrowth_raster, 'notNA')
-global(lulc_masked$soy, 'notNA')
-global(GEDI_masked, 'notNA')
-
-
-sum_prec <- mask(sum(prec_resampled), regrowth_raster)
-sum_temp <- mask(sum(temp_resampled), regrowth_raster)
-sum_prec_sd <- mask(sum(prec_sd_resampled), regrowth_raster)
-sum_temp_sd <- mask(sum(temp_sd_resampled), regrowth_raster)
-
-names(GEDI_raster) <- 'agbd'
-names(regrowth_raster) <- 'age'
-names(fire_resampled) <- c('num_fires', 'ts_last_fire')
-names(soil_raster) <- 'soil_type'
-names(sum_prec) <- 'sum_prec'
-names(sum_temp) <- 'sum_temp'
-names(sum_prec_sd) <- 'sum_prec_sd'
-names(sum_temp_sd) <- 'sum_temp_sd'
+# names(GEDI_raster) <- 'agbd'
+# names(regrowth_cropped) <- 'age'
+# names(fire_resampled) <- c('num_fires', 'ts_last_fire')
+# names(soil_raster) <- 'soil_type'
+# names(sum_prec) <- 'sum_prec'
+# names(sum_temp) <- 'sum_temp'
+# names(sum_prec_sd) <- 'sum_prec_sd'
+# names(sum_temp_sd) <- 'sum_temp_sd'
 
 ######################################################################
 #################        Sampling     ##################
 ######################################################################
 
-agbd <- terra::as.data.frame(GEDI_resampled, xy=TRUE, na.rm=TRUE)
-regrowth <- terra::as.data.frame(regrowth_raster, xy=TRUE, cells = TRUE)
-#lulc <- terra::as.data.frame(lulc_resampled, xy=TRUE, cells = TRUE)
-lulc_masked_df <- terra::as.data.frame(lulc_masked, xy=TRUE, cells = TRUE)
-fire <- terra::as.data.frame(fire_masked, xy=TRUE, cells = TRUE)
+total_years <- lulc_cropped[[6:9]]
+last_LU <- lulc_cropped[[1]]
+total_fires <- fire_cropped[[1]]
 
+tst <- c(GEDI_raster_cropped, regrowth_cropped, total_fires, total_years, last_LU)
+tst <- mask(tst, GEDI_raster_cropped)
+tst <- mask(tst, regrowth_cropped)
 
+coords <- crds(tst[[1]], df=FALSE, na.rm=TRUE)
+values_stack <- terra::extract(tst, coords, cells=FALSE, method="simple")
+central_df <- values_stack[complete.cases(values_stack), ]
+colnames(central_df)[1:3] <- c('agbd', 'age', 'total_fires')
 
-
-mature_mask <- rast('./mapbiomas/mature_masks/0000000000-0000095232_mask.tif')
-mature_mask <- terra::crop(mature_mask, regrowth_raster)
-# nrow <- 10185
-# ncol <- 16055
+mature_mask <- rast('./mapbiomas/mature_masks/0000000000-0000095232_mature_mask.tif')
+mature_mask <- terra::crop(mature_mask, regrowth_cropped)
 mature_mask[mature_mask > 0] <- 1
 mature_mask <- subst(mature_mask, NA, 0)
 
-regrowth_subset <- lapply(split(regrowth, regrowth$age),
+regrowth_subset <- lapply(split(central_df, central_df$age),
    function(subdf) subdf[sample(1:nrow(subdf), 3),]
 )
+# by (central_df, central_df$age)
+# tapply 1,nrow(centraldf), central_df$age
+# get a vector of rownumbers
+# regrowth_subset, if pos = tapply 1,nrow(centraldf), central_df$age, 
+# regrowth_subset [pos]
 
 regrowth_subset <- do.call('rbind', regrowth_subset)
 head(regrowth_subset)
@@ -127,51 +130,9 @@ sums <- lapply(regrowth_subset$cell, covered_area, 400)
 # converting the cells from one to the other is not needed here since I am using two rasters
 # add total of b neighboring cells
 
-# 41% of cells in mature_mask are not NA
-global(lulc_raster$pasture, 'isNA')
-global(regrowth_raster, 'isNA')
-
-
 ######################################################################
 #################        passing into the model     ##################
 ######################################################################
-
-
-# fit the sum of total temperature/tmp/Rtmp6q4gQ6/vscode-R/plot.png
-# fit soil as categorical
-
-
-# Information within lulc_raster:
-# lulc_raster[[1]] <- pasture
-# this file has no values for sugar and coffee plantations, so this area is only considering 4 land use types.
-# lulc_raster[[1]] <- pasture
-# lulc_raster[[2]] <- soy
-# lulc_raster[[5]] <- other_perennial
-# lulc_raster[[6]] <- other_annual
-# lulc_raster[[7]] <- time since pasture
-# lulc_raster[[8]] <- time since soy
-# lulc_raster[[9]] <- time since other_perennial
-# lulc_raster[[10]] <- time since other_annual
-
-# test_value[[1]] <- agbd
-# test_value[[2]] <- age
-# test_value[[3]] <- num_fires
-# test_value[[4]] <- ts_last_fire
-# test_value[[5]] <- soil_type
-# test_value[[6]] <- sum_prec
-# test_value[[7]] <- sum_temp
-# test_value[[8]] <- sum_prec_sd
-# test_value[[9]] <- sum_temp_sd
-# test_value[[10]] <- pasture
-# test_value[[11]] <- soy
-# test_value[[12]] <- coffee
-# test_value[[13]] <- sugar
-# test_value[[14]] <- other_perennial
-# test_value[[15]] <- other_annual
-# test_value[[16]] <- time since pasture
-# test_value[[17]] <- time since soy
-# test_value[[18]] <- time since other_perennial
-# test_value[[19]] <- time since other_annual
 
 
 G <- function(pars) {

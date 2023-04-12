@@ -32,7 +32,7 @@ locations <- unique(locations)
   # save these rasters in the ./regrowth_rasters directory
 
 for (location in locations){
-  files_tmp <- list.files(path = './mapbiomas/regrowth_raw', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
+  files_tmp <- list.files(path = './mapbiomas/regrowth', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
   files_tmp <- sort(files_tmp)
 
   last_year_regrowth <- rast(files_tmp[length(files_tmp)])

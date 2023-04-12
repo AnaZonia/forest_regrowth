@@ -43,3 +43,17 @@ GEDI_mat <- GEDI_mid_amazon[,]
 -4, -60
 
 GEDI <- readRDS("0000000000-0000095232_GEDI.rds")
+
+
+
+
+lulc <- rast('./model_ready_rasters/0000000000-0000095232_lulc_history.tif') 
+
+layer_indices <- nlyr(lulc_brick_masked) - regrowth_mask # year before abandonment
+last_LU <- selectRange(lulc_brick_masked, layer_indices)
+last_LU <- selectRange(lulc_brick_masked, layer_indices+1)
+last_LU <- selectRange(lulc_brick_masked, layer_indices)
+last_LU <- selectRange(lulc_brick_masked, layer_indices)
+last_LU <- selectRange(lulc_brick_masked, layer_indices)
+
+

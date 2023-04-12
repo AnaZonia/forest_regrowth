@@ -13,7 +13,7 @@
 library(sf)
 library(terra) # handling spatial data
 library(tidyverse)
-setwd("/home/aavila/forest_regrowth/dataframes")
+setwd("/home/aavila/forest_regrowth")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -47,9 +47,9 @@ fire_brick_masked <- mask(fire_brick_cropped, regrowth_mask_cropped)
 num_fires <- sum(fire_brick_masked)
 
 # find when was last fire observed (how many years before observed regrowth)
-regrowth_instances <- which.lyr(regrowth_cleaned == 503)
-regrowth_last_instance <- where.max(regrowth_instances)
+fire_brick_flipped <- fire_brick_masked [[ c(rev(order(names(fire_brick_masked)))) ]]
+last_fire <- which.lyr(fire_brick_flipped == 1)
 
-
+fire <- c(num_fires, last_fire)
 
 writeRaster(fire, paste0('./model_ready_rasters/', location, '_fire_history.tif'))

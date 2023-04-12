@@ -14,13 +14,13 @@ library(terra) # handling spatial data
 library(tidyverse)
 setwd("/home/aavila/forest_regrowth")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r") # sourcing functions
-
 location = '0000000000-0000095232'
 
 #for (location in locations){}
 files_tmp <- list.files(path = './mapbiomas/regrowth', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
 files_tmp <- sort(files_tmp)
 regrowth_mask <- rast(paste0('./mapbiomas/regrowth_masks/', location, '_regrowth_mask.tif'))
+# 3.002014 % are classified as currently regrowing forests with the code 303 (which seems to be the most common)
 
 tmp_rasters <- lapply(files_tmp, rast)
 reg_brick <- rast(tmp_rasters) # makes it into a brick
@@ -67,15 +67,22 @@ tmp3 = tmp-tmp2
 # 1 is unflagged regrowth
 tmp3[tmp3 == 1 & tmp3 == -1] <- NA
 tmp4 <- tmp3[[2:32]] # remove all-NA columns
-tmp5 <- mask(tmp4, app(tmp4, fun = sum)) # remove all pixels that contain AT LEAST one NA value
+tmp5 <- mask(tmp4, sum(tmp4)) # remove all pixels that contain AT LEAST one NA value
 # now, all layers of tmp5 should contain only pixels that are complete with data,
 # and show no unflagged regrowth/suppression in its history
 
 regrowth_cleaned <- mask(reg_brick_masked, tmp5[[1]])
 
 # calculate age of forest, having as reference year in which regrowth was detected last (2019, for when we have biomass data)
-regrowth_instances <- which.lyr(regrowth_cleaned == 503)
-regrowth_last_instance <- where.max(regrowth_instances)
-forest_age <- nlyr(regrowth_last_instance) - regrowth_last_instance
+# the which.lyr function returns the FIRST encountering of the value given.
+# since in this case we want the most recent regrowth event, we flip the order of the layers in the raster.
+regrowth_cleaned_flipped <- regrowth_cleaned [[ c(rev(order(names(regrowth_cleaned)))) ]]
+forest_age <- which.lyr(regrowth_cleaned_flipped == 503)
 
 writeRaster(forest_age, paste0('./model_ready_rasters/', location, '_forest_age.tif'))
+
+# 1.72908 % of the pixels are nonNA, meaning they are currently regrowing forests without any classification issues.
+
+
+
+

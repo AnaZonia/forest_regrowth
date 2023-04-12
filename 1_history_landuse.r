@@ -10,10 +10,11 @@
 #   lulc dataframe (full history for all pixels showing yes/no burning detected)
 #   lulc_history dataframe (time since last observed land use; total number of years under each land use)
 ####################################################################
+
 library(sf)
 library(terra) # handling spatial data
 library(tidyverse)
-setwd("/home/aavila/forest_regrowth/dataframes")
+setwd("/home/aavila/forest_regrowth")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
 
 location <- '0000000000-0000095232'
@@ -46,7 +47,7 @@ lulc_brick_masked <- mask(lulc_brick_cropped, regrowth_mask)
 # total years under each land use type
 calc_total_yrs <- function(masked_brick, val){
   masked_brick[masked_brick != val] <- 0
-  total_past_years <- app(masked_brick, fun=sum)
+  total_past_years <- sum(masked_brick)
   return(total_past_years/val)
 }
 
@@ -62,9 +63,9 @@ other_perennial_total <- calc_total_yrs(lulc_brick_masked, 48)
 # we reach the column by tst[[lyr_num]][age]
 
 calc_time_since_lu <- function(masked_brick, val){
-  lu_instances <- which.lyr(masked_brick == val) # position of layer with 
-  lu_last_instance <- where.max(lu_instances)
-  return(max(lu_last_instance) - lu_last_instance)
+  masked_brick_flipped <- masked_brick [[ c(rev(order(names(masked_brick)))) ]]
+  lu_instances <- which.lyr(masked_brick == val) # position of layer with last observation of land use type designated by value val
+  return(nlyr(masked_brick_flipped) - lu_instances)
 }
 
 ts_pasture <- calc_time_since_lu(lulc_brick_masked, 15)
@@ -75,11 +76,16 @@ ts_other_annual <- calc_time_since_lu(lulc_brick_masked, 41)
 ts_other_perennial <- calc_time_since_lu(lulc_brick_masked, 48)
 
 # last observed land use type
-layer_indices <- regrowth_mask - 1 # previous year
+layer_indices <- nlyr(lulc_brick_masked) - regrowth_mask # year before abandonment
+last_LU <- selectRange(lulc_brick_masked, layer_indices)
 
-last_LU <- selectRange(brick, layer_indices)
+# note that there are land use types in last_LU that are not the 4 most common (soy, pasture, other perennial, other annual)
+# decided to keep them for now but can be removed later with this:
+# last_LU[last_LU != 15 & last_LU != 39 & last_LU != 41 & last_LU != 48] <- NA
 
-lulc <- c(last_LU, ts_pasture, ts_soy, ts_coffee, ts_sugar, ts_other_annual, ts_other_perennial,
-pasture_total, soy_total, coffee_total, sugar_total, other_annual_total, other_perennial_total)
+lulc <- c(last_LU, ts_pasture, ts_soy, ts_other_annual, ts_other_perennial,
+pasture_total, soy_total, other_annual_total, other_perennial_total)
+names(lulc) <- c('last_LU', 'ts_pasture', 'ts_soy', 'ts_other_annual', 'ts_other_perennial',
+'pasture_total', 'soy_total', 'other_annual_total', 'other_perennial_total')
 
 writeRaster(lulc, paste0('./model_ready_rasters/', location, '_lulc_history.tif'))
