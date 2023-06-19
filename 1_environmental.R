@@ -12,7 +12,6 @@
 ####################################################################
 
 library(sf)
-library(raster) #  handling spatial data
 library(terra) # handling spatial data
 library(tidyverse)
 library(tidyverse)
@@ -31,8 +30,9 @@ download_worldclim = FALSE
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##########  Temperature/Precipitation ##########
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-outdir <- "./worldclim_dataframes" # Specify your preferred working directory
+outdir <- "./worldclim" # Specify your preferred working directory
 location <- '0000000000-0000095232'
+regrowth <- rast("./model_ready_rasters/0000000000-0000095232_forest_age.tif")
 
 if (download_worldclim == T){
   vars = c("tmin_", "tmax_", "prec_")
@@ -41,7 +41,7 @@ if (download_worldclim == T){
   url = paste0("http://biogeo.ucdavis.edu/data/worldclim/v2.1/hist/wc2.1_2.5m_", do.call(paste0, expand.grid(vars, ranges)), ".zip")
   zip <- file.path(outdir, basename(url))
 
-  for (i in 1:6){
+  for (i in 1:12){
     download.file(url[i], zip[i])
   }
 
@@ -50,51 +50,34 @@ if (download_worldclim == T){
   # unzip all your files
   ldply(.data = zipF, .fun = unzip, exdir = outdir)
   #remove all datapoints before landsat (1985)
-  file.remove(list.files(path = outdir, pattern = "1980|1981|1982|1983|1984", full.names = TRUE))
+  file.remove(list.files(path = outdir, pattern = "1980|1981|1982|1983|1984|2019", full.names = TRUE))
 }
 
 mk_list <- function(x)  {as.list(intersect(list.files(path = outdir, pattern = "*.tif", full.names = TRUE),
                                            list.files(path = outdir, pattern = x, full.names = TRUE)))}
 
-vars <- c("prec", "tmax", "tmin")
-
-climate_BRA <- function (var){
+vars <- c("tmax", "tmin")
+for (var in vars){
   list_clim <- mk_list(var)
   # read the files
-  raster_clim <- lapply(list_clim, raster) # this is correct
-  # if we are subsetting the data into our region of interest
-  BRA <- subset(wrld_simpl, NAME=="Brazil") # get Brazil mask
-  rstr <- pbapply::pblapply(raster_clim, terra::crop, BRA) # subsects all rasters to area of interest
-  rstr <- pbapply::pblapply(rstr, terra::mask, BRA) # subsects all rasters to area of interest
-  rstr <- brick(rstr)
-return(rstr)}
+  raster_clim <- lapply(list_clim, rast)
 
-prec_BRA <- climate_BRA(vars[1])
-tmax_BRA <- climate_BRA(vars[2])
-tmin_BRA <- climate_BRA(vars[3])
-
-# processes the dataframes into yearly climate data
-climate_yearly = function(tif, fun){
-  dates = substr(names(tif), start = 17, stop = 24)   # makes column names only "yyyy.mm"
-  dates
-  #sum layers, get variance
-  indices <- rep(1:34,each=12)
-  yearly_data <- stackApply(tif, 1:34, fun = fun)
-  names(yearly_data) = c(1985:2018)
-  return(yearly_data)
+  yearly <- c()
+  for (i in seq(1, 408, 12)){
+    tst <- raster_clim[[i]]
+    print(i)
+    for (j in (i+1):(i+11)){
+      tst <- tst + raster_clim[[j]]
+      print(j)
+    }
+    yearly <- c(yearly, tst)
+  }
+  yearly <- rast(yearly)
+  cropped <- crop(yearly, regrowth)
+  raster_clim <- resample(cropped, regrowth, method='near')
+  raster_clim_masked <- mask(raster_clim, regrowth)
+  writeRaster(raster_clim_masked, filename=paste0(var, '_', location, '.tif'))
 }
-
-temp_BRA = (tmax_BRA + tmin_BRA) / 2
-
-prec_BRA_mean <- climate_yearly(prec_BRA, mean)
-prec_BRA_sd <- climate_yearly(prec_BRA, sd)
-temp_BRA_mean <- climate_yearly(temp_BRA, mean)
-temp_BRA_sd <- climate_yearly(temp_BRA, sd)
-
-writeRaster(prec_BRA_mean, filename='prec_BRA_mean.tif', format="GTiff", overwrite=TRUE,options=c("INTERLEAVE=BAND","COMPRESS=LZW"))
-writeRaster(prec_BRA_sd, filename='prec_BRA_sd.tif', format="GTiff", overwrite=TRUE,options=c("INTERLEAVE=BAND","COMPRESS=LZW"))
-writeRaster(temp_BRA_mean, filename='temp_BRA_mean.tif', format="GTiff", overwrite=TRUE,options=c("INTERLEAVE=BAND","COMPRESS=LZW"))
-writeRaster(temp_BRA_sd, filename='temp_BRA_sd.tif', format="GTiff", overwrite=TRUE,options=c("INTERLEAVE=BAND","COMPRESS=LZW"))
 
 #resolution is about 4.5 km.
 
@@ -103,9 +86,9 @@ writeRaster(temp_BRA_sd, filename='temp_BRA_sd.tif', format="GTiff", overwrite=T
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # SNUM - Soil mapping unit number
 
-soil <- sf::st_read(dsn= paste0(getwd(),"/soil/") , layer="DSMW")
+soil <- sf::st_read(dsn = paste0(getwd(),"/soil/") , layer="DSMW")
 
-brazil_soil = soil[soil$COUNTRY == "BRAZIL",]
+brazil_soil = soil[soil$COUNTRY == "BRAZIL"]
 
 test_coords <- lapply(brazil_soil$geometry, st_coordinates) #extract lat and lon
 test_coords <- lapply(test_coords, as.data.frame) #create a list of dataframes, one per polygon
@@ -123,3 +106,8 @@ for (i in 2:length(brazil_soil$DOMSOI)){
 }
 
 saveRDS(test_coords2, 'soil.rds')
+
+
+
+
+
