@@ -100,9 +100,13 @@ colnames(central_df)[10:11] <- c('temp', 'prec')
 
 #saveRDS(central_df, 'central_df.rds')
 central_df <- readRDS('central_df.rds')
+nrow(central_df)
+central_df <- central_df[central_df$last_LU %in% c(15, 41, 48),]
+nrow(central_df)
+
 central_df$last_LU <- factor(central_df$last_LU)
 dummy_LU <- as.data.frame(model.matrix(~ central_df$last_LU - 1))
-names(dummy_LU) <- c()
+names(dummy_LU) <- c('pasture', 'other_annual', 'other_perennial')
 
 # normalize central_df
 minMax <- function(x) {
@@ -125,23 +129,15 @@ head(data)
 G <- function(pars) {
   # Extract parameters of the model
   E = pars[1]*data$prec + pars[2]*data$temp #+ pars[3]*central_df$mature_sum
-  LU = data$total_fires * exp(pars[4]*data$ts_fire + pars[5]*data$last_LU15)
+  LU = data$total_fires * exp(pars[4]*data$ts_fire) + pars[5]*data$pasture + pars[6]*data$other_annual + pars[7]*data$other_perennial
   k = E + LU
   # Prediction of the model
   return ( normalized_df$Bmax * (1 - exp(-k)) )
 }
 
-pars = c(0.5,0.5,0.5,0.5,0.5)
+pars = c(0.00005,0.5,0.05,0.005,0.5,0.05,0.5)
 Gpred <- G(pars)
 Gpred
-
-LU = normalized_df$total_fires * exp(0.05*normalized_df$ts_fire + 0.05*normalized_df$last_LU)
-
-
-
-# k is going to be very large so the term is going very tiny.
-# walk through the function. break it down into component parts.
-# anything below 20 is going to be tiny.
 
 # asymptote is being repeated.
 # have so that the different selections have variance.
@@ -152,7 +148,6 @@ LU = normalized_df$total_fires * exp(0.05*normalized_df$ts_fire + 0.05*normalize
 
 NLL = function(pars) {
   # Values prediced by the model
-  pars <- par0
   if(pars[length(pars)] < 0){ #avoiding NAs by keeping the st dev positive
     return(-Inf)
   }
@@ -166,22 +161,22 @@ NLL = function(pars) {
 
 # are the likelihoods varying?
 # if the surface 
-NLL(par0)
+NLL(pars)
 
-o = optim(par = par0, fn = NLL, hessian = FALSE, method = "BFGS")
+o = optim(par = pars, fn = NLL, hessian = FALSE, method = "BFGS")
 print(o)
 
 meth0 = c("Nelder-Mead", "BFGS", "CG")
 for (i in meth0){
-  o = optim(par = par0, fn = NLL, control = list(parscale = abs(par0)), 
+  o = optim(par = pars, fn = NLL, control = list(parscale = abs(pars)), 
              hessian = FALSE, method = i)
   print(i)
   print(o)
 }
 
-pred = G(o$par[1:13])
+pred = G(o$par[1:7])
 
-plot(central_df$agbd, pred, abline(0,1))
+plot(data$agbd, pred, abline(0,1))
 
 ######################################
 
