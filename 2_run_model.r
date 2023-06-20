@@ -66,15 +66,6 @@ prec_cropped <- crop(prec, GEDI_raster_cropped)
 # names(sum_prec_sd) <- 'sum_prec_sd'
 # names(sum_temp_sd) <- 'sum_temp_sd'
 
-# to save time as I'm figuring things out
-
-all_data_raster <- c(GEDI_raster_cropped, regrowth_cropped, fire_cropped, lulc_cropped, soil_cropped, temp_cropped, prec_cropped)
-
-writeRaster(all_data_raster, 'all_data_raster.tif')
-
-all_data_raster <- rast('all_data_raster.tif')
-regrowth_cropped <- all_data_raster[[2]]
-regrowth_cropped
 ######################################################################
 #################        Sampling     ##################
 ######################################################################
@@ -90,83 +81,16 @@ mature_mask <- terra::crop(mature_mask, regrowth_cropped)
 mature_mask[mature_mask > 0] <- 1
 mature_mask <- subst(mature_mask, NA, 0)
 
-window_size <- 21 # (must be an odd number)
-
-mature_sum <- focal(mature_mask, window_size, sum, na.rm = TRUE)
-mature_sum <- mask(mature_sum, regrowth_cropped)
-# think again of how to get the asymptote
-# think of how to get the percent cover of nearby mature forest
-# create a mask with the region around the secondary forest patches.
-
-# all other values will be deleted. focal should run faster
-# mask with only the cells around the vicinity of a secondary forest
-
-# create vectors with the coordinates around each patch
-# extract said values
-# add values to the corresponding coordinate in a blank new raster.
-secondary_patches <- cells(regrowth_cropped)
-
-secondary_patches <- 13 #cells(regrowth_cropped)
-remainder_j <- secondary_patches %% ncol(regrowth_cropped)
-multiple_i <- (secondary_patches - remainder_j)/ncol(regrowth_cropped)
-tst <- data.frame(secondary_patches, remainder_j, multiple_i)
-mat_total <- 0
-for (k in -range:range){
-  min_indx <- (multiple_i+k)*ncol(mature_mask)+(remainder_j-range)
-  max_indx <- ((multiple_i+k)*ncol(mature_mask)+(remainder_j+range))
-  mat_total <- rm_total + sum( mature_mask[min_indx : max_indx])
-}
-
-tst <- vect(secondary_patches)
-
-rk <- matrix(1, 101, 101)
-tst <- adjacent(regrowth_cropped, cells=secondary_patches, directions=rk) # why does bad alloc
-
-# this should be faster than the focal function as it only operates on areas that have secondary forest.
-function <- total_mature_patches(regrowth_cropped, mature_mask, range){  # range is the distance from the secondary forest
-  range <- 21
-  m <- matrix(1:25,5,5)
-  rm <- rast(m)
-
-
-}
-
-
-
-  m <- matrix(1:36,6,6)
-  rm <- rast(m)
-
-  m2 <- matrix(0,6,6)
-  rm2 <- rast(m2)
-  rm2[15] <- 1
-  rm2[22] <- 1
-
-  secondary_patches <- c(15, 22) #cells(regrowth_cropped)
-  remainder_j <- secondary_patches %% ncol(rm)
-  multiple_i <- (secondary_patches - remainder_j)/ncol(rm)
-  tst <- data.frame(secondary_patches, remainder_j, multiple_i)
-
-  range <- 2
-  
-  apply(tst, 1, function(multiple_i, remainder_j) {
-     mat_total <- 0
-    for (k in -range:range){
-      min_indx <- (multiple_i+k)*ncol(mature_mask)+(remainder_j-range)
-      max_indx <- ((multiple_i+k)*ncol(mature_mask)+(remainder_j+range))
-      mat_total <- rm_total + sum( mature_mask[min_indx : max_indx])
-    }    return(mat_total)
-    }
-  )
-
-
+range <- 21
+mature_sum <- focal(mature_mask, range, sum, na.rm = TRUE) # run focal on these areas
+mature_sum <- mask(mature_sum, regrowth_cropped) # select only the sum of areas surrounding secondary patches.
 
 # mean biomass of surrounding mature forests around 3km (~100 pixels of 30m)
-surrounding_forest <- 101 # window size
-mature_biomass <- mask(GEDI_raster_cropped, mature_mask)
-mature_mean_biomass <- focal(mature_biomass, surrounding_forest, mean, na.rm = TRUE)
-# biomass_surr_mat <- mask(mature_mean_biomass, regrowth_cropped) # mean biomass of surrounding mature forests for every secondary forest patch
+# biomass_range <- 101 # window size
+# mature_biomass <- mask(GEDI_raster_cropped, mature_mask)  # get only biomass of mature forests
+# mature_mean_biomass <- focal(mature_biomass, biomass_range, mean, na.rm = TRUE)
 
-all_data <- c(GEDI_raster_cropped, regrowth_cropped, fire_cropped, total_years, last_LU, total_temp, total_prec)
+all_data <- c(GEDI_raster_cropped, regrowth_cropped, fire_cropped, total_years, last_LU, total_temp, total_prec, mature_sum, soil_cropped)
 
 coords <- crds(all_data[[1]], df=FALSE, na.rm=TRUE)
 values_stack <- terra::extract(all_data, coords, cells=FALSE, method="simple")
@@ -174,16 +98,23 @@ central_df <- values_stack[complete.cases(values_stack), ]
 colnames(central_df)[1:4] <- c('agbd', 'age', 'total_fires', 'ts_fire')
 colnames(central_df)[10:11] <- c('temp', 'prec')
 
-central_df$Bmax <- 400
 #saveRDS(central_df, 'central_df.rds')
+central_df <- readRDS('central_df.rds')
+central_df$last_LU <- factor(central_df$last_LU)
+dummy_LU <- as.data.frame(model.matrix(~ central_df$last_LU - 1))
+names(dummy_LU) <- c()
 
 # normalize central_df
 minMax <- function(x) {
   (x - min(x)) / (max(x) - min(x))
 }
 
-normalized_df <- as.data.frame(lapply(central_df, minMax))
+normalized_df <- as.data.frame(lapply(central_df[,-c(6,9)], minMax))
 normalized_df$Bmax <- 400
+head(normalized_df)
+
+data <- cbind(normalized_df, dummy_LU)
+head(data)
 
 ######################################################################
 #################        passing into the model     ##################
@@ -193,15 +124,15 @@ normalized_df$Bmax <- 400
 
 G <- function(pars) {
   # Extract parameters of the model
-  E = pars[1]*normalized_df$prec + pars[2]*normalized_df$temp #+ pars[3]*central_df$mature_sum
-  LU = normalized_df$total_fires * exp(pars[4]*normalized_df$ts_fire + pars[5]*normalized_df$last_LU)
+  E = pars[1]*data$prec + pars[2]*data$temp #+ pars[3]*central_df$mature_sum
+  LU = data$total_fires * exp(pars[4]*data$ts_fire + pars[5]*data$last_LU15)
   k = E + LU
   # Prediction of the model
   return ( normalized_df$Bmax * (1 - exp(-k)) )
 }
 
-par0 = c(0.5,0.5,0.5,0.5,0.5)
-Gpred <- G(par0)
+pars = c(0.5,0.5,0.5,0.5,0.5)
+Gpred <- G(pars)
 Gpred
 
 LU = normalized_df$total_fires * exp(0.05*normalized_df$ts_fire + 0.05*normalized_df$last_LU)
