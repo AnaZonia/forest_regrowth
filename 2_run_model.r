@@ -5,6 +5,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ####################################################################
 
+library(ggplot2)
 library(terra) # handling spatial data
 library(data.table) #to use data.table objects in the rasterFromXYZ_irr() function
 library(sf)
@@ -46,14 +47,16 @@ temp <- rast('./model_ready_rasters/temp_0000000000-0000095232.tif')
 proj <- "+proj=longlat +elips=WGS84"
 GEDI_vect <- terra::vect(GEDI[,c("lon", "lat", "agbd")], crs = proj)
 GEDI_raster <- terra::rasterize(GEDI_vect, regrowth, field = "agbd")
+
 soil_vect <- terra::vect(soil[,c("lon", "lat", "numtype")], crs = proj)
-soil_raster <- terra::rasterize(soil_vect, regrowth, field = "numtype")
+soil_raster <- terra::rasterize(soil_vect, GEDI_raster, field = "numtype")
+#soil_raster <- focal(soil_raster, 301, "modal", NAonly=TRUE, na.rm = TRUE)
 
 fire_cropped <- crop(fire, GEDI_raster)
 GEDI_raster_cropped <- crop(GEDI_raster, fire)
 regrowth_cropped <- crop(regrowth, GEDI_raster_cropped)
 lulc_cropped <- crop(lulc, GEDI_raster_cropped)
-soil_cropped <- crop(soil_raster, GEDI_raster_cropped)
+soil_cropped <- crop(soil_raster, GEDI_raster_cropped) # work on this
 temp_cropped <- crop(temp, GEDI_raster_cropped)
 prec_cropped <- crop(prec, GEDI_raster_cropped)
 
@@ -66,18 +69,44 @@ prec_cropped <- crop(prec, GEDI_raster_cropped)
 # names(sum_prec_sd) <- 'sum_prec_sd'
 # names(sum_temp_sd) <- 'sum_temp_sd'
 
+GEDI_raster <- mask(GEDI_raster, regrowth)
+regrowth <- mask(regrowth, GEDI_raster)
+
+all_data <- c(GEDI_raster, regrowth)
+
+coords <- crds(all_data[[1]], df=FALSE, na.rm=TRUE)
+values_stack <- terra::extract(all_data, coords, cells=FALSE, method="simple")
+agb_forest_age <- values_stack[complete.cases(values_stack), ]
+
+sds <- aggregate(agbd ~ forest_age, agb_forest_age, sd)
+means <- aggregate(agbd ~ forest_age, agb_forest_age, mean)
+sum_stats <- cbind(means, sds[,2])
+colnames(sum_stats) <- c('age', 'mean', 'sd')
+
+ggplot(sum_stats,                               # ggplot2 plot with means & standard deviation
+       aes(x = age,
+           y = median)) + 
+  geom_errorbar(aes(ymin = median - sd,
+                    ymax = median + sd)) +
+  geom_point() + theme(text = element_text(size = 20))  
+
+
+tst = subset(agb_forest_age, forest_age == 28)
+tst = subset(tst, agbd < 25)
+
+
 ######################################################################
 #################        Sampling     ##################
 ######################################################################
-total_temp <- app(temp_cropped, sum)
-total_prec <- app(prec_cropped, sum)
+total_temp <- app(temp, sum)
+total_prec <- app(prec, sum)
 total_years <- lulc_cropped[[6:9]]
 last_LU <- lulc_cropped[[1]]
 
 # getting percent of mature forest cover within x neighboring patches:
 # would like to get values within 300m radius (range of dispersal - cite)
 mature_mask <- rast('./mapbiomas/mature_masks/0000000000-0000095232_mature_mask.tif')
-mature_mask <- terra::crop(mature_mask, regrowth_cropped)
+mature_mask <- terra::crop(mature_mask, regrowth)
 mature_mask[mature_mask > 0] <- 1
 mature_mask <- subst(mature_mask, NA, 0)
 
@@ -86,56 +115,146 @@ mature_sum <- focal(mature_mask, range, sum, na.rm = TRUE) # run focal on these 
 mature_sum <- mask(mature_sum, regrowth_cropped) # select only the sum of areas surrounding secondary patches.
 
 # mean biomass of surrounding mature forests around 3km (~100 pixels of 30m)
-# biomass_range <- 101 # window size
-# mature_biomass <- mask(GEDI_raster_cropped, mature_mask)  # get only biomass of mature forests
-# mature_mean_biomass <- focal(mature_biomass, biomass_range, mean, na.rm = TRUE)
+biomass_range <- 101 # window size
+mature_biomass <- mask(GEDI_raster_cropped, mature_mask)  # get only biomass of mature forests
+mature_total_biomass <- focal(mature_biomass, biomass_range, sum, na.rm = TRUE)
 
-all_data <- c(GEDI_raster_cropped, regrowth_cropped, fire_cropped, total_years, last_LU, total_temp, total_prec, mature_sum, soil_cropped)
+all_data <- c(GEDI_raster_cropped, regrowth_cropped, fire_cropped, total_years, last_LU, total_temp, total_prec, mature_sum) #, soil_cropped)
 
 coords <- crds(all_data[[1]], df=FALSE, na.rm=TRUE)
 values_stack <- terra::extract(all_data, coords, cells=FALSE, method="simple")
 central_df <- values_stack[complete.cases(values_stack), ]
 colnames(central_df)[1:4] <- c('agbd', 'age', 'total_fires', 'ts_fire')
-colnames(central_df)[10:11] <- c('temp', 'prec')
+colnames(central_df)[10:12] <- c('temp', 'prec', 'mat_sum')
 
 #saveRDS(central_df, 'central_df.rds')
 central_df <- readRDS('central_df.rds')
-nrow(central_df)
 central_df <- central_df[central_df$last_LU %in% c(15, 41, 48),]
-nrow(central_df)
+
 
 central_df$last_LU <- factor(central_df$last_LU)
 dummy_LU <- as.data.frame(model.matrix(~ central_df$last_LU - 1))
 names(dummy_LU) <- c('pasture', 'other_annual', 'other_perennial')
 
-# normalize central_df
+# min-max normalize central_df
 minMax <- function(x) {
   (x - min(x)) / (max(x) - min(x))
 }
 
 normalized_df <- as.data.frame(lapply(central_df[,-c(6,9)], minMax))
+
+#normalized_df <- as.data.frame(lapply(central_df[,-c(6,9)], scale))
+
 normalized_df$Bmax <- 400
 head(normalized_df)
 
 data <- cbind(normalized_df, dummy_LU)
 head(data)
 
+# plot biomass and rainfall for mature forests
+
+library(mgcv)
+fit <- lm(data$agbd ~ data$age)
+by(central_df$agbd, central_df$age, summary)
+summary(gam(central_df$agbd ~ central_df$age))
+
+jpeg('plot3.jpeg')
+plot(data$agbd ~ data$age)
+abline(fit)
+dev.off()
+
+pred <- predict(fit)
+jpeg('pred_obs.jpeg')
+plot(pred, data$agbd)
+abline(0,1)
+dev.off()
+
+##############
+regrowth_paper <- rast('./secondary_forest_age_v2_2018/secondary_forest_age_v2_2018-0000000000-0000065536.tif')
+regrowth2 <- crop(regrowth_paper, regrowth)
+regrowth2[regrowth2 == 0] <- NA
+
+santoro_raster <- rast('N00W050_ESACCI-BIOMASS-L4-AGB-MERGED-100m-2018-fv4.0.tif')
+santoro_raster <- crop(santoro_raster, regrowth2)
+santoro_raster <- resample(santoro_raster, regrowth2)
+santoro_raster <- mask(santoro_raster, regrowth2)
+all_data <- c(santoro_raster, regrowth2)
+
+writeRaster(all_data, 'santoro_regrowth.tif')
+coords <- crds(all_data[[1]], df=FALSE, na.rm=TRUE)
+values_stack <- terra::extract(all_data, coords, cells=FALSE, method="simple")
+central_df <- values_stack[complete.cases(values_stack), ]
+colnames(central_df)[1:2] <- c('agbd', 'age')
+
+fit <- lm(central_df$agbd ~ central_df$age)
+summary(fit)
+plot(central_df$agbd ~ central_df$age)
+abline(fit)
+
+sds <- aggregate(agbd ~ age, central_df, sd)
+means <- aggregate(agbd ~ age, central_df, median)
+sum_stats <- cbind(means, sds[,2])
+colnames(sum_stats) <- c('age', 'median', 'sd')
+
+ggplot(sum_stats,                               # ggplot2 plot with means & standard deviation
+       aes(x = age,
+           y = median)) + 
+  geom_errorbar(aes(ymin = median - sd,
+                    ymax = median + sd)) +
+  geom_point() + theme(text = element_text(size = 20))  
+
+
+##################
+
+mature_biomass <- mask(GEDI_raster, mature_mask)
+
+total_prec <- app(prec, sum)
+all_data <- c(mature_biomass, total_prec)
+
+coords <- crds(all_data[[1]], df=FALSE, na.rm=TRUE)
+values_stack <- terra::extract(all_data, coords, cells=FALSE, method="simple")
+central_df <- values_stack[complete.cases(values_stack), ]
+
+normalized_df <- as.data.frame(lapply(central_df, minMax))
+
+
+fit <- lm(normalized_df$agbd ~ normalized_df$age)
+summary(fit)
+plot(normalized_df$agbd ~ normalized_df$age)
+abline(fit, col = 'red')
+
 ######################################################################
 #################        passing into the model     ##################
 ######################################################################
-
+data <- central_df
 # create another list that sets to zero if things are not present
 
 G <- function(pars) {
   # Extract parameters of the model
-  E = pars[1]*data$prec + pars[2]*data$temp #+ pars[3]*central_df$mature_sum
-  LU = data$total_fires * exp(pars[4]*data$ts_fire) + pars[5]*data$pasture + pars[6]*data$other_annual + pars[7]*data$other_perennial
+  E = pars[1]*data$prec + pars[2]*data$temp + pars[3]*data$mat_sum
+  LU = pars[8]*data$total_fires * exp(pars[4]*data$ts_fire) + pars[5]*data$pasture + pars[6]*data$other_annual + pars[7]*data$other_perennial
   k = E + LU
   # Prediction of the model
-  return ( normalized_df$Bmax * (1 - exp(-k)) )
+  return ( 1-(exp(-(k))))
 }
 
-pars = c(0.00005,0.5,0.05,0.005,0.5,0.05,0.5)
+G <- function(pars) {
+  # Extract parameters of the model
+  LU = pars[1] * data$total_fires 
+  E = pars[2]*data$prec + pars[3]*data$temp + pars[4]*data$mat_sum
+  k = E + LU
+  # Prediction of the model
+  return ( 1-(exp(-(k)))) #normalized_df$Bmax *   ) 
+}
+
+G <- function(pars) {
+  # Extract parameters of the model
+  k = pars[1] * data$age# + pars[2]*data$prec 
+  # Prediction of the model
+  return ( 1-(exp(-(k)))) #normalized_df$Bmax *   ) 
+}
+
+pars = c(0.05,0.05)#, 0.05, 0.05,0.05) #,0.005,0.0005,0.05,0.5)
 Gpred <- G(pars)
 Gpred
 
@@ -155,59 +274,47 @@ NLL = function(pars) {
   Gpred = G(pars)
   #print(Gpred)
   # Negative log-likelihood 
-  fun = -sum(dnorm(x = central_df$agbd - Gpred, mean = 0, sd = pars[length(pars)], log = TRUE), na.rm = TRUE)
+  fun = -sum(dnorm(x = data$agbd - Gpred, mean = 0, sd = pars[length(pars)], log = TRUE), na.rm = TRUE)
   return(fun)
 }
 
-# are the likelihoods varying?
-# if the surface 
-NLL(pars)
-
-o = optim(par = pars, fn = NLL, hessian = FALSE, method = "BFGS")
+o = optim(par = pars, fn = NLL, hessian = FALSE)
 print(o)
 
-meth0 = c("Nelder-Mead", "BFGS", "CG")
-for (i in meth0){
-  o = optim(par = pars, fn = NLL, control = list(parscale = abs(pars)), 
-             hessian = FALSE, method = i)
-  print(i)
-  print(o)
-}
+# meth0 = c("Nelder-Mead", "BFGS", "CG")
+# for (i in meth0){
+# o = optim(par = pars, fn = NLL, control = list(parscale = abs(pars)), 
+#             hessian = FALSE, method = i)
+# print(i)
+# print(o)
+# }
 
-pred = G(o$par[1:7])
+pred = G(o$par[1:length(o$par)])
 
+#jpeg('model2.jpeg')
 plot(data$agbd, pred, abline(0,1))
-
-######################################
-
+#dev.off()
 
 
 
 
-regrowth_subset <- lapply(split(central_df, central_df$age),
-   function(subdf) subdf[sample(1:nrow(subdf), 3),]
-)
-# by (central_df, central_df$age)
-# tapply 1,nrow(centraldf), central_df$age
-# get a vector of rownumbers
-# regrowth_subset, if pos = tapply 1,nrow(centraldf), central_df$age, 
-# regrowth_subset [pos]
 
-regrowth_subset <- do.call('rbind', regrowth_subset)
-head(regrowth_subset)
-
-# look for indices in the mature_mask
-# 
-# convert straight directions to x and y values
-covered_area <- function(reg_index, b){
-  #b <- 40
-  #reg_index <- regrowth_subset$cell[1]
-  col_num <- (reg_index - (reg_index %% nrow(mature_mask)))/nrow(mature_mask) + 1
-  row_num <- reg_index %% nrow(mature_mask)
-  x <- mature_mask[(row_num-b):(row_num+b), (col_num-b):(col_num+b), drop=FALSE]
-  return(global(x, sum))
-}
-
-sums <- lapply(regrowth_subset$cell, covered_area, 400)
+tst <- pred[pred < 0]
 # converting the cells from one to the other is not needed here since I am using two rasters
 # add total of b neighboring cells
+
+o$par[1:length(o$par)]
+# do general GLM or GAM to see if the environmental variables predict height.
+# investigate how the environmental predictors work with mature forests.
+# sum expected growth over each year to get final biomass. integration
+  # shape of curve will change - rate of growth decreases.
+  # think of the asymptote - 
+
+# why are these values negative - check the functional form for what happens after -1.
+
+abline(fit)
+
+
+
+# are the likelihoods varying?
+# if the surface 

@@ -1,3 +1,37 @@
+######################################
+
+
+
+
+
+regrowth_subset <- lapply(split(central_df, central_df$age),
+   function(subdf) subdf[sample(1:nrow(subdf), 3),]
+)
+# by (central_df, central_df$age)
+# tapply 1,nrow(centraldf), central_df$age
+# get a vector of rownumbers
+# regrowth_subset, if pos = tapply 1,nrow(centraldf), central_df$age, 
+# regrowth_subset [pos]
+
+regrowth_subset <- do.call('rbind', regrowth_subset)
+head(regrowth_subset)
+
+# look for indices in the mature_mask
+# 
+# convert straight directions to x and y values
+covered_area <- function(reg_index, b){
+  #b <- 40
+  #reg_index <- regrowth_subset$cell[1]
+  col_num <- (reg_index - (reg_index %% nrow(mature_mask)))/nrow(mature_mask) + 1
+  row_num <- reg_index %% nrow(mature_mask)
+  x <- mature_mask[(row_num-b):(row_num+b), (col_num-b):(col_num+b), drop=FALSE]
+  return(global(x, sum))
+}
+
+sums <- lapply(regrowth_subset$cell, covered_area, 400)
+
+
+
 
 ################################## TESTING ZONE  ######################################################
 tst <- readRDS('./test_files/agb_forest_age_santoro_paragominas.rds')
@@ -254,9 +288,7 @@ setwd("/home/aavila/Documents/forest_regrowth")
 biomass <- readRDS('df_unified.rds')
 regrowth <- readRDS('regrowth_cleaned.rds')
 
-
 biomass <- cbind(biomass, LongLatToUTM(biomass$lon, biomass$lat))
-
 biomass$xy <- paste0(biomass$zone, biomass$x, biomass$y)
 
 agb_forest_age <- cbind(regrowth, agbd = biomass[match(regrowth$xy,biomass$xy),c("agbd")])

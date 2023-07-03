@@ -37,8 +37,7 @@ to = "2020-12-31",
 just_path = F)
 
 #jpeg("rplot.jpg", width = 350, height = "350")
-GEDI_download <- list.files(outdir)
-#paste0('./GEDI_raw/', list.files('./GEDI_raw/', pattern = '.h5'))
+GEDI_download <- paste0('./GEDI_raw/', list.files('./GEDI_raw/', pattern = '.h5'))   #list.files(outdir) 
 l4 <- l4_getmulti(GEDI_download,just_colnames = F)
 l4 <- subset(l4, l4_quality_flag == 1) # quality filter
 l4 <- subset(l4, degrade_flag == 0) # quality filter
