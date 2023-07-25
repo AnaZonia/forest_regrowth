@@ -73,10 +73,10 @@ for (var in vars){
     yearly <- c(yearly, tst)
   }
   yearly <- rast(yearly)
-  cropped <- crop(yearly, regrowth)
-  raster_clim <- resample(cropped, regrowth, method='near')
-  raster_clim_masked <- mask(raster_clim, regrowth)
-  writeRaster(raster_clim_masked, filename=paste0(var, '_', location, '.tif'))
+  cropped <- crop(yearly, regrowth_mask)
+  raster_clim <- resample(cropped, regrowth_mask, method='near')
+  raster_clim_masked <- mask(raster_clim, regrowth_mask)
+  writeRaster(raster_clim_masked, filename=paste0(var, '_', location, '_santoro.tif'))
 }
 
 #resolution is about 4.5 km.

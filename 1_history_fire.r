@@ -31,11 +31,16 @@ locations <- unique(locations)
 #for (location in locations){}
 location = '0000000000-0000095232'
 regrowth_mask <- rast(paste0('./model_ready_rasters/', location, '_forest_age.tif'))
+regrowth_paper <- rast('./secondary_forest_age_v2_2018/secondary_forest_age_v2_2018-0000000000-0000065536.tif')
+regrowth2 <- crop(regrowth_paper, regrowth_mask)
+regrowth2[regrowth2 == 0] <- NA
+regrowth_mask <- regrowth2
 
 files_tmp <- list.files(path, pattern=location, full.names=TRUE)   # obtain paths for all files for that location
 files_tmp <- sort(files_tmp)
 tmp_rasters <- lapply(files_tmp, rast)
 fire_brick <- rast(tmp_rasters)
+
 
 # correcting for small inconsistencies between the sizes
 fire_brick_cropped <- crop(fire_brick, ext(regrowth_mask))
@@ -52,4 +57,4 @@ last_fire <- which.lyr(fire_brick_flipped == 1)
 
 fire <- c(num_fires, last_fire)
 
-writeRaster(fire, paste0('./model_ready_rasters/', location, '_fire_history.tif'))
+writeRaster(fire, paste0('./model_ready_rasters/', location, '_fire_history_santoro.tif'))

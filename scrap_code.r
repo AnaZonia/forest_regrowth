@@ -226,20 +226,7 @@ for (i in 1:12){
     }
 }
 
-############ DOWNLOAD AND MANIPULATE LANDSAT FILES
 
-library(reticulate)
-py_config()
-
-Sys.setenv(RETICULATE_PYTHON = '/usr/local/lib/python2.7/')
-#use_python('/usr/local/lib/python2.7/')
-
-repl_python()
-
-# ~~~~ Begin Python environment
-
-
-import ee
 
 #automate
 folder <- 'LE07_L2SP_012054_20120217_20200909_02_T1'
@@ -710,3 +697,15 @@ brazil_soil_sp <- as(brazil_soil, "Spatial")
 # regrowth_mask <- 
 example_raster <- raster(crs = crs(example_points), vals = 0, resolution = c(0.5, 0.5), ext = extent(regrowth_mask) %>%
    rasterize(example_points, .)
+
+
+
+r <- rast(ncols=100, nrows=100)
+values(r) <- 1:ncell(r)
+x <- rast(ncols=2, nrows=2)
+filename <- paste0(tempfile(), "_.tif")
+ff <- makeTiles(r, c(20,20), filename, overwrite=TRUE)
+ff
+
+tst = rast(ff[[1]])
+tst

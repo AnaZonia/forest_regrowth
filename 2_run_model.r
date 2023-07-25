@@ -180,11 +180,33 @@ santoro_raster <- resample(santoro_raster, regrowth2)
 santoro_raster <- mask(santoro_raster, regrowth2)
 all_data <- c(santoro_raster, regrowth2)
 
-writeRaster(all_data, 'santoro_regrowth.tif')
-coords <- crds(all_data[[1]], df=FALSE, na.rm=TRUE)
-values_stack <- terra::extract(all_data, coords, cells=FALSE, method="simple")
+#writeRaster(all_data, 'santoro_regrowth.tif')
+
+all_data <- rast('santoro_regrowth.tif')
+
+fire_cropped <- crop(fire, all_data)
+all_data <- crop(all_data, fire)
+lulc_cropped <- crop(lulc, all_data)
+temp_cropped <- crop(temp, all_data)
+prec_cropped <- crop(prec, all_data)
+total_temp <- app(temp_cropped, sum)
+total_prec <- app(prec_cropped, sum)
+names(fire_cropped) <- c('total_fires', 'ts_fire')
+names(total_temp) <- c('total_temp')
+names(total_prec) <- c('total_prec')
+
+all_data_santoro <- c(all_data, total_prec, total_temp, fire_cropped, lulc_cropped)
+
+coords <- crds(all_data_santoro[[1]], df=FALSE, na.rm=TRUE)
+values_stack <- terra::extract(all_data_santoro, coords, cells=FALSE, method="simple")
 central_df <- values_stack[complete.cases(values_stack), ]
 colnames(central_df)[1:2] <- c('agbd', 'age')
+colnames(central_df)[5:6] <- c('total_fires', 'ts_fire')
+
+saveRDS(central_df, 'santoro_ESA_alldata.rds')
+
+central_df <- readRDS('santoro_ESA_alldata.rds')
+
 
 fit <- lm(central_df$agbd ~ central_df$age)
 summary(fit)
@@ -215,8 +237,13 @@ coords <- crds(all_data[[1]], df=FALSE, na.rm=TRUE)
 values_stack <- terra::extract(all_data, coords, cells=FALSE, method="simple")
 central_df <- values_stack[complete.cases(values_stack), ]
 
-normalized_df <- as.data.frame(lapply(central_df, minMax))
 
+# min-max normalize central_df
+minMax <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+normalized_df <- as.data.frame(lapply(central_df, minMax))
 
 fit <- lm(normalized_df$agbd ~ normalized_df$age)
 summary(fit)
@@ -226,7 +253,9 @@ abline(fit, col = 'red')
 ######################################################################
 #################        passing into the model     ##################
 ######################################################################
-data <- central_df
+data <- normalized_df
+colnames(data) <- c('agbd', 'age')
+
 # create another list that sets to zero if things are not present
 
 G <- function(pars) {
@@ -251,7 +280,7 @@ G <- function(pars) {
   # Extract parameters of the model
   k = pars[1] * data$age# + pars[2]*data$prec 
   # Prediction of the model
-  return ( 1-(exp(-(k)))) #normalized_df$Bmax *   ) 
+  return (1-(exp(-(k))))
 }
 
 pars = c(0.05,0.05)#, 0.05, 0.05,0.05) #,0.005,0.0005,0.05,0.5)
@@ -294,8 +323,6 @@ pred = G(o$par[1:length(o$par)])
 #jpeg('model2.jpeg')
 plot(data$agbd, pred, abline(0,1))
 #dev.off()
-
-
 
 
 
