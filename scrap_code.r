@@ -1,6 +1,67 @@
+x <- rast(xmin=-110, xmax=-80, ymin=40, ymax=70, res=1, vals=1)
+y <- rast(xmin=-85, xmax=-55, ymax=60, ymin=30, res=1, vals=2)
+z <- rast(xmin=-60, xmax=-30, ymax=50, ymin=20, res=1, vals=3)
+
+m1 <- merge(x, y, z)
+m2 <- merge(z, y, x)
+m3 <- merge(y, x, z)
+
+# if you have many SpatRasters, it may be convenient
+# to make a SpatRasterCollection
+rlist <- list(x, y, z)
+rsrc <- sprc(rlist)
+
+m <- merge(rsrc)
+
+
+
+
+
+
 ######################################
 
+# Given data
+A <- matrix(c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), nrow = 3, ncol = 4)
+B <- matrix(c(11, 22, 33, 44, 55, 66, 77, 88, 99, 100, 111, 112), nrow = 3, ncol = 4)
+stck <- array(c(A, B), dim = c(3, 4, 2))
+C <- matrix(c(1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2), nrow = 3, ncol = 4)
 
+# Calculate the row and column indices based on matrix C and the corresponding layer
+row_indices <- rep(1:3, times = 4) # Repeat 1:3 three times for rows
+col_indices <- rep(1:4, each = 3) # Repeat 1:3 for columns
+layer_indices <- c(C) # Transpose C to create a vector for layer selection
+
+# Use matrix indexing to extract the values from stck
+D <- stck[cbind(row_indices, col_indices, layer_indices)]
+
+# Reshape the result into a 3x3 matrix
+D <- matrix(D, nrow = 3, ncol = 4)
+
+print(D)
+
+
+# last observed land use type
+filename_indx <- paste0(tempfile(), "_.tif")
+layer_indices_tiles <- makeTiles(regrowth_mask, c(2000,2000), filename_indx, na.rm = TRUE, overwrite=TRUE)
+layer_indices_tiles <- lapply(layer_indices_tiles, rast)
+
+row_indices <- rep(1:2000, each = 2000) 
+col_indices <- rep(1:2000, times = 2000) 
+
+
+  filename <- paste0(tempfile(), "_", val, "_.tif")
+  lu_tile <- makeTiles(lu_rast, c(2000,2000), filename, na.rm = TRUE, overwrite=TRUE)
+  lu_tile <- lapply(lu_tile, rast)
+
+reach_last_LU <- function(lu_rast, row_indices, col_indices, layer_index){
+  return(lu_rast[cbind(row_indices, col_indices, layer_index)])
+    tst <- lu_tile[[1]][cbind(rep(1:nrow(lu_tile[[1]]), times = ncol(lu_tile[[1]])) , rep(1:ncol(lu_tile[[1]]), each = nrow(lu_tile[[1]])), index_tiles_list[[1]])]
+  tst <- matrix(tst, nrow = nrow(lu_tile[[1]]), ncol = ncol(lu_tile[[1]]))
+  tst <- rast(tst)
+}
+
+  index_tiles_list <- lapply(layer_indices_tiles, as.vector)
+  index_tiles_list <- lapply(index_tiles_list, val_toNA, val, TRUE)  
 
 
 

@@ -129,19 +129,7 @@ colnames(central_df)[10:12] <- c('temp', 'prec', 'mat_sum')
 
 #saveRDS(central_df, 'central_df.rds')
 central_df <- readRDS('central_df.rds')
-central_df <- central_df[central_df$last_LU %in% c(15, 41, 48),]
 
-
-central_df$last_LU <- factor(central_df$last_LU)
-dummy_LU <- as.data.frame(model.matrix(~ central_df$last_LU - 1))
-names(dummy_LU) <- c('pasture', 'other_annual', 'other_perennial')
-
-# min-max normalize central_df
-minMax <- function(x) {
-  (x - min(x)) / (max(x) - min(x))
-}
-
-normalized_df <- as.data.frame(lapply(central_df[,-c(6,9)], minMax))
 
 #normalized_df <- as.data.frame(lapply(central_df[,-c(6,9)], scale))
 
@@ -183,10 +171,10 @@ all_data <- c(santoro_raster, regrowth2)
 #writeRaster(all_data, 'santoro_regrowth.tif')
 
 all_data <- rast('santoro_regrowth.tif')
-
-fire_cropped <- crop(fire, all_data)
+fire <- rast('./model_ready_rasters/0000000000-0000095232_fire_history_santoro.tif')
+last_LU <- rast('last_LU.tif')
 all_data <- crop(all_data, fire)
-lulc_cropped <- crop(lulc, all_data)
+
 temp_cropped <- crop(temp, all_data)
 prec_cropped <- crop(prec, all_data)
 total_temp <- app(temp_cropped, sum)
@@ -195,17 +183,42 @@ names(fire_cropped) <- c('total_fires', 'ts_fire')
 names(total_temp) <- c('total_temp')
 names(total_prec) <- c('total_prec')
 
-all_data_santoro <- c(all_data, total_prec, total_temp, fire_cropped, lulc_cropped)
+all_data_santoro <- c(all_data, total_prec, total_temp, fire, last_LU)
+file_name <- paste0(tempfile(), "_.tif")
+lu_tile <- makeTiles(all_data_santoro, c(2000,2000), file_name, na.rm = TRUE, overwrite=TRUE)
+lu_tile <- lapply(lu_tile, rast)
 
-coords <- crds(all_data_santoro[[1]], df=FALSE, na.rm=TRUE)
-values_stack <- terra::extract(all_data_santoro, coords, cells=FALSE, method="simple")
-central_df <- values_stack[complete.cases(values_stack), ]
-colnames(central_df)[1:2] <- c('agbd', 'age')
-colnames(central_df)[5:6] <- c('total_fires', 'ts_fire')
+rast_to_df <- function(raster){
+  coords <- crds(raster, df=FALSE, na.rm=TRUE)
+  values_stack <- terra::extract(raster, coords, cells=FALSE, method="simple")
+  central_df <- values_stack[complete.cases(values_stack), ]
+  return(central_df)
+}
 
-saveRDS(central_df, 'santoro_ESA_alldata.rds')
+all_data_csv <- lapply(lu_tile, rast_to_df)
+all_data_csv <- bind_rows(all_data_csv)
+colnames(all_data_csv) <- c('agbd', 'age', 'prec', 'temp', 'total_fires', 'ts_fire', 'last_LU')
 
-central_df <- readRDS('santoro_ESA_alldata.rds')
+saveRDS(all_data_csv, 'santoro_ESA_alldata.rds')
+
+# min-max normalize central_df
+minMax <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+all_data_csv <- all_data_csv[all_data_csv$last_LU %in% c(15, 41, 48),]
+
+all_data_csv$last_LU <- factor(all_data_csv$last_LU)
+dummy_LU <- as.data.frame(model.matrix(~ all_data_csv$last_LU - 1))
+names(dummy_LU) <- c('pasture', 'other_annual', 'other_perennial')
+
+all_data_csv <- all_data_csv[,-7]
+normalized_df <- as.data.frame(lapply(all_data_csv, minMax))
+data <- cbind(normalized_df, dummy_LU)
+
+#####################################
+
+all_data_csv <- readRDS('santoro_ESA_alldata.rds')
 
 
 fit <- lm(central_df$agbd ~ central_df$age)
@@ -225,36 +238,19 @@ ggplot(sum_stats,                               # ggplot2 plot with means & stan
                     ymax = median + sd)) +
   geom_point() + theme(text = element_text(size = 20))  
 
-
 ##################
 
-mature_biomass <- mask(GEDI_raster, mature_mask)
+result <- aov(data$agbd ~ data$other_perennial, data = data)
+summary(result)
 
-total_prec <- app(prec, sum)
-all_data <- c(mature_biomass, total_prec)
-
-coords <- crds(all_data[[1]], df=FALSE, na.rm=TRUE)
-values_stack <- terra::extract(all_data, coords, cells=FALSE, method="simple")
-central_df <- values_stack[complete.cases(values_stack), ]
-
-
-# min-max normalize central_df
-minMax <- function(x) {
-  (x - min(x)) / (max(x) - min(x))
-}
-
-normalized_df <- as.data.frame(lapply(central_df, minMax))
-
-fit <- lm(normalized_df$agbd ~ normalized_df$age)
-summary(fit)
-plot(normalized_df$agbd ~ normalized_df$age)
-abline(fit, col = 'red')
+mean_mass_per_category <- data %>%
+  group_by(other_annual) %>%
+  summarize(mean_mass = median(agbd, na.rm = TRUE))
+mean_mass_per_category
 
 ######################################################################
 #################        passing into the model     ##################
 ######################################################################
-data <- normalized_df
-colnames(data) <- c('agbd', 'age')
 
 # create another list that sets to zero if things are not present
 
@@ -269,8 +265,8 @@ G <- function(pars) {
 
 G <- function(pars) {
   # Extract parameters of the model
-  LU = pars[1] * data$total_fires 
-  E = pars[2]*data$prec + pars[3]*data$temp + pars[4]*data$mat_sum
+  LU = pars[1] * data$total_fires + pars[2] * data$ts_fire + pars[3] * data$pasture + pars[4] * data$other_perennial + pars[5] * data$other_annual 
+  E = pars[6]*data$prec + pars[7]*data$temp 
   k = E + LU
   # Prediction of the model
   return ( 1-(exp(-(k)))) #normalized_df$Bmax *   ) 
@@ -278,12 +274,13 @@ G <- function(pars) {
 
 G <- function(pars) {
   # Extract parameters of the model
-  k = pars[1] * data$age# + pars[2]*data$prec 
+  k = pars[1] * data$age + pars[2]*data$prec 
   # Prediction of the model
   return (1-(exp(-(k))))
 }
 
-pars = c(0.05,0.05)#, 0.05, 0.05,0.05) #,0.005,0.0005,0.05,0.5)
+pars = c(0.05,0.05, 0.05, 0.05,0.05,0.005,0.0005, 0.005)
+pars = c(0.05, 0.05, 0.05)
 Gpred <- G(pars)
 Gpred
 
@@ -324,24 +321,3 @@ pred = G(o$par[1:length(o$par)])
 plot(data$agbd, pred, abline(0,1))
 #dev.off()
 
-
-
-tst <- pred[pred < 0]
-# converting the cells from one to the other is not needed here since I am using two rasters
-# add total of b neighboring cells
-
-o$par[1:length(o$par)]
-# do general GLM or GAM to see if the environmental variables predict height.
-# investigate how the environmental predictors work with mature forests.
-# sum expected growth over each year to get final biomass. integration
-  # shape of curve will change - rate of growth decreases.
-  # think of the asymptote - 
-
-# why are these values negative - check the functional form for what happens after -1.
-
-abline(fit)
-
-
-
-# are the likelihoods varying?
-# if the surface 
