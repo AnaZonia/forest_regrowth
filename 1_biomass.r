@@ -17,6 +17,8 @@ library(tidyverse)
 library(rgdal)
 
 setwd("/home/aavila/forest_regrowth")
+
+
 regrowth_mask <- rast(paste0('./model_ready_rasters/', '0000000000-0000095232_forest_age.tif'))
 coords <- c(ymax(regrowth_mask), ymin(regrowth_mask), xmin(regrowth_mask), xmax(regrowth_mask)) #ext(regrowth_mask)
 
@@ -91,3 +93,14 @@ e <- extent(xmin, xmax, ymin, ymax)
 
 biomass = raster("Forest_height_2019_Brazil.tif")
 biomass_cropped <- crop(biomass,e)
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##########  CSV GEDI ##########
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+files <- list.files(path = './gedi4a_csv', pattern='\\.csv$', full.names=TRUE)   # obtain paths for all files 
+GEDI_csvs <- lapply(files, read.csv)
+GEDI_csv <- do.call(rbind, GEDI_csvs)
+

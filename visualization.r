@@ -57,3 +57,32 @@ last_LU <- selectRange(lulc_brick_masked, layer_indices)
 last_LU <- selectRange(lulc_brick_masked, layer_indices)
 
 
+
+ggplot(all_data_csv, aes(x = last_LU, y = agbd, group = last_LU, fill = last_LU)) + 
+  geom_boxplot() + #(outlier.shape = NA) + 
+  labs(title = "Agbd Distribution by last land use",
+       x = "land use",
+       y = "agbd") +
+  scale_fill_discrete(name = "LU Category") + 
+  theme_minimal() +
+  theme(plot.title = element_text(size = 25),    
+        axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position = "bottom",             
+        legend.title = element_text(size = 20),   
+        legend.text = element_text(size = 20),    
+        axis.title = element_text(size = 30),   
+        axis.text = element_text(size = 20)) 
+
+filtered_data <- all_data_csv[all_data_csv$last_LU == 15, ]
+nrow(filtered_data)
+
+ggplot(filtered_data, aes(x = agbd)) +
+  geom_histogram(binwidth = 3, fill = "lightblue", color = "black") +
+  labs(title = "Histogram of agbd for pasture (725658 elements)",
+       x = "agbd",
+       y = "Frequency") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 30), 
+        axis.text.x = element_text(size = 20),  
+        axis.text.y = element_text(size = 20),  
+        axis.title = element_text(size = 25))

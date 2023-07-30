@@ -15,165 +15,17 @@ source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
 ######################################################################
 #################      unify data into central df   ##################
 ######################################################################
-# The issue with matching UTM coordinates directly is a lot of points are lost. what we are plotting is actually a very small percentage of what is actually matching.
-# with raster::resample, we can use nearest-neighbor.
-# Making rasters from MAPBIOMAS data
-lulc <- rast('./model_ready_rasters/0000000000-0000095232_lulc_history.tif') 
-regrowth <- rast('./model_ready_rasters/0000000000-0000095232_forest_age.tif')
-fire <- rast('./model_ready_rasters/0000000000-0000095232_fire_history.tif')
-
-# Making rasters from GEDI and soil data
-# GEDI and soil data is irregular and can't be converted directly into a regular raster.
-# making a raster from irregular data, using another raster as reference of size and resolution.
-# df must be in form [lon;lat;data].
-
-GEDI <- readRDS(paste0('./dataframes/',"0000000000-0000095232_GEDI.rds"))
-  GEDI <- GEDI[,c(3, 2, 5)]
-  colnames(GEDI) <- c('lon', 'lat', 'agbd')
-
-soil <- readRDS('./soil/soil.rds') #loads in country-wide soil data
-  colnames(soil) <- c('lon', 'lat', 'type')
-  soil$type <- as.factor(soil$type)
-  # since soil is categorical:
-  soil$numtype <- as.numeric(soil$type)
-
-prec <- rast('./model_ready_rasters/prec_0000000000-0000095232.tif')
-#tmin <- rast('./model_ready_rasters/tmin_0000000000-0000095232.tif')
-#tmax <- rast('./model_ready_rasters/tmax_0000000000-0000095232.tif')
-#temp <- tmax-tmin
-#writeRaster(temp, paste0('./model_ready_rasters/temp_0000000000-0000095232.tif'))
-temp <- rast('./model_ready_rasters/temp_0000000000-0000095232.tif')
-
-proj <- "+proj=longlat +elips=WGS84"
-GEDI_vect <- terra::vect(GEDI[,c("lon", "lat", "agbd")], crs = proj)
-GEDI_raster <- terra::rasterize(GEDI_vect, regrowth, field = "agbd")
-
-soil_vect <- terra::vect(soil[,c("lon", "lat", "numtype")], crs = proj)
-soil_raster <- terra::rasterize(soil_vect, GEDI_raster, field = "numtype")
-#soil_raster <- focal(soil_raster, 301, "modal", NAonly=TRUE, na.rm = TRUE)
-
-fire_cropped <- crop(fire, GEDI_raster)
-GEDI_raster_cropped <- crop(GEDI_raster, fire)
-regrowth_cropped <- crop(regrowth, GEDI_raster_cropped)
-lulc_cropped <- crop(lulc, GEDI_raster_cropped)
-soil_cropped <- crop(soil_raster, GEDI_raster_cropped) # work on this
-temp_cropped <- crop(temp, GEDI_raster_cropped)
-prec_cropped <- crop(prec, GEDI_raster_cropped)
-
-# names(GEDI_raster) <- 'agbd'
-# names(regrowth_cropped) <- 'age'
-# names(fire_resampled) <- c('num_fires', 'ts_last_fire')
-# names(soil_raster) <- 'soil_type'
-# names(sum_prec) <- 'sum_prec'
-# names(sum_temp) <- 'sum_temp'
-# names(sum_prec_sd) <- 'sum_prec_sd'
-# names(sum_temp_sd) <- 'sum_temp_sd'
-
-GEDI_raster <- mask(GEDI_raster, regrowth)
-regrowth <- mask(regrowth, GEDI_raster)
-
-all_data <- c(GEDI_raster, regrowth)
-
-coords <- crds(all_data[[1]], df=FALSE, na.rm=TRUE)
-values_stack <- terra::extract(all_data, coords, cells=FALSE, method="simple")
-agb_forest_age <- values_stack[complete.cases(values_stack), ]
-
-sds <- aggregate(agbd ~ forest_age, agb_forest_age, sd)
-means <- aggregate(agbd ~ forest_age, agb_forest_age, mean)
-sum_stats <- cbind(means, sds[,2])
-colnames(sum_stats) <- c('age', 'mean', 'sd')
-
-ggplot(sum_stats,                               # ggplot2 plot with means & standard deviation
-       aes(x = age,
-           y = median)) + 
-  geom_errorbar(aes(ymin = median - sd,
-                    ymax = median + sd)) +
-  geom_point() + theme(text = element_text(size = 20))  
-
-
-tst = subset(agb_forest_age, forest_age == 28)
-tst = subset(tst, agbd < 25)
-
-
-######################################################################
-#################        Sampling     ##################
-######################################################################
-total_temp <- app(temp, sum)
-total_prec <- app(prec, sum)
-total_years <- lulc_cropped[[6:9]]
-last_LU <- lulc_cropped[[1]]
-
-# getting percent of mature forest cover within x neighboring patches:
-# would like to get values within 300m radius (range of dispersal - cite)
-mature_mask <- rast('./mapbiomas/mature_masks/0000000000-0000095232_mature_mask.tif')
-mature_mask <- terra::crop(mature_mask, regrowth)
-mature_mask[mature_mask > 0] <- 1
-mature_mask <- subst(mature_mask, NA, 0)
-
-range <- 21
-mature_sum <- focal(mature_mask, range, sum, na.rm = TRUE) # run focal on these areas
-mature_sum <- mask(mature_sum, regrowth_cropped) # select only the sum of areas surrounding secondary patches.
-
-# mean biomass of surrounding mature forests around 3km (~100 pixels of 30m)
-biomass_range <- 101 # window size
-mature_biomass <- mask(GEDI_raster_cropped, mature_mask)  # get only biomass of mature forests
-mature_total_biomass <- focal(mature_biomass, biomass_range, sum, na.rm = TRUE)
-
-all_data <- c(GEDI_raster_cropped, regrowth_cropped, fire_cropped, total_years, last_LU, total_temp, total_prec, mature_sum) #, soil_cropped)
-
-coords <- crds(all_data[[1]], df=FALSE, na.rm=TRUE)
-values_stack <- terra::extract(all_data, coords, cells=FALSE, method="simple")
-central_df <- values_stack[complete.cases(values_stack), ]
-colnames(central_df)[1:4] <- c('agbd', 'age', 'total_fires', 'ts_fire')
-colnames(central_df)[10:12] <- c('temp', 'prec', 'mat_sum')
-
-#saveRDS(central_df, 'central_df.rds')
-central_df <- readRDS('central_df.rds')
-
-
-#normalized_df <- as.data.frame(lapply(central_df[,-c(6,9)], scale))
-
-normalized_df$Bmax <- 400
-head(normalized_df)
-
-data <- cbind(normalized_df, dummy_LU)
-head(data)
-
-# plot biomass and rainfall for mature forests
-
-library(mgcv)
-fit <- lm(data$agbd ~ data$age)
-by(central_df$agbd, central_df$age, summary)
-summary(gam(central_df$agbd ~ central_df$age))
-
-jpeg('plot3.jpeg')
-plot(data$agbd ~ data$age)
-abline(fit)
-dev.off()
-
-pred <- predict(fit)
-jpeg('pred_obs.jpeg')
-plot(pred, data$agbd)
-abline(0,1)
-dev.off()
-
-##############
-regrowth_paper <- rast('./secondary_forest_age_v2_2018/secondary_forest_age_v2_2018-0000000000-0000065536.tif')
-regrowth2 <- crop(regrowth_paper, regrowth)
-regrowth2[regrowth2 == 0] <- NA
-
-santoro_raster <- rast('N00W050_ESACCI-BIOMASS-L4-AGB-MERGED-100m-2018-fv4.0.tif')
-santoro_raster <- crop(santoro_raster, regrowth2)
-santoro_raster <- resample(santoro_raster, regrowth2)
-santoro_raster <- mask(santoro_raster, regrowth2)
-all_data <- c(santoro_raster, regrowth2)
-
-#writeRaster(all_data, 'santoro_regrowth.tif')
-
-all_data <- rast('santoro_regrowth.tif')
 fire <- rast('./model_ready_rasters/0000000000-0000095232_fire_history_santoro.tif')
 last_LU <- rast('last_LU.tif')
-all_data <- crop(all_data, fire)
+regrowth_paper <- rast('./secondary_forest_age_v2_2018/secondary_forest_age_v2_2018-0000000000-0000065536.tif')
+regrowth <- crop(regrowth_paper, fire)
+regrowth[regrowth == 0] <- NA
+
+santoro_raster <- rast('N00W050_ESACCI-BIOMASS-L4-AGB-MERGED-100m-2018-fv4.0.tif')
+santoro_raster <- crop(santoro_raster, regrowth)
+santoro_raster <- resample(santoro_raster, regrowth)
+santoro_raster <- mask(santoro_raster, regrowth)
+all_data <- c(santoro_raster, regrowth)
 
 temp_cropped <- crop(temp, all_data)
 prec_cropped <- crop(prec, all_data)
@@ -199,7 +51,46 @@ all_data_csv <- lapply(lu_tile, rast_to_df)
 all_data_csv <- bind_rows(all_data_csv)
 colnames(all_data_csv) <- c('agbd', 'age', 'prec', 'temp', 'total_fires', 'ts_fire', 'last_LU')
 
-saveRDS(all_data_csv, 'santoro_ESA_alldata.rds')
+#saveRDS(all_data_csv, 'santoro_ESA_alldata.rds')
+
+all_data_csv <- readRDS('santoro_ESA_alldata.rds')
+
+prec <- rast('./model_ready_rasters/prec_0000000000-0000095232.tif')
+temp <- rast('./model_ready_rasters/temp_0000000000-0000095232.tif')
+
+###############################################################
+
+nrow(all_data_csv)
+
+new_all_data <- aggregate(agbd~age, data=all_data_csv, median)
+
+plot(new_all_data$age, new_all_data$agbd)
+
+######################################################################
+#################        Sampling     ##################
+######################################################################
+total_temp <- app(temp, sum)
+total_prec <- app(prec, sum)
+
+# getting percent of mature forest cover within x neighboring patches:
+# would like to get values within 300m radius (range of dispersal - cite)
+mature_mask <- rast('./mapbiomas/mature_masks/0000000000-0000095232_mature_mask.tif')
+mature_mask <- terra::crop(mature_mask, regrowth)
+mature_mask[mature_mask > 0] <- 1
+mature_mask <- subst(mature_mask, NA, 0)
+
+range <- 21
+mature_sum <- focal(mature_mask, range, sum, na.rm = TRUE) # run focal on these areas
+mature_sum <- mask(mature_sum, regrowth) # select only the sum of areas surrounding secondary patches.
+
+# mean biomass of surrounding mature forests around 3km (~100 pixels of 30m)
+biomass_range <- 101 # window size
+mature_biomass <- mask(santoro_raster, mature_mask)  # get only biomass of mature forests
+mature_total_biomass <- focal(mature_biomass, biomass_range, sum, na.rm = TRUE)
+
+
+##############
+
 
 # min-max normalize central_df
 minMax <- function(x) {
@@ -218,7 +109,6 @@ data <- cbind(normalized_df, dummy_LU)
 
 #####################################
 
-all_data_csv <- readRDS('santoro_ESA_alldata.rds')
 
 
 fit <- lm(central_df$agbd ~ central_df$age)
@@ -238,20 +128,11 @@ ggplot(sum_stats,                               # ggplot2 plot with means & stan
                     ymax = median + sd)) +
   geom_point() + theme(text = element_text(size = 20))  
 
-##################
 
-result <- aov(data$agbd ~ data$other_perennial, data = data)
-summary(result)
-
-mean_mass_per_category <- data %>%
-  group_by(other_annual) %>%
-  summarize(mean_mass = median(agbd, na.rm = TRUE))
-mean_mass_per_category
 
 ######################################################################
 #################        passing into the model     ##################
 ######################################################################
-
 # create another list that sets to zero if things are not present
 
 G <- function(pars) {
@@ -265,8 +146,9 @@ G <- function(pars) {
 
 G <- function(pars) {
   # Extract parameters of the model
-  LU = pars[1] * data$total_fires + pars[2] * data$ts_fire + pars[3] * data$pasture + pars[4] * data$other_perennial + pars[5] * data$other_annual 
-  E = pars[6]*data$prec + pars[7]*data$temp 
+  LU = pars[1] * data$total_fires + pars[2] * data$ts_fire + pars[3] * data$pasture + 
+  pars[4] * data$other_perennial + pars[5] * data$other_annual 
+  E = pars[1]*data$prec + pars[2]*data$temp 
   k = E + LU
   # Prediction of the model
   return ( 1-(exp(-(k)))) #normalized_df$Bmax *   ) 
@@ -274,13 +156,13 @@ G <- function(pars) {
 
 G <- function(pars) {
   # Extract parameters of the model
-  k = pars[1] * data$age + pars[2]*data$prec 
+  k = pars[1] * data$age
   # Prediction of the model
   return (1-(exp(-(k))))
 }
 
-pars = c(0.05,0.05, 0.05, 0.05,0.05,0.005,0.0005, 0.005)
-pars = c(0.05, 0.05, 0.05)
+#pars = c(0.05,0.05, 0.05, 0.05,0.05,0.005,0.0005, 0.005)
+pars = c(0.05, 0.05)
 Gpred <- G(pars)
 Gpred
 
@@ -317,7 +199,22 @@ print(o)
 
 pred = G(o$par[1:length(o$par)])
 
-#jpeg('model2.jpeg')
-plot(data$agbd, pred, abline(0,1))
-#dev.off()
+outcome <- data.frame(data$agbd, pred)
+outcome <- round(outcome, 3)
 
+# Group by Column_A and calculate the median of Column_B for each group
+median_values <- outcome %>%
+  group_by(pred) %>%
+  summarize(median_agbd = median(data.agbd, na.rm = TRUE))
+  
+plot(median_values$median_agbd, median_values$pred, abline(0,1))
+
+plot(outcome$data.agbd, outcome$pred, abline(0,1))
+
+
+all_positive <- median_values %>%
+  filter(pred >= 0)
+
+tst <- lm(all_positive$pred ~ all_positive$median_agbd)
+# 0.4716 R squared
+# 0.202 R squared without LULC

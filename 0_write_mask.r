@@ -1,7 +1,7 @@
 ####################################################################
 ########## Predicting forest regrowth from Mapbiomas data ##########
 # Writing raster masks selecting for only secondary forest patches at 2019.
-# Ana Avila - Jan 2023
+# Ana Avila
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # MAPBIOMAS raw data comes divided in 12 different regions of the Amazon, each with their own identifier (a location number).
 # This script builds rasters from raw materials containing only regrowth events.
