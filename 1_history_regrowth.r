@@ -82,7 +82,3 @@ forest_age <- which.lyr(regrowth_cleaned_flipped == 503)
 writeRaster(forest_age, paste0('./model_ready_rasters/', location, '_forest_age.tif'))
 
 # 1.72908 % of the pixels are nonNA, meaning they are currently regrowing forests without any classification issues.
-
-#################################
-
-age <- rast('./secondary_forest_age_v2_2018/secondary_forest_age_v2_2018-0000000000-0000065536.tif')

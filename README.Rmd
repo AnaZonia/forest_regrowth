@@ -2,8 +2,8 @@ MAPBIOMAS data comes divided in 12 regions of the Amazon, each with their own id
 
 0_write_mask
 Takes MAPBIOMAS raw forest cover data (./mapbiomas/regrowth) ------ generates two masks:
--	All pixels CLASSIFIED AS REGROWING FORESTS IN 2019 ( location_regrowth_mask.tif)
--	All pixels CLASSIFIED AS MATURE FORESTS IN 2019 ( location_mature_mask.tif)
+-	All pixels CLASSIFIED AS REGROWING FORESTS IN 2019 ( location_regrowth_mask.tif) stored in ./mapbiomas/regrowth_masks/
+-	All pixels CLASSIFIED AS MATURE FORESTS IN 2019 ( location_mature_mask.tif) stored in ./mapbiomas/mature_masks/
 
 1_history_regrowth
 Intakes MAPBIOMAS raw forest cover data (./mapbiomas/regrowth)------ generates forest_age raster:
@@ -15,7 +15,7 @@ o	Removes unflagged regrowth moments
 -	Returns raster with ALL SECONDARY FOREST AGES by using the identifier “503” as an indicator of regrowth (as indicated in MAPBIOMAS indexes) (location_forest_age.tif)
 
 1_history_fire
-	Intakes MAPBIOMAS raw fire data (./mapbiomas/lulc) and 	location_forest_age.tif  ---- generates fire brick (location_fire_history.tif):
+	Intakes MAPBIOMAS raw fire data (./mapbiomas/lulc) and either location_forest_age.tif or santoro regrowth data ---- generates fire brick (location_fire_history.tif):
 -	Total number of fires
 -	How many years since regrowth event was the last fire observed
 
@@ -26,7 +26,7 @@ o	Removes unflagged regrowth moments
 -	Last observed land use type before regrowth.
 
 1_environmental
-	Intakes:
+	Intakes: 
 	WORLDCLIM tmin, tmax, and prec (2.5m resolution, stored in Polaris)
 	FAO soil
 	Output:

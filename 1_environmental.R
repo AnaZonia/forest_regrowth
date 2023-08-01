@@ -31,8 +31,17 @@ download_worldclim = FALSE
 ##########  Temperature/Precipitation ##########
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 outdir <- "./worldclim" # Specify your preferred working directory
+
+# from my own mapbiomas data
 location <- '0000000000-0000095232'
 regrowth <- rast("./model_ready_rasters/0000000000-0000095232_forest_age.tif")
+
+#################################   2018 regrowing forest paper
+
+# read all data into a single block
+files_tmp <- list.files(path = './secondary_forest_age_v2_2018', full.names=TRUE)   # obtain paths for all files for that location
+regrowth_silva <- lapply(files_tmp, rast)
+locations <- str_sub(files_tmp, start= -25, end = -5)
 
 if (download_worldclim == T){
   vars = c("tmin_", "tmax_", "prec_")
@@ -56,14 +65,19 @@ if (download_worldclim == T){
 mk_list <- function(x)  {as.list(intersect(list.files(path = outdir, pattern = "*.tif", full.names = TRUE),
                                            list.files(path = outdir, pattern = x, full.names = TRUE)))}
 
+regrowth_mask <- regrowth_silva[[1]]
+location <- locations[[1]]
+
+Sys.time()
 vars <- c("tmax", "tmin")
+var <- 'tmax'
 for (var in vars){
   list_clim <- mk_list(var)
   # read the files
   raster_clim <- lapply(list_clim, rast)
 
   yearly <- c()
-  for (i in seq(1, 408, 12)){
+  for (i in seq(1, length(raster_clim), 12)){ # 12 months in a year, 408 months
     tst <- raster_clim[[i]]
     print(i)
     for (j in (i+1):(i+11)){
@@ -77,6 +91,7 @@ for (var in vars){
   raster_clim <- resample(cropped, regrowth_mask, method='near')
   raster_clim_masked <- mask(raster_clim, regrowth_mask)
   writeRaster(raster_clim_masked, filename=paste0(var, '_', location, '_santoro.tif'))
+  Sys.time()
 }
 
 #resolution is about 4.5 km.

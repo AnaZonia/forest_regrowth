@@ -7,7 +7,7 @@
 
 library(ggplot2)
 library(terra) # handling spatial data
-library(data.table) #to use data.table objects in the rasterFromXYZ_irr() function
+library(tidyverse)
 library(sf)
 setwd("/home/aavila/forest_regrowth")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
@@ -15,21 +15,24 @@ source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
 ######################################################################
 #################      unify data into central df   ##################
 ######################################################################
+prec <- rast('./model_ready_rasters/prec_0000000000-0000095232.tif')
+temp <- rast('./model_ready_rasters/temp_0000000000-0000095232.tif')
 fire <- rast('./model_ready_rasters/0000000000-0000095232_fire_history_santoro.tif')
-last_LU <- rast('last_LU.tif')
+last_LU <- rast('last_LU_0000000000-0000095232_santoro.tif')
 regrowth_paper <- rast('./secondary_forest_age_v2_2018/secondary_forest_age_v2_2018-0000000000-0000065536.tif')
 regrowth <- crop(regrowth_paper, fire)
 regrowth[regrowth == 0] <- NA
 
-santoro_raster <- rast('N00W050_ESACCI-BIOMASS-L4-AGB-MERGED-100m-2018-fv4.0.tif')
+santoro_raster <- rast('./santoro/N00W050_ESACCI-BIOMASS-L4-AGB-MERGED-100m-2018-fv4.0.tif')
 santoro_raster <- crop(santoro_raster, regrowth)
-santoro_raster <- resample(santoro_raster, regrowth)
+santoro_raster <- resample(santoro_raster, regrowth,'near')
 santoro_raster <- mask(santoro_raster, regrowth)
 all_data <- c(santoro_raster, regrowth)
 
 temp_cropped <- crop(temp, all_data)
 prec_cropped <- crop(prec, all_data)
-total_temp <- app(temp_cropped, sum)
+
+total_temp <- app(temp_cropped, sum) #what if I try to incorporate the yearly effect right now?
 total_prec <- app(prec_cropped, sum)
 names(fire_cropped) <- c('total_fires', 'ts_fire')
 names(total_temp) <- c('total_temp')
@@ -37,7 +40,7 @@ names(total_prec) <- c('total_prec')
 
 all_data_santoro <- c(all_data, total_prec, total_temp, fire, last_LU)
 file_name <- paste0(tempfile(), "_.tif")
-lu_tile <- makeTiles(all_data_santoro, c(2000,2000), file_name, na.rm = TRUE, overwrite=TRUE)
+lu_tile <- makeTiles(all_data, c(2000,2000), file_name, na.rm = TRUE, overwrite=TRUE)
 lu_tile <- lapply(lu_tile, rast)
 
 rast_to_df <- function(raster){
@@ -51,19 +54,15 @@ all_data_csv <- lapply(lu_tile, rast_to_df)
 all_data_csv <- bind_rows(all_data_csv)
 colnames(all_data_csv) <- c('agbd', 'age', 'prec', 'temp', 'total_fires', 'ts_fire', 'last_LU')
 
-#saveRDS(all_data_csv, 'santoro_ESA_alldata.rds')
+saveRDS(all_data_csv, 'santoro_ESA_alldata.rds')
 
+agbdagb <- all_data_csv
 all_data_csv <- readRDS('santoro_ESA_alldata.rds')
-
-prec <- rast('./model_ready_rasters/prec_0000000000-0000095232.tif')
-temp <- rast('./model_ready_rasters/temp_0000000000-0000095232.tif')
 
 ###############################################################
 
-nrow(all_data_csv)
-
+colnames(all_data_csv) <- c('agbd', 'age')
 new_all_data <- aggregate(agbd~age, data=all_data_csv, median)
-
 plot(new_all_data$age, new_all_data$agbd)
 
 ######################################################################
@@ -206,6 +205,8 @@ outcome <- round(outcome, 3)
 median_values <- outcome %>%
   group_by(pred) %>%
   summarize(median_agbd = median(data.agbd, na.rm = TRUE))
+
+head(outcome)
   
 plot(median_values$median_agbd, median_values$pred, abline(0,1))
 

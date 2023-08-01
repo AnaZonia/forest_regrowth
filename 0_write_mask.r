@@ -15,6 +15,8 @@ library(tidyverse)
 setwd("/home/aavila/forest_regrowth")
 source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r") # sourcing functions
 
+####################### from MAPBIOMAS
+ 
 # EXTRACTING DATA FROM MULTIPLE REGIONS OF THE COUNTRY (larger scale)
 path <- './mapbiomas/regrowth'
 files <- list.files(path)
