@@ -3,7 +3,7 @@ MAPBIOMAS data comes divided in 12 regions of the Amazon, each with their own id
 0_write_mask
 Takes MAPBIOMAS raw forest cover data (./mapbiomas/regrowth) ------ generates two masks:
 -	All pixels CLASSIFIED AS REGROWING FORESTS IN 2019 ( location_regrowth_mask.tif) stored in ./mapbiomas/regrowth_masks/
--	All pixels CLASSIFIED AS MATURE FORESTS IN 2019 ( location_mature_mask.tif) stored in ./mapbiomas/mature_masks/
+-	All pixels CLASSIFIED AS MATURE FORESTS IN ALL YEARS ( location_mature_mask.tif) stored in ./mapbiomas/mature_masks/
 
 1_history_regrowth
 Intakes MAPBIOMAS raw forest cover data (./mapbiomas/regrowth)------ generates forest_age raster:

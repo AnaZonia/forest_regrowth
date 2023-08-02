@@ -37,12 +37,15 @@ for (location in locations){
   files_tmp <- list.files(path = './mapbiomas/regrowth', pattern=location, full.names=TRUE)   # obtain paths for all files for that location
   files_tmp <- sort(files_tmp)
 
-  last_year_regrowth <- rast(files_tmp[length(files_tmp)])
-  last_year_regrowth[last_year_regrowth!=303] <- NA # only leave behind values not including currently regrowing patches
-  writeRaster(last_year_regrowth, file.path(paste0('./mapbiomas/regrowth_masks/', location, '_regrowth_mask.tif'))) # save rasters with the year on the folder created for each location.
+  # last_year_regrowth <- rast(files_tmp[length(files_tmp)])
+  # last_year_regrowth[last_year_regrowth!=303] <- NA # only leave behind values not including currently regrowing patches
+  # writeRaster(last_year_regrowth, file.path(paste0('./mapbiomas/regrowth_masks/', location, '_regrowth_mask.tif'))) # save rasters with the year on the folder created for each location.
   
-  last_year_mature <- rast(files_tmp[length(files_tmp)])
-  last_year_mature[last_year_mature > 300] <- NA
-  last_year_mature[last_year_mature < 200] <- NA # only leave behind values not including the regrowth moment
-  writeRaster(last_year_mature, file.path(paste0('./mapbiomas/mature_masks/', location, '_mature_mask.tif'))) # save rasters with the year on the folder created for each location.
+  location <- locations[[2]]
+  # all_years_mature
+  mature <- lapply(files_tmp, rast)
+  mature <- rast(mature)
+  mature[mature > 300 | mature < 200] <- NA # only leave behind mature values
+  mature_mask <- mask(mature, app(mature, fun = sum))
+  writeRaster(m[[1]], file.path(paste0('./mapbiomas/mature_masks/', location, '_mature_mask.tif'))) # save rasters with the year on the folder created for each location.
 }

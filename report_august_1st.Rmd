@@ -23,72 +23,71 @@ neg_log_likelihood <- function(pars) {
 }
 
 optim(par = c(a = 1, b = 1, c = 1), fn = neg_log_likelihood)
+
 ```
 
 Behaves as expected, so far so good.
 
-Now I load in the data and check it out
+One thing is I am unsure what to do with the standard deviation - I noticed that if I try to add it as the last element
+in the pars vector, predictions are way worse.
+
+Now I load in the data and check it out - normalizing, as I was doing before.
 
 ```{R} 
+setwd("/home/aavila/forest_regrowth")
+
 all_data_csv <- readRDS('santoro_ESA_alldata.rds')
+
 head(all_data_csv)
 
 x <- all_data_csv$age
 y <- all_data_csv$agbd
 
 G <- function(pars) {
-  pars['a'] * (1 - exp(-pars['b'] * x))^pars['c']
+  pars['a'] * (1 - exp(-pars['b'] * x))
 }
 
 neg_log_likelihood <- function(pars) {
   -sum(dnorm(y, G(pars), sd = 1, log = TRUE))
 }
 
-optim(par = c(a = 1, b = 1, c = 1), fn = neg_log_likelihood)
+o = optim(par = c(a = 1, b = 1), fn = neg_log_likelihood)
+o
+
 
 ```
 
+So, when I try to optimize without normalizing, the predictions look kinda terrible.
 
+By normalizing, as I was doing before:
 
+```{R}
 
-
-
-
-##########################
-
-
-# Set the seed for reproducibility
-set.seed(123)
-
-# Generate fake data
-x <- seq(0, 10, by = 0.1)
-y <- 100 * (1 - exp(-0.2 * x))^3 + rnorm(length(x), sd = 5)
-
-# Define the Chapman-Richards growth model
-chapman_richards <- function(x, a, b, c) {
-  a * (1 - exp(-b * x))^c
+# min-max normalize central_df
+minMax <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
 }
 
-# Define the negative log-likelihood function
-NLL <- function(pars) {
-  # Extract the parameters
-  a <- pars[1]
-  b <- pars[2]
-  c <- pars[3]
-  sd <- pars[4]
+all_data <- all_data_csv[all_data_csv$last_LU %in% c(15, 41, 48),]
 
-  # Compute the model predictions
-  y_pred <- chapman_richards(x, a, b, c)
+all_data$last_LU <- factor(all_data$last_LU)
+dummy_LU <- as.data.frame(model.matrix(~ all_data$last_LU - 1))
+names(dummy_LU) <- c('pasture', 'other_annual', 'other_perennial')
 
-  # Compute the negative log-likelihood
-  -sum(dnorm(y, mean = y_pred, sd = sd, log = TRUE))
+all_data <- all_data[,-7]
+normalized_df <- as.data.frame(lapply(all_data, minMax))
+data <- cbind(normalized_df, dummy_LU)
+
+G <- function(pars) {
+    pars['a'] * (1 - exp(-pars['b'] * x))
 }
 
-# Set the initial values for the parameters
-pars_init <- c(a = 10, b = 0.01, c = 1, sd = 5)
+pars = c(a = 0.05, b = 0.05)
+Gpred <- G(pars)
+Gpred
 
-# Maximize the negative log-likelihood using nlm
-fit <- nlm(NLL, p = pars_init)
+```
 
-# Print the estimated parameters
-fit$estimate
+# the model
+
+$$\\frac{1}{1 + \\frac{1}{2 + \\frac{1}{3}} }$$

@@ -26,14 +26,14 @@ regrowth[regrowth == 0] <- NA
 santoro_raster <- rast('./santoro/N00W050_ESACCI-BIOMASS-L4-AGB-MERGED-100m-2018-fv4.0.tif')
 santoro_raster <- crop(santoro_raster, regrowth)
 santoro_raster <- resample(santoro_raster, regrowth,'near')
-santoro_raster <- mask(santoro_raster, regrowth)
-all_data <- c(santoro_raster, regrowth)
+#santoro_raster <- mask(santoro_raster, regrowth)
+#all_data <- c(santoro_raster, regrowth)
 
 temp_cropped <- crop(temp, all_data)
 prec_cropped <- crop(prec, all_data)
 
-total_temp <- app(temp_cropped, sum) #what if I try to incorporate the yearly effect right now?
-total_prec <- app(prec_cropped, sum)
+# total_temp <- app(temp_cropped, sum) #what if I try to incorporate the yearly effect right now?
+# total_prec <- app(prec_cropped, sum)
 names(fire_cropped) <- c('total_fires', 'ts_fire')
 names(total_temp) <- c('total_temp')
 names(total_prec) <- c('total_prec')
@@ -71,12 +71,20 @@ plot(new_all_data$age, new_all_data$agbd)
 total_temp <- app(temp, sum)
 total_prec <- app(prec, sum)
 
+plot(trim(regrowth))
 # getting percent of mature forest cover within x neighboring patches:
 # would like to get values within 300m radius (range of dispersal - cite)
 mature_mask <- rast('./mapbiomas/mature_masks/0000000000-0000095232_mature_mask.tif')
+mature_mask <- m[[1]]
 mature_mask <- terra::crop(mature_mask, regrowth)
 mature_mask[mature_mask > 0] <- 1
 mature_mask <- subst(mature_mask, NA, 0)
+
+# I'm looking at the MAPBIOMAS definition of currently mature,
+# as well as the other dude's definition of regrowing forest.
+# there is some overlap because they don't 100% agree.
+# I'll change my definition of mature forest to one that has been mature the whole 33 years.
+# that should help a lot.
 
 range <- 21
 mature_sum <- focal(mature_mask, range, sum, na.rm = TRUE) # run focal on these areas
@@ -86,7 +94,6 @@ mature_sum <- mask(mature_sum, regrowth) # select only the sum of areas surround
 biomass_range <- 101 # window size
 mature_biomass <- mask(santoro_raster, mature_mask)  # get only biomass of mature forests
 mature_total_biomass <- focal(mature_biomass, biomass_range, sum, na.rm = TRUE)
-
 
 ##############
 
@@ -160,7 +167,6 @@ G <- function(pars) {
   return (1-(exp(-(k))))
 }
 
-#pars = c(0.05,0.05, 0.05, 0.05,0.05,0.005,0.0005, 0.005)
 pars = c(0.05, 0.05)
 Gpred <- G(pars)
 Gpred
@@ -181,7 +187,7 @@ NLL = function(pars) {
   Gpred = G(pars)
   #print(Gpred)
   # Negative log-likelihood 
-  fun = -sum(dnorm(x = data$agbd - Gpred, mean = 0, sd = pars[length(pars)], log = TRUE), na.rm = TRUE)
+  fun = -sum(dnorm(x = data$agbd - Gpred, mean = 0, sd = 1, log = TRUE), na.rm = TRUE)  #pars[length(pars)]
   return(fun)
 }
 
@@ -206,7 +212,7 @@ median_values <- outcome %>%
   group_by(pred) %>%
   summarize(median_agbd = median(data.agbd, na.rm = TRUE))
 
-head(outcome)
+head(median_values)
   
 plot(median_values$median_agbd, median_values$pred, abline(0,1))
 
