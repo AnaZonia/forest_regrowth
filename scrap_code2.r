@@ -1,91 +1,21 @@
-set.seed(123)
 
-setwd("/home/aavila/forest_regrowth")
+### mature forest confusions
 
-all_data_csv <- readRDS('santoro_ESA_alldata.rds')
-
-head(all_data_csv)
-
-x <- all_data_csv$age
-y <- all_data_csv$agbd
-
-G <- function(pars) {
-  pars['a'] * (1 - exp(-pars['b'] * x))
-}
-
-neg_log_likelihood <- function(pars) {
-  -sum(dnorm(y, G(pars), sd = 1, log = TRUE))
-}
-
-o = optim(par = c(a = 1, b = 1), fn = neg_log_likelihood)
-o
-
-pred = G(o$par[1:length(o$par)])
-
-outcome <- data.frame(y, pred)
-outcome <- round(outcome, 3)
-
-
-##########################
-
-
-# Set the seed for reproducibility
-set.seed(123)
-
-# Generate fake data
-x <- seq(0, 10, by = 0.1)
-y <- 100 * (1 - exp(-0.2 * x))^3 + rnorm(length(x), sd = 5)
-
-# Define the Chapman-Richards growth model
-chapman_richards <- function(x, a, b, c) {
-  a * (1 - exp(-b * x))^c
-}
-
-# Define the negative log-likelihood function
-NLL <- function(pars) {
-  # Extract the parameters
-  a <- pars[1]
-  b <- pars[2]
-  c <- pars[3]
-  sd <- pars[4]
-
-  # Compute the model predictions
-  y_pred <- chapman_richards(x, a, b, c)
-
-  # Compute the negative log-likelihood
-  -sum(dnorm(y, mean = y_pred, sd = sd, log = TRUE))
-}
-
-# Set the initial values for the parameters
-pars_init <- c(a = 10, b = 0.01, c = 1, sd = 5)
-
-# Maximize the negative log-likelihood using nlm
-fit <- nlm(NLL, p = pars_init)
-
-# Print the estimated parameters
-fit$estimate
-
-
-
-
+# mean biomass of surrounding mature forests around 3km (~100 pixels of 30m)
+# biomass_range <- 101 # window size
+# mature_biomass <- mask(santoro_raster, mature_mask)  # get only biomass of mature forests
+# mature_total_biomass <- focal(mature_biomass, biomass_range, sum, na.rm = TRUE)
 
 # Load required libraries
 library(terra)
 library(parallel)
 
-tiles <- makeTiles(trim(regrowth), c(200,200), na.rm = TRUE, overwrite=TRUE)  # Adjust nx and ny to desired block size
+tiles <- makeTiles(trim(mature_biomass), c(200,200), na.rm = TRUE, overwrite=TRUE)  # Adjust nx and ny to desired block size
 tiles <- lapply(tiles, rast)
-length(tiles)
+
 # function intakes buffer_size in meters and mean_biomass_in_x_pixels is self explanatory
 calc_buffer_and_sum <- function(tile, buffer_size, mean_biomass_in_x_pixels) {
-  buffer_size = 300
-  r <- tiles[[1000]]
-  pnt = as.points(r, values = FALSE)
-  pol = buffer(pnt, 10)
-  r[dist <= buffer_size] <- 1
-  plot(dist)
-  mature_biomass_crop <- crop(mature_biomass, dist)
-  mature_biomass_msk <- mask(mature_biomass_crop, dist)
+
   mature_total_biomass <- focal(mature_biomass_msk, mean_biomass_in_x_pixels, mean, na.rm = TRUE)
   mature_biomass_msk <- mask(mature_total_biomass, rast(tile))
 
@@ -94,8 +24,10 @@ calc_buffer_and_sum <- function(tile, buffer_size, mean_biomass_in_x_pixels) {
 buffer_mask <- as.mask(dist)
 mask_raster <- rast(r, mask = dist)
 
+library(parallel)
+tiles_processed <- mclapply(tiles, focal, 51, mean, na.rm = TRUE, ncores = 20)
+saveRDS(tiles_processed, file = ".rds")
 
-tiles_processed <- mclapply(tiles, calc_buffer_and_sum, 1000, 51, ncores = 10)
 
 # Step 5: Combine the results from tiles into the final raster
 result <- aggregate(tiles_processed, fun = sum)
@@ -103,3 +35,63 @@ result <- aggregate(tiles_processed, fun = sum)
 plot(trim(mature_biomass))
 
 
+
+
+
+
+data <- readRDS('santoro_ESA_alldata.rds')
+
+data <- data[data$last_LU %in% c(15, 41, 48),]
+data$last_LU <- factor(data$last_LU)
+dummy_LU <- as.data.frame(model.matrix(~ data$last_LU - 1))
+names(dummy_LU) <- c('pasture', 'other_annual', 'other_perennial')
+data <- data[,-7]
+
+minMax <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+data <- as.data.frame(lapply(data, minMax))
+
+#data <- as.data.frame(scale(data))
+
+data <- cbind(data, dummy_LU)
+
+######################################################################
+#################        passing into the model     ##################
+######################################################################
+
+G <- function(pars) {
+  E = pars['temp'] * data$temp + pars['prec'] * data$prec
+  LU = pars['total_fires'] * data$total_fires + pars['ts_fire'] * data$ts_fire + pars['pasture'] * data$pasture + 
+      pars['other_perennial'] * data$other_perennial + pars['other_annual'] * data$other_annual 
+  k = E
+  (1 - exp(-k))
+}
+
+pars = c(B_0 = 10, A = 100, temp = 0.5, prec = 0.5, total_fires = 0.05, ts_fire = 0.05, pasture = 0.05, other_perennial = 0.05, other_annual = 0.05,  sd = 0.05)
+Gpred <- G(pars)
+Gpred
+
+  NLL = function(pars) {
+  if(pars['sd'] < 0){ #avoiding NAs by keeping the st dev positive
+    return(-Inf)
+  }
+  Gpred = G(pars)
+  # Negative log-likelihood 
+  -sum(dnorm(x = data$agbd - Gpred, mean = 0, sd = pars['sd'], log = TRUE), na.rm = TRUE)
+  }
+
+
+o = optim(par = pars, fn = NLL, hessian = FALSE)
+o
+
+pred = G(o$par[1:length(o$par)])
+
+outcome <- data.frame(data$agbd, pred)
+outcome <- round(outcome, 3)
+
+median_values <- outcome %>%
+  group_by(pred) %>%
+  summarize(median_agbd = median(data.agbd, na.rm = TRUE))
+
+plot(median_values$pred, median_values$median_agbd, abline(0,1))
