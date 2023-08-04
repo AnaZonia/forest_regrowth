@@ -76,8 +76,8 @@ minMax <- function(x) {
 }
 #data <- as.data.frame(lapply(data, minMax))
 
-#data <- as.data.frame(scale(data))
-
+data <- as.data.frame(scale(data))
+data <- data 
 data <- cbind(data, dummy_LU)
 
 ######################################################################
@@ -88,7 +88,7 @@ G <- function(pars) {
   E = pars['temp'] * data$temp + pars['prec'] * data$prec
   LU = pars['total_fires'] * data$total_fires + pars['ts_fire'] * data$ts_fire + pars['pasture'] * data$pasture + 
       pars['other_perennial'] * data$other_perennial + pars['other_annual'] * data$other_annual 
-  k = E + LU
+  k = E
   pars['B_0'] + pars['A'] * (1 - exp(-k))
 }
 
@@ -97,14 +97,11 @@ pars = c(B_0 = 10, A = 100, temp = 0.0005, prec = 0.000005, total_fires = 0.05, 
 Gpred <- G(pars)
 head(Gpred)
 
-  NLL = function(pars) {
-  # if(pars['sd'] < 0){ #avoiding NAs by keeping the st dev positive
-  #   return(-Inf)
-  # } pars['sd']
-  # Gpred = G(pars)
-  # Negative log-likelihood 
-  -sum(dnorm(x = data$agbd - Gpred, mean = 0, sd =  1, log = TRUE), na.rm = TRUE)
-  }
+NLL = function(pars) {
+# Gpred = G(pars)
+# Negative log-likelihood 
+-sum(dnorm(x = data$agbd - Gpred, mean = 0, sd = pars['sd'], log = TRUE), na.rm = TRUE)
+}
 
 
 o = optim(par = pars, fn = NLL, hessian = FALSE)
