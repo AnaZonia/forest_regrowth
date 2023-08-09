@@ -5,10 +5,8 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ####################################################################
 
-library(ggplot2)
 library(terra) # handling spatial data
 library(tidyverse)
-library(sf)
 setwd("/home/aavila/forest_regrowth")
  
 ######################################################################
@@ -25,7 +23,7 @@ regrowth[regrowth == 0] <- NA
 santoro_raster <- rast('./santoro/N00W050_ESACCI-BIOMASS-L4-AGB-MERGED-100m-2018-fv4.0.tif')
 santoro_raster <- crop(santoro_raster, regrowth)
 santoro_raster <- resample(santoro_raster, regrowth,'near')
-santoro_raster <- mask(santoro_raster, regrowth)
+#santoro_raster <- mask(santoro_raster, regrowth)
 
 # getting percent of mature forest cover within x neighboring patches:
 mature_mask <- rast('./mapbiomas/mature_masks/0000000000-0000095232_mature_mask.tif')
@@ -63,6 +61,7 @@ colnames(data) <- c('agbd', 'age', 'prec', 'temp', 'total_fires', 'ts_fire', 'la
 #saveRDS(data, 'santoro_ESA_alldata.rds')
 
 ###############################################################
+
 data <- readRDS('santoro_ESA_alldata.rds')
 
 data <- data[data$last_LU %in% c(15, 41, 48),]
@@ -76,13 +75,21 @@ minMax <- function(x) {
 }
 #data <- as.data.frame(lapply(data, minMax))
 
-data <- as.data.frame(scale(data))
-data <- data 
-data <- cbind(data, dummy_LU)
+data_scaled <- cbind(agbd=data$agbd, scale(data[,2:ncol(data)]))
+data_maxmin <- cbind(agbd=data$agbd, minMax(data[,2:ncol(data)]))
+
+#data <- cbind(data, dummy_LU)
+data <- as.data.frame(data_scaled)
 
 ######################################################################
 #################        passing into the model     ##################
 ######################################################################
+
+# why is everything converging to the asymptote?
+# capture the temporal trend. is the temporal trend different everywhere?
+# is the fitted asymptote the mean? that's the null model.
+
+
 
 G <- function(pars) {
   E = pars['temp'] * data$temp + pars['prec'] * data$prec
@@ -92,19 +99,21 @@ G <- function(pars) {
   pars['B_0'] + pars['A'] * (1 - exp(-k))
 }
 
-pars = c(B_0 = 10, A = 100, temp = 0.0005, prec = 0.000005, total_fires = 0.05, ts_fire = 0.05, pasture = 0.05, other_perennial = 0.05, other_annual = 0.05,  sd = 0.05)
-
+pars = c(B_0 = 10, A = 100, temp =- 0.002, prec = 0.000005, total_fires = 0.05, 
+ts_fire = 0.05, pasture = 0.05, other_perennial = 0.05, other_annual = 0.05, sd = 0.05)
 Gpred <- G(pars)
 head(Gpred)
 
 NLL = function(pars) {
-# Gpred = G(pars)
+if(pars['sd'] < 0){ #avoiding NAs by keeping the st dev positive
+  return(-Inf)
+}
 # Negative log-likelihood 
 -sum(dnorm(x = data$agbd - Gpred, mean = 0, sd = pars['sd'], log = TRUE), na.rm = TRUE)
 }
 
 
-o = optim(par = pars, fn = NLL, hessian = FALSE)
+o = optim(par = pars, fn = NLL, hessian = FALSE)   #, method = 'L-BFGS-B')
 o
 
 pred = G(o$par)
@@ -116,7 +125,7 @@ median_values <- outcome %>%
   group_by(pred) %>%
   summarize(median_agbd = median(data.agbd, na.rm = TRUE))
 
-plot(median_values$pred, median_values$median_agbd, abline(0,1))
+plot(median_values$pred, median_values$median_agbd, abline(0,1), xlim=c(0, 100))
 
 #####################################
 
