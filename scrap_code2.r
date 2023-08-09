@@ -1,9 +1,10 @@
 
 ### mature forest confusions
+tst <- rast('aet_198501.tif')
 
 # mean biomass of surrounding mature forests around 3km (~100 pixels of 30m)
-# biomass_range <- 101 # window size
-# mature_biomass <- mask(santoro_raster, mature_mask)  # get only biomass of mature forests
+ biomass_range <- 101 # window size
+ mature_biomass <- mask(santoro_raster, mature_mask)  # get only biomass of mature forests
 # mature_total_biomass <- focal(mature_biomass, biomass_range, sum, na.rm = TRUE)
 
 # Load required libraries
@@ -29,12 +30,24 @@ tiles_processed <- mclapply(tiles, focal, 51, mean, na.rm = TRUE, ncores = 20)
 saveRDS(tiles_processed, file = ".rds")
 
 
-# Step 5: Combine the results from tiles into the final raster
-result <- aggregate(tiles_processed, fun = sum)
 
-plot(trim(mature_biomass))
+library(terra)
+#> terra 1.7.39
+par(mfrow = c(2, 1))
 
+r <- rast(ncols=36, nrows=18)
+r[500] <- 1
+b <- buffer(r, width=5000000) 
+plot(b)
 
+s <- rast(ncols=36, nrows=18)
+values(s) <- runif(ncell(s))
+
+# set FALSE values to NA
+# b[!b] <- NA
+# or change maskvalues arg to match the mask raster:
+tst <- mask(s, b, maskvalues = FALSE)
+plot(tst)
 
 
 
@@ -55,43 +68,3 @@ data <- as.data.frame(lapply(data, minMax))
 #data <- as.data.frame(scale(data))
 
 data <- cbind(data, dummy_LU)
-
-######################################################################
-#################        passing into the model     ##################
-######################################################################
-
-G <- function(pars) {
-  E = pars['temp'] * data$temp + pars['prec'] * data$prec
-  LU = pars['total_fires'] * data$total_fires + pars['ts_fire'] * data$ts_fire + pars['pasture'] * data$pasture + 
-      pars['other_perennial'] * data$other_perennial + pars['other_annual'] * data$other_annual 
-  k = E
-  (1 - exp(-k))
-}
-
-pars = c(B_0 = 10, A = 100, temp = 0.5, prec = 0.5, total_fires = 0.05, ts_fire = 0.05, pasture = 0.05, other_perennial = 0.05, other_annual = 0.05,  sd = 0.05)
-Gpred <- G(pars)
-Gpred
-
-  NLL = function(pars) {
-  if(pars['sd'] < 0){ #avoiding NAs by keeping the st dev positive
-    return(-Inf)
-  }
-  Gpred = G(pars)
-  # Negative log-likelihood 
-  -sum(dnorm(x = data$agbd - Gpred, mean = 0, sd = pars['sd'], log = TRUE), na.rm = TRUE)
-  }
-
-
-o = optim(par = pars, fn = NLL, hessian = FALSE)
-o
-
-pred = G(o$par[1:length(o$par)])
-
-outcome <- data.frame(data$agbd, pred)
-outcome <- round(outcome, 3)
-
-median_values <- outcome %>%
-  group_by(pred) %>%
-  summarize(median_agbd = median(data.agbd, na.rm = TRUE))
-
-plot(median_values$pred, median_values$median_agbd, abline(0,1))

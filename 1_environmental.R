@@ -68,7 +68,6 @@ mk_list <- function(x)  {as.list(intersect(list.files(path = outdir, pattern = "
 regrowth_mask <- regrowth_silva[[1]]
 location <- locations[[1]]
 
-Sys.time()
 vars <- c("tmax", "tmin")
 var <- 'tmax'
 for (var in vars){
@@ -91,7 +90,6 @@ for (var in vars){
   raster_clim <- resample(cropped, regrowth_mask, method='near')
   raster_clim_masked <- mask(raster_clim, regrowth_mask)
   writeRaster(raster_clim_masked, filename=paste0(var, '_', location, '_santoro.tif'))
-  Sys.time()
 }
 
 #resolution is about 4.5 km.
@@ -99,7 +97,6 @@ for (var in vars){
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##########  Soil ##########
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# SNUM - Soil mapping unit number
 
 soil <- sf::st_read(dsn = paste0(getwd(),"/soil/") , layer="DSMW")
 
@@ -123,6 +120,28 @@ for (i in 2:length(brazil_soil$DOMSOI)){
 saveRDS(test_coords2, 'soil.rds')
 
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##########  AET - TerraClimate ##########
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 
+aet_list <- as.list(list.files(path = './aet_terraclimate', pattern = "*.tif", full.names = TRUE))
 
+  raster_clim <- lapply(aet_list, rast)
 
+  yearly <- c()
+  for (i in seq(1, length(raster_clim), 12)){ # 12 months in a year, 408 months
+    tst <- raster_clim[[i]]
+    print(i)
+    for (j in (i+1):(i+11)){
+      tst <- tst + raster_clim[[2]]
+      print(j)
+    }
+    yearly <- c(yearly, tst)
+  }
 
+  yearly <- rast(yearly)
+  cropped <- crop(yearly, regrowth)
+  regrowth <- crop(regrowth, cropped)
+  cropped_resampled <- resample(cropped, regrowth, method='near')
+  raster_clim_masked <- mask(cropped_resampled, regrowth)
+  writeRaster(raster_clim_masked, filename='aet_santoro.tif')
