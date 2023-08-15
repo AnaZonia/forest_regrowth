@@ -8,7 +8,7 @@
 library(terra) # handling spatial data
 library(tidyverse)
 setwd("/home/aavila/forest_regrowth")
- 
+
 ######################################################################
 #################      unify data into central df   ##################
 ######################################################################
@@ -63,6 +63,7 @@ colnames(data) <- c('agbd', 'age', 'prec', 'temp', 'total_fires', 'ts_fire', 'la
 ###############################################################
 
 data <- readRDS('santoro_ESA_alldata.rds')
+
 
 data <- data[data$last_LU %in% c(15, 41, 48),]
 data$last_LU <- factor(data$last_LU)

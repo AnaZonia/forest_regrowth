@@ -1,6 +1,22 @@
 
 ### mature forest confusions
-tst <- rast('aet_198501.tif')
+setwd("/home/aavila/forest_regrowth")
+
+tst <- rast('./heinrich_poorter/CWD.tif/CWD.tif')
+
+
+  yearly <- c()
+  for (i in seq(1, length(raster_clim), 12)){ # 12 months in a year, 408 months
+    tst <- raster_clim[[i]]
+    print(i)
+    for (j in (i+1):(i+11)){
+      tst <- tst + raster_clim[[2]]
+      print(j)
+    }
+    yearly <- c(yearly, tst)
+  }
+
+# this is a long term average.
 
 # mean biomass of surrounding mature forests around 3km (~100 pixels of 30m)
  biomass_range <- 101 # window size

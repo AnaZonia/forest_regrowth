@@ -21,8 +21,6 @@ library(maptools)  ## For wrld_simpl
 library(pbapply) #progress bar for apply family of functions
 data(wrld_simpl)
 setwd("/home/aavila/forest_regrowth")
-# sourcing functions
-source("/home/aavila/forest_regrowth/scripts/0_forest_regrowth_functions.r")
 
 ##########  Switches ##########
 download_worldclim = FALSE
@@ -124,24 +122,19 @@ saveRDS(test_coords2, 'soil.rds')
 ##########  AET - TerraClimate ##########
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  
-aet_list <- as.list(list.files(path = './aet_terraclimate', pattern = "*.tif", full.names = TRUE))
+aet_list <- as.list(list.files(path = './water_deficit_terraclimate', pattern = "*.tif", full.names = TRUE))
 
   raster_clim <- lapply(aet_list, rast)
 
-  yearly <- c()
-  for (i in seq(1, length(raster_clim), 12)){ # 12 months in a year, 408 months
-    tst <- raster_clim[[i]]
-    print(i)
-    for (j in (i+1):(i+11)){
-      tst <- tst + raster_clim[[2]]
-      print(j)
-    }
-    yearly <- c(yearly, tst)
-  }
-
   yearly <- rast(yearly)
+  yearly[yearly==0] <- NA
   cropped <- crop(yearly, regrowth)
   regrowth <- crop(regrowth, cropped)
-  cropped_resampled <- resample(cropped, regrowth, method='near')
+  
+  total_sum <- app(yearly, sum, na.rm = TRUE)
+
+  cropped_resampled <- resample(total_sum, regrowth, method='near')
   raster_clim_masked <- mask(cropped_resampled, regrowth)
   writeRaster(raster_clim_masked, filename='aet_santoro.tif')
+
+plot(raster_clim[[10]])
