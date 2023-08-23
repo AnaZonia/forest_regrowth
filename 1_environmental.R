@@ -14,12 +14,6 @@
 library(sf)
 library(terra) # handling spatial data
 library(tidyverse)
-library(tidyverse)
-library(plyr) # for function ldply
-## Brazil shapefile mask
-library(maptools)  ## For wrld_simpl
-library(pbapply) #progress bar for apply family of functions
-data(wrld_simpl)
 setwd("/home/aavila/forest_regrowth")
 
 ##########  Switches ##########
@@ -123,18 +117,59 @@ saveRDS(test_coords2, 'soil.rds')
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  
 aet_list <- as.list(list.files(path = './water_deficit_terraclimate', pattern = "*.tif", full.names = TRUE))
+library(terra) # handling spatial data
+library(tidyverse)
+setwd("/home/aavila/forest_regrowth")
 
-  raster_clim <- lapply(aet_list, rast)
+raster_clim <- lapply(aet_list, rast)
 
-  yearly <- rast(yearly)
-  yearly[yearly==0] <- NA
-  cropped <- crop(yearly, regrowth)
-  regrowth <- crop(regrowth, cropped)
-  
-  total_sum <- app(yearly, sum, na.rm = TRUE)
+yearly <- c()
+for (i in seq(1, length(raster_clim), 12)){ # 12 months in a year, 408 months
+  tst <- raster_clim[[i]]
+  print(i)
+  for (j in (i+1):(i+11)){
+    tst <- tst + raster_clim[[j]]
+    print(j)
+  }
+  yearly <- c(yearly, tst)
+}
 
-  cropped_resampled <- resample(total_sum, regrowth, method='near')
-  raster_clim_masked <- mask(cropped_resampled, regrowth)
-  writeRaster(raster_clim_masked, filename='aet_santoro.tif')
+monthly <- c()
+for (i in 1:12){ # 12 months in a year, 408 months
+  tst <- raster_clim[[i]]
+  print(i)
+  for (j in seq(i, length(raster_clim), 12)){
+    tst <- tst + raster_clim[[j]]
+  }
+  monthly <- c(monthly, tst)
+}
 
-plot(raster_clim[[10]])
+
+monthly <- rast(monthly)
+monthly[monthly == 0] <- NA
+monthly <- terra::trim(monthly)
+plot(monthly)
+yearly <- rast(yearly)
+yearly[yearly == 0] <- NA
+yearly <- terra::trim(yearly)
+plot(yearly)
+plot(yearly[[19:35]])
+
+total_years <- sum(yearly)
+
+cropped <- crop(yearly, regrowth)
+regrowth <- crop(regrowth, cropped)
+
+cropped_resampled <- resample(total_sum, regrowth, method='near')
+raster_clim_masked <- mask(cropped_resampled, regrowth)
+writeRaster(raster_clim_masked, filename='cwd_totalsum_santoro.tif')
+cropped_resampled <- resample(yearly, regrowth, method='near')
+raster_clim_masked <- mask(cropped_resampled, regrowth)
+writeRaster(raster_clim_masked, filename='aet_yearly_santoro.tif')
+
+cropped <- crop(monthly, regrowth)
+regrowth <- crop(regrowth, cropped)
+cropped_resampled <- resample(monthly, regrowth, method='near')
+raster_clim_masked <- mask(cropped_resampled, regrowth)
+writeRaster(raster_clim_masked, filename='cwd_monthly_santoro.tif')
+
