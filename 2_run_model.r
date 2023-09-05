@@ -59,20 +59,17 @@ mean((data$agbd - pred)^2)
 
 
 G <- function(pars) {
-  E = pars['prec'] * data$age # + pars['temp'] * data$temp
+  E = pars['age'] * data$age # + pars['cwd'] * data$cwd
   #LU = pars['total_fires'] * data$total_fires + pars['ts_fire'] * data$ts_fire + pars['pasture'] * data$pasture + 
   #    pars['other_perennial'] * data$other_perennial + pars['other_annual'] * data$other_annual 
   k = E
   pars['B_0'] + pars['A'] * (1 - exp(-k))
 }
 
-
 #pars = c(B_0 = 10, A = 100, temp =- 0.002, prec = 0.000005, total_fires = 0.05, ts_fire = 0.05, pasture = 0.05, other_perennial = 0.05, other_annual = 0.05, sd = 0.05)
-pars = c(B_0 = 10, A = 100, prec = 2000, sd = 0.05)
+pars = c(B_0 = 10, A = 100, age = 100, sd = 0.05 ) #,  cwd = -0.0005)
 Gpred <- G(pars)
 Gpred
-# there are a lot of repeated values of cwd and aet with varying agbd values. Note that the scales are very different!
-# just for test, we should try this with medians too.
 
 NLL = function(pars) {
   if(pars['sd'] < 0){ #avoiding NAs by keeping the st dev positive
@@ -85,12 +82,12 @@ NLL = function(pars) {
 o = optim(par = pars, fn = NLL, hessian = FALSE)
 o
 
-pred = G(o$par)
-unique(pred)
-
+ 
 outcome <- data.frame(data$agbd, pred)
 outcome <- round(outcome, 3)
 head(outcome)
+plot(outcome$pred, outcome$data.agbd, abline(0,1)) # , xlim=c(0, 100))
+mean((data$agbd - pred)^2)
 
 median_values <- outcome %>%
   group_by(pred) %>%
@@ -100,28 +97,24 @@ plot(median_values$pred, median_values$median_agbd, abline(0,1), xlim=c(0, 100))
 
 ############################
 ############################
-# Assuming your dataframe is called 'my_data'
-# and the column you want to use for splitting is 'column_name'
 
-# Calculate the standard deviation of the column
-std_dev <- sd(data$cwd)
+breaks <- quantile(data$cwd, probs = c(0, 1/3, 2/3, 1), na.rm = TRUE)
+categories <- cut(data$cwd, breaks, labels = c("low", "mid", "high"))
+df_list <- split(data, categories)
 
-# Calculate the thresholds for splitting into thirds
-thresholds <- c(mean(data$prec) - 0.43*std_dev,
-                 mean(data$prec) + 0.43*std_dev)
-
-data_split_low <- data[data$prec < thresholds[1], ]
-data_split_mid <- data[data$prec > thresholds[1] & data$prec < thresholds[2], ]
-data_split_high <- data[data$prec > thresholds[2], ]
-
-means <- aggregate(agbd ~ age, data_split_high, median)
-sum_stats <- cbind(means, sds[,2])
-colnames(sum_stats) <- c('age', 'agbd', 'sd')
-
-fit <- lm(sum_stats$median ~ sum_stats$age)
+sum_stats <- aggregate(agbd ~ age, df_list[[3]], median)
+colnames(sum_stats) <- c('age', 'agbd')
+fit <- lm(sum_stats$agbd ~ sum_stats$age)
 summary(fit)
+
+predicted_values <- predict(fit, as.data.frame(sum_stats$age))
+mean((sum_stats$agbd - predicted_values)^2)
+
 
 ggplot(sum_stats, aes(x = age, y = agbd)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE, color = "blue") +
-  theme(text = element_text(size = 20))
+  theme(text = element_text(size = 20))+
+  labs(title = "Median, low cwd")+
+  theme(plot.title = element_text(size = 40)) 
+

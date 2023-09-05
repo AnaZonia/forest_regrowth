@@ -18,6 +18,8 @@ santoro_raster <- crop(santoro_raster, regrowth)
 santoro_raster <- resample(santoro_raster, regrowth,'near')
 #santoro_raster <- mask(santoro_raster, regrowth)
 
+reg_biom <- c(santoro_raster, regrowth)
+
 # getting percent of mature forest cover within x neighboring patches:
 mature_mask <- rast('./mapbiomas/mature_masks/0000000000-0000095232_mature_mask.tif')
 mature_mask <- terra::crop(mature_mask, regrowth)

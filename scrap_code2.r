@@ -91,4 +91,3 @@ tst <- mask(s, b)
 
 
 plot(tst)
-

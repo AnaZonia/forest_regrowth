@@ -116,10 +116,10 @@ saveRDS(test_coords2, 'soil.rds')
 ##########  AET - TerraClimate ##########
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  
-aet_list <- as.list(list.files(path = './water_deficit_terraclimate', pattern = "*.tif", full.names = TRUE))
 library(terra) # handling spatial data
 library(tidyverse)
 setwd("/home/aavila/forest_regrowth")
+aet_list <- as.list(list.files(path = './water_deficit_terraclimate', pattern = "*.tif", full.names = TRUE))
 
 raster_clim <- lapply(aet_list, rast)
 
@@ -173,3 +173,31 @@ cropped_resampled <- resample(monthly, regrowth, method='near')
 raster_clim_masked <- mask(cropped_resampled, regrowth)
 writeRaster(raster_clim_masked, filename='cwd_monthly_santoro.tif')
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##########  CWD - Chave ##########
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+cwd <- rast('/home/aavila/forest_regrowth/heinrich_poorter/CWD_poorter.tif')
+cwd <- crop(cwd, reg_biom)
+cwd <- resample(cwd, reg_biom)
+all_data_santoro <- c(reg_biom, cwd)
+
+file_name <- paste0(tempfile(), "_.tif")
+# the stack is too big to convert right away
+lu_tile <- makeTiles(all_data_santoro, c(2000,2000), file_name, na.rm = TRUE, overwrite=TRUE) 
+lu_tile <- lapply(lu_tile, rast)
+
+rast_to_df <- function(raster){
+  coords <- crds(raster, df=FALSE, na.rm=TRUE)
+  values_stack <- terra::extract(raster, coords, cells=FALSE, method="simple")
+  central_df <- values_stack[complete.cases(values_stack), ]
+  return(central_df)
+}
+
+data <- rast_to_df(all_data_santoro)
+colnames(data) <- c('agbd', 'age', 'cwd')
+data2 <- data[data$agbd>0,]
+
+data <- lapply(lu_tile, rast_to_df)
+data_raw <- bind_rows(data)
