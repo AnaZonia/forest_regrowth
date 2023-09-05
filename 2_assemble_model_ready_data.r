@@ -5,8 +5,6 @@ setwd("/home/aavila/forest_regrowth")
 ######################################################################
 #################      unify data into central df   ##################
 ######################################################################
-prec <- rast('./model_ready_rasters/prec_0000000000-0000095232.tif')
-temp <- rast('./model_ready_rasters/temp_0000000000-0000095232.tif')
 fire <- rast('./model_ready_rasters/0000000000-0000095232_fire_history_santoro.tif')
 last_LU <- rast('last_LU_0000000000-0000095232_santoro.tif')
 regrowth_paper <- rast('./secondary_forest_age_v2_2018/secondary_forest_age_v2_2018-0000000000-0000065536.tif')
@@ -17,8 +15,7 @@ santoro_raster <- rast('./santoro/N00W050_ESACCI-BIOMASS-L4-AGB-MERGED-100m-2018
 santoro_raster <- crop(santoro_raster, regrowth)
 santoro_raster <- resample(santoro_raster, regrowth,'near')
 #santoro_raster <- mask(santoro_raster, regrowth)
-
-reg_biom <- c(santoro_raster, regrowth)
+#tst <- readRDS('santoro_ESA_alldata.rds')
 
 # getting percent of mature forest cover within x neighboring patches:
 mature_mask <- rast('./mapbiomas/mature_masks/0000000000-0000095232_mature_mask.tif')
@@ -29,11 +26,6 @@ mature_mask <- subst(mature_mask, NA, 0)
 range <- 21
 mature_sum <- focal(mature_mask, range, sum, na.rm = TRUE) # run focal on these areas
 mature_sum <- mask(mature_sum, regrowth) # select only the sum of areas surrounding secondary patches.
-
-temp_cropped <- crop(temp, all_data)
-prec_cropped <- crop(prec, all_data)
-total_temp <- app(temp, sum)
-total_prec <- app(prec, sum)
 
 ### save all data as a unified dataframe for easy visualization and modelling
 
@@ -52,25 +44,23 @@ rast_to_df <- function(raster){
 
 data <- lapply(lu_tile, rast_to_df)
 data <- bind_rows(data)
-colnames(data) <- c('agbd', 'age', 'prec', 'temp', 'total_fires', 'ts_fire', 'last_LU')
-#saveRDS(data, 'santoro_ESA_alldata.rds')
 
 #############################
 
-aet <- rast('aet_totalsum_santoro.tif')
-cwd <- terra::trim(rast('cwd_totalsum_santoro.tif'))
-aet_yearly <- terra::trim(rast('aet_yearly_santoro.tif'))
-cwd_yearly <- terra::trim(rast('cwd_yearly_santoro.tif'))
-aet_monthly <- terra::trim(rast('aet_monthly_santoro.tif'))
-cwd_monthly <- terra::trim(rast('cwd_monthly_santoro.tif'))
-
-santoro_raster <- crop(santoro_raster, cwd)
 santoro_raster[santoro_raster == 0] <- NA
-regrowth <- crop(regrowth, cwd)
-aet <- crop(aet, cwd)
 
-all_data_santoro <- c(santoro_raster, regrowth, cwd_yearly)
-names(all_data_santoro) <- c('agbd', 'age','cwd_yearly')
+rasters <- c(regrowth, santoro_raster, aet, cwd)
+
+common_extent <- ext(rasters[[1]])
+for (i in 2:length(rasters)) {
+  common_extent <- intersect(common_extent, ext(rasters[[i]]))
+}
+
+cropped_rasters <- lapply(rasters, crop, common_extent)
+
+
+all_data_santoro <- rast(cropped_rasters)
+names(all_data_santoro) <- c('agbd', 'age','aet', 'cwd')
 all_data_santoro <- trim(all_data_santoro)
 
 file_name <- paste0(tempfile(), "_.tif")
@@ -88,9 +78,6 @@ rast_to_df <- function(raster){
 data <- lapply(lu_tile, rast_to_df)
 data_raw <- bind_rows(data)
 #colnames(data) <- c('agbd', 'age', 'prec', 'temp', 'total_fires', 'ts_fire', 'last_LU')
-#saveRDS(data, 'santoro_ESA_alldata.rds')
-
-
 
 # The issue with matching UTM coordinates directly is a lot of points are lost. what we are plotting is actually a very small percentage of what is actually matching.
 # with raster::resample, we can use nearest-neighbor.
@@ -114,40 +101,12 @@ soil <- readRDS('./soil/soil.rds') #loads in country-wide soil data
   # since soil is categorical:
   soil$numtype <- as.numeric(soil$type)
 
-#tmin <- rast('./model_ready_rasters/tmin_0000000000-0000095232.tif')
-#tmax <- rast('./model_ready_rasters/tmax_0000000000-0000095232.tif')
-#temp <- tmax-tmin
-#writeRaster(temp, paste0('./model_ready_rasters/temp_0000000000-0000095232.tif'))
-
 proj <- "+proj=longlat +elips=WGS84"
 GEDI_vect <- terra::vect(GEDI[,c("lon", "lat", "agbd")], crs = proj)
 GEDI_raster <- terra::rasterize(GEDI_vect, regrowth, field = "agbd")
 
 soil_vect <- terra::vect(soil[,c("lon", "lat", "numtype")], crs = proj)
 soil_raster <- terra::rasterize(soil_vect, GEDI_raster, field = "numtype")
-#soil_raster <- focal(soil_raster, 301, "modal", NAonly=TRUE, na.rm = TRUE)
-
-fire_cropped <- crop(fire, GEDI_raster)
-GEDI_raster_cropped <- crop(GEDI_raster, fire)
-regrowth_cropped <- crop(regrowth, GEDI_raster_cropped)
-lulc_cropped <- crop(lulc, GEDI_raster_cropped)
-soil_cropped <- crop(soil_raster, GEDI_raster_cropped) # work on this
-temp_cropped <- crop(temp, GEDI_raster_cropped)
-prec_cropped <- crop(prec, GEDI_raster_cropped)
-
-# names(GEDI_raster) <- 'agbd'
-# names(regrowth_cropped) <- 'age'
-# names(fire_resampled) <- c('num_fires', 'ts_last_fire')
-# names(soil_raster) <- 'soil_type'
-# names(sum_prec) <- 'sum_prec'
-# names(sum_temp) <- 'sum_temp'
-# names(sum_prec_sd) <- 'sum_prec_sd'
-# names(sum_temp_sd) <- 'sum_temp_sd'
-
-GEDI_raster <- mask(GEDI_raster, regrowth)
-regrowth <- mask(regrowth, GEDI_raster)
-
-all_data <- c(GEDI_raster, regrowth)
 
 
 

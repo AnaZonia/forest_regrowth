@@ -177,16 +177,17 @@ writeRaster(raster_clim_masked, filename='cwd_monthly_santoro.tif')
 ##########  CWD - Chave ##########
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
 cwd <- rast('/home/aavila/forest_regrowth/heinrich_poorter/CWD_poorter.tif')
-cwd <- crop(cwd, reg_biom)
-cwd <- resample(cwd, reg_biom)
-all_data_santoro <- c(reg_biom, cwd)
+cwd <- resample(cwd, regrowth)
+rasters <- c(regrowth, santoro_raster, cwd)
 
-file_name <- paste0(tempfile(), "_.tif")
-# the stack is too big to convert right away
-lu_tile <- makeTiles(all_data_santoro, c(2000,2000), file_name, na.rm = TRUE, overwrite=TRUE) 
-lu_tile <- lapply(lu_tile, rast)
+common_extent <- ext(rasters[[1]])
+for (i in 2:length(rasters)) {
+  common_extent <- intersect(common_extent, ext(rasters[[i]]))
+}
+
+cropped_rasters <- lapply(rasters, crop, common_extent)
+all_rasters <- rast(cropped_rasters)
 
 rast_to_df <- function(raster){
   coords <- crds(raster, df=FALSE, na.rm=TRUE)
@@ -195,9 +196,24 @@ rast_to_df <- function(raster){
   return(central_df)
 }
 
-data <- rast_to_df(all_data_santoro)
-colnames(data) <- c('agbd', 'age', 'cwd')
+data <- rast_to_df(all_rasters)
+colnames(data) <- c('age', 'agbd', 'cwd')
 data2 <- data[data$agbd>0,]
+saveRDS(data, 'santoro_cwd.rds')
 
 data <- lapply(lu_tile, rast_to_df)
 data_raw <- bind_rows(data)
+
+library(dplyr)  # For data manipulation
+
+# Assuming your data frame is named 'data' and you want to aggregate 'agbd' by 'cwd'
+result <- foreach(i = 1:64, .combine = bind_rows) %dopar% {
+  subset <- data[(i - 1) * (nrow(data) %/% 64) + 1 : i * (nrow(data) %/% 64), ]
+  aggregate(agbd ~ cwd, subset, median)
+}
+
+# Combine the results
+final_result <- do.call(rbind, result)
+
+# Stop the parallel backend
+stopCluster(cl)

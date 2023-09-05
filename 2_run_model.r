@@ -8,8 +8,10 @@ setwd("/home/aavila/forest_regrowth")
 
 ########################
 # SWITCHES
-data_prec_temp = TRUE
+data_prec_temp = FALSE
 scaled = FALSE
+
+tst <- read.csv('santoro_alldata.csv')
 
 minMax <- function(x) {
   (x - min(x)) / (max(x) - min(x))
@@ -66,8 +68,7 @@ G <- function(pars) {
   pars['B_0'] + pars['A'] * (1 - exp(-k))
 }
 
-#pars = c(B_0 = 10, A = 100, temp =- 0.002, prec = 0.000005, total_fires = 0.05, ts_fire = 0.05, pasture = 0.05, other_perennial = 0.05, other_annual = 0.05, sd = 0.05)
-pars = c(B_0 = 10, A = 100, age = 100, sd = 0.05 ) #,  cwd = -0.0005)
+pars = c(B_0 = 10, A = 100, age = 100, sd = 0.05)
 Gpred <- G(pars)
 Gpred
 
