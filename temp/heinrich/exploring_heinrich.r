@@ -1,12 +1,10 @@
 # investigating Heinrich data with optim vs. linear model
 library(ggplot2)
-#Set the working directory will need to change for each user
-setwd("/home/aavila/forest_regrowth/heinrich_poorter/Fig1_data_input/Fig1_data_input/")
 
 ########### Load the point data ####################
 
 # Creating a name of data and reading the csv table
-dados2<-read.csv2("MCWD_assessment_may2020_CHIRPSv1.csv",sep=",")
+dados2<-read.csv2("./forest_regrowth/heinrich_poorter/Fig1_data_input/Fig1_data_input/MCWD_assessment_may2020_CHIRPSv1.csv",sep=",")
 dados2$Corrected_AGB = dados2$Corrected_AGB/2
 
 dados2 <- dados2[,c(1,3,5)]
@@ -73,11 +71,8 @@ o
 # starting with age=0.5, and the default method, we have once more acceptable predictions.
 
 pars = c(A = 50, age = 2, theta = 0.5)
-o = optim(par = pars, fn = nls, data = mcwd_0, method='BFGS')
+o = optim(par = pars, fn = nls, data = mcwd_0)
 o
-
-# in this case, 'BFGS' seems like the ideal, as it will find the real minimum (2612) with
-# more different starting values.
 
 plot_compare('Low water stress', pars_0, mcwd_0)
 
@@ -95,7 +90,6 @@ for (i in 1:4) {
 }
 
 legend("topright", legend = c("1st quartile", "2nd quartile", "3rd quartile", "4th quartile"), col = colors, pch = 1:4)
-
 
 #------------------
 
@@ -145,7 +139,7 @@ o = optim(par = pars, fn = NLL, data = mcwd_0)
 o
 
 # this gives zero likelihood.
-# pars = c(A = 91.428284, age = 8.633106, theta = 6.044022, sd = 4.853728 ) # using the output that gave zero likelihood to investigate
+# pars = c(A = 91.428284, age = -8.633106, theta = 6.044022, sd = 4.853728 ) # using the output that gave zero likelihood to investigate
 # dnorm(x = mcwd_0$agbd - G(pars, mcwd_0), mean = 0, sd = pars['sd'])
 # it is finding zeroes when it tests negative values for age.
 
@@ -169,6 +163,11 @@ o
 # 43.93502 34.03816 12.01732 24.07951
 
 # okay - so local minima are an issue. I can try to restrain the initial values to a more reasonable range.
+pars = c(A = 100, age = 1, theta = 1, sd = 0.5)
+
+G <- function(pars, data) {
+  pars['A'] * (1 - exp(-pars['age']*data$age))^pars['theta']
+}
 
 NLL = function(pars, data) {
   if (pars['age'] < 0){
@@ -178,6 +177,9 @@ NLL = function(pars, data) {
     return(-Inf) 
   }
   if (pars['theta'] > 10){
+    return(-Inf) 
+  }
+  if (pars['sd'] < 0){
     return(-Inf) 
   }
   result = -sum(dnorm(x = data$agbd - G(pars, data), mean = 0, sd = pars['sd'], log = TRUE), na.rm = TRUE)
@@ -194,54 +196,37 @@ o
 # $value
 # [1] 116.4026
 
+head(G(o$par, data = mcwd_0))
+plot(mcwd_0$age, mcwd_0$agbd)
+lines(G(o$par, data = mcwd_0), col = "blue", lwd = 2)
 
-##############################################################
+# I tried running the same with ax (bayesian optimization) on Python, also
+# got stuck on local minima. the best it could do was NLL = 120, so worse than optim.
 
-# now fit with land use and precipitation and see what happens.
 
-setwd("/home/aavila/forest_regrowth")
+# G <- function(pars, data) {
+#   k = pars['age']*data$age+pars['pasture']*data$pasture+pars['other_annual']*data$other_annual
+#   pars['A'] * (1 - exp(-k))^pars['theta']
+# }
 
-sds <- aggregate(agbd ~ age, data, sd)
-means <- aggregate(agbd ~ age, data, median)
-sum_stats <- cbind(means, sds[,2])
-colnames(sum_stats) <- c('age', 'agbd', 'sd')
-data <- sum_stats
+# pars <- c(A = 100, age = 0.5, theta = 1.5, pasture = 0.05, other_annual = 0.05)
 
-# data$agbd <- data$agbd-60
+# o <- optim(pars, nls, data=data_LU, method = 'BFGS')
+# o
 
-G <- function(pars, data) {
-  pars['B0'] + pars['A'] * (1 - exp(-pars['age']*data$age))^pars['theta']
-}
+# looking into land use change
 
-nls <- function(pars, data) {
-  result = sum((G(pars, data) - data$agbd)^2)
-  ifelse(result == 0, -Inf, result)
-}
+# data <- data_init[data_init$last_LU %in% c(15, 41, 48),]
+# data$last_LU <- factor(data$last_LU)
+# dummy_LU <- as.data.frame(model.matrix(~ data$last_LU - 1))
+# names(dummy_LU) <- c('pasture', 'other_annual', 'other_perennial')
+# data <- cbind(data, dummy_LU)
 
-pars <- c(B0 = 40, A = 100, age = 0.5, theta = 1.5)
-o = optim(par = pars, fn = nls, data = data, method='BFGS')
-o
-
-G(o$par, data = data)
-
-plot(data$age, data$agbd)
-lines(G(o$par, data = data), col = "purple", lwd = 2, lty = 2)
-
-# $par
-#         B0          A        age      theta 
-# 83.0858128 52.2396871  0.1632643  5.0351658 
-
-# $value
-# [1] 1174.523
-
-# Now, incorporating cwd
-
-means <- aggregate(agbd ~ cwd, data, median)
-head(means)
-colnames(sum_stats) <- c('cwd', 'agbd', 'sd')
-data <- sum_stats
-plot(data$cwd, data$agbd)
-
-G2 <- function(pars, data) {
-  pars['B0'] + pars['A'] * (1 - exp(-pars['cwd']*data$cwd))^pars['theta']
-}
+# k = o$par['age']*1+o$par['pasture']*1#+o$par['other_annual']*data_LU$other_annual
+# k
+# result = (1 - exp(-k))^o$par['theta']
+# result
+# range(result)
+# var <- o$par['theta']
+# (o$par['age']+o$par['pasture'])^var
+# (pars['age']+pars['pasture'])^pars['theta']

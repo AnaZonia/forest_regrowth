@@ -28,7 +28,7 @@ outdir <- "./worldclim" # Specify your preferred working directory
 location <- '0000000000-0000095232'
 regrowth <- rast("./model_ready_rasters/0000000000-0000095232_forest_age.tif")
 
-#################################   2018 regrowing forest paper
+################################# 
 
 # read all data into a single block
 files_tmp <- list.files(path = './secondary_forest_age_v2_2018', full.names=TRUE)   # obtain paths for all files for that location
@@ -179,15 +179,13 @@ writeRaster(raster_clim_masked, filename='cwd_monthly_santoro.tif')
 
 cwd <- rast('/home/aavila/forest_regrowth/heinrich_poorter/CWD_poorter.tif')
 cwd <- resample(cwd, regrowth)
-rasters <- c(regrowth, santoro_raster, cwd)
+rasters <- list(regrowth_paper, santoro_raster, cwd)
+fire <- rast('./model_ready_rasters/0000000000-0000095232_fire_history_santoro.tif')
+last_LU <- rast('last_LU_0000000000-0000095232_santoro.tif')
+last_LU <- crop(last_LU, all_rasters)
+fire <- crop(fire, all_rasters)
 
-common_extent <- ext(rasters[[1]])
-for (i in 2:length(rasters)) {
-  common_extent <- intersect(common_extent, ext(rasters[[i]]))
-}
-
-cropped_rasters <- lapply(rasters, crop, common_extent)
-all_rasters <- rast(cropped_rasters)
+all_rasters <- c(all_rasters, last_LU, fire)
 
 rast_to_df <- function(raster){
   coords <- crds(raster, df=FALSE, na.rm=TRUE)
@@ -197,23 +195,11 @@ rast_to_df <- function(raster){
 }
 
 data <- rast_to_df(all_rasters)
-colnames(data) <- c('age', 'agbd', 'cwd')
+colnames(data) <- c('age', 'agbd', 'cwd', 'last_LU', 'fire_total', 'last_fire')
+
 data2 <- data[data$agbd>0,]
-saveRDS(data, 'santoro_cwd.rds')
+saveRDS(data, 'santoro_cwd_fire_LU.rds')
 
 data <- lapply(lu_tile, rast_to_df)
 data_raw <- bind_rows(data)
 
-library(dplyr)  # For data manipulation
-
-# Assuming your data frame is named 'data' and you want to aggregate 'agbd' by 'cwd'
-result <- foreach(i = 1:64, .combine = bind_rows) %dopar% {
-  subset <- data[(i - 1) * (nrow(data) %/% 64) + 1 : i * (nrow(data) %/% 64), ]
-  aggregate(agbd ~ cwd, subset, median)
-}
-
-# Combine the results
-final_result <- do.call(rbind, result)
-
-# Stop the parallel backend
-stopCluster(cl)

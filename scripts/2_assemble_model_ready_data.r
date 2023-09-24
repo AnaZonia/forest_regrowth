@@ -5,15 +5,27 @@ setwd("/home/aavila/forest_regrowth")
 ######################################################################
 #################      unify data into central df   ##################
 ######################################################################
-fire <- rast('./model_ready_rasters/0000000000-0000095232_fire_history_santoro.tif')
-last_LU <- rast('last_LU_0000000000-0000095232_santoro.tif')
-regrowth_paper <- rast('./secondary_forest_age_v2_2018/secondary_forest_age_v2_2018-0000000000-0000065536.tif')
-regrowth <- crop(regrowth_paper, fire)
+fire <- rast('./data/model_ready_rasters/0000000000-0000095232_fire_history_santoro.tif')
+last_LU <- rast('./data/last_LU_0000000000-0000095232_santoro.tif')
+
+tst <- rast('./data/santoro_regrowth.tif')
+
+regrowth_paper <- rast('./data/secondary_forest_age_v2_2018/secondary_forest_age_v2_2018-0000000000-0000065536.tif')
+regrowth <- crop(regrowth_paper, tst)
 regrowth[regrowth == 0] <- NA
 
-santoro_raster <- rast('./santoro/N00W050_ESACCI-BIOMASS-L4-AGB-MERGED-100m-2018-fv4.0.tif')
-santoro_raster <- crop(santoro_raster, regrowth)
+santoro_raster <- rast('./data/santoro/N00W050_ESACCI-BIOMASS-L4-AGB-MERGED-100m-2018-fv4.0.tif')
+regrowth_paper <- crop(regrowth_paper, santoro_raster)
 santoro_raster <- resample(santoro_raster, regrowth,'near')
+
+santoro_sd <- rast('./data/santoro/N00W050_ESACCI-BIOMASS-L4-AGB_SD-MERGED-100m-2018-fv4.0.tif')
+santoro_sd <- resample(santoro_sd, regrowth,'near')
+
+all_data_santoro <- c(santoro_raster, regrowth, santoro_sd)
+
+tst <- rast_to_df(all_data_santoro)
+colnames(tst) <- c('agbd', 'age', 'sd')
+
 #santoro_raster <- mask(santoro_raster, regrowth)
 #tst <- readRDS('santoro_ESA_alldata.rds')
 
@@ -30,6 +42,7 @@ mature_sum <- mask(mature_sum, regrowth) # select only the sum of areas surround
 ### save all data as a unified dataframe for easy visualization and modelling
 
 all_data_santoro <- c(santoro_raster, regrowth, total_prec, total_temp, fire, last_LU)
+
 file_name <- paste0(tempfile(), "_.tif")
 # the stack is too big to convert right away
 lu_tile <- makeTiles(all_data, c(2000,2000), file_name, na.rm = TRUE, overwrite=TRUE) 

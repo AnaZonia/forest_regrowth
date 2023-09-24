@@ -74,26 +74,6 @@ r3 <- mask(r2, BRA) #save this somewhere
 e <- extent(-48.32644, -43.99998, -3.2823093, -0.5377764) # for testing purposes, the coordinates of region 0000000000.0000095232
 r4 <- crop(biomass1, e)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##########  POTAPOV ##########
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-# Potapov et al 2020 -> GLAD Forest Canopy Height (m)
-# 30m resolution, 2019
-
-biomass = raster("Forest_height_2019_SAM.tif")
-
-## crop and mask
-r2 <- crop(biomass, extent(BRA))
-r3 <- mask(r2, BRA)
-
-#writeRaster(r3, "Forest_height_2019_Brazil.tif")
-
-e <- extent(xmin, xmax, ymin, ymax)
-
-biomass = raster("Forest_height_2019_Brazil.tif")
-biomass_cropped <- crop(biomass,e)
-
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

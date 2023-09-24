@@ -1,0 +1,10 @@
+# Ignore directories with "data" in their name
+**/*data*/
+
+# Ignore virtual environment directories
+venv/
+.env/
+
+# ignore temporary workspace files
+/.RData
+/.Rhistory
