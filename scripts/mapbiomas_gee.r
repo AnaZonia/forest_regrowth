@@ -1,4 +1,7 @@
-packages <- c("rgee", "reticulate", "tidyverse")
+# Bring in Mapbiomas, forest age and biomass.
+setwd("/home/aavila/forest_regrowth/")
+
+packages <- c("rgee", "reticulate", "tidyverse", "sf", "mapview")
 lapply(packages, require, character.only=TRUE) # returns true if the package is loaded
 
 rgee_environment_dir <- "/usr/bin/python3"
@@ -16,9 +19,6 @@ rgee::ee_Initialize(drive = T)
 
 ages <- ee$Image("users/celsohlsj/public/secondary_vegetation_age_collection71_v5")
 
-ages_2020 <- ee$Image("users/celsohlsj/public/secondary_vegetation_age_collection71_v5")$select('classification_2020')
-# get/check the metadata
-ee_print(ages_2020)
 
 # centering the plot using Map$setCenter
 Map$setCenter(lon = -48, lat = -16, zoom = 4)
@@ -28,18 +28,20 @@ vis_ages = list(
   max = 30)
 Map$addLayer(eeObject = ages_2020, visParams = vis_ages, name = "ages_2020")
 
-
 # Image: MapBiomas land cover map ---------------------------------
+
+# load legal amazon shapefile
+leg_am <- st_read("./data/shp_amazonia_legal/dashboard_amazonia-legal-static-layer.shp")%>%
+  sf_as_ee()
+
+
+ages_amazon <- ages$clip(leg_am)
+ee_print(leg_am)
 
 # mapbiomas dataset
 land_cover = ee$Image("projects/mapbiomas-workspace/public/collection6/mapbiomas_collection60_integration_v1")
 ee_print(land_cover)
 # take a look at the different bands
-
-# load year 2020 land cover classification 
-land_cover_2020 = ee$Image("projects/mapbiomas-workspace/public/collection6/mapbiomas_collection60_integration_v1")$
-  select("classification_2020")
-ee_print(land_cover_2020)
 
 # color palette
 # official: https://mapbiomas-br-site.s3.amazonaws.com/downloads/Colecction%206/Cod_Class_legenda_Col6_MapBiomas_BR.pdf
