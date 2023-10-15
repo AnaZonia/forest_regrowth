@@ -2,9 +2,6 @@
 ########## Predicting forest regrowth from Mapbiomas data ##########
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ####################################################################
-library(terra) # handling spatial data
-library(tidyverse)
-setwd("/home/aavila/forest_regrowth")
 
 ########################
 # SWITCHES

@@ -9,6 +9,8 @@
 # The output masks are input into 
 ####################################################################
 
+install.packages("languageserver")
+
 library(sf)
 library(terra) # handling spatial data
 library(tidyverse)
