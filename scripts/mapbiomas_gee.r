@@ -11,37 +11,88 @@ rgee::ee_install_set_pyenv(
 py_path = rgee_environment_dir,
 py_env = "Python3"
 )
-
+ 
 Sys.setenv(RETICULATE_PYTHON = rgee_environment_dir)
 Sys.setenv(EARTHENGINE_PYTHON = rgee_environment_dir)
 
-rgee::ee_Initialize(drive = T)
+rgee::ee_Initialize() #use drive = TRUE to access things in your google drive
 
-ages <- ee$Image("users/celsohlsj/public/secondary_vegetation_age_collection71_v5")
+##################################
+
+# Load the image in R
+ages_2018 <- ee$Image("users/celsohlsj/public/secondary_vegetation_age_collection71_v5")$select("classification_2018")
+ages_2018 <- ages_2018$updateMask(ages_2018$gt(0))
+biomass <- ee$Image('projects/ee-ana-zonia/assets/biomass_mask_2018')
+sd <- ee$Image('projects/ee-ana-zonia/assets/biomass_sd_mask_2018')
+
+####### mature forest
+
+# import mapbiomas forest cover script
+# select for the pixels between 200 and 300
+# mature[mature > 300 | mature < 200] <- NA # only leave behind mature values
+# mature_mask <- mask(mature, app(mature, fun = sum))
+# consider only pixels that have been mature the whole time
+
+# get biomass of surrounding mature forests
+# with adjustable buffer size
+
+######## Climate
+cwd <- ee$Image('projects/ee-ana-zonia/assets/cwd_brazilian_amazon_chave')
+terraclimate <- ee$Image("IDAHO_EPSCOR/TERRACLIMATE")
 
 
-# centering the plot using Map$setCenter
-Map$setCenter(lon = -48, lat = -16, zoom = 4)
-# for visualization we use Map$addLayer
-vis_ages = list(
-  min = 1,
-  max = 30)
-Map$addLayer(eeObject = ages_2020, visParams = vis_ages, name = "ages_2020")
+# Clip the images to the biomass geometry
+ages_2018 <- ages_2018$clip(biomass$geometry())
 
-# Image: MapBiomas land cover map ---------------------------------
+# Update masks
+ages_2018 <- ages_2018$updateMask(ages_2018$gt(0))$updateMask(biomass)
 
-# load legal amazon shapefile
-leg_am <- st_read("./data/shp_amazonia_legal/dashboard_amazonia-legal-static-layer.shp")%>%
-  sf_as_ee()
+# Reproject images
+ages_10m <- ages_2018$reproject(crs = ages_2018$projection()$crs(), scale = 10)
+biomass_10m <- biomass$reproject(crs = ages_2018$projection(), scale = 10)
+cwd_10m <- cwd$reproject(crs = ages_2018$projection(), scale = 10)
+sd_10m <- sd$reproject(crs = ages_2018$projection(), scale = 10)
+
+# Update masks again
+biomass_10m <- biomass_10m$updateMask(ages_10m)
+ages_10m <- ages_10m$updateMask(biomass_10m)
+sd_10m <- sd_10m$updateMask(ages_10m)
+cwd_10m <- cwd_10m$updateMask(ages_10m)
+
+# Create latitude and longitude bands
+proj <- ages_10m$projection()
+latlon <- ee$Image$pixelLonLat()$reproject(proj)
+latlon <- latlon$updateMask(ages_10m)
+lat <- latlon$select("latitude")
+lon <- latlon$select("longitude")
+
+# Create secondary_amazon image
+secondary_amazon <- ee$Image(ages_10m)$addBands(lat)$addBands(lon)$addBands(biomass_10m$rename('biomass'))$addBands(sd_10m$rename('sd'))$addBands(cwd_10m$rename('cwd'))
+
+# Split image for exporting
+# Construct grid and intersect with country polygon
+grid <- ages_10m$geometry()$coveringGrid(ages_10m$geometry()$projection(), 500000)
 
 
-ages_amazon <- ages$clip(leg_am)
-ee_print(leg_am)
+for (f in 1:grid$size()$getInfo()) {
+  print(f)
+  second_feature <- ee$Feature(grid$toList(grid$size()$getInfo())$get(f))
+  second_tiles <- secondary_amazon$clip(second_feature)
+  sampl_clip <- second_tiles$stratifiedSample(100)
+  # export all features in a FeatureCollection as one file
+  task <- ee$batch$Export$table(sampl_clip, paste0('sampl_clip', f), list(fileFormat = 'CSV'))
+  task$start()
+  ee_monitoring()
+}
 
+
+# -----------------------
 # mapbiomas dataset
-land_cover = ee$Image("projects/mapbiomas-workspace/public/collection6/mapbiomas_collection60_integration_v1")
+land_cover = ee$Image("projects/mapbiomas-workspace/public/collection6/mapbiomas_collection60_integration_v1")$select('classification_1985')
 ee_print(land_cover)
 # take a look at the different bands
+land_cover_2020 = ee$Image("projects/mapbiomas-workspace/public/collection6/mapbiomas_collection60_integration_v1")$
+  select("classification_2020")
 
 # color palette
 # official: https://mapbiomas-br-site.s3.amazonaws.com/downloads/Colecction%206/Cod_Class_legenda_Col6_MapBiomas_BR.pdf
@@ -58,6 +109,7 @@ vis_mapbiomas = list(
   max = 49,
   palette = map_biomas_palette
 )
+
 Map$addLayer(eeObject = land_cover_2020, visParams = vis_mapbiomas, 'mapbiomas_2020')
 
 ## You can then plot your own shapefiles on top of this view to visualize land cover
@@ -71,3 +123,6 @@ ee_print(land_cover_1985)
 Map$addLayer(eeObject = land_cover_1985, visParams = vis_mapbiomas, 'mapbiomas_1985') +
   Map$addLayer(eeObject = land_cover_2020, visParams = vis_mapbiomas, 'mapbiomas_2020')
 
+asset = ee$Image("projects/ee-ana-zonia/assets/biomass_mask_2018")
+ee_print(asset)
+Map$addLayer(asset, visParams =)

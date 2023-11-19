@@ -2,50 +2,67 @@
 ########## Predicting forest regrowth from Mapbiomas data ##########
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ####################################################################
+library(ggplot2)
+
+setwd("/home/aavila/forest_regrowth/")
+
+csv_files <- list.files(path = "./data/points", pattern = '\\.csv$', full.names = TRUE)
+# Read and merge CSV files
+merged_data <- do.call(rbind, lapply(csv_files, read.csv))
+data <- merged_data[2:7]
+colnames(data) <- c('agbd', 'age', 'cwd', 'lat', 'lon', 'sd')
+head(data)
 
 ########################
 # SWITCHES
-data_prec_temp = FALSE
-scaled = FALSE
+# data_prec_temp = FALSE
+# scaled = FALSE
 
-tst <- read.csv('santoro_alldata.csv')
+# tst <- read.csv('santoro_alldata.csv')
 
-minMax <- function(x) {
-  (x - min(x)) / (max(x) - min(x))
-}
+# minMax <- function(x) {
+#   (x - min(x)) / (max(x) - min(x))
+# }
 
-if (data_prec_temp == TRUE){
-  data <- readRDS('santoro_ESA_alldata.rds')
-  data <- data[data$last_LU %in% c(15, 41, 48),]
-  data$last_LU <- factor(data$last_LU)
-  dummy_LU <- as.data.frame(model.matrix(~ data$last_LU - 1))
-  names(dummy_LU) <- c('pasture', 'other_annual', 'other_perennial')
-  data_raw <- data[,-7]
-  if(scaled==TRUE){
-    data_scaled <- cbind(agbd=data_raw$agbd, scale(data_raw[,2:ncol(data_raw)]))
-    data <- cbind(data_scaled, dummy_LU)
-  }else{
-    data_maxmin <- cbind(agbd=data_raw$agbd, minMax(data_raw[,2:ncol(data_raw)]))
-    data <- cbind(data_maxmin, dummy_LU)
-  }
-}else{
-  data <- readRDS('total_aet_cwd.rds')
-}
+# if (data_prec_temp == TRUE){
+#   data <- readRDS('santoro_ESA_alldata.rds')
+#   data <- data[data$last_LU %in% c(15, 41, 48),]
+#   data$last_LU <- factor(data$last_LU)
+#   dummy_LU <- as.data.frame(model.matrix(~ data$last_LU - 1))
+#   names(dummy_LU) <- c('pasture', 'other_annual', 'other_perennial')
+#   data_raw <- data[,-7]
+#   if(scaled==TRUE){
+#     data_scaled <- cbind(agbd=data_raw$agbd, scale(data_raw[,2:ncol(data_raw)]))
+#     data <- cbind(data_scaled, dummy_LU)
+#   }else{
+#     data_maxmin <- cbind(agbd=data_raw$agbd, minMax(data_raw[,2:ncol(data_raw)]))
+#     data <- cbind(data_maxmin, dummy_LU)
+#   }
+# }else{
+#   data <- readRDS('total_aet_cwd.rds')
+# }
 
 ######################################################################
 #################        passing into the model     ##################
 ######################################################################
 
-sds <- aggregate(agbd ~ age, data, sd)
-means <- aggregate(agbd ~ age, data, median)
+sds <- aggregate(sd ~ age, data, sd)
+means <- aggregate(sd ~ age, data, median)
 sum_stats <- cbind(means, sds[,2])
 colnames(sum_stats) <- c('age', 'agbd', 'sd')
-data <- sum_stats
 
 fit <- lm(sum_stats$agbd ~ sum_stats$age)
 summary(fit)
 
 ggplot(sum_stats, aes(x = age, y = agbd)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  theme(text = element_text(size = 20))
+
+fit <- lm(data$agbd ~ data$age)
+summary(fit)
+
+ggplot(data, aes(x = age, y = agbd)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE, color = "blue") +
   theme(text = element_text(size = 20))
@@ -56,30 +73,90 @@ predicted_values <- predict(fit, as.data.frame(data$age))
 mean((data$agbd - predicted_values)^2)
 mean((data$agbd - pred)^2)
 
+# --- NLS
 
-G <- function(pars) {
-  E = pars['age'] * data$age # + pars['cwd'] * data$cwd
-  #LU = pars['total_fires'] * data$total_fires + pars['ts_fire'] * data$ts_fire + pars['pasture'] * data$pasture + 
-  #    pars['other_perennial'] * data$other_perennial + pars['other_annual'] * data$other_annual 
-  k = E
-  pars['B_0'] + pars['A'] * (1 - exp(-k))
+pars_0 = c(A = 133, age = 0.02992, theta = 1.1162) # this is the value she found with nls function
+# and with RSS = 2695.
+
+G <- function(pars, data) {
+  pars['A'] * (1 - exp(-pars['age']*data$age))^pars['theta']
 }
 
-pars = c(B_0 = 10, A = 100, age = 100, sd = 0.05)
-Gpred <- G(pars)
+# Indeed, starting out with her parameters as initial parameters we get better results:
+pars = c(A = 87.07455636, age = 0.07435007, theta = 1.69029407, sd = 0.5) # this is the value she found with nls function
+Gpred <- G(pars, sum_stats)
+Gpred
+
+nls <- function(pars, data) {
+  if (pars['age'] < 0){
+    return(-Inf) 
+  }
+  if (pars['age'] > 10){
+    return(-Inf) 
+  }
+  if (pars['theta'] > 10){
+    return(-Inf) 
+  }
+  if (pars['theta'] < 0){
+    return(-Inf) 
+  }
+  result = sum((G(pars, data) - data$agbd)^2)
+  ifelse(result == 0, -Inf, result)
+}
+
+
+o = optim(par = pars_0, fn = nls, data = sum_stats)
+o
+
+pred <- G(o$par, sum_stats)
+ 
+outcome <- data.frame(sum_stats$agbd, pred)
+head(outcome)
+outcome <- round(outcome, 3)
+head(outcome)
+
+plot(outcome$pred, outcome$data.agbd, abline(0,1)) # , xlim=c(0, 100))
+mean((data$agbd - pred)^2)
+
+
+# -- NLL
+
+G <- function(pars, data) {
+  pars['A'] * (1 - exp(-pars['age']*data$age))^pars['theta']
+}
+
+pars = c(A = 87.07455636, age = 0.07435007, theta = 1.69029407, sd = 0.5) # this is the value she found with nls function
+Gpred <- G(pars, data)
 Gpred
 
 NLL = function(pars) {
-  if(pars['sd'] < 0){ #avoiding NAs by keeping the st dev positive
-    return(-Inf)
+  if (pars['age'] < 0){
+    return(-Inf) 
+  }
+  if (pars['age'] > 10){
+    return(-Inf) 
+  }
+  if (pars['theta'] > 10){
+    return(-Inf) 
+  }
+  if (pars['theta'] < 0){
+    return(-Inf) 
+  }
+  if (pars['sd'] < 0){
+    return(-Inf) 
+  }
+  if (pars['sd'] > 10){
+    return(-Inf) 
   }
   # Negative log-likelihood 
-  print(-sum(dnorm(x = data$agbd - G(pars), mean = 0, sd = pars['sd'], log = TRUE), na.rm = TRUE))
+  result = -sum(dnorm(x = data$agbd - G(pars, data), mean = 0, sd = pars['sd'], log = TRUE), na.rm = TRUE)
+  ifelse(result == 0, -Inf, result)
 }
 
 o = optim(par = pars, fn = NLL, hessian = FALSE)
 o
 
+pred <- G(o$par)
  
 outcome <- data.frame(data$agbd, pred)
 outcome <- round(outcome, 3)
