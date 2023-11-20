@@ -1,7 +1,7 @@
 ####################################################################
 ########## Predicting forest regrowth from Mapbiomas data ##########
 # first applied to the district of Paragominas, in the Western Amazon.
-# Ana Avila - Jan 2023
+# Ana Avila - Dec 2023
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Intakes:
 #   Raster mask for regrowth history

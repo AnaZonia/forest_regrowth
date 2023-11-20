@@ -1,64 +1,4 @@
-####################################################################
-########## Predicting forest regrowth from Mapbiomas data ##########
-# Ana Avila - Jan 2023
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Prepares dataframes for environmental variables, country-wide (BRA):
-  # -> Precipitation and temperature from raw worldclim data
-  # -> Soil types from FAO World Soil Map
-# Generates:
-  # temp <- readRDS('./worldclim_brazil/dataframes/temp.rds')
-  # prec <- readRDS('./worldclim_brazil/dataframes/prec.rds')
-  # soil <- readRDS('./soil/soil.rds')
-####################################################################
 
-library(sf)
-library(terra) # handling spatial data
-library(tidyverse)
-setwd("/home/aavila/forest_regrowth")
-
-##########  Switches ##########
-download_worldclim = FALSE
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##########  Temperature/Precipitation ##########
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-outdir <- "./worldclim" # Specify your preferred working directory
-
-# from my own mapbiomas data
-location <- '0000000000-0000095232'
-regrowth <- rast("./model_ready_rasters/0000000000-0000095232_forest_age.tif")
-
-################################# 
-
-# read all data into a single block
-files_tmp <- list.files(path = './secondary_forest_age_v2_2018', full.names=TRUE)   # obtain paths for all files for that location
-regrowth_silva <- lapply(files_tmp, rast)
-locations <- str_sub(files_tmp, start= -25, end = -5)
-
-if (download_worldclim == T){
-  vars = c("tmin_", "tmax_", "prec_")
-  ranges = c("1980-1989", "1990-1999", "2000-2009", "2010-2018")
-
-  url = paste0("http://biogeo.ucdavis.edu/data/worldclim/v2.1/hist/wc2.1_2.5m_", do.call(paste0, expand.grid(vars, ranges)), ".zip")
-  zip <- file.path(outdir, basename(url))
-
-  for (i in 1:12){
-    download.file(url[i], zip[i])
-  }
-
-  # get all the zip files
-  zipF <- list.files(path = outdir, pattern = "*.zip", full.names = TRUE)
-  # unzip all your files
-  ldply(.data = zipF, .fun = unzip, exdir = outdir)
-  #remove all datapoints before landsat (1985)
-  file.remove(list.files(path = outdir, pattern = "1980|1981|1982|1983|1984|2019", full.names = TRUE))
-}
-
-mk_list <- function(x)  {as.list(intersect(list.files(path = outdir, pattern = "*.tif", full.names = TRUE),
-                                           list.files(path = outdir, pattern = x, full.names = TRUE)))}
-
-regrowth_mask <- regrowth_silva[[1]]
-location <- locations[[1]]
 
 vars <- c("tmax", "tmin")
 var <- 'tmax'
@@ -81,7 +21,6 @@ for (var in vars){
   cropped <- crop(yearly, regrowth_mask)
   raster_clim <- resample(cropped, regrowth_mask, method='near')
   raster_clim_masked <- mask(raster_clim, regrowth_mask)
-  writeRaster(raster_clim_masked, filename=paste0(var, '_', location, '_santoro.tif'))
 }
 
 #resolution is about 4.5 km.
@@ -203,3 +142,100 @@ saveRDS(data, 'santoro_cwd_fire_LU.rds')
 data <- lapply(lu_tile, rast_to_df)
 data_raw <- bind_rows(data)
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##########  Mature forest ##########
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+# this is a long term average.
+
+# mean biomass of surrounding mature forests around 3km (~100 pixels of 30m)
+biomass_range <- 101 # window size
+mature_biomass <- mask(santoro_raster, mature_mask)  # get only biomass of mature forests
+# mature_total_biomass <- focal(mature_biomass, biomass_range, sum, na.rm = TRUE)
+
+regrowth_mat <- as.matrix(regrowth)
+
+coordinates <- which(!is.na(regrowth_mat), TRUE)
+center_coordinates_reg <- coordinates[,1]
+
+r <- rast(ncols=36, nrows=18)
+r[500] <- 1
+r <- as.matrix(r, wide = TRUE)
+
+coordinates <- which(!is.na(r), TRUE)
+
+# Define the circular radius (distance) and buffer size
+radius <- 10
+buffer_size <- 2 * radius + 1  # Buffer size including the central cell
+
+n_rows <- nrow(r)
+n_cols <- ncol(r)
+row_indices <- rep(1:n_rows, each = n_cols)
+col_indices <- rep(1:n_cols, times = n_rows)
+cell_coordinates <- cbind(row_indices, col_indices)
+distances <- sqrt((cell_coordinates[, 1] - coordinates[1])^2 + (cell_coordinates[, 2] - coordinates[2])^2)
+distance_matrix <- matrix(distances, ncol = n_cols, byrow = TRUE)
+
+R <- matrix(1:100, nrow = 20)
+row <- 14
+col <- 32
+radius <- 3
+
+x <- seq(1, nrow(R))
+y <- seq(1, ncol(R))
+xx <- rep(x, each = length(y))
+yy <- rep(y, length(x))
+distances <- sqrt((xx - row)^2 + (yy - col)^2)
+indices <- which(distances <= radius)
+result <- r[within_radius_mask]
+
+within_radius_mask <- which(distance_matrix <= radius)
+
+mask <- matrix(0, nrow = nrow(r), ncol = ncol(r))
+mask[within_radius_mask] <- 1
+mask <- rast(mask)
+plot(mask)
+
+biom <- matrix(1:(nrow(r)*ncol(r)), nrow = nrow(r), ncol = ncol(r))
+
+values <- biom[within_radius_mask]
+
+result <- matrix(NA, nrow = nrow(r), ncol = ncol(r))
+result[coordinates[1], coordinates[2]] <- mean(values)
+
+# Load required libraries
+library(terra)
+library(parallel)
+
+tiles <- makeTiles(trim(mature_biomass), c(200,200), na.rm = TRUE, overwrite=TRUE)  # Adjust nx and ny to desired block size
+tiles <- lapply(tiles, rast)
+
+# function intakes buffer_size in meters and mean_biomass_in_x_pixels is self explanatory
+calc_buffer_and_sum <- function(tile, buffer_size, mean_biomass_in_x_pixels) {
+  mature_total_biomass <- focal(mature_biomass_msk, mean_biomass_in_x_pixels, mean, na.rm = TRUE)
+  mature_biomass_msk <- mask(mature_total_biomass, rast(tile))
+
+}
+
+buffer_mask <- as.mask(dist)
+mask_raster <- rast(r, mask = dist)
+
+library(parallel)
+tiles_processed <- mclapply(tiles, focal, 51, mean, na.rm = TRUE, ncores = 20)
+saveRDS(tiles_processed, file = ".rds")
+
+library(terra)
+
+r <- rast(ncols=36, nrows=18)
+r[500] <- 1
+b <- buffer(r, width=5000000) 
+plot(b)
+
+s <- rast(ncols=36, nrows=18)
+values(s) <- runif(ncell(s))
+
+tst <- mask(s, b)
+
+
+plot(tst)
