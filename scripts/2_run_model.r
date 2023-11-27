@@ -3,15 +3,18 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ####################################################################
 library(ggplot2)
-
+library(terra)
 setwd("/home/aavila/forest_regrowth/")
 
-csv_files <- list.files(path = "./data/points", pattern = '\\.csv$', full.names = TRUE)
-# Read and merge CSV files
-merged_data <- do.call(rbind, lapply(csv_files, read.csv))
-data <- merged_data[2:7]
-colnames(data) <- c('agbd', 'age', 'cwd', 'lat', 'lon', 'sd')
-head(data)
+rasters_files <- list.files(path = "./data/drive_export", pattern = '\\.tif$', full.names = TRUE)
+
+rast_to_df <- function(raster){
+  coords <- crds(raster, df=FALSE, na.rm=TRUE)
+  values_stack <- terra::extract(raster, coords, cells=FALSE, method="simple")
+  central_df <- values_stack[complete.cases(values_stack), ]
+  return(central_df)
+}
+
 
 ########################
 # SWITCHES

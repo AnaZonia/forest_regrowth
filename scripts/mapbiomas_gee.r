@@ -35,77 +35,61 @@ rgee::ee_Initialize() #use drive = TRUE to access things in your google drive
 ####################################################################
 
 # Load images and feature collection
-age <- ee$Image('users/celsohlsj/public/secondary_vegetation_age_collection71_v5')$select('classification_2020')
+age <- ee$Image('users/celsohlsj/public/secondary_vegetation_age_collection71_v5')$
+                select('classification_2020')
 biomass <- ee$Image('projects/ee-ana-zonia/assets/biomass_2020')
 sd <- ee$Image('projects/ee-ana-zonia/assets/biomass_sd_2020')
 cwd <- ee$Image('projects/ee-ana-zonia/assets/cwd_chave')
 amazon_biome <- ee$FeatureCollection('projects/ee-ana-zonia/assets/amazon_biome_border')
-
-# Define visualization parameters
-age_viz <- list(min = 0, max = 33, palette = c('00FFFF', '0000FF'))
-agbd_viz <- list(min = 0, max = 415, palette = c('00FFFF', '0000FF'))
-cwd_viz <- list(min = -831.75, max = 0, palette = c('00FFFF', '0000FF'))
-
-Map$addLayer(age, age_viz, 'age')
-Map$addLayer(biomass, agbd_viz, 'agbd')
-Map$addLayer(cwd, cwd_viz, 'cwd')
+ecoregions <- ee$FeatureCollection('RESOLVE/ECOREGIONS/2017')
 
 # Clip images to Amazon biome
-age <- age$clip(amazon_biome$geometry())$updateMask(age$gt(0))$rename('age') # keep only pixels with ages > 0 (secondary forests)
+age <- age$clip(amazon_biome$geometry())$updateMask(age$gt(0)) # keep only pixels with ages > 0 (secondary forests)
 biomass <- biomass$clip(amazon_biome$geometry())
 sd <- sd$clip(amazon_biome$geometry())
 cwd <- cwd$clip(amazon_biome$geometry())
+ecoregions <- ecoregions$filterBounds(amazon_biome$geometry())
+ecoregions_list <- ecoregions$toList(ecoregions$size())
+ee_print(ecoregions_list$getInfo())
 
 # Reproject images to 10m
-ages_10m <- age$reproject(crs = age$projection()$crs(), scale = 10)
 biomass_10m <- biomass$reproject(crs = age$projection(), scale = 10)
 cwd_10m <- cwd$reproject(crs = age$projection(), scale = 10)
 sd_10m <- sd$reproject(crs = age$projection(), scale = 10)
 
-# Mask everything to only encompass secondary forest patches
-biomass_10m <- biomass_10m$updateMask(ages_10m)
-ages_10m <- ages_10m$updateMask(biomass_10m)
-sd_10m <- sd_10m$updateMask(ages_10m)
-cwd_10m <- cwd_10m$updateMask(ages_10m)
-
 # Reaggregate to 30m (mean value)
-aggregated_biomass <- biomass_10m$reduceResolution(reducer = ee$Reducer$mean(), maxPixels = 1024)$reproject(crs = age$projection()$crs(), scale = 30)
-aggregated_cwd <- cwd_10m$reduceResolution(reducer = ee$Reducer$mean(), maxPixels = 1024)$reproject(crs = age$projection()$crs(), scale = 30)
-aggregated_sd <- sd_10m$reduceResolution(reducer = ee$Reducer$mean(), maxPixels = 1024)$reproject(crs = age$projection()$crs(), scale = 30)
+aggregated_biomass <- biomass_10m$reduceResolution(reducer = ee$Reducer$mean())$reproject(crs = age$projection())
+aggregated_cwd <- biomass_10m$reduceResolution(reducer = ee$Reducer$mean())$reproject(crs = age$projection())
+aggregated_sd <- biomass_10m$reduceResolution(reducer = ee$Reducer$mean())$reproject(crs = age$projection())
 
+# Mask only to regions with age greater than zero (secondary forests)
+aggregated_biomass <- aggregated_biomass$updateMask(age)$toInt16()
+aggregated_sd <- aggregated_sd$updateMask(age)$toInt16()
+aggregated_cwd <- aggregated_cwd$updateMask(age)$toInt16()
 
-Map$addLayer(aggregated_cwd, cwd_viz, 'cwd')
-Map$addLayer(aggregated_biomass, age_viz, 'ages_2020')
+ecoreg <- ecoregions_list.get(2)
+print(ecoreg)
+ee_print(ecoreg$getInfo('ECO_NAME'))
 
-Map$addLayer(amazon_imgcol$select('cwd'), cwd_viz, 'cwd')
-Map$addLayer(amazon_imgcol$select('age'), age_viz, 'ages_2020')
-Map$addLayer(amazon_imgcol$select('agbd'), agbd_viz, 'agbd')
+# export_data <- function(img, prefix) {
+#   # Export data for each ecoregion
+#   for (i in 1:31) {
+#     ecoreg <- ecoregions_list$get(i)
+#     img_clipped <- img$clip(ecoreg)
+#     projection <- img_clipped$projection()$getInfo()
 
+#     ee$batch$Export$image$toDrive(
+#     image = img_clipped,
+#     description = paste0(prefix, '_', ecoreg$get('ECO_NAME')),
+#     crs = img$projection()$crs(),
+#     crsTransform = img$projection()$getInfo()$transform,
+#     region = ecoregion$geometry(),
+#     maxPixels = 4e10
+#     )
+#   }
+# }
 
-# Create latitude and longitude bands
-# proj <- ages_10m$projection()
-# latlon <- ee$Image$pixelLonLat()$reproject(proj)
-# latlon <- latlon$updateMask(ages_10m)
-# lat <- latlon$select("latitude")
-# lon <- latlon$select("longitude")
-
-# Create secondary_amazon image
-secondary_amazon <- ee$Image(ages_10m)$addBands(lat)$addBands(lon)$addBands(biomass_10m$rename('biomass'))$addBands(sd_10m$rename('sd'))$addBands(cwd_10m$rename('cwd'))
-
-# Split image for exporting
-# Construct grid and intersect with country polygon
-grid <- ages_10m$geometry()$coveringGrid(ages_10m$geometry()$projection(), 500000)
-
-for (f in 1:grid$size()$getInfo()) {
-  print(f)
-  second_feature <- ee$Feature(grid$toList(grid$size()$getInfo())$get(f))
-  second_tiles <- secondary_amazon$clip(second_feature)
-  sampl_clip <- second_tiles$stratifiedSample(100)
-  # export all features in a FeatureCollection as one file
-  task <- ee$batch$Export$table(sampl_clip, paste0('sampl_clip', f), list(fileFormat = 'CSV'))
-  task$start()
-  ee_monitoring()
-}
+export_data(age, 'age')
 
 ####################################################################
 # -----------------------   Land Use    -------------------------- #
