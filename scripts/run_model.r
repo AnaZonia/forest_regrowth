@@ -1,181 +1,155 @@
 ####################################################################
 ########## Predicting forest regrowth from Mapbiomas data ##########
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ####################################################################
+# Ana Avila - Dec 2023
+# ~~~~~~~~~~~~~~~~~~~~
+# Intakes:
+# Outputs:
+####################################################################
+
 library(ggplot2)
 library(terra)
+library(tidyverse) # for stringr operations
 setwd("/home/aavila/forest_regrowth/")
+source("./scripts/regrowth_functions.r")
 
-rasters_files <- list.files(path = "./data/drive_export", pattern = '\\.tif$', full.names = TRUE)
+# ----------------------------------
+# Switches
+# ----------------------------------
 
-rast_to_df <- function(raster){
-  coords <- crds(raster, df=FALSE, na.rm=TRUE)
-  values_stack <- terra::extract(raster, coords, cells=FALSE, method="simple")
-  central_df <- values_stack[complete.cases(values_stack), ]
-  return(central_df)
+make_amazon_df = F
+
+# ----------------------------------
+# Importing data from .tif files and converting into dataframe
+# ----------------------------------
+
+# 10 k per region would be okay
+# would patterns emerge with more data?
+# incorporating temporal dynamics
+
+if (make_amazon_df == T){
+  files <- list.files(path = "./data/drive_export", pattern = '\\.tif$', full.names = TRUE)
+  rasters <- lapply(files, rast)
+  groups <- split(rasters, gsub("-[0-9]{10}-[0-9]{10}", "", files))
+
+  count <- 0
+  merge_rasters <- function(raster_list) {
+    if (length(raster_list) > 1) {
+      do.call(merge, raster_list)
+      count <<- count + 1
+      print(count)
+    } else {
+      raster_list[[1]]
+      count <<- count + 1
+      print(count)
+    }
+  }
+
+  # Apply the merging function to each group
+  merged_rasters <- lapply(groups, merge_rasters)
+
+  count <- 0
+  rast_to_df <- function(raster){
+    print('----------------')
+    count <<- count + 1
+    print(count)
+    coords <- crds(raster, df=FALSE, na.rm=TRUE)
+    print('done with coords')
+    values_stack <- terra::extract(raster, coords, cells=FALSE, method="simple")
+    print('done with values')
+    central_df <- values_stack[complete.cases(values_stack), ]
+    return(central_df)
+  }
+
+  dataframes_per_ecoregion <- lapply(merged_rasters, rast_to_df)
+  numbers <- unique(gsub("^img_export_([0-9]{3}).*", "\\1", basename(files)))
+  dataframes_per_ecoregion <- map2(dataframes_per_ecoregion, numbers, ~mutate(.x, ecoregion = .y))
+
+  amazon_df <- do.call(rbind, dataframes_per_ecoregion)
+  rownames(amazon_df) <- NULL
+  write.csv(amazon_df, file = "amazon_df.csv")
 }
 
-data <- read.csv('./data/amazon_df_sample_10million.csv')
+# ----------------------------------
+# Passing into the model
+# ----------------------------------
 
-########################
-# SWITCHES
-# data_prec_temp = FALSE
-# scaled = FALSE
+# inputting parameters from nls to NLL
+#       o <- optim(c(o_nls$par, sd = 0.5), NLL, data=data_example)
+# repuffing the model with the new parameters
+# fixing SD to 0.5
+# 
 
-# tst <- read.csv('santoro_alldata.csv')
+amazon_df <- read.csv('./data/amazon_df_sample_10million.csv')
+dummy_factor <- as.factor(amazon_df$ecoregion)
+dummy_matrix <- model.matrix(~dummy_factor - 1)  # -1 removes intercept
+amazon_df_dummy <- cbind(amazon_df, as.data.frame(dummy_matrix))
 
-# minMax <- function(x) {
-#   (x - min(x)) / (max(x) - min(x))
-# }
-
-# if (data_prec_temp == TRUE){
-#   data <- readRDS('santoro_ESA_alldata.rds')
-#   data <- data[data$last_LU %in% c(15, 41, 48),]
-#   data$last_LU <- factor(data$last_LU)
-#   dummy_LU <- as.data.frame(model.matrix(~ data$last_LU - 1))
-#   names(dummy_LU) <- c('pasture', 'other_annual', 'other_perennial')
-#   data_raw <- data[,-7]
-#   if(scaled==TRUE){
-#     data_scaled <- cbind(agbd=data_raw$agbd, scale(data_raw[,2:ncol(data_raw)]))
-#     data <- cbind(data_scaled, dummy_LU)
-#   }else{
-#     data_maxmin <- cbind(agbd=data_raw$agbd, minMax(data_raw[,2:ncol(data_raw)]))
-#     data <- cbind(data_maxmin, dummy_LU)
-#   }
-# }else{
-#   data <- readRDS('total_aet_cwd.rds')
-# }
-
-######################################################################
-#################        passing into the model     ##################
-######################################################################
-
-sds <- aggregate(agbd ~ age, data, sd)
-means <- aggregate(agbd ~ age, data, median)
+sds <- aggregate(agbd ~ age, amazon_df, sd)
+means <- aggregate(agbd ~ age, amazon_df, median)
 sum_stats <- cbind(means, sds[,2])
 colnames(sum_stats) <- c('age', 'agbd', 'sd')
-
-fit <- lm(sum_stats$agbd ~ sum_stats$age)
-summary(fit)
 
 ggplot(sum_stats, aes(x = age, y = agbd)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE, color = "blue") +
   theme(text = element_text(size = 20))
 
-fit <- lm(data$agbd ~ data$age)
-summary(fit)
+fit <- lm(agbd ~ age, amazon_df)
+summary(fit) # R-squared:  0.09077
 
-ggplot(data, aes(x = age, y = agbd)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE, color = "blue") +
-  theme(text = element_text(size = 20))
+model2 <- lm(agbd ~ age + cwd + ecoregion,
+             data = amazon_df)
+summary(model2) # R-squared: 0.1226
 
-# Predict values using the model
-predicted_values <- predict(fit, as.data.frame(data$age))
+# Predict values using the linear model
+predicted_values <- predict(fit, as.data.frame(amazon_df$age))
 
-mean((data$agbd - predicted_values)^2)
-mean((data$agbd - pred)^2)
+mean((amazon_df$agbd - predicted_values)^2) #3986.709
 
-# --- NLS
+# ------------ NLS ------------ #
 
-pars_0 = c(A = 133, age = 0.02992, theta = 1.1162) # this is the value she found with nls function
-# and with RSS = 2695.
+data <- amazon_df_dummy
 
-G <- function(pars, data) {
-  pars['A'] * (1 - exp(-pars['age']*data$age))^pars['theta']
-}
+pars = c(B0 = 10, A = 133, age = 0.02992, theta = 1.1162,
+cwd = 0.001, d485 = 0.001, d508 = 0.01, d529 = 0.01)
 
-# Indeed, starting out with her parameters as initial parameters we get better results:
-pars = c(A = 87.07455636, age = 0.07435007, theta = 1.69029407, sd = 0.5) # this is the value she found with nls function
-Gpred <- G(pars, sum_stats)
-Gpred
-
-nls <- function(pars, data) {
-  if (pars['age'] < 0){
-    return(-Inf) 
-  }
-  if (pars['age'] > 10){
-    return(-Inf) 
-  }
-  if (pars['theta'] > 10){
-    return(-Inf) 
-  }
-  if (pars['theta'] < 0){
-    return(-Inf) 
-  }
-  result = sum((G(pars, data) - data$agbd)^2)
-  ifelse(result == 0, -Inf, result)
-}
-
-
-o = optim(par = pars_0, fn = nls, data = sum_stats)
-o
-
-pred <- G(o$par, sum_stats)
- 
-outcome <- data.frame(sum_stats$agbd, pred)
-head(outcome)
-outcome <- round(outcome, 3)
-head(outcome)
-
-plot(outcome$pred, outcome$data.agbd, abline(0,1)) # , xlim=c(0, 100))
-mean((data$agbd - pred)^2)
-
-
-# -- NLL
-
-G <- function(pars, data) {
-  pars['A'] * (1 - exp(-pars['age']*data$age))^pars['theta']
-}
-
-pars = c(A = 87.07455636, age = 0.07435007, theta = 1.69029407, sd = 0.5) # this is the value she found with nls function
-Gpred <- G(pars, data)
+Gpred <- G_6par(pars, data)
 head(Gpred)
 
-NLL = function(pars, data) {
-  if (pars['age'] < 0){
-    return(-Inf) 
-  }
-  if (pars['age'] > 10){
-    return(-Inf) 
-  }
-  if (pars['theta'] > 10){
-    return(-Inf) 
-  }
-  if (pars['theta'] < 0){
-    return(-Inf) 
-  }
-  if (pars['sd'] < 0){
-    return(-Inf) 
-  }
-  if (pars['sd'] > 10){
-    return(-Inf) 
-  }
-  # Negative log-likelihood 
-  result = -sum(dnorm(x = data$agbd - G(pars, data), mean = 0, sd = pars['sd'], log = TRUE), na.rm = TRUE)
-  ifelse(result == 0, -Inf, result)
-}
-
-o = optim(par = pars, fn = NLL, data = sum_stats, hessian = FALSE)
+o = optim(pars, fn = nls, data = data, G = G_6par)
 o
 
-pred <- G(o$par, sum_stats)
- 
-outcome <- data.frame(sum_stats$agbd, pred)
-outcome <- round(outcome, 3)
+pred <- G_6par(o$par, data)
+
+outcome <- data.frame(data$agbd, pred)
 head(outcome)
-plot(outcome$pred, outcome$sum_stats.agbd, abline(0,1)) # , xlim=c(0, 100))
-mean((data$agbd - pred)^2)
 
 median_values <- outcome %>%
   group_by(pred) %>%
   summarize(median_agbd = median(data.agbd, na.rm = TRUE))
 
-plot(median_values$pred, median_values$median_agbd, abline(0,1), xlim=c(0, 100))
+plot(median_values$pred, median_values$median_agbd, abline(0,1))
 
-############################
-############################
+# with the medians
+mean((data$agbd - pred)^2) #3961.879 with G_3par
+# 3945.359 with G_4par
+# 3963.008 with G_6par (including CWD)
+# 3868.773 with dummy variables
+
+# use them as variance explained
+# not directly related with probability
+
+# divide by the sum of squares of the observed values 
+# complement of 1-MSE/Sum of squares
+
+# use LM on observed vs predicted
+# find if the intercept and that the LM will find is zero and the slope is 1.
+
+# if asymptote is a constant, it should not make a difference, but if it a function
+# of surrounding forest height, then it should make a difference. the asymptote should
+
+# ------------ with dummy variable ------------ #
 
 breaks <- quantile(data$cwd, probs = c(0, 1/3, 2/3, 1), na.rm = TRUE)
 categories <- cut(data$cwd, breaks, labels = c("low", "mid", "high"))
@@ -188,7 +162,6 @@ summary(fit)
 
 predicted_values <- predict(fit, as.data.frame(sum_stats$age))
 mean((sum_stats$agbd - predicted_values)^2)
-
 
 ggplot(sum_stats, aes(x = age, y = agbd)) +
   geom_point() +
@@ -324,7 +297,6 @@ o
 G(o$par, data = new_agbd)
 
 lines(G(o$par, data = new_agbd), col = "blue", lwd = 2)
-
 
 #########################################
 # looking at CWD

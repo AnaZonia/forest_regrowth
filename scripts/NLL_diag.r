@@ -1,3 +1,7 @@
+# ----------------------------
+# Investigando qual foi o problema com o classificador de negative log-likelihood.
+#------------------------------
+
 library(ggplot2)
 
 data_init <- readRDS('./forest_regrowth/data/santoro_cwd_fire_LU.rds')
