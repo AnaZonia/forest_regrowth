@@ -15,6 +15,7 @@ rast_to_df <- function(raster){
   return(central_df)
 }
 
+data <- read.csv('./data/amazon_df_sample_10million.csv')
 
 ########################
 # SWITCHES
@@ -49,8 +50,8 @@ rast_to_df <- function(raster){
 #################        passing into the model     ##################
 ######################################################################
 
-sds <- aggregate(sd ~ age, data, sd)
-means <- aggregate(sd ~ age, data, median)
+sds <- aggregate(agbd ~ age, data, sd)
+means <- aggregate(agbd ~ age, data, median)
 sum_stats <- cbind(means, sds[,2])
 colnames(sum_stats) <- c('age', 'agbd', 'sd')
 
@@ -130,9 +131,9 @@ G <- function(pars, data) {
 
 pars = c(A = 87.07455636, age = 0.07435007, theta = 1.69029407, sd = 0.5) # this is the value she found with nls function
 Gpred <- G(pars, data)
-Gpred
+head(Gpred)
 
-NLL = function(pars) {
+NLL = function(pars, data) {
   if (pars['age'] < 0){
     return(-Inf) 
   }
@@ -156,15 +157,15 @@ NLL = function(pars) {
   ifelse(result == 0, -Inf, result)
 }
 
-o = optim(par = pars, fn = NLL, hessian = FALSE)
+o = optim(par = pars, fn = NLL, data = sum_stats, hessian = FALSE)
 o
 
-pred <- G(o$par)
+pred <- G(o$par, sum_stats)
  
-outcome <- data.frame(data$agbd, pred)
+outcome <- data.frame(sum_stats$agbd, pred)
 outcome <- round(outcome, 3)
 head(outcome)
-plot(outcome$pred, outcome$data.agbd, abline(0,1)) # , xlim=c(0, 100))
+plot(outcome$pred, outcome$sum_stats.agbd, abline(0,1)) # , xlim=c(0, 100))
 mean((data$agbd - pred)^2)
 
 median_values <- outcome %>%
