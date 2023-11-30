@@ -5,23 +5,7 @@ import pandas as pd
 # Authenticate to Earth Engine
 ee.Initialize()
 
-def export_by_ecoregion(eco_id):
-    ecoreg =  ecoregions.filter(ee.Filter.eq("ECO_ID",eco_id))
-    img = img_export.clip(ecoreg)
-    proj = img.projection().getInfo()
-    task = ee.batch.Export.image.toDrive(
-            image=img,
-            description=f"img_export_{eco_id}",
-            folder='drive_export',
-            region=ecoreg.geometry(),
-            crs=proj["crs"],
-            crsTransform=proj["transform"],
-            skipEmptyTiles = True,
-            maxPixels=4e10
-        )
-    task.start()
-
-def make_reprojected_image():
+def import_data():
     # Regions of interest
     amazon_biome = ee.FeatureCollection('projects/ee-ana-zonia/assets/amazon_biome_border')
     indig_land = ee.FeatureCollection('projects/ee-ana-zonia/assets/indig_land')
@@ -36,8 +20,9 @@ def make_reprojected_image():
     biomass = ee.Image('projects/ee-ana-zonia/assets/biomass_2020').clip(amazon_biome)
     sd = ee.Image('projects/ee-ana-zonia/assets/biomass_sd_2020').clip(amazon_biome)
     cwd = ee.Image('projects/ee-ana-zonia/assets/cwd_chave').clip(amazon_biome)
-    return {}
-
+    
+    return {'amazon_biome': amazon_biome, 'indig_land': indig_land, 'ecoregions': ecoregions,
+            'age': age, 'biomass':biomass, 'sd':sd, 'cwd':cwd}
 
 def smoothen_edges():
     r"""
@@ -57,6 +42,22 @@ def smoothen_edges():
 
     for eco_id in ecoregions.aggregate_array("ECO_ID").getInfo():
         export_by_ecoregion(eco_id)
+
+def export_by_ecoregion(eco_id):
+    ecoreg =  ecoregions.filter(ee.Filter.eq("ECO_ID",eco_id))
+    img = img_export.clip(ecoreg)
+    proj = img.projection().getInfo()
+    task = ee.batch.Export.image.toDrive(
+            image=img,
+            description=f"img_export_{eco_id}",
+            folder='drive_export',
+            region=ecoreg.geometry(),
+            crs=proj["crs"],
+            crsTransform=proj["transform"],
+            skipEmptyTiles = True,
+            maxPixels=4e10
+        )
+    task.start()
 
 def ee_array_to_df(arr, list_of_bands):
     """Transforms client-side ee.Image.getRegion array to pandas.DataFrame."""
@@ -82,10 +83,15 @@ def ee_array_to_df(arr, list_of_bands):
     return df
 
 
-def fun():
-    my_amazon_biom = make_reprojected_image()
+def import_modis():
+    r"""weeeee
+    """
+    amazon_dict = import_data()
+    modis = ee.ImageCollection("MODIS/061/MOD16A2")
+    print(modis)
+    
 
 if __name__ == '__main__':
-  logging.basicConfig()
-  items = getRequests()
+    import_data()
+    import_modis()
 
