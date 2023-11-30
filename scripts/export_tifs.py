@@ -5,7 +5,11 @@ import pandas as pd
 # Authenticate to Earth Engine
 ee.Initialize()
 
-def import_data():
+def get_minmax(img, geom):
+    min_max_values = img.first().reduceRegion(reducer=ee.Reducer.minMax(), geometry=geom)
+    print('min_max_values', min_max_values.getInfo())
+
+def import_main_data():
     # Regions of interest
     amazon_biome = ee.FeatureCollection('projects/ee-ana-zonia/assets/amazon_biome_border')
     indig_land = ee.FeatureCollection('projects/ee-ana-zonia/assets/indig_land')
@@ -18,11 +22,24 @@ def import_data():
         .clip(amazon_biome))
     age = age.updateMask(age.gt(0)) # include only pixels with age greater than zero (secondary forests)
     biomass = ee.Image('projects/ee-ana-zonia/assets/biomass_2020').clip(amazon_biome)
-    sd = ee.Image('projects/ee-ana-zonia/assets/biomass_sd_2020').clip(amazon_biome)
-    cwd = ee.Image('projects/ee-ana-zonia/assets/cwd_chave').clip(amazon_biome)
     
     return {'amazon_biome': amazon_biome, 'indig_land': indig_land, 'ecoregions': ecoregions,
-            'age': age, 'biomass':biomass, 'sd':sd, 'cwd':cwd}
+            'age': age, 'biomass':biomass}
+
+def import_predictors():
+    amazon_biome = import_main_data()['amazon_biome']
+    # Load TerraClimate dataset and filter by date
+    terraclimate = ee.ImageCollection('IDAHO_EPSCOR/TERRACLIMATE') \
+        .filter(ee.Filter.date('1985-07-01', '2020-08-01'))
+    # Select the chosen band and clip to the Amazon biome - note there is scaling for some values.
+    prec = terraclimate.select('pr').filterBounds(amazon_biome) # precipitation, 0 - 617 mm
+    tmin = terraclimate.select('tmmn').filterBounds(amazon_biome) # min temp, 10.9 - 24 deg C
+    tmax = terraclimate.select('tmmx').filterBounds(amazon_biome) # max temp, 21.3 - 36.4 deg C
+    
+    lulc = ee.Image('projects/mapbiomas-workspace/public/collection8/mapbiomas_collection80_integration_v1')
+    fire = ee.Image('projects/mapbiomas-workspace/public/collection7_1/mapbiomas-fire-collection2-annual-burned-coverage-1')
+    # land use for the pan amazonian dataset (spanning all amazonian countries)
+    panamaz = ee.Image('projects/mapbiomas-raisg/public/collection1/mapbiomas_raisg_panamazonia_collection1_integration_v1')
 
 def smoothen_edges():
     r"""
@@ -82,16 +99,15 @@ def ee_array_to_df(arr, list_of_bands):
 
     return df
 
-
 def import_modis():
     r"""weeeee
     """
-    amazon_dict = import_data()
-    modis = ee.ImageCollection("MODIS/061/MOD16A2")
-    print(modis)
-    
+    amazon_biome = import_main_data()['amazon_biome']
+    modis = ee.ImageCollection("MODIS/061/MOD16A2").filterBounds(amazon_biome)
+    print(modi)
 
 if __name__ == '__main__':
-    import_data()
+    import_main_data()
+    import_predictors()
     import_modis()
 
