@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Generating data for "Predicting Forest Regrowth in Amazonia given Land Use History"
 Author: Ana Catarina Avila
@@ -5,11 +7,16 @@ Date: Nov 2023
 """
 
 import ee
+import geemap
 from geetools import batch
 import pandas as pd
 
 # Authenticate to Earth Engine
 ee.Initialize()
+# Initialize map
+Map = geemap.Map(center=[-10, -40], zoom=4)
+Map
+
 
 def get_minmax(img, geom):
     r"""get min and max values of the first image in an ImageCollection"""
@@ -38,6 +45,7 @@ def import_main_data(roi):
         # to apply here method of Silva Junior et al 2020 to get secondary forest ages
         # note: there's less land use categories here than for the Brazilian territory.
     
+    Map.addLayer(roi, {}, 'roi')
     # FeatureCollections
     indig_land = ee.FeatureCollection("projects/ee-ana-zonia/assets/indig_land").filterBounds(roi.geometry())
     ecoregions = ee.FeatureCollection("RESOLVE/ECOREGIONS/2017").filterBounds(roi.geometry())
@@ -56,7 +64,7 @@ def import_main_data(roi):
             .clip(roi))
         # include only pixels with age greater than zero (secondary forests)
         age = age.updateMask(age.gt(0))
-         
+
     return {"roi": roi, "indig_land": indig_land, "ecoregions": ecoregions,
             "age": age, "soil": soil, "biomass":biomass, "lulc":lulc, "fire": fire}
 
@@ -87,13 +95,9 @@ def smoothen_edges():
 def import_modis():
     r"""weeeee
     """
-    amazon_biome = import_main_data()["amazon_biome"]
+    roi = import_main_data(roi = "br_amaz")["roi"]
     modis = (ee.ImageCollection("MODIS/061/MOD16A2GF").select("ET")
-             .filterBounds(amazon_biome).filterDate("2001-01-01", "2022-12-01")) # MODIS yearly ET
-    
-    
-    
-    print(modis)
+             .filterBounds(roi).filterDate("2001-01-01", "2022-12-01")) # MODIS yearly ET
 
 # def mcwd():
 
@@ -194,7 +198,7 @@ if __name__ == "__main__":
     import_main_data(roi = "br_amaz")
     # smoothen_edges()
     ####### Climatic data
-    # import_modis()
+    import_modis()
     # mcwd()
     # get_yearly_cwd()
     ####### LULC and Fire

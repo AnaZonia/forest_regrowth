@@ -7,6 +7,7 @@
 ## Dependencies
 - Google Earth Engine
 - Python API
+- geemap package for handling
 
 ## Scripts
 ### data_processing.py
