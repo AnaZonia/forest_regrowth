@@ -13,15 +13,11 @@ import pandas as pd
 
 # Authenticate to Earth Engine
 ee.Initialize()
-# Initialize map
-Map = geemap.Map(center=[-10, -40], zoom=4)
-Map
 
-
-def get_minmax(img, geom):
+def get_minmax(img, roi):
     r"""get min and max values of the first image in an ImageCollection"""
-    min_max_values = img.first().reduceRegion(reducer=ee.Reducer.minMax(), geometry=geom)
-    print("min_max_values", min_max_values.getInfo())
+    min_max_values = img.reduceRegion(reducer=ee.Reducer.minMax(), geometry=roi.geometry(), maxPixels = 4e10)
+    return("min_max_values", min_max_values.getInfo())
 
 def import_main_data(roi):
     r""" Import images from ee.
@@ -34,7 +30,7 @@ def import_main_data(roi):
         - FeatureCollections: roi, indig_land, ecoregions, soil
         - Images: age, biomass, lulc, fire
     """
-    
+
     if roi == "br_amaz":
         roi = ee.FeatureCollection("projects/ee-ana-zonia/assets/amazon_biome_border").filter(ee.Filter.eq("id", 18413))
     elif roi == "br":
@@ -45,7 +41,6 @@ def import_main_data(roi):
         # to apply here method of Silva Junior et al 2020 to get secondary forest ages
         # note: there's less land use categories here than for the Brazilian territory.
     
-    Map.addLayer(roi, {}, 'roi')
     # FeatureCollections
     indig_land = ee.FeatureCollection("projects/ee-ana-zonia/assets/indig_land").filterBounds(roi.geometry())
     ecoregions = ee.FeatureCollection("RESOLVE/ECOREGIONS/2017").filterBounds(roi.geometry())
@@ -93,11 +88,16 @@ def smoothen_edges():
 """
 
 def import_modis():
-    r"""weeeee
+    r"""Get mean evapotranspiration for MODIS over the whole time period across the basin.
     """
     roi = import_main_data(roi = "br_amaz")["roi"]
-    modis = (ee.ImageCollection("MODIS/061/MOD16A2GF").select("ET")
-             .filterBounds(roi).filterDate("2001-01-01", "2022-12-01")) # MODIS yearly ET
+    modis = (ee.ImageCollection("MODIS/061/MOD16A2GF").filterDate("2002-01-01", "2021-12-01").filterBounds(roi.geometry()).select('ET')) # MODIS yearly ET ('min_max_values', {'ET_max': 735, 'ET_min': 8})
+    def clip_image(image):
+        return image.clip(roi)
+    modis = modis.map(clip_image)
+    modis_mean = modis.mean()
+    return(modis_mean)
+
 
 # def mcwd():
 
@@ -118,18 +118,66 @@ def get_yearly_cwd():
 """
 ~~~~~~   LULC and Fire   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
+# def lulc():
+#   last observed land use type - given secondary ages, get    
+# if age is 1 in 2020, it was not forest in 2019
+# which means I want category in 2019
+# if age is 35 in 2020, it was not forest in 1985
+# which means I want category in 1985
+
+# transform secondary forest to mask
+# mask land use at the correct band index to the secondary forest mask to the correct band index
+
+########## LAND USE ##########
+# VARIABLES OBTAINED
+# number of years under each land use tnrype
+# time since last observation of each land use type
+
+# INDEX ## 3 = forest
+# 15 = pasture
+# 39 = soy
+# 46 = coffee
+# 20 = sugar cane
+# 41 = other annual crop
+# 48 = other perennial crop
+
+# total years under each land use type
+# calc_total_yrs <- function(masked_brick, val){
+#   masked_brick[masked_brick != val] <- 0
+#   total_past_years <- sum(masked_brick)
+#   return(total_past_years/val)
+# }
+
+# pasture_total <- calc_total_yrs(lulc_brick_masked, 15)
+# soy_total <- calc_total_yrs(lulc_brick_masked, 39)
+# coffee_total <- calc_total_yrs(lulc_brick_masked, 46)
+# sugar_total <- calc_total_yrs(lulc_brick_masked, 20)
+# other_annual_total <- calc_total_yrs(lulc_brick_masked, 41)
+# other_perennial_total <- calc_total_yrs(lulc_brick_masked, 48)
 
 
+# time since specific land use type
+# last_LU = lulc.eq(39).reduce(ee.Reducer.lastNonNull())
 
 
-# def fire():
-""" """
-# num_fires <- sum(fire_brick_masked)
+def fire():
+    r""" Intakes MAPBIOMAS burned area and MAPBIOMAS fire frequency.
+    Outputs Number of fires, time since last burn, and years since each fire."""
+    fire = import_main_data(roi = "br_amaz")["fire"]
+    roi = import_main_data(roi = "br_amaz")["roi"]
+    # select only 2019 to 1985 (as we only want forests that burned before 2020)
+    fire = fire.select(fire.bandNames().removeAll(["burned_coverage_2020", "burned_coverage_2021", "burned_coverage_2022"])
+                                    .reverse())
 
-# # find when was last fire observed (how many years before observed regrowth)
-# fire_brick_flipped <- fire_brick_masked [[ c(rev(order(names(fire_brick_masked)))) ]]
-# last_fire <- which.lyr(fire_brick_flipped == 1)
+    # fire has the value of the land use type that burned.
+    # Transforming into a fire mask:
+    fire = fire.gt(0)
+    #display(fire)
 
+    num_fires = fire.reduce('sum')
+    print(get_minmax(num_fires, roi))
+
+# --------------------------------------------------------------------------------------------
 
 # def mature_layer():
 """ """
@@ -164,44 +212,16 @@ def export_image_by_ecoregion(eco_id):
         )
     task.start()
 
-def ee_array_to_df(img, list_of_bands):
-    r"""Transforms client-side ee.Image.getRegion array to pandas.DataFrame."""
-    # Attempting to extract more than 1.048.576 values will result in an error.
-    
-    # arr = make array with getRegion from Image object
-    
-    df = pd.DataFrame(arr)
-
-    # Rearrange the header.
-    headers = df.iloc[0]
-    df = pd.DataFrame(df.values[1:], columns=headers)
-
-    # Remove rows without data inside.
-    df = df[["longitude", "latitude", "time", *list_of_bands]].dropna()
-
-    # Convert the data to numeric values.
-    for band in list_of_bands:
-        df[band] = pd.to_numeric(df[band], errors="coerce")
-
-    # Convert the time field into a datetime.
-    df["datetime"] = pd.to_datetime(df["time"], unit="ms")
-
-    # Keep the columns of interest.
-    df = df[["time","datetime",  *list_of_bands]]
-
-    return df
-
-
 
 if __name__ == "__main__":
-    # get_minmax(img, geom)
+    #get_minmax(img)
     import_main_data(roi = "br_amaz")
     # smoothen_edges()
     ####### Climatic data
-    import_modis()
+    # import_modis()
     # mcwd()
     # get_yearly_cwd()
     ####### LULC and Fire
+    fire()
     ####### Export data
     # export_image_by_ecoregion(eco_id)
-    # ee_array_to_df(img, list_of_bands)
