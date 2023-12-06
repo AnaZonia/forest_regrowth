@@ -88,17 +88,15 @@ ages = ee.Image().byte()
 ages = ages.addBands(extent.select('classification_1986').rename('classification_1986'))
 ages = ages.slice(1)
 
-
-for i in range(first_year, last_year):  # 1986-2020
+for i in range(first_year + 1, last_year):  # 1986-2020
     year = f'classification_{i + 1}'
-    sforest = sforest_ext.select(year)
-    age_forest = empty.add(sforest)
+    sforest = extent.select(year)
+    age_forest = ages.add(sforest)
     f_year = mapbiomas_forest.select(year)
-    age_forest = age_forest.multiply(f_year)
-    sforest_age = sforest_age.addBands(age_forest.rename(year))
-    empty = age_forest
+    age_forest = age_forest.multiply(f_year) # mask by pixels that were forest that year, removing any forest loss
+    ages = ages.addBands(age_forest.rename(year))
 
-sforest_age = sforest_age.updateMask(sforest_age)
+ages = ages.updateMask(ages) #keep only valyes as ages or NA
 vizpar = {'min': 1, 'max': last_year - first_year, 'palette': ['blue', 'red']}  # Blue for 0, Red for 1
 Map = geemap.Map(center=[-10, -40], zoom=4)
 Map.addLayer(sforest_age.select('classification_1987'), vizpar, "classification_2017")
