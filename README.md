@@ -26,7 +26,8 @@
 
 1_environmental
 	Intakes: 
-
+Areas de proteção ambiental 2021 - https://centrodametropole.fflch.usp.br/
+Areas de proteção ambiental 2023 - CNUC MMA
 
 ### regrowth_functions.r
 
