@@ -1,5 +1,15 @@
-'''
+import ee
+import geemap
 
+# Authenticate to Earth Engine
+try:
+  ee.Initialize()
+except Exception as e:
+  ee.Authenticate()
+  ee.Initialize(project='ee-ana-zonia')
+
+
+'''
 Choose region and import corresponding shapefile. Can be:
         br_amazon -> the Amazon biome in Brazilian territory
         br -> entire Brazil
