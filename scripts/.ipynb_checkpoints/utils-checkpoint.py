@@ -27,6 +27,8 @@ def import_roi(region):
 
 
 def export_grid_cell(grid_cell, img, name):
+    # id = cell['id']
+    # grid_cell = fishnet.filter(ee.Filter.eq('id', id))
     img_export = img.clip(grid_cell)
     
     task = ee.batch.Export.image.toDrive(
@@ -37,15 +39,17 @@ def export_grid_cell(grid_cell, img, name):
         region = grid_cell.geometry(),
         maxPixels = 1e11
     )
-    return task.id
+    return task
 
 def export_image_as_grid(img, name, region):
     roi = import_roi(region)
     fishnet = geemap.fishnet(roi, h_interval=2.0, v_interval=2.0, delta=0.5)
+    # Set 'id' as a property of the features
+    # fishnet = fishnet.map(lambda feature: feature.set('id', feature.id()))
+    # fishnet_info = ee.List([fishnet.getInfo()['features']])
     partial_export_grid_cell = partial(export_grid_cell, img=img, name=name) 
     # fishnet.map(partial_export_grid_cell)
-    task_ids = fishnet.map(partial_export_grid_cell)
-    
-    for task_id in task_ids.getInfo():
-        task = ee.batch.Task.get(task_id)
+    tasks = fishnet.map(partial_export_grid_cell)
+   
+    for task in tasks.getInfo():
         ee.batch.Task.start(task)
