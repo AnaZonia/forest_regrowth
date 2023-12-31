@@ -7,11 +7,17 @@
 ## Dependencies
 - Google Earth Engine
 - Python API
-- geemap package for handling
+- geemap
 
 ## Scripts
 ### data_processing.py
 	Shapefiles from IBGE 2022: https://brasil.mapbiomas.org/en/tabela-de-camadas/
+
+Steps taken to reduce processing time
+
+masked all the data to the age output before exporting
+
+
 
 1_history_fire
 	Intakes MAPBIOMAS raw fire data (./mapbiomas/lulc) and either location_forest_age.tif or santoro regrowth data ---- generates fire brick (location_fire_history.tif):
@@ -28,6 +34,9 @@
 	Intakes: 
 Areas de proteção ambiental 2021 - https://centrodametropole.fflch.usp.br/
 Areas de proteção ambiental 2023 - CNUC MMA
+
+
+
 
 ### regrowth_functions.r
 
