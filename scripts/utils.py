@@ -23,7 +23,7 @@ def import_roi(region):
     if region == "br_amazon":
         return ee.FeatureCollection("projects/ee-ana-zonia/assets/br_biomes").filter(ee.Filter.eq("id", 18413)).geometry()
     else:
-        return ee.FeatureCollection("projects/ee-ana-zonia/assets/br_shapefile").geometry()
+        return ee.FeatureCollection("projects/ee-ana-zonia/assets/br_biomes").geometry().dissolve()
 
 
 def export_grid_cell(grid_cell, img, name):
@@ -49,3 +49,4 @@ def export_image_as_grid(img, name, region):
     for task_id in task_ids.getInfo():
         task = ee.batch.Task.get(task_id)
         ee.batch.Task.start(task)
+
