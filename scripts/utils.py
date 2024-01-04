@@ -19,34 +19,28 @@ Choose region and import corresponding shapefile. Can be:
         "projects/mapbiomasraisg/public/collection1/mapbiomas_raisg_panamazonia_collection1_integration_v1"
 '''
 
-def import_roi(region):
-    if region == "br_amazon":
-        return ee.FeatureCollection("projects/ee-ana-zonia/assets/br_biomes").filter(ee.Filter.eq("id", 18413)).geometry()
-    else:
-        return ee.FeatureCollection("projects/ee-ana-zonia/assets/br_biomes").geometry().dissolve()
-
-
-def export_grid_cell(grid_cell, img, name):
-    img_export = img.clip(grid_cell)
-    
-    task = ee.batch.Export.image.toDrive(
-        image = img_export,
-        description = name,
-        folder = name,
-        scale = 30,
-        region = grid_cell.geometry(),
-        maxPixels = 1e11
+def export_image(img, name, scale):
+    # Create the export task
+    task = ee.batch.Export.image.toAsset(
+        image = img,
+        description = f'{img}',
+        assetId = f'projects/ee-ana-zonia/assets/{img}',
+        scale = scale,
+        crs = 'EPSG:4326',
+        maxPixels = 4e12
     )
-    return task.id
+    # Start the export task
+    task.start()
 
-def export_image_as_grid(img, name, region):
-    roi = import_roi(region)
-    fishnet = geemap.fishnet(roi, h_interval=2.0, v_interval=2.0, delta=0.5)
-    partial_export_grid_cell = partial(export_grid_cell, img=img, name=name) 
-    # fishnet.map(partial_export_grid_cell)
-    task_ids = fishnet.map(partial_export_grid_cell)
+def map_image(img, min, max):
+    vis = {
+        'min': min,
+        'max': max,
+        'palette': ['blue', 'red'],
+    }
     
-    for task_id in task_ids.getInfo():
-        task = ee.batch.Task.get(task_id)
-        ee.batch.Task.start(task)
+    Map = geemap.Map()
+    Map.addLayer(img, vis)
+    return Map
+    
 
