@@ -19,13 +19,13 @@ Choose region and import corresponding shapefile. Can be:
         "projects/mapbiomasraisg/public/collection1/mapbiomas_raisg_panamazonia_collection1_integration_v1"
 '''
 
-def export_image(img, name, scale):
+def export_image(img, name):
     # Create the export task
     task = ee.batch.Export.image.toAsset(
         image = img,
-        description = f'{img}',
-        assetId = f'projects/ee-ana-zonia/assets/{img}',
-        scale = scale,
+        description = f'{name}',
+        assetId = f'projects/ee-ana-zonia/assets/{name}',
+        scale = 30,
         crs = 'EPSG:4326',
         maxPixels = 4e12
     )
