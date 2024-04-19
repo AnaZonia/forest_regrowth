@@ -46,21 +46,17 @@ def map_image(img, min, max):
 # Deleting assets in bulk from projects. Taken from https://gis.stackexchange.com/questions/467363/batch-deleting-of-earth-engine-assets
 
 asset_list = ee.data.listAssets("projects/ee-ana-zonia/assets")["assets"]
-asset_list
 
-def conditional_asset_rm(x, starts_with):
+def conditional_asset_rm(asset, starts_with):
     """Deletes asset if starts with starts_with """
-    id = x["id"]              # users/username/file  or projects/project-name/assets/file
+    id = asset["id"]              # users/username/file  or projects/project-name/assets/file
     findex = 5 if id.startswith("users") else 3
-    name = x["name"]          # projects/earthengine-legacy/assets/users/username/file or projects/project-name/assets/file
+    name = asset["name"]          # projects/earthengine-legacy/assets/users/username/file or projects/project-name/assets/file
     f = name.split("/")[findex]  # file
     if (f.startswith(starts_with)):
         ee.data.deleteAsset(id)
         return f"Deleted asset {id}"
-    
-    # return 0
 
-
-# [conditional_asset_rm(x, "unif") for x in asset_list]
+    [conditional_asset_rm(asset, "unif") for asset in asset_list]
 
 

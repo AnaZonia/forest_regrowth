@@ -1,8 +1,10 @@
 
 
-
 ## Model Overview
-
+With this code, we are adding:
+- land use land cover
+	total sum of different land use types
+	last observed land use type
 
 ## Dependencies
 - Google Earth Engine
