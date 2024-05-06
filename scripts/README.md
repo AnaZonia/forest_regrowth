@@ -33,6 +33,10 @@ Areas de proteção ambiental 2023 - CNUC MMA
 ### 4_unifying_data
 
 
+From Ma et al 2023
+- fragmentation for 2020
+
+
 ## Modelling
 
 ### regrowth_functions.r
