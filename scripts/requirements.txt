@@ -1,6 +1,6 @@
 pandas
 scipy
-ray
+ray[tune]
 matplotlib
 seaborn
 numpy
