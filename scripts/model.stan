@@ -1,32 +1,25 @@
-//
-// This Stan program defines a simple model, with a
-// vector of values 'y' modeled as normally distributed
-// with mean 'mu' and standard deviation 'sigma'.
-//
-// Learn more about model development with Stan at:
-//
-//    http://mc-stan.org/users/interfaces/rstan.html
-//    https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started
-//
-
-// The input data is a vector 'y' of length 'N'.
 data {
-  int<lower=0> N;
-  vector[N] y;
+  int<lower=1> N; // Number of observations
+  int<lower=1> M; // Number of predictor variables (climatic and non-climatic)
+  matrix[N, M] X; // Predictor matrix
+  vector[N] agbd;    // Response variable
 }
 
-// The parameters accepted by the model. Our model
-// accepts two parameters 'mu' and 'sigma'.
 parameters {
-  real mu;
-  real<lower=0> sigma;
+  vector[M] beta; // Coefficients for predictor variables
+  real<lower=0, upper = 100> B0; // Intercept
+  real<lower=0, upper = 400> A;  // Asymptote
+  real<lower=0> theta; // Shape term
 }
 
-// The model to be estimated. We model the output
-// 'y' to be normally distributed with mean 'mu'
-// and standard deviation 'sigma'.
 model {
-  y ~ normal(mu, sigma);
+  // Priors
+  beta ~ normal(0, 1); // Assuming standard normal priors for beta coefficients
+  B0 ~ normal(0, 50);  // Prior for Intercept
+  A ~ normal(0, 100);   // Prior for Asymptote
+  theta ~ normal(0, 10); // Prior for Shape term
+  
+  
+  // Likelihood
+  agbd ~ normal(B0 + X * beta * (1 - exp(-(X * beta))), A * (1 - exp(-(X * beta)))^theta);
 }
-
- 
