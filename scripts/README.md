@@ -14,12 +14,23 @@ With this code, we are adding:
 ### 1_satellite
 
 	Intakes MAPBIOMAS raw fire data
+
+	Outputs:
+		Masks:
+
+
+		Land use rasters:
+		
 -	Total number of fires
 -	How many years since regrowth event was the last fire observed
 	Intakes MAPBIOMAS raw land use/land cover data
 -	Time since last observation of each land use type
 -	Total years under each land use type
 -	Last observed land use type before regrowth.
+
+
+
+
 
 ### 2_categorical
 	Shapefiles from IBGE 2022: https://brasil.mapbiomas.org/en/tabela-de-camadas/
