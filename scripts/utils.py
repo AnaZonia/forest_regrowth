@@ -33,12 +33,8 @@ def export_image(img, name):
     task.start()
 
 def map_image(img, min, max):
-    vis = {
-        'min': min,
-        'max': max,
-        'palette': ['blue', 'red'],
-    }
-    
+    vis = {'min': min, 'max': max, 'palette': ['blue', 'red']}
+
     Map = geemap.Map()
     Map.addLayer(img, vis)
     return Map
