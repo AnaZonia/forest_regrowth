@@ -1,0 +1,2 @@
+[console_scripts]
+geemap = geemap.cli:main
