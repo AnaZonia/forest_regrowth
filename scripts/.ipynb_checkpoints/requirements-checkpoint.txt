@@ -4,5 +4,6 @@ ray[tune]
 matplotlib
 seaborn
 numpy
-earthengine-api
+ee
 geemap
+StringIO

@@ -7,7 +7,7 @@ try:
   ee.Initialize()
 except Exception as e:
   ee.Authenticate()
-  ee.Initialize(project='ee-ana-zonia')
+  ee.Initialize()
 
 '''
 Choose region and import corresponding shapefile. Can be:
@@ -24,7 +24,7 @@ def export_image(img, name):
     task = ee.batch.Export.image.toAsset(
         image = img,
         description = f'{name}',
-        assetId = f'projects/ee-ana-zonia/assets/{name}',
+        assetId = f'projects/amazon-forest-regrowth/assets/{name}',
         scale = 30,
         crs = 'EPSG:4326',
         maxPixels = 4e12
@@ -41,19 +41,19 @@ def map_image(img, min, max):
     
 # Deleting assets in bulk from projects. Taken from https://gis.stackexchange.com/questions/467363/batch-deleting-of-earth-engine-assets
 
-asset_list = ee.data.listAssets("projects/ee-ana-zonia/assets")["assets"]
+# asset_list = ee.data.listAssets("projects/ee-ana-zonia/assets")["assets"]
 
-def conditional_asset_rm(asset, starts_with):
-    """Deletes asset if starts with starts_with """
-    id = asset["id"]              # users/username/file  or projects/project-name/assets/file
-    findex = 5 if id.startswith("users") else 3
-    name = asset["name"]          # projects/earthengine-legacy/assets/users/username/file or projects/project-name/assets/file
-    f = name.split("/")[findex]  # file
-    if (f.startswith(starts_with)):
-        ee.data.deleteAsset(id)
-        return f"Deleted asset {id}"
+# def conditional_asset_rm(asset, starts_with):
+#     """Deletes asset if starts with starts_with """
+#     id = asset["id"]              # users/username/file  or projects/project-name/assets/file
+#     findex = 5 if id.startswith("users") else 3
+#     name = asset["name"]          # projects/earthengine-legacy/assets/users/username/file or projects/project-name/assets/file
+#     f = name.split("/")[findex]  # file
+#     if (f.startswith(starts_with)):
+#         ee.data.deleteAsset(id)
+#         return f"Deleted asset {id}"
 
-    [conditional_asset_rm(asset, "unif") for asset in asset_list]
+#     [conditional_asset_rm(asset, "unif") for asset in asset_list]
 
 # def delete_assets_starting_with(starts_with):
 #     """
