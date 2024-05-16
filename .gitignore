@@ -4,6 +4,7 @@
 # Ignore virtual environment directories
 venv/
 .env/
+**/*env*/
 
 # ignore temporary workspace files
 /.RData
