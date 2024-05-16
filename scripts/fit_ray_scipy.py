@@ -20,7 +20,7 @@ from ray import tune
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-os.chdir("C:/Users/anaca/Desktop/forest_regrowth/")
+os.chdir("./forest_regrowth/")
 
 def import_data(path:str):
     r'''This function:
@@ -44,6 +44,8 @@ def import_data(path:str):
     return data
 
 data = import_data('./data/final_w_biomass.csv')
+
+old_data = pd.read_csv('./data/amazon_df_sample_10million.csv')
 
 # Define the years and climatic variables
 years = np.arange(1985, 2020)
