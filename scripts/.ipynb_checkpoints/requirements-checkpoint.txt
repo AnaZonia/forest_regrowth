@@ -1,9 +1,0 @@
-pandas
-scipy
-ray[tune]
-matplotlib
-seaborn
-numpy
-ee
-geemap
-StringIO
