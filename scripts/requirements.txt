@@ -1,8 +1,0 @@
-pandas
-scipy
-ray[tune]
-matplotlib
-seaborn
-numpy
-earthengine-api
-geemap
