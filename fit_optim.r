@@ -1,5 +1,5 @@
 ####################################################################
-########## Predicting forest regrowth from Mapbiomas data ##########
+############### Process data and define functions ##################
 ####################################################################
 # Ana Avila - May 2024
 # ~~~~~~~~~~~~~~~~~~~~
@@ -59,5 +59,3 @@ growth_curve <- function(pars, data) {
   return(pars['B0'] + pars['A'] * (1 - exp(-k))^pars['theta'])
 }
 
-o = optim(pars, fn = nls, data = data, G = growth_curve)
-o
