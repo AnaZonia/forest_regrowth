@@ -1,9 +1,10 @@
 library(rstan)
+library(tidybayes)
 
 setwd("C:/Users/anaca/Desktop/forest_regrowth/")
 
 land_use_5_years <- read.csv('data/unified_data_5_years.csv') # 44751 rows
-land_use_10_years <- read.csv('data/unified_data_10_years.csv')[-c(,1)]
+land_use_10_years <- read.csv('data/unified_data_10_years.csv') # 26891 rows
 land_use_15_years <- read.csv('data/unified_data_15_years.csv') # 19845 rows
 land_use <- read.csv('data/unified_data.csv')
 
@@ -20,21 +21,34 @@ chains = 2
 
 fit_medians <- stan(file='age_agbd.stan', data = data_aggregated, iter = iter, warmup = warmup,
                     chains = chains, cores = 4,
-                    init = list(list(age = 1, theta = 0.5, A = 180, B0 = 60),
-                    list(age = 0.01, theta = 1, A = 120, B0 = 1)),
+                    init = list(list(age = 1, theta = 0.5, log_A = 4, B0 = 60),
+                    list(age = 0.01, theta = 1, log_A = 6, B0 = 1)),
                     control=list(max_treedepth=12))
 print(fit_medians)
 
+# prior check
+fit_medians %>% 
+  gather_draws(mean_agbd[i], ndraws=15) |> 
+  mutate(age = tst$age[i]) |> 
+  ggplot(aes(x=age, y=.value)) +
+  geom_line() +
+  facet_wrap(~.draw)
+
+fit_medians %>% 
+  gather_draws(agbd[i], ndraws=6) |> 
+  mutate(age = tst$age[i]) |> 
+  ggplot(aes(x=age, y=.value)) +
+  geom_point() +
+  facet_wrap(~.draw)
+
 traceplot(fit_medians, par=c("age_par", "A", "B0", "theta", "sigma"))
 
-
-fit_regular <- stan(file='age_agbd.stan', data = data_aggregated, iter = iter, warmup = warmup,
+fit_regular.flat <- stan(file='age_agbd.stan', data = data_regular, iter = iter, warmup = warmup,
                        chains = chains, cores = 4,
                       init = list(list(age = 1, theta = 0.5, A = 180, B0 = 60),
                                   list(age = 0.01, theta = 1, A = 120, B0 = 1)),
                        control=list(max_treedepth=12))
-print(fit_regular)
-
+print(fit_regular.flat)
 
 data_cwd = list(age=land_use_10_years$age, agbd=land_use_10_years$agbd, b1=land_use_10_years$all, n=nrow(land_use_10_years))
 
