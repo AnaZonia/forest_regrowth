@@ -1,28 +1,37 @@
 data {
   int <lower=0>n;// Number of observations
-  real age[n];// Corrected with semicolon
-  real agbd[n]; // Corrected with semicolon
+  vector[n] age;// Corrected with semicolon
 }
-
 
 parameters {
   real<lower=0, upper = 100> B0; // Intercept
-  real<lower=100, upper = 400> A;  // Asymptote
+  real log_A;  // Asymptote
   real<lower=0> theta; // Shape term
   real<lower=0> sigma; // process error
   real<lower=0> age_par; // Growth term
+  real<lower=0> age_par; // Growth term
+
 }
 
 model {
   // Priors
   age_par ~ normal(0, 1); // Assuming standard normal priors for beta coefficients
-  B0 ~ normal(0, 5);  // Prior for Intercept
-  A ~ normal(0, 10);   // Prior for Asymptote
+  B0 ~ normal(40, 20);  // Prior for Intercept
+  log_A ~ normal(5, 0.5);   // Prior for Asymptote
   theta ~ normal(0, 5); // Prior for Shape term
-  sigma ~ cauchy(0,10);
+  sigma ~ exponential(5);
+// percentage of the true value is how sigma should be thought of.
 
-  // Likelihood
+// either set parameters with a parameter with a lower bound of 
+// or add a value with a distribution ranging from zero to the maximum year of colonization
+
+}
+
+generated quantities {
+  vector[n] agbd; // Corrected with semicolon
+  vector[n] mean_agbd; // Corrected with semicolon
+  mean_agbd = B0 + exp(log_A) * (1 - exp(-(age_par*age)))^theta;
   for (pixel in 1:n){
-    agbd[pixel] ~ normal(B0 + A * (1 - exp(-(age_par*age[pixel])))^theta, sigma);
+    agbd[pixel] = normal_rng(mean_agbd[pixel],sigma);
   }
 }
