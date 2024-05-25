@@ -22,16 +22,16 @@ source("./scripts/model_functions.r")
 
 years <- seq(1985, 2019, 1)
 
-data <- read.csv('./data/final_w_biomass.csv')
+data <- read.csv("./data/final_w_biomass.csv")
 # Drop unnecessary columns
-data <- data[ , -which(names(data) %in% c("system.index",".geo", 'biome'))]
+data <- data[ , -which(names(data) %in% c("system.index",".geo", "biome"))]
 # create dummy variables for the categorical data with more than 2 types
-categorical = c('ecoreg', 'soil')
+categorical = c("ecoreg", "soil")
 data[categorical] <- lapply(data[categorical], as.factor)
 data <- createDummyFeatures(data, cols = categorical)
 
 # define the climatic parameters - the ones that change yearly
-climatic <- c('prec', 'si')
+climatic <- c("prec", "si")
 # define the non-climatic parameters - the ones that are fixed throughout regrowth and
 # that are used for fitting the model (excludes age and agbd)
 non_climatic <- names(data)[!grepl("prec|si|agbd", names(data))]
@@ -49,13 +49,13 @@ growth_curve <- function(pars, data) {
   k = data[[1]]*0
   for (year in years){
     for (clim_var in climatic){
-      k <- k + pars[clim_var]*data[[paste0(clim_var, '_', year)]]
+      k <- k + pars[clim_var]*data[[paste0(clim_var, "_", year)]]
     }
     for (unique_var in non_climatic) {
       k <- k + pars[unique_var] * data[[unique_var]]
     }
   }
   
-  return(pars['B0'] + pars['A'] * (1 - exp(-k))^pars['theta'])
+  return(pars["B0"] + pars["A"] * (1 - exp(-k))^pars["theta"])
 }
 

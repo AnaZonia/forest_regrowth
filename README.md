@@ -9,6 +9,10 @@ With this code, we are adding:
 - Python API
 - geemap
 
+install.packages(c("curl", "httr", "openssl", "tidyverse", # required for tidyverse in Fedora
+                   "terra", "rstan", "cmdstanr", "ggplot2"))
+
+
 ## Data Processing
 
 ### 1_satellite
