@@ -1,11 +1,13 @@
 library(rstan)
 library(tidybayes)
+library(fitdistrplus)
+library(ggplot2)
 
-setwd("C:/Users/anaca/Desktop/forest_regrowth/")
+setwd("./Documents/forest_regrowth/")
 
-land_use_5_years <- read.csv('data/unified_data_5_years.csv') # 44751 rows
-land_use_10_years <- read.csv('data/unified_data_10_years.csv') # 26891 rows
-land_use_15_years <- read.csv('data/unified_data_15_years.csv') # 19845 rows
+land_use_5_years <- read.csv('data/unified_data_5_years.csv')
+land_use_10_years <- read.csv('data/unified_data_10_years.csv')
+land_use_15_years <- read.csv('data/unified_data_15_years.csv')
 land_use <- read.csv('data/unified_data.csv')
 
 # 10k takes about 10 min
@@ -14,6 +16,16 @@ plot(tst$age, tst$agbd)
 
 data_aggregated = list(age=tst$age, agbd=tst$agbd, n=nrow(tst))
 data_regular = list(age=land_use_10_years$age, agbd=land_use_10_years$agbd, n=nrow(land_use_10_years))
+
+data = land_use$age
+fit.gamma <- fitdist(land_use$age, distr = "gamma", method = "mle")
+fit.weibull <- fitdist(land_use$age, distr = "weibull", method = "mle")
+fit.normal <- fitdist(land_use$age, distr = "normal", method = "mle")
+fit.gamma$aic
+fit.weibull$aic
+fit.normal$aic
+
+plot(rgamma(100, shape, 1.0/scale))
 
 iter = 2000
 warmup = 1000
