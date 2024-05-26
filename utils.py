@@ -4,12 +4,12 @@ from functools import partial
 
 # Authenticate to Earth Engine
 try:
-  ee.Initialize()
+    ee.Initialize()
 except Exception as e:
-  ee.Authenticate()
-  ee.Initialize()
+    ee.Authenticate()
+    ee.Initialize()
 
-'''
+"""
 Choose region and import corresponding shapefile. Can be:
         br_amazon -> the Amazon biome in Brazilian territory
         br -> entire Brazil
@@ -17,17 +17,17 @@ Choose region and import corresponding shapefile. Can be:
         
         *** panamaz has less land use categories and data processing is still unfinished for this data ***
         "projects/mapbiomasraisg/public/collection1/mapbiomas_raisg_panamazonia_collection1_integration_v1"
-'''
-
+"""
 
 
 def map_image(img, min, max):
-    vis = {'min': min, 'max': max, 'palette': ['blue', 'red']}
+    vis = {"min": min, "max": max, "palette": ["blue", "red"]}
 
     Map = geemap.Map()
     Map.addLayer(img, vis)
     return Map
-    
+
+
 # Deleting assets in bulk from projects. Taken from https://gis.stackexchange.com/questions/467363/batch-deleting-of-earth-engine-assets
 
 # asset_list = ee.data.listAssets("projects/ee-ana-zonia/assets")["assets"]
@@ -47,11 +47,11 @@ def map_image(img, min, max):
 # def delete_assets_starting_with(starts_with):
 #     """
 #     Deletes assets from the given asset list that start with the specified string.
-    
+
 #     Args:
 #         asset_list (list): List of asset dictionaries.
 #         starts_with (str): The prefix string to match.
-    
+
 #     Returns:
 #         list: List of success messages for deleted assets.
 #     """
@@ -66,5 +66,3 @@ def map_image(img, min, max):
 #             ee.data.deleteAsset(id)
 #             success_messages.append(f"Deleted asset {id}")
 #     return success_messages
-
-
