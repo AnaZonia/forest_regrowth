@@ -20,12 +20,10 @@ data_regular = list(age=land_use_10_years$age, agbd=land_use_10_years$agbd, n=nr
 data = land_use$age
 fit.gamma <- fitdist(land_use$age, distr = "gamma", method = "mle")
 fit.weibull <- fitdist(land_use$age, distr = "weibull", method = "mle")
-fit.normal <- fitdist(land_use$age, distr = "normal", method = "mle")
+fit.normal <- fitdist(land_use$age, distr = "norm", method = "mle")
 fit.gamma$aic
 fit.weibull$aic
 fit.normal$aic
-
-plot(rgamma(100, shape, 1.0/scale))
 
 iter = 2000
 warmup = 1000
