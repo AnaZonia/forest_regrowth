@@ -11,3 +11,4 @@ venv/
 /.Rhistory
 .ipynb_checkpoints
 __pycache__
+.jupyter
