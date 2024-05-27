@@ -1,44 +1,48 @@
-space = {
-    "B0": tune.uniform(0, 100),
-    "A": tune.uniform(0, 500),
-    "theta": tune.uniform(0, 1),
-    "sd": tune.uniform(0, 1),
-}
+import os
+import ray
+from ray import tune
 
-space.update({key: tune.uniform(0, 100) for key in pars})
-
-# Initialize Ray
-ray.init()
+# Assuming the other functions and imports are defined as before
 
 
-# Define the objective function for Ray Tune
 def objective(config):
-    return negative_log_likelihood(config, data)
+    params = unpack_parameters(config)
+    likelihood = norm.logpdf(
+        data["agbd"] - growth_curve(params, data), loc=0, scale=params["sd"]
+    )
+    return -np.sum(likelihood)
 
 
-# def run_model(path):
-#     data = import_data(path)  # Replace "path_to_your_data.csv" with the actual path to your CSV file
+def main():
+    path = "./data/unified_data_15_years.csv"
+    data = import_data(path)
+
+    # Define the search space
+    space = {
+        "B0": tune.uniform(0, 100),
+        "A": tune.uniform(0, 500),
+        "theta": tune.uniform(0, 1),
+        "sd": tune.uniform(0, 1),
+    }
+
+    # Initialize Ray
+    ray.init()
+
+    # Run the optimizer
+    analysis = tune.run(
+        objective,
+        config=space,
+        num_samples=100,
+        metric="loss",
+        mode="min",
+    )
+
+    # Get the best parameters
+    best_trial = analysis.get_best_trial("loss", "min", "last")
+    best_params = best_trial.config
+
+    print(best_params)
 
 
-def short_trial_dirname_creator(trial):
-    # Example: Use a shorter, hashed version of the trial name
-    trial_name = str(trial.trial_id)
-    return os.path.join("ray_results", trial_name)
-
-
-# Assuming your objective function and config are defined
-analysis = tune.run(
-    objective,
-    config=space,
-    num_samples=100,
-    metric="loss",
-    mode="min",
-    trial_dirname_creator=short_trial_dirname_creator,
-)
-
-# Get the best parameters
-best_trial = analysis.get_best_trial("loss", "min", "last")
-best_params = best_trial.config
-
-# print("Best parameters:", best_params)
-# print("Best loss:", best_trial.last_result["loss"])
+if __name__ == "__main__":
+    main()

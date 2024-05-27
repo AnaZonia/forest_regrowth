@@ -93,35 +93,6 @@ print(fit_regular_cwd)
 traceplot(fit_medians, par = c("age", "A", "B0", "theta", "sigma"))
 plot(fit_medians, par = c("age", "A", "B0", "theta", "sigma"))
 
-g_3par <- function(pars, data) {
-  pars["B0"] + pars["A"] * (1 - exp(-pars["age"] * data$age))^pars["theta"]
-}
-
-# intercept, asymptote, shape term, standard deviation
-pars <- c(B0 = 40, A = 80, theta = 1.5, age = 1)
-
-# Nonlinear Least Squares
-nls <- function(pars, data, G) {
-  if (pars["age"] < 0 || pars["age"] > 5 ||
-    pars["theta"] > 10 || pars["theta"] < 0 || pars["B0"] < 0) {
-    return(-Inf)
-  }
-  result <- sum((G(pars, data) - data$agbd)^2)
-  if (result == 0) {
-    return(-Inf)
-  } else {
-    return(result)
-  }
-}
-
-o <- optim(pars, fn = nls, data = data, G = g_3par)
-o
-
-pred <- G_3par(data)
-plot(data$agbds, pred)
-abline(c(0, 1))
-
-
 # ---------------- compare models
 
 
@@ -180,4 +151,3 @@ print(fit.stan)
 # plot(data$agbds, pred)
 # abline(c(0,1))
 
-library(stats)
