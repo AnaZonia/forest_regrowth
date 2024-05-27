@@ -124,3 +124,12 @@ for year in yearlist:
     for month in monthlist:
         new_band_names = [f"mcwd_{month}_{year}"]
 monthly_et_img = monthly_et_imgcol.toBands().rename(new_band_names)
+
+
+# # Calculate k
+# k = np.zeros(len(data))
+# for year in years:
+#     for clim_var in climatic:
+#         k += pars[clim_var] * data[f"{clim_var}_{year}"]
+#     for unique_var in non_climatic:
+#         k += pars[unique_var] * data[unique_var]
