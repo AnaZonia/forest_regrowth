@@ -57,7 +57,7 @@ growth_curve <- function(pars, data, pars_chosen) {
 
 nls <- function(pars, data, pars_chosen, conditions) {
   result <- sum((growth_curve(pars, data, pars_chosen) - data$agbd)^2)
-  if (any(eval(parse(text = conditions)))) {
+  if (any(sapply(conditions, function(cond) eval(parse(text = cond))))) {
     return(-Inf)
   } else if (is.na(result) || result == 0) {
     return(-Inf)
@@ -65,7 +65,6 @@ nls <- function(pars, data, pars_chosen, conditions) {
     return(result)
   }
 }
-
 
 run_optimization <- function(pars_basic, data, pars_chosen, conditions) {
   # Run optimization
@@ -106,9 +105,9 @@ names_dataframes <- c("data_5", "data_10", "data_15")
 conditions <- list(
   'pars["theta"] > 10',
   'pars["theta"] < 0',
-  'pars["B0"] < 0'
+  'pars["B0"] < 0',
+  'pars["B0"] > pars["A"]'
 )
-
 
 # intercept, asymptote, shape term, standard deviation
 pars_basic <- c(B0 = 40, A = 80, theta = 5)
@@ -117,20 +116,20 @@ configurations <- list(
   c("age"), c("num_fires_before_regrowth"),
   c("age", "num_fires_before_regrowth"),
   c("age", "num_fires_before_regrowth", "all", "fallow", "indig", "protec"),
-  setdiff(names(dataframes[[1]]), c("b1", "agbd", "latitude", "longitude"))
+  setdiff(Reduce(intersect, lapply(dataframes, colnames)), c("b1", "agbd", "latitude", "longitude"))
 )
 
 names_configurations <- c("age", "fires", "age_fires", "all_cat", "all")
 
-sum_squares <- list()
-
+sum_squares_fit <- list()
+pars_fit <- list()
 # Run optimization
 for (i in seq_along(configurations)) {
   for (j in seq_along(dataframes)) {
     print("----------------------------------------------------")
     print(names_dataframes[j])
     print(names_configurations[i])
-    o <- run_optimization(
+    o_iter <- run_optimization(
       pars_basic, dataframes[[j]], configurations[[i]],
       if ("age" %in% configurations[[i]]) {
         c(conditions, list(
@@ -141,11 +140,11 @@ for (i in seq_along(configurations)) {
         conditions
       }
     )
-    sum_squares[[paste(names_dataframes[j], names_configurations[i])]] <- o$value
+    sum_squares_fit[[paste(names_dataframes[j], names_configurations[i])]] <- o_iter$value
+    pars_fit[[paste(names_dataframes[j], names_configurations[i])]] <- o_iter$par
+
   }
 }
 
+hist(dataframes[[1]]$age)
 print(min(unlist(sum_squares)))
-
-
-
