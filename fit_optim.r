@@ -50,13 +50,23 @@ growth_curve <- function(pars, data, pars_chosen) {
 
 # Calculates Nonlinear Least Squares
 # Intakes:
+# fun <- the function to be used, either "nls" or "nll"
 # pars <- a vector with the initial parameters to be included
 # data <- the dataframe with the predictors
 # pars_chosen <- the list of parameters to be added into the shape term
 # conditions <- ranges of parameters to be restricted to
 
-nls <- function(pars, data, pars_chosen, conditions) {
-  result <- sum((growth_curve(pars, data, pars_chosen) - data$agbd)^2)
+likelihood <- function(fun, pars, data, pars_chosen, conditions) {
+  if (fun == "nll") {
+    result <- -sum(dnorm(
+      x = data$agbd - growth_curve(pars, data, pars_chosen), mean = 0,
+      sd = pars["sd"], log = TRUE
+    ), na.rm = TRUE)
+    conditions <- c(conditions, 'pars["sd"] < 0')
+  } else {
+    result <- sum((growth_curve(pars, data, pars_chosen) - data$agbd)^2)
+  }
+
   if (any(sapply(conditions, function(cond) eval(parse(text = cond))))) {
     return(-Inf)
   } else if (is.na(result) || result == 0) {
@@ -66,10 +76,14 @@ nls <- function(pars, data, pars_chosen, conditions) {
   }
 }
 
-run_optimization <- function(pars_basic, data, pars_chosen, conditions) {
+run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
   # Run optimization
+  if (fun == "nll") {
+    pars_basic <- c(pars_basic, setNames(0.1, "sd"))
+  }
   o <- optim(c(pars_basic, setNames(0.1, pars_chosen[1])),
-    nls,
+    likelihood,
+    fun = fun,
     data = data,
     pars_chosen = pars_chosen[1],
     conditions = conditions
@@ -77,7 +91,8 @@ run_optimization <- function(pars_basic, data, pars_chosen, conditions) {
   if (length(pars_chosen) > 1) {
     for (i in 2:length(pars_chosen)) {
       o <- optim(c(o$par, setNames(0.1, pars_chosen[i])),
-        nls,
+        likelihood,
+        fun = fun,
         data = data,
         pars_chosen = pars_chosen[1:i],
         conditions = conditions
@@ -119,7 +134,7 @@ configurations <- list(
   setdiff(Reduce(intersect, lapply(dataframes, colnames)), c("b1", "agbd", "latitude", "longitude"))
 )
 
-names_configurations <- c("age", "fires", "age_fires", "all_cat", "all")
+names_configurations <- c("age", "fires", "age_fires", "all_cat", "all_non_LU", "all")
 
 sum_squares_fit <- list()
 pars_fit <- list()
@@ -130,7 +145,7 @@ for (i in seq_along(configurations)) {
     print(names_dataframes[j])
     print(names_configurations[i])
     o_iter <- run_optimization(
-      pars_basic, dataframes[[j]], configurations[[i]],
+      "nll", pars_basic, dataframes[[j]], configurations[[i]],
       if ("age" %in% configurations[[i]]) {
         c(conditions, list(
           'pars["age"] < 0',
@@ -142,9 +157,21 @@ for (i in seq_along(configurations)) {
     )
     sum_squares_fit[[paste(names_dataframes[j], names_configurations[i])]] <- o_iter$value
     pars_fit[[paste(names_dataframes[j], names_configurations[i])]] <- o_iter$par
-
   }
 }
 
-hist(dataframes[[1]]$age)
 print(min(unlist(sum_squares)))
+pars_fit[[15]]
+
+pred <- growth_curve(pars_fit[[15]], dataframes[[3]], configurations[[5]])
+plot(pred, dataframes[[3]]$agbd)
+abline(0, 1)
+
+# condit <- if ("age" %in% configurations[[i]]) {
+#   c(conditions, list(
+#     'pars["age"] < 0',
+#     'pars["age"] > 5'
+#   ))
+# } else {
+#   conditions
+# }
