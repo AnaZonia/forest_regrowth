@@ -3,43 +3,42 @@ library(tidybayes)
 library(fitdistrplus)
 library(ggplot2)
 
-land_use_5_years <- read.csv("data/unified_data_5_years.csv")
-land_use_10_years <- read.csv("data/unified_data_10_years.csv")
-land_use_15_years <- read.csv("data/unified_data_15_years.csv")
-land_use <- read.csv("data/unified_data.csv")
+data_5 <- read.csv("data/unified_data_5_years.csv")
+data_10 <- read.csv("data/unified_data_10_years.csv")
+data_15 <- read.csv("data/unified_data_15_years.csv")
+all_data <- read.csv("data/unified_data.csv")
 
 # 10k takes about 10 min
-tst <- aggregate(agbd ~ age, land_use_10_years, median)
+tst <- aggregate(agbd ~ age, data_10, median)
 plot(tst$age, tst$agbd)
 
 data_aggregated <- list(age = tst$age, agbd = tst$agbd, n = nrow(tst))
 
 data_regular <- list(
-  age = land_use_10_years$age,
-  agbd = land_use_10_years$agbd,
-  n = nrow(land_use_10_years)
+  age = data_10$age,
+  agbd = data_10$agbd,
+  n = nrow(data_10)
 )
 
-data <- land_use$age
-fit_gamma <- fitdist(land_use$age, distr = "gamma", method = "mle")
-fit_weibull <- fitdist(land_use$age, distr = "weibull", method = "mle")
-fit_normal <- fitdist(land_use$age, distr = "norm", method = "mle")
-fit_gamma$aic
-fit_weibull$aic
-fit_normal$aic
+# fit_gamma <- fitdist(all_data$age, distr = "gamma", method = "mle")
+# fit_weibull <- fitdist(all_data$age, distr = "weibull", method = "mle")
+# fit_normal <- fitdist(all_data$age, distr = "norm", method = "mle")
+# fit_gamma$aic
+# fit_weibull$aic
+# fit_normal$aic
+
 
 iter <- 2000
 warmup <- 1000
 chains <- 2
-
 
 fit_medians <- stan(
   file = "age_agbd.stan", data = data_aggregated,
   iter = iter, warmup = warmup,
   chains = chains, cores = 4,
   init = list(
-    list(age = 1, theta = 0.5, log_A = 4, B0 = 60),
-    list(age = 0.01, theta = 1, log_A = 6, B0 = 1)
+    list(age = 1, theta = 6, log_A = 4, B0 = 60),
+    list(age = 0.8, theta = 4, log_A = 6, B0 = 30)
   ),
   control = list(max_treedepth = 12)
 )
@@ -56,7 +55,6 @@ test <- function() {
     facet_wrap(~.draw)
 }
 
-
 traceplot(fit_medians, par = c("age_par", "A", "B0", "theta", "sigma"))
 
 
@@ -72,8 +70,8 @@ fit_regular_flat <- stan(
 print(fit_regular.flat)
 
 data_cwd <- list(
-  age = land_use_10_years$age, agbd = land_use_10_years$agbd,
-  b1 = land_use_10_years$all, n = nrow(land_use_10_years)
+  age = data_10$age, agbd = data_10$agbd,
+  b1 = data_10$all, n = nrow(data_10)
 )
 
 fit_regular_cwd <- stan(
