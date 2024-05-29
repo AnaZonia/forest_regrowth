@@ -12,7 +12,6 @@ With this code, we are adding:
 install.packages(c("curl", "httr", "openssl", "tidyverse", # required for tidyverse in Fedora
                    "terra", "rstan", "cmdstanr", "ggplot2"))
 
-
 ## Data Processing
 
 ### 1_satellite

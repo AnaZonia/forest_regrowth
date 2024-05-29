@@ -12,122 +12,140 @@ library(terra)
 library(tidyverse) # for stringr operations
 library(mlr) # for createDummyFeatures
 
-"
-  - Imports the dataframe
-  - Removes unnecessary columns that will not be used in analysis
-  - Converts categorical data to dummy variables
-"
-import_data <- function(path) {
-  df <- read.csv(path)
 
+  # - Imports the dataframe
+  # - Removes unnecessary columns that will not be used in analysis
+  # - Converts categorical data to dummy variables
+
+import_data <- function(path, aggregate) {
+  df <- read.csv(path)
   # Drop unnecessary columns
   df <- df[, -which(names(df) %in% c("system.index", ".geo", "biome"))]
   # create dummy variables for the categorical data with more than 2 types
   categorical <- c("ecoreg", "soil", "last_LU")
   df[categorical] <- lapply(df[categorical], as.factor)
   df <- createDummyFeatures(df, cols = categorical)
-  # aggregate agbd by age
-  df_aggregated <- aggregate(agbd ~ age, df, median)
-
-  return(list(data = df, data_aggregated = df_aggregated))
+  if (aggregate == TRUE){
+    # aggregate agbd by age
+    df <- aggregate(agbd ~ age, df, median)
+  }
+  return(df)
 }
 
+# Intakes pars <- a vector with the initial parameters to be included
+# data <- the dataframe with the predictors
+# pars_chosen <- the list of parameters to be added into the shape term
+
+# An example would look like:
+#   growth_curve(c(B0 = 40, A = 80, theta = 5, age = 2), data_10[[1]], c('age'))
+
 growth_curve <- function(pars, data, pars_chosen) {
-  k <- 0
+  k <- data[[1]] * 0
   for (i in seq_along(pars_chosen)) {
     k <- k + pars[[pars_chosen[i]]] * data[[pars_chosen[i]]]
   }
   pars["B0"] + pars["A"] * (1 - exp(-k))^pars["theta"]
 }
 
-write_init_parameters <- function(pars_basic, pars_chosen) {
-  pars_init_values <- rep(0.1, length(pars_chosen))
-  new_elements <- setNames(pars_init_values, pars_chosen)
-  return(c(pars_basic, new_elements))
-}
 
-# Nonlinear Least Squares
-nls <- function(pars, data, growth_curve, conditions, pars_chosen) {
-  for (condition in conditions) {
-    if (!eval(condition)) {
-      return(-Inf)
-    }
-  }
+# Calculates Nonlinear Least Squares
+# Intakes:
+# pars <- a vector with the initial parameters to be included
+# data <- the dataframe with the predictors
+# pars_chosen <- the list of parameters to be added into the shape term
+# conditions <- ranges of parameters to be restricted to
+
+nls <- function(pars, data, pars_chosen, conditions) {
   result <- sum((growth_curve(pars, data, pars_chosen) - data$agbd)^2)
-  if (is.na(result) || result == 0) {
+  if (any(eval(parse(text = conditions)))) {
+    return(-Inf)
+  } else if (is.na(result) || result == 0) {
     return(-Inf)
   } else {
     return(result)
   }
 }
 
-fit_optim <- function(pars, fn, data, growth_curve, conditions) {
-  o <- optim(pars, fn, data = data, growth_curve = growth_curve, conditions = conditions)
+
+run_optimization <- function(pars_basic, data, pars_chosen, conditions) {
+  # Run optimization
+  o <- optim(c(pars_basic, setNames(0.1, pars_chosen[1])),
+    nls,
+    data = data,
+    pars_chosen = pars_chosen[1],
+    conditions = conditions
+  )
+  if (length(pars_chosen) > 1) {
+    for (i in 2:length(pars_chosen)) {
+      o <- optim(c(o$par, setNames(0.1, pars_chosen[i])),
+        nls,
+        data = data,
+        pars_chosen = pars_chosen[1:i],
+        conditions = conditions
+      )
+    }
+  }
   print(paste("Residual sum of squares:", o$value))
   print(o$par)
   return(o)
 }
 
+
 ################### Running model ###################
 
-data_5 <- import_data("data/unified_data_5_years.csv")
-data_10 <- import_data("data/unified_data_10_years.csv")
-data_15 <- import_data("data/unified_data_15_years.csv")
-
-conditions <- list(
-  expression(pars["age"] < 0),
-  expression(pars["age"] > 5),
-  expression(pars["theta"] > 10),
-  expression(pars["theta"] < 0),
-  expression(pars["B0"] < 0)
+datafiles <- list(
+  "data/unified_data_5_years.csv",
+  "data/unified_data_10_years.csv",
+  "data/unified_data_15_years.csv"
 )
+
+dataframes <- lapply(datafiles, import_data, aggregate = FALSE)
+names_dataframes <- c("data_5", "data_10", "data_15")
+
+# Define conditions
+conditions <- list(
+  'pars["theta"] > 10',
+  'pars["theta"] < 0',
+  'pars["B0"] < 0'
+)
+
 
 # intercept, asymptote, shape term, standard deviation
 pars_basic <- c(B0 = 40, A = 80, theta = 5)
-age_cwd <- c("age", "b1")
-age <- c("age")
 
-# Run optimization
-pred_5_age <- fit_optim(
-  pars = write_init_parameters(pars_basic, age),
-  nls,
-  data = data_5[[1]],
-  growth_curve = growth_curve,
-  conditions = conditions,
-  pars_chosen = age
+configurations <- list(
+  c("age"), c("num_fires_before_regrowth"),
+  c("age", "num_fires_before_regrowth"),
+  c("age", "num_fires_before_regrowth", "all", "fallow", "indig", "protec"),
+  setdiff(names(dataframes[[1]]), c("b1", "agbd", "latitude", "longitude"))
 )
 
-growth_curve(write_init_parameters(pars_basic, age), data_5[[1]], age)
-nls(write_init_parameters(pars_basic, age), data_5[[1]], growth_curve, conditions, age)
-result <- sum((growth_curve(write_init_parameters(pars_basic, age), data_5[[1]], age) - data_5[[1]]$agbd)^2)
+names_configurations <- c("age", "fires", "age_fires", "all_cat", "all")
 
-# pred <- fit_optim(write_init_parameters(pars_basic, 2), nls, data = data_5, growth_curve = function(pars, data) {
-#   growth_curve(pars, data, c("age", "num_fires_before_regrowth"))
-# })
+sum_squares <- list()
 
-# pred_simple_agg <- fit_optim(pars_simple, nls,
-#   data = data_aggregated,
-#   growth_curve = growth_curve_1_pred
-# )
-# pred_simple <- fit_optim(pars_simple, nls,
-#   data = data, growth_curve = growth_curve_1_pred
-# )
+# Run optimization
+for (i in seq_along(configurations)) {
+  for (j in seq_along(dataframes)) {
+    print("----------------------------------------------------")
+    print(names_dataframes[j])
+    print(names_configurations[i])
+    o <- run_optimization(
+      pars_basic, dataframes[[j]], configurations[[i]],
+      if ("age" %in% configurations[[i]]) {
+        c(conditions, list(
+          'pars["age"] < 0',
+          'pars["age"] > 5'
+        ))
+      } else {
+        conditions
+      }
+    )
+    sum_squares[[paste(names_dataframes[j], names_configurations[i])]] <- o$value
+  }
+}
+
+print(min(unlist(sum_squares)))
 
 
 
-
-# pred_numfires <- fit_optim(pars_env_par, nls, data = data,
-# growth_curve = function(pars, data) {
-#   growth_curve_1_pred(pars, data, "num_fires_before_regrowth")
-# })
-# pred_sur_for_cov <- fit_optim(pars_env_par, nls, data = data, growth_curve = function(pars, data) {
-#   growth_curve_1_pred(pars, data, "all")
-# })
-
-# pred_simple$value - pred_numfires$value
-# pred_simple$value - pred_sur_for_cov$value
-
-# pred <- growth_curve(o$par, data_aggregated)
-
-# plot(data$agbd, pred)
-# abline(c(0, 1))

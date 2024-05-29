@@ -14,11 +14,11 @@ parameters {
 
 model {
   // Priors
-  age_par ~ weibull(1.851616, 111.5);
-  B0 ~ normal(40, 20);  // Prior for Intercept
-  log_A ~ normal(5, 0.5);   // Prior for Asymptote
-  theta ~ normal(0, 5); // Prior for Shape term
-  sigma ~ exponential(5);
+  // age_par ~ weibull(1.851616, 111.5);
+  // B0 ~ normal(40, 20);  // Prior for Intercept
+  // log_A ~ normal(5, 0.5);   // Prior for Asymptote
+  // theta ~ normal(0, 5); // Prior for Shape term
+  // sigma ~ exponential(5);
 // percentage of the true value is how sigma should be thought of.
 
   agbd ~ normal(B0 + exp(log_A) * (1 - exp(-(age_par*age)))^theta, sigma);
