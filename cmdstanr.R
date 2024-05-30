@@ -1,15 +1,20 @@
 library(cmdstanr)
+library(posterior)
+library(bayesplot)
+color_scheme_set("brightblue")
 
-setwd("C:/Users/anaca/Desktop/forest_regrowth/")
+file <- file.path(cmdstan_path(), "examples", "bernoulli", "bernoulli.stan")
+mod <- cmdstan_model(file)
+mod$print()
 
-import <- read.csv("data/unified_data_10_years.csv")
 
-iter <- 2000
-warmup <- 1000
+# names correspond to the data block in the Stan program
+data_list <- list(N = 10, y = c(0, 1, 0, 0, 0, 0, 0, 0, 0, 1))
 
-data <- list(ages = import$age, agbds = import$agbd,
-             last_LU = import$last_LU, b1 = import$b1, n = nrow(import))
-
-mod_bern <- cmdstan_model(stan_file = "model.stan")
-fit_bern <- mod_bern$sample(data = data, iter_sampling = iter,
-                            iter_warmup = warmup, chains = 2, cores = 4)
+fit <- mod$sample(
+    data = data_list,
+    seed = 123,
+    chains = 4,
+    parallel_chains = 4,
+    refresh = 500 # print update every 500 iters
+)

@@ -1,0 +1,28 @@
+---
+title: "Stan_model"
+format: pdf
+---
+
+```{r}
+
+
+
+library(corrplot)
+
+data <- read.csv("./data/unified_data.csv")
+
+corrplot(cor(data_15[[1]][c(2:5, 9,11,22)]))
+
+```
+
+
+
+
+```{r}
+
+
+
+```
+
+
+
