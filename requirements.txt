@@ -1,3 +1,4 @@
+annotated-types==0.6.0
 anyio==4.3.0
 appdirs==1.4.4
 argcomplete==3.3.0
@@ -10,7 +11,6 @@ attrs==23.2.0
 Babel==2.15.0
 Beaker==1.12.1
 beautifulsoup4==4.12.3
-black==24.4.2
 bleach==6.1.0
 blivet==3.9.2
 blivet-gui==2.5.0
@@ -19,6 +19,7 @@ botocore==1.34.99
 bqplot==0.12.43
 branca==0.7.2
 Brlapi==0.8.5
+Brotli==1.1.0
 cachetools==5.3.3
 certifi==2024.2.2
 cffi==1.16.0
@@ -37,8 +38,11 @@ decorator==5.1.1
 defusedxml==0.7.1
 distro==1.9.0
 dnf==4.19.2
+dnspython==2.6.1
 earthengine-api==0.1.404
 eerepr==0.0.4
+email_validator==2.1.1
+evdev==1.6.1
 executing==2.0.1
 fastjsonschema==2.19.1
 fedora-third-party==0.10
@@ -47,7 +51,9 @@ folium==0.16.0
 fonttools==4.52.1
 fqdn==1.5.1
 fros==1.1
+fs==2.4.16
 future==1.0.0
+GDAL==3.8.5
 geemap==0.32.1
 geocoder==1.38.1
 google-api-core==2.19.0
@@ -65,6 +71,7 @@ httplib2==0.22.0
 httpx==0.27.0
 humanize==3.13.1
 idna==3.7
+input-remapper==2.0.1
 ipyevents==2.0.2
 ipyfilechooser==0.6.0
 ipykernel==6.29.4
@@ -115,6 +122,7 @@ notebook_shim==0.2.4
 numpy==1.26.4
 olefile==0.47
 overrides==7.7.0
+OWSLib==0.30.0
 packaging==23.2
 pandas==2.2.2
 pandocfilters==1.5.1
@@ -134,6 +142,7 @@ prompt-toolkit==3.0.43
 proto-plus==1.23.0
 protobuf==4.25.3
 psutil==5.9.8
+psycopg2==2.9.9
 ptyprocess==0.7.0
 pure-eval==0.2.2
 pwquality==1.4.5
@@ -143,6 +152,9 @@ pycairo==1.25.1
 pycparser==2.20
 pycrypto==2.6.1
 pycups==2.0.4
+pydantic==2.7.1
+pydantic_core==2.18.2
+pydbus==0.6.0
 pyenchant==3.2.2
 Pygments==2.18.0
 PyGObject==3.48.2
@@ -151,6 +163,8 @@ pyOpenSSL==23.2.0
 pyparsing==3.1.2
 pyparted==3.13.0
 pyperclip==1.8.2
+PyQt5==5.15.10
+PyQt5-sip==12.13.0
 pyshp==2.3.1
 PySocks==1.7.1
 python-augeas==1.1.0
@@ -164,6 +178,7 @@ pyudev==0.24.1
 pyxdg==0.27
 PyYAML==6.0.1
 pyzmq==26.0.3
+QScintilla==2.13.4
 qtconsole==5.5.2
 QtPy==2.4.1
 radian==0.6.12
@@ -180,12 +195,10 @@ rpds-py==0.18.1
 rpm==4.19.1.1
 rsa==4.9
 s3transfer==0.10.1
-scipy==1.13.1
+SciPy==1.11.3
 scooby==0.10.0
 seaborn==0.13.2
-selinux @ file:///builddir/build/BUILD/libselinux-3.6/src
 Send2Trash==1.8.3
-sepolicy @ file:///builddir/build/BUILD/selinux-3.6/python/sepolicy
 setools==4.5.1
 setuptools==69.0.3
 simpleaudio==1.0.4
@@ -205,6 +218,7 @@ tornado==6.4
 traitlets==5.14.3
 traittypes==0.2.1
 types-python-dateutil==2.9.0.20240316
+typing_extensions==4.9.0
 tzdata==2024.1
 uri-template==1.3.0
 uritemplate==4.1.1
@@ -214,5 +228,8 @@ webcolors==1.13
 webencodings==0.5.1
 websocket-client==1.8.0
 widgetsnbextension==4.0.10
+wxPython==4.2.1
 xkbregistry==0.3
 xyzservices==2024.4.0
+selinux @ file:///builddir/build/BUILD/libselinux-3.6/src
+sepolicy @ file:///builddir/build/BUILD/selinux-3.6/python/sepolicy
