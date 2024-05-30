@@ -6,8 +6,8 @@ data {
 
 parameters {
   real<lower=0, upper = 100> B0; // Intercept
-  real log_A;  // Asymptote
-  real<lower=0> theta; // Shape term
+  real <lower=0> A;  // Asymptote
+  // real<lower=0> theta; // Shape term
   real<lower=0> sigma; // process error
   real<lower=0> age_par; // Growth term
 }
@@ -20,12 +20,15 @@ model {
   // theta ~ normal(0, 5); // Prior for Shape term
   // sigma ~ exponential(5);
 // percentage of the true value is how sigma should be thought of.
-
-  agbd ~ normal(B0 + exp(log_A) * (1 - exp(-(age_par*age)))^theta, sigma);
+  vector[n] m;
+  m = B0 + A * (1 - exp(-(age_par*age)));
+  agbd ~ normal(m, sigma);
 // either set parameters with a parameter with a lower bound of 
 // or add a value with a distribution ranging from zero to the maximum year of colonization
 
 }
+
+// B0 + exp(log_A) * (1 - exp(-(age_par*age)))^theta
 
 // generated quantities {
 //   vector[n] agbd; // Corrected with semicolon

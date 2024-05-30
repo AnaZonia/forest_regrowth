@@ -12,7 +12,6 @@ library(terra)
 library(tidyverse) # for stringr operations
 library(mlr) # for createDummyFeatures
 
-
   # - Imports the dataframe
   # - Removes unnecessary columns that will not be used in analysis
   # - Converts categorical data to dummy variables
@@ -167,15 +166,17 @@ pred <- growth_curve(pars_fit[[14]], dataframes[[3]], configurations[[5]])
 plot(pred, dataframes[[3]]$agbd)
 abline(0, 1)
 
-table(dataframes[[1]]$age)
+# diagnosing NLL
 
-pars = pars_basic
-data = dataframes[[1]]
-pars_chosen = configurations[[3]]
+# pars = pars_basic
+# data = dataframes[[1]]
+# pars_chosen = configurations[[3]]
 
-result <- -sum(dnorm(
-  x = data$agbd - growth_curve(pars, data, pars_chosen), mean = 0,
-  sd = pars["sd"], log = TRUE
-), na.rm = TRUE)
+# result <- -sum(dnorm(
+#   x = data$agbd - growth_curve(pars, data, pars_chosen), mean = 0,
+#   sd = pars["sd"], log = TRUE
+# ), na.rm = TRUE)
 
 
+# tst = read.csv("data/unified_data_15_years.csv")
+# names(tst)
