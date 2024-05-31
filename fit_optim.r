@@ -15,7 +15,7 @@ library(mlr) # for createDummyFeatures
 #------------------ SWITCHES ------------------#
 
 run_all <- FALSE
-run_one <- TRUE
+run_one <- FALSE
 
 #------------------ FUNCTIONS ------------------#
 
@@ -31,10 +31,13 @@ import_data <- function(path, aggregate) {
   categorical <- c("ecoreg", "soil", "last_LU")
   df[categorical] <- lapply(df[categorical], as.factor)
   df <- createDummyFeatures(df, cols = categorical)
-  if (aggregate == TRUE){
+  if (aggregate == TRUE) {
     # aggregate agbd by age
     df <- aggregate(agbd ~ age, df, median)
   }
+  
+
+
   return(df)
 }
 
@@ -122,30 +125,55 @@ datafiles <- list(
 
 dataframes <- lapply(datafiles, import_data, aggregate = FALSE)
 names_dataframes <- c("data_5", "data_10", "data_15")
+names(dataframes[[3]])
 
-# Define conditions
-conditions <- list(
-  'pars["theta"] > 10',
-  'pars["theta"] < 0',
-  'pars["B0"] < 0',
-  'pars["B0"] > pars["A"]'
-)
+tst <- dataframes[[3]]
+# Get index of columns containing "prec" or "si"
 
-# intercept, asymptote, shape term, standard deviation
-pars_basic <- c(B0 = 40, A = 80, theta = 5)
 
-colnames_intersect <- Reduce(intersect, lapply(dataframes, colnames))
-colnames_filtered <- colnames_intersect[!grepl("b1|agbd|latitude|longitude|prec|si", colnames_intersect)]
 
-configurations <- list(
-  c("age"),
-  c("num_fires_before_regrowth"),
-  c("age", "num_fires_before_regrowth"),
-  c("age", "num_fires_before_regrowth", "all", "fallow", "indig", "protec"),
-  colnames_filtered
-)
+# define the climatic parameters - the ones that change yearly
+climatic <- c("prec", "si")
+# define the non-climatic parameters - the ones that are fixed throughout regrowth and
+# that are used for fitting the model (excludes age and agbd)
+non_climatic <- names(data)[!grepl("prec|si|agbd", names(data))]
 
-names_configurations <- c("age", "fires", "age_fires", "all_cat", "all")
+for (age in ages) {
+  for (clim_var in climatic) {
+    clim_col_indices <- grep(var, colnames(tst))
+    clim_col_names <- colnames(tst[c(max(clim_cols) + 1 - age):max(clim_cols)])
+    k <- k + pars[clim_var] * data[[paste0(clim_var, "_", year)]]
+  }
+  for (unique_var in non_climatic) {
+    k <- k + pars[unique_var] * data[[unique_var]]
+  }
+}
+
+if (any(run_all, run_one)) {
+  # Define conditions
+  conditions <- list(
+    'pars["theta"] > 10',
+    'pars["theta"] < 0',
+    'pars["B0"] < 0',
+    'pars["B0"] > pars["A"]'
+  )
+
+  # intercept, asymptote, shape term, standard deviation
+  pars_basic <- c(B0 = 40, A = 80, theta = 5)
+
+  colnames_intersect <- Reduce(intersect, lapply(dataframes, colnames))
+  colnames_filtered <- colnames_intersect[!grepl("b1|agbd|latitude|longitude|prec|si", colnames_intersect)]
+
+  configurations <- list(
+    c("age"),
+    c("num_fires_before_regrowth"),
+    c("age", "num_fires_before_regrowth"),
+    c("age", "num_fires_before_regrowth", "all", "fallow", "indig", "protec"),
+    colnames_filtered
+  )
+
+  names_configurations <- c("age", "fires", "age_fires", "all_cat", "all")
+}
 
 if (run_one) {
   pars_chosen <- configurations[[5]]
