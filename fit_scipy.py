@@ -15,7 +15,7 @@ import pandas as pd
 from scipy.optimize import minimize
 from scipy.stats import norm
 from ray import tune
-from ray.tune.suggest.bayesopt import BayesOptSearch
+# from ray.tune.suggest.bayesopt import BayesOptSearch
 
 
 def import_data(path: str):
@@ -77,9 +77,12 @@ def fit_scipy(data):
 
     return result.x
 
+def objective(config, data):
+    params = unpack_parameters([config["B0"], config["A"], config["theta"], config["sd"], config["age"]])
+    return neg_log_likelihood(params, data)
+
 
 def fit_ray(data):
-
     # Define the search space
     space = {
         "B0": tune.uniform(40, 100),
@@ -95,6 +98,7 @@ def fit_ray(data):
     # Run the optimizer
     analysis = tune.run(
         objective,
+        data = data,
         config = space,
         num_samples = 100,
         metric = "loss",
@@ -111,7 +115,8 @@ def fit_ray(data):
 def main():
     path = "./data/unified_data_15_years.csv"
     data = import_data(path)
-
+    print(fit_scipy(data))
+    print(fit_ray(data))
 
 
 if __name__ == "__main__":
