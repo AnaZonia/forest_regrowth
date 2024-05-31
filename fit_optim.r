@@ -12,6 +12,13 @@ library(terra)
 library(tidyverse) # for stringr operations
 library(mlr) # for createDummyFeatures
 
+#------------------ SWITCHES ------------------#
+
+run_all <- FALSE
+run_one <- TRUE
+
+#------------------ FUNCTIONS ------------------#
+
   # - Imports the dataframe
   # - Removes unnecessary columns that will not be used in analysis
   # - Converts categorical data to dummy variables
@@ -98,13 +105,14 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
       )
     }
   }
-  print(paste("Residual sum of squares:", o$value))
-  print(o$par)
+  # print(paste("Residual sum of squares:", o$value))
+  # print(o$par)
   return(o)
 }
 
 
 ################### Running model ###################
+
 
 datafiles <- list(
   "data/unified_data_5_years.csv",
@@ -126,57 +134,75 @@ conditions <- list(
 # intercept, asymptote, shape term, standard deviation
 pars_basic <- c(B0 = 40, A = 80, theta = 5)
 
+colnames_intersect <- Reduce(intersect, lapply(dataframes, colnames))
+colnames_filtered <- colnames_intersect[!grepl("b1|agbd|latitude|longitude|prec|si", colnames_intersect)]
+
 configurations <- list(
   c("age"),
   c("num_fires_before_regrowth"),
   c("age", "num_fires_before_regrowth"),
   c("age", "num_fires_before_regrowth", "all", "fallow", "indig", "protec"),
-  setdiff(Reduce(intersect, lapply(dataframes, colnames)), c("b1", "agbd", "latitude", "longitude"))
+  colnames_filtered
 )
 
 names_configurations <- c("age", "fires", "age_fires", "all_cat", "all")
 
-sum_squares_fit <- list()
-pars_fit <- list()
-# Run optimization
-for (i in seq_along(configurations)) {
-  for (j in seq_along(dataframes)) {
-    print("----------------------------------------------------")
-    print(names_dataframes[j])
-    print(names_configurations[i])
-    o_iter <- run_optimization(
-      "nll", pars_basic, dataframes[[j]], configurations[[i]],
-      if ("age" %in% configurations[[i]]) {
-        c(conditions, list(
-          'pars["age"] < 0',
-          'pars["age"] > 5'
-        ))
-      } else {
-        conditions
-      }
-    )
-    sum_squares_fit[[paste(names_dataframes[j], names_configurations[i])]] <- o_iter$value
-    pars_fit[[paste(names_dataframes[j], names_configurations[i])]] <- o_iter$par
-  }
+if (run_one) {
+  pars_chosen <- configurations[[5]]
+  pars <- c(
+    pars_basic,
+    setNames(rep(0.1, length(pars_chosen)), pars_chosen), setNames(0.1, "sd")
+  )
+  data = dataframes[[1]]
+  result <- -sum(dnorm(
+    x = data$agbd - growth_curve(pars, data, pars_chosen), mean = 0,
+    sd = pars["sd"], log = TRUE
+  ), na.rm = TRUE)
+
+  run_optimization(
+    "nll", pars_basic, data, pars_chosen,
+    if ("age" %in% pars_chosen) {
+      c(conditions, list(
+        'pars["age"] < 0',
+        'pars["age"] > 5'
+      ))
+    } else {
+      conditions
+    }
+  )
 }
 
-print(min(unlist(sum_squares_fit)))
 
-pred <- growth_curve(pars_fit[[14]], dataframes[[3]], configurations[[5]])
-plot(pred, dataframes[[3]]$agbd)
-abline(0, 1)
+if (run_all) {
+  sum_squares_fit <- list()
+  pars_fit <- list()
+  # Run optimization
+  for (i in seq_along(configurations)) {
+    for (j in seq_along(dataframes)) {
+      print("----------------------------------------------------")
+      print(names_dataframes[j])
+      print(names_configurations[i])
+      o_iter <- run_optimization(
+        "nls", pars_basic, dataframes[[j]], configurations[[i]],
+        if ("age" %in% configurations[[i]]) {
+          c(conditions, list(
+            'pars["age"] < 0',
+            'pars["age"] > 5'
+          ))
+        } else {
+          conditions
+        }
+      )
+      sum_squares_fit[[paste(names_dataframes[j], names_configurations[i])]] <- o_iter$value
+      pars_fit[[paste(names_dataframes[j], names_configurations[i])]] <- o_iter$par
+    }
+  }
 
-# diagnosing NLL
+  print(min(unlist(sum_squares_fit)))
 
-# pars = pars_basic
-# data = dataframes[[1]]
-# pars_chosen = configurations[[3]]
+  pred <- growth_curve(pars_fit[[15]], dataframes[[3]], configurations[[5]])
+  plot(pred, dataframes[[3]]$agbd)
+  abline(0, 1)
 
-# result <- -sum(dnorm(
-#   x = data$agbd - growth_curve(pars, data, pars_chosen), mean = 0,
-#   sd = pars["sd"], log = TRUE
-# ), na.rm = TRUE)
+}
 
-
-# tst = read.csv("data/unified_data_15_years.csv")
-# names(tst)
