@@ -2,6 +2,7 @@ library(rstan)
 library(tidybayes)
 library(fitdistrplus)
 library(ggplot2)
+library(shinystan)
 
 data_5 <- read.csv("data/unified_data_5_years.csv")
 data_10 <- read.csv("data/unified_data_10_years.csv")
@@ -20,8 +21,9 @@ data_aggregated <- list(age = tst$age, agbd = tst$agbd, n = nrow(tst))
 plot(data_aggregated$age, data_aggregated$agbd)
 
 # Plot the data
-vals <- 30 + 160 * (1 - exp(-(0.01 * c(1:35))))^0.3 + rnorm(n = 35, sd = 0.05)
+vals <- 30 + 160 * (1 - exp(-(0.01 * c(1:35))))^0.3 + rnorm(n = 35, sd = 5)
 plot(c(1:35), vals)
+fake_data <- list(age=c(1:35), agbd=vals, n=35)
 
 # data_regular <- list(
 #   age = data_10$age,
@@ -32,42 +34,30 @@ plot(c(1:35), vals)
 iter <- 2000
 warmup <- 1000
 chains <- 2
-# init <- list(
-#   list(age_par = 1, theta = 6, B0 = 60, sigma = 0.3),
-#   list(age_par = 0.8, theta = 4, B0 = 30, sigma = 0.1)
-# )
-
-init <- list(
-  list(k = 1, theta = 6, B0 = 60, sigma = 0.3, A = 100),
-  list(k = 0.8, theta = 4, B0 = 30, sigma = 0.1, A = 80)
-)
 
 # nelder mead in stan?
 # transforming things so that all follows more or less a normal around zero is ideal
 
 fit_medians2 <- stan(
-  file = "age_agbd.stan", data = data_aggregated,
+  file = "age_agbd.stan", data = fake_data,
   iter = iter, warmup = warmup,
   chains = chains, cores = 4,
-  init = init,
   control = list(max_treedepth = 12)
 )
 print(fit_medians2)
 
-#library(shinystan)
-
 launch_shinystan(fit_medians2)
 
-vals = 30 + 160 * (1 - exp(-(0.01 * tst$age)))
+curve(dnorm(x, mean = 40, sd = 10), from = 0, to = 80)
 
-dnorm(
-  x = tst$agbd - vals, mean = 0,
-  sd = 0.3, log = TRUE
+curve(dexp(x, rate = 0.1), from = 0, to = 100)
+
+curve(dbeta(x, shape1 = 3, shape2 = 5),
+  from = 0, to = 1,
+  main = "Beta Distribution", xlab = "x", ylab = "Density"
 )
 
-
 # traceplot(fit_medians, par = c("age_par", "A", "B0", "theta", "sigma"))
-
 # plot(fit_medians, par = c("age", "A", "B0", "theta", "sigma"))
 
 # write a sequence from 1 to 10
@@ -83,5 +73,6 @@ test <- function() {
 
 
 
-tst <- read.csv("./data/unified_data.csv")
+tst <- read.csv("./data/all_land_use.csv")
+nrow(tst)
 hist(tst$age)
