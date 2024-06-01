@@ -26,7 +26,7 @@ run_one <- FALSE
 import_data <- function(path, aggregate) {
   df <- read.csv(path)
   # Drop unnecessary columns
-  df <- df[, -which(names(df) %in% c("system.index", ".geo", "biome"))]
+  df <- df[, -which(names(df) %in% c("system.index", ".geo", "latitude", "longitude"))]
   # create dummy variables for the categorical data with more than 2 types
   categorical <- c("ecoreg", "soil", "last_LU")
   df[categorical] <- lapply(df[categorical], as.factor)
@@ -35,9 +35,6 @@ import_data <- function(path, aggregate) {
     # aggregate agbd by age
     df <- aggregate(agbd ~ age, df, median)
   }
-  
-
-
   return(df)
 }
 
@@ -127,28 +124,42 @@ dataframes <- lapply(datafiles, import_data, aggregate = FALSE)
 names_dataframes <- c("data_5", "data_10", "data_15")
 names(dataframes[[3]])
 
-tst <- dataframes[[3]]
+data <- dataframes[[3]]
 # Get index of columns containing "prec" or "si"
 
-
-
 # define the climatic parameters - the ones that change yearly
-climatic <- c("prec", "si")
+climatic_vars <- c("prec", "si")
 # define the non-climatic parameters - the ones that are fixed throughout regrowth and
 # that are used for fitting the model (excludes age and agbd)
 non_climatic <- names(data)[!grepl("prec|si|agbd", names(data))]
-clim_col_indices <- grep(var, colnames(tst))
-clim_col_names <- colnames(tst[c(max(clim_cols) + 1 - age):max(clim_cols)])
-climaticclimatic
-for (age in ages) {
-  for (index in clim_col_indices) {
+clim_col_indices <- grep("prec", colnames(tst))
+clim_col_names <- colnames(data[c(max(clim_col_indices) + 1 - data["age"]):max(clim_col_indices)])
+clim_col_names
 
-    k <- k + pars[clim_var] * data[[paste0(clim_var, "_", year)]]
+head(max(clim_col_indices) + 1 - data["age"])
+
+pars <- c(prec = 0.1, si = 0.2)
+
+k <- data[[1]] * 0
+# Calculate the sum of climatic columns and non-climatic columns for each age
+for (age in 1:35) {
+  # Get the relevant years based on age
+  years <- seq(2019, 2019 - age + 1, by = -1)
+  clim_columns <- unlist(lapply(climatic_vars, function(pat) paste0(pat, "_", years)))
+  clim_columns
+  tst <- lapply(climatic_vars, function(var) pars[var] )#data[[paste0(var, "_", years)]])
+  # Filter data for the current age
+  age_data <- data %>% filter(age == !!age)
+
+  for (i in c(1:age)) {
+    k <- k + pars[clim_var] * data[[paste0(clim_var, "_", 2019 - age + 1)]]
+    for (clim_var in climatic_var) {
+      k <- k + pars[clim_var] * data[[paste0(clim_var, "_", 2019 - age + 1)]]
+    }
   }
-  for (unique_var in non_climatic) {
-    k <- k + pars[unique_var] * data[[unique_var]]
-  }
+
 }
+
 
 if (any(run_all, run_one)) {
   # Define conditions
