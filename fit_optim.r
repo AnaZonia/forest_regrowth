@@ -137,11 +137,12 @@ climatic <- c("prec", "si")
 # define the non-climatic parameters - the ones that are fixed throughout regrowth and
 # that are used for fitting the model (excludes age and agbd)
 non_climatic <- names(data)[!grepl("prec|si|agbd", names(data))]
-
+clim_col_indices <- grep(var, colnames(tst))
+clim_col_names <- colnames(tst[c(max(clim_cols) + 1 - age):max(clim_cols)])
+climaticclimatic
 for (age in ages) {
-  for (clim_var in climatic) {
-    clim_col_indices <- grep(var, colnames(tst))
-    clim_col_names <- colnames(tst[c(max(clim_cols) + 1 - age):max(clim_cols)])
+  for (index in clim_col_indices) {
+
     k <- k + pars[clim_var] * data[[paste0(clim_var, "_", year)]]
   }
   for (unique_var in non_climatic) {
