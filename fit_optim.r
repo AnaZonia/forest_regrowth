@@ -111,40 +111,48 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
 
 make_asymptote <- function(df) {
   data <- read.csv("data/mature_biomass_climate_categ.csv")
+  # the data comes with yearly columns of seasonality and precipitation. Since for the
+  # mature forest prediction we only want yearly values, we will calculate the mean of each climatic predictor.
   patterns <- c("si_", "prec_")
   means <- sapply(patterns, function(pat) rowMeans(data[, grep(pat, names(data))], na.rm = TRUE))
   colnames(means) <- c("mean_si", "mean_prec")
   data <- cbind(data, means)
+
+  # remove unnecessary columns
   data <- data[, -grep("prec_|si_|biome|geo|system.index", names(data))]
+
+  # turn categorical variables into dummy variables
   categorical <- c("ecoreg", "soil")
   data[categorical] <- lapply(data[categorical], as.factor)
   data <- createDummyFeatures(data, cols = categorical)
   data <- data %>%
     rename(agbd = b1, cwd = b1_1)
 
-  # Identify numeric columns (excluding dummy variables)
+  # Normalize numeric columns (0-1)
+  # Store max and min values to transform back the predctions
+  min_agbd <- min(data$agbd, na.rm = TRUE)
+  max_agbd <- max(data$agbd, na.rm = TRUE)
+  # transform all numeric columns
   numeric_cols <- c("mean_si", "mean_prec", "cwd", "agbd")
-
-  # Normalize numeric columns
   data[numeric_cols] <- lapply(data[numeric_cols], function(x) {
     (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
   })
 
-  # Assuming `predicted_values` are your normalized predictions
-  # And `min_x` and `max_x` are the stored minimum and maximum values for the column
+  pred_gam <- predict(gam_model, newdata = data)
 
-  transform_back <- function(normalized_values, min_x, max_x) {
-    original_values <- normalized_values * (max_x - min_x) + min_x
-    return(original_values)
-  }
+  pars_categ <- names(data)[!names(data) %in% numeric_cols]
 
-  # Example usage
-  # Let's say you have the min and max values for 'agbd' stored as `min_agbd` and `max_agbd`
-  # And you have a vector of normalized predicted values for 'agbd' called `normalized_agbd`
-  min_agbd <- min(data$agbd, na.rm = TRUE) # Assuming 'data' is your original dataset
-  max_agbd <- max(data$agbd, na.rm = TRUE)
+  # Fit a GAM model
+  # Construct the formula dynamically
+  formula <- as.formula(paste("agbd ~ s(cwd) + s(mean_si) + s(mean_prec) +", paste(pars_categ, collapse = " + ")))
 
-  original_agbd <- transform_back(normalized_agbd, min_agbd, max_agbd)
+  # Fit the GAM model with the dynamically created formula
+  gam_model <- gam(formula, data = data)
+  summary(gam_model)
+
+  # Predict using the GAM model
+  pred_gam <- predict(gam_model, newdata = data)
+
 
 }
 
