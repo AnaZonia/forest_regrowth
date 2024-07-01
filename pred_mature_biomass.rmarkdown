@@ -1,23 +1,30 @@
-####################################################################
-############### Predict mature forest biomass from environmental predictors ##################
-####################################################################
-# Ana Avila - July 2024
-# ~~~~~~~~~~~~~~~~~~~~
-# Intakes:
-# Outputs:
-####################################################################
+---
+title: "Predict Mature Forest Biomass from Environmental Predictors"
+author: "Ana Avila"
+date: "July 2024"
+format:
+  pdf:
+    toc: true
+---
 
+```{r echo=TRUE, include=FALSE}
+# Load necessary libraries
 library(ggplot2)
 library(terra)
 library(tidyverse) # for stringr operations
 library(mlr) # for createDummyFeatures
+library(mgcv)
+library(randomForest)
 
-#------------------ SWITCHES ------------------#
+```
 
-fit_with_all_parameters <- TRUE
 
-#------------------ BODY ------------------#
 
+# Optim
+
+
+
+```{r echo=TRUE}
 data <- read.csv("data/mature_biomass_climate_categ.csv")
 # the data comes with yearly columns of seasonality and precipitation. Since for the
 # mature forest prediction we only want yearly values, we will calculate the mean of each climatic predictor.
@@ -45,15 +52,11 @@ numeric_cols <- c("mean_si", "mean_prec", "cwd", "agbd")
 data[numeric_cols] <- lapply(data[numeric_cols], function(x) {
     (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
 })
+```
 
-if (fit_with_all_parameters) {
-    pars_chosen <- names(data)[!names(data) %in% "agbd"]
-} else {
-    pars_chosen <- c("cwd", "protec", "mean_si", "mean_prec", "indig")
-}
-
+```{r}
+pars_chosen <- c("cwd", "protec", "mean_si", "mean_prec", "indig")
 pars <- setNames(rep(0.1, length(pars_chosen)), pars_chosen)
-pars_categ <- names(data)[!names(data) %in% numeric_cols]
 
 mat_biomass_function <- function(pars, data, pars_chosen) {
     pred_agbd <- data[[1]] * 0
@@ -70,12 +73,10 @@ likelihood <- function(pars, data, pars_chosen) {
 o <- optim(pars,
     likelihood,
     data = data,
-    pars_chosen = pars_chosen)
-o
-
-pred <- mat_biomass_function(o$par, data, pars_chosen)
-plot(pred, data$agbd)
-abline(0, 1)
+    pars_chosen = pars_chosen
+)
+o$value
+o$par
 
 # Calculate R-squared
 calc_r_squared <- function(observed, predicted) {
@@ -86,39 +87,65 @@ calc_r_squared <- function(observed, predicted) {
     return(R_squared)
 }
 
-# Load the mgcv package
-library(mgcv)
+calc_r_squared(data$agbd, mat_biomass_function(o$par, data, pars_chosen))
+```
+
+
+
+
+If, however, we run it with all parameters, we get a worse fit:
+
+
+
+```{r}
+pars_chosen <- names(data)[!names(data) %in% "agbd"]
+pars <- setNames(rep(0.1, length(pars_chosen)), pars_chosen)
+
+o <- optim(pars,
+    likelihood,
+    data = data,
+    pars_chosen = pars_chosen
+)
+o$value
+o$par
+```
+
+
+
+# GAM
+
+
+
+```{r fig.width=10, fig.height=8}
+pars_categ <- names(data)[!names(data) %in% numeric_cols]
 
 # Fit a GAM model
-# Assuming linear relationships for simplicity; use s(variable) for non-linear terms
-gam_model <- gam(agbd ~ s(cwd) + s(mean_si) + s(mean_prec), data = data)
-
 # Construct the formula dynamically
-formula <- as.formula(paste("agbd ~ s(cwd) + s(mean_si) + s(mean_prec) + indig + protec +", paste(pars_categ, collapse = " + ")))
+formula <- as.formula(paste("agbd ~ s(cwd) + s(mean_si) + s(mean_prec) +", paste(pars_categ, collapse = " + ")))
 
 # Fit the GAM model with the dynamically created formula
 gam_model <- gam(formula, data = data)
+summary(gam_model)
 
 # Predict using the GAM model
 pred_gam <- predict(gam_model, newdata = data)
 
-
-
-summary(gam_model)
-
 # Plot predictions vs observed
 plot(pred_gam, data$agbd)
-abline(0, 1)
-
+abline(0, 1, col = "red")
 calc_r_squared(data$agbd, pred_gam)
 
-# Install and load the randomForest package
-if (!requireNamespace("randomForest", quietly = TRUE)) install.packages("randomForest")
-library(randomForest)
+```
 
-# Assuming 'data' is your dataset and 'agbd' is the response variable
+
+
+# Random Forest
+
+
+
+```{r}
 # Split data into training and testing sets
-set.seed(123) # For reproducibility
+set.seed(123)
 train_indices <- sample(1:nrow(data), size = floor(0.7 * nrow(data)))
 train_data <- data[train_indices, ]
 test_data <- data[-train_indices, ]
@@ -133,13 +160,10 @@ print(rf_model$oob.error)
 # Predict using the Random Forest model on the test data
 pred_rf_test <- predict(rf_model, newdata = test_data)
 
-# Calculate R-squared for the Random Forest model on the test data
-mean_agbd_test <- mean(test_data$agbd, na.rm = TRUE)
-TSS_test <- sum((test_data$agbd - mean_agbd_test)^2, na.rm = TRUE)
-RSS_test <- sum((test_data$agbd - pred_rf_test)^2, na.rm = TRUE)
-R_squared_rf_test <- 1 - (RSS_test / TSS_test)
-print(R_squared_rf_test)
+calc_r_squared(test_data$agbd, pred_rf_test)
 
 # Plot predictions vs observed for the test data
 plot(pred_rf_test, test_data$agbd)
-abline(0, 1)
+abline(0, 1, col = "red")
+
+```
