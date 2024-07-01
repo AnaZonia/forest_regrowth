@@ -15,7 +15,7 @@ library(mlr) # for createDummyFeatures
 #------------------ SWITCHES ------------------#
 
 run_all <- FALSE
-run_one <- FALSE
+run_one <- TRUE
 
 #------------------ FUNCTIONS ------------------#
 
@@ -50,9 +50,8 @@ growth_curve <- function(pars, data, pars_chosen) {
   for (i in seq_along(pars_chosen)) {
     k <- k + pars[[pars_chosen[i]]] * data[[pars_chosen[i]]]
   }
-  pars["B0"] + pars["A"] * (1 - exp(-k))^pars["theta"]
+  pars["B0"] + (data["mat_gaus_ker"] - pars["B0"]) * (1 - exp(-k))^pars["theta"]
 }
-
 
 # Calculates Nonlinear Least Squares
 # Intakes:
@@ -110,6 +109,44 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
   return(o)
 }
 
+make_asymptote <- function(df) {
+  data <- read.csv("data/mature_biomass_climate_categ.csv")
+  patterns <- c("si_", "prec_")
+  means <- sapply(patterns, function(pat) rowMeans(data[, grep(pat, names(data))], na.rm = TRUE))
+  colnames(means) <- c("mean_si", "mean_prec")
+  data <- cbind(data, means)
+  data <- data[, -grep("prec_|si_|biome|geo|system.index", names(data))]
+  categorical <- c("ecoreg", "soil")
+  data[categorical] <- lapply(data[categorical], as.factor)
+  data <- createDummyFeatures(data, cols = categorical)
+  data <- data %>%
+    rename(agbd = b1, cwd = b1_1)
+
+  # Identify numeric columns (excluding dummy variables)
+  numeric_cols <- c("mean_si", "mean_prec", "cwd", "agbd")
+
+  # Normalize numeric columns
+  data[numeric_cols] <- lapply(data[numeric_cols], function(x) {
+    (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
+  })
+
+  # Assuming `predicted_values` are your normalized predictions
+  # And `min_x` and `max_x` are the stored minimum and maximum values for the column
+
+  transform_back <- function(normalized_values, min_x, max_x) {
+    original_values <- normalized_values * (max_x - min_x) + min_x
+    return(original_values)
+  }
+
+  # Example usage
+  # Let's say you have the min and max values for 'agbd' stored as `min_agbd` and `max_agbd`
+  # And you have a vector of normalized predicted values for 'agbd' called `normalized_agbd`
+  min_agbd <- min(data$agbd, na.rm = TRUE) # Assuming 'data' is your original dataset
+  max_agbd <- max(data$agbd, na.rm = TRUE)
+
+  original_agbd <- transform_back(normalized_agbd, min_agbd, max_agbd)
+
+}
 
 ################### Running model ###################
 
@@ -124,42 +161,52 @@ dataframes <- lapply(datafiles, import_data, aggregate = FALSE)
 names_dataframes <- c("data_5", "data_10", "data_15")
 names(dataframes[[3]])
 
+
+
 data <- dataframes[[3]]
 # Get index of columns containing "prec" or "si"
 
 # define the climatic parameters - the ones that change yearly
 climatic_vars <- c("prec", "si")
+
 # define the non-climatic parameters - the ones that are fixed throughout regrowth and
 # that are used for fitting the model (excludes age and agbd)
 non_climatic <- names(data)[!grepl("prec|si|agbd", names(data))]
-clim_col_indices <- grep("prec", colnames(tst))
-clim_col_names <- colnames(data[c(max(clim_col_indices) + 1 - data["age"]):max(clim_col_indices)])
-clim_col_names
+clim_col_indices <- grep("prec", colnames(data))
+tst <- max(clim_col_indices) + 1 - data["age"]
 
-head(max(clim_col_indices) + 1 - data["age"])
+# list_of_lists <- list()
+# for (i in seq_len(nrow(tst))) {
+#   # Generate a sequence from the current tst element to max(clim_col_indices)
+#   col_indices <- tst[i,]:max(clim_col_indices)
+#   # Use the sequence to select the corresponding column names
+#   col_names <- colnames(data)[col_indices]
+#   # Add the column names to the list of lists
+#   list_of_lists[[i]] <- col_names
+# }
 
-pars <- c(prec = 0.1, si = 0.2)
+# pars <- c(prec = 0.1, si = 0.2)
 
-k <- data[[1]] * 0
-# Calculate the sum of climatic columns and non-climatic columns for each age
-for (age in 1:35) {
-  # Get the relevant years based on age
-  years <- seq(2019, 2019 - age + 1, by = -1)
-  clim_columns <- unlist(lapply(climatic_vars, function(pat) paste0(pat, "_", years)))
-  clim_columns
-  tst <- lapply(climatic_vars, function(var) pars[var] )#data[[paste0(var, "_", years)]])
-  # Filter data for the current age
-  age_data <- data %>% filter(age == !!age)
+# k <- data[[1]] * 0
+# # Calculate the sum of climatic columns and non-climatic columns for each age
+# for (age in 1:35) {
+#   # Get the relevant years based on age
+#   years <- seq(2019, 2019 - age + 1, by = -1)
+#   clim_columns <- unlist(lapply(climatic_vars, function(pat) paste0(pat, "_", years)))
+#   clim_columns
+#   k <- lapply(climatic_vars, function(var) k + pars[var]) # data[[paste0(var, "_", years)]])
+#   k
+#   # Filter data for the current age
+#   age_data <- data %>% filter(age == !!age)
 
-  for (i in c(1:age)) {
-    k <- k + pars[clim_var] * data[[paste0(clim_var, "_", 2019 - age + 1)]]
-    for (clim_var in climatic_var) {
-      k <- k + pars[clim_var] * data[[paste0(clim_var, "_", 2019 - age + 1)]]
-    }
-  }
+#   for (i in c(1:age)) {
+#     k <- k + pars[non_clim_var] * age_data[[non_clim_var]]
+#   }
 
-}
-
+#   for (clim_var in climatic_var) {
+#     k <- k + pars[clim_var] * data[[paste0(clim_var, "_", 2019 - age + 1)]]
+#   }
+# }
 
 if (any(run_all, run_one)) {
   # Define conditions
@@ -183,12 +230,11 @@ if (any(run_all, run_one)) {
     c("age", "num_fires_before_regrowth", "all", "fallow", "indig", "protec"),
     colnames_filtered
   )
-
   names_configurations <- c("age", "fires", "age_fires", "all_cat", "all")
 }
 
 if (run_one) {
-  pars_chosen <- configurations[[5]]
+  pars_chosen <- configurations[[4]]
   pars <- c(
     pars_basic,
     setNames(rep(0.1, length(pars_chosen)), pars_chosen), setNames(0.1, "sd")
