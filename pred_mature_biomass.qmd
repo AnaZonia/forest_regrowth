@@ -1,0 +1,51 @@
+---
+title: "Predict Mature Forest Biomass from Environmental Predictors"
+author: "Ana Avila"
+date: "July 2024"
+format:
+  html:
+    code-fold: true
+    toc: true
+---
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(terra)
+library(tidyverse) # for stringr operations
+library(mlr) # for createDummyFeatures
+library(mgcv)
+library(randomForest)
+```
+
+
+```{r}
+
+# Read data
+data <- read.csv("data/mature_biomass_climate_categ.csv")
+
+# Calculate the mean of each climatic predictor
+patterns <- c("si_", "prec_")
+means <- sapply(patterns, function(pat) rowMeans(data[, grep(pat, names(data))], na.rm = TRUE))
+colnames(means) <- c("mean_si", "mean_prec")
+data <- cbind(data, means)
+
+# Remove unnecessary columns
+data <- data[, -grep("prec_|si_|biome|geo|system.index", names(data))]
+
+# Turn categorical variables into dummy variables
+categorical <- c("ecoreg", "soil")
+data[categorical] <- lapply(data[categorical], as.factor)
+data <- createDummyFeatures(data, cols = categorical)
+data <- data %>%
+  rename(agbd = b1, cwd = b1_1)
+
+# Normalize numeric columns (0-1)
+min_agbd <- min(data$agbd, na.rm = TRUE)
+max_agbd <- max(data$agbd, na.rm = TRUE)
+numeric_cols <- c("mean_si", "mean_prec", "cwd", "agbd")
+data[numeric_cols] <- lapply(data[numeric_cols], function(x) {
+  (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
+})
+```
+

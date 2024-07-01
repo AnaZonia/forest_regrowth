@@ -39,7 +39,7 @@ chains <- 2
 # transforming things so that all follows more or less a normal around zero is ideal
 
 fit_medians2 <- stan(
-  file = "age_agbd.stan", data = fake_data,
+  file = "age_agbd.stan", data = data_aggregated,
   iter = iter, warmup = warmup,
   chains = chains, cores = 4,
   control = list(max_treedepth = 12)
