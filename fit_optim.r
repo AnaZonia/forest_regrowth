@@ -7,6 +7,11 @@
 # Outputs:
 ####################################################################
 
+# get all R squareds and save them properly
+# include nearest neighbor distances for wherever the kernel gives zero
+# how many of the secondary forests distance histogram
+# fit the kernel with sigma in R for the gaussian kernel
+
 library(ggplot2)
 library(terra)
 library(tidyverse) # for stringr operations
@@ -15,7 +20,7 @@ library(mlr) # for createDummyFeatures
 #------------------ SWITCHES ------------------#
 
 run_all <- FALSE
-run_one <- FALSE
+run_one <- TRUE
 
 #------------------ FUNCTIONS ------------------#
 
@@ -50,15 +55,7 @@ growth_curve <- function(pars, data, pars_chosen) {
   for (i in seq_along(pars_chosen)) {
     k <- k + pars[[pars_chosen[i]]] * data[[pars_chosen[i]]]
   }
-  pars[["B0"]] + (data[["asymp"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]]
-}
-
-growth_curve_asy <- function(pars, data, pars_chosen) {
-  k <- data[[1]] * 0
-  for (i in seq_along(pars_chosen)) {
-    k <- k + pars[[pars_chosen[i]]] * data[[pars_chosen[i]]]
-  }
-  pars[["B0"]] + pars[["A"]] * (1 - exp(-k))^pars[["theta"]]
+  pars[["B0"]] + (data[["mat_gaus_ker"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]]
 }
 
 # Calculates Nonlinear Least Squares
@@ -112,8 +109,6 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
       )
     }
   }
-  # print(paste("Residual sum of squares:", o$value))
-  # print(o$par)
   return(o)
 }
 
@@ -131,69 +126,7 @@ datafiles <- list(
 
 dataframes <- lapply(datafiles, import_data, aggregate = FALSE)
 names_dataframes <- c("data_5", "data_10", "data_15", "data_5_mat_ker")
-
-
-# Fit GAM to mature forest data
-mature_data <- read.csv("data/mature_biomass_climate_categ.csv")
-# the data comes with yearly columns of seasonality and precipitation. Since for the
-# mature forest prediction we only want yearly values, we will calculate the mean of each climatic predictor.
-summarize_clim_var <- function(data) {
-  patterns <- c("si_", "prec_")
-  means <- sapply(patterns, function(pat) rowMeans(data[, grep(pat, names(data))], na.rm = TRUE))
-  colnames(means) <- c("mean_si", "mean_prec")
-  data <- cbind(data, means)
-  return(data[, -grep("prec_|si_|biome|geo|system.index", names(data))])
-}
-
-mature_data <- summarize_clim_var(mature_data)
-
-# turn categorical variables into dummy variables
-categorical <- c("ecoreg", "soil")
-mature_data[categorical] <- lapply(mature_data[categorical], as.factor)
-mature_data <- createDummyFeatures(mature_data, cols = categorical)
-mature_data <- mature_data %>%
-  rename(agbd = b1, cwd = b1_1)
-
-# Normalize numeric columns (0-1)
-# Store max and min values to transform back the predctions
-min_agbd <- min(mature_data$agbd, na.rm = TRUE)
-max_agbd <- max(mature_data$agbd, na.rm = TRUE)
-# transform all numeric columns
-numeric_cols <- c("mean_si", "mean_prec", "cwd", "agbd")
-mature_data[numeric_cols] <- lapply(mature_data[numeric_cols], function(x) {
-  (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
-})
-
-dfs <- append(dataframes, list(mature_data))
-colnames_intersect <- Reduce(intersect, lapply(dfs, colnames))
-pars_categ <- colnames_intersect[!colnames_intersect %in% numeric_cols]
-
-# Fit a GAM model
-# Construct the formula dynamically
-formula <- as.formula(paste("agbd ~ s(cwd) + s(mean_si) + s(mean_prec) +", paste(pars_categ, collapse = " + ")))
-
-# Fit the GAM model with the dynamically created formula
-gam_model <- gam(formula, data = mature_data)
-
-pred_gam <- predict(gam_model, newdata = mature_data)
-
-make_asymptote <- function(df) {
-  df_summarized <- summarize_clim_var(df)
-  numeric_cols <- c("mean_si", "mean_prec", "cwd")
-  df_summarized[numeric_cols] <- lapply(df_summarized[numeric_cols], function(x) {
-    (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
-  })
-  # Predict using the GAM model
-  pred_gam <- predict(gam_model, newdata = df_summarized)
-
-  # transform back to regular scale
-  pred_gam_original <- pred_gam * (max_agbd - min_agbd) + min_agbd
-
-  return(cbind(df, asymp = pred_gam_original))
-}
-
-df <- dataframes[[4]]
-df <- make_asymptote(df)
+data <- dataframes[[4]]
 
 # define the climatic parameters - the ones that change yearly
 climatic_vars <- c("prec", "si")
@@ -207,7 +140,7 @@ tst <- max(clim_col_indices) + 1 - data["age"]
 list_of_lists <- list()
 for (i in seq_len(nrow(tst))) {
   # Generate a sequence from the current tst element to max(clim_col_indices)
-  col_indices <- tst[i,]:max(clim_col_indices)
+  col_indices <- tst[i, ]:max(clim_col_indices)
   # Use the sequence to select the corresponding column names
   col_names <- colnames(data)[col_indices]
   # Add the column names to the list of lists
@@ -264,9 +197,6 @@ if (any(run_all, run_one)) {
   names_configurations <- c("age", "fires", "age_fires", "all_cat", "all")
 }
 
-
-
-data <- df
 continuous_cols <- names(data)[!grepl("soil|ecoreg|last_LU|protec|indig", names(data))]
 
 data[continuous_cols] <- lapply(data[continuous_cols], function(x) {
@@ -287,7 +217,7 @@ if (run_one) {
   #   sd = pars["sd"], log = TRUE
   # ), na.rm = TRUE)
 
-  run_optimization(
+  val <- run_optimization(
     "nls", pars_basic, data, pars_chosen,
     if ("age" %in% pars_chosen) {
       c(conditions, list(
@@ -300,10 +230,19 @@ if (run_one) {
   )
 }
 
-# 3700 as it was
-# 3695 with just the change in formula
-# 3639 with the fit parameters
-# 2370 with surrounding mat forest kernel
+pred <- growth_curve(val$par, data, pars_chosen)
+# Calculate R-squared
+calc_r_squared <- function(observed, predicted) {
+  mean_observed <- mean(observed, na.rm = TRUE)
+  TSS <- sum((observed - mean_observed)^2, na.rm = TRUE)
+  RSS <- sum((observed - predicted)^2, na.rm = TRUE)
+  R_squared <- 1 - (RSS / TSS)
+  return(R_squared)
+}
+
+calc_r_squared(data$agbd, growth_curve(val$par, data, pars_chosen))
+plot(data$agbd, pred)
+abline(0, 1, col = "red")
 
 
 if (run_all) {
