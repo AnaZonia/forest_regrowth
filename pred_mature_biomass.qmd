@@ -104,7 +104,7 @@ o$par
 
 # GAM
 
-```{r fig.width=10, fig.height=20}
+```{r fig.width=15, fig.height=15}
 pars_categ <- names(data)[!names(data) %in% numeric_cols]
 
 # Fit a GAM model
@@ -121,13 +121,12 @@ pred_gam <- predict(gam_model, newdata = data)
 # Plot predictions vs observed
 plot(pred_gam, data$agbd)
 abline(0, 1, col = "red")
-calc_r_squared(data$agbd, pred_gam)
 
 ```
 
 # Random Forest
 
-```{r}
+```{r fig.width=15, fig.height=15}
 # Split data into training and testing sets
 set.seed(123)
 train_indices <- sample(1:nrow(data), size = floor(0.7 * nrow(data)))
@@ -137,9 +136,8 @@ test_data <- data[-train_indices, ]
 # Fit a Random Forest model on the training data
 rf_model <- randomForest(agbd ~ ., data = train_data, ntree = 500, mtry = sqrt(ncol(train_data) - 1), importance = TRUE, keep.forest = TRUE, oob.score = TRUE)
 
-# Print model summary including OOB error
+# Print model summary
 print(rf_model)
-print(rf_model$oob.error)
 
 # Predict using the Random Forest model on the test data
 pred_rf_test <- predict(rf_model, newdata = test_data)
