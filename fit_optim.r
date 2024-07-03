@@ -24,9 +24,9 @@ run_one <- TRUE
 
 #------------------ FUNCTIONS ------------------#
 
-  # - Imports the dataframe
-  # - Removes unnecessary columns that will not be used in analysis
-  # - Converts categorical data to dummy variables
+# - Imports the dataframe
+# - Removes unnecessary columns that will not be used in analysis
+# - Converts categorical data to dummy variables
 
 import_data <- function(path, aggregate) {
   df <- read.csv(path)
@@ -40,7 +40,46 @@ import_data <- function(path, aggregate) {
     # aggregate agbd by age
     df <- aggregate(agbd ~ age, df, median)
   }
-  return(df)
+
+  df_climatic_hist <- data.frame()
+  # keep only the climatic variables of the years in which there was regrowth
+  for (age in 1:max(df$age)) {
+    age_data <- df[df$age == age, ]
+
+    # Get the relevant years based on age
+    years <- seq(2019, 2019 - age + 1, by = -1)
+    clim_columns <- unlist(lapply(climatic_vars, function(pat) paste0(pat, "_", years)))
+
+    # Identify all columns including "prec_" or "si_"
+    # Assuming climatic_vars is defined as
+    # climatic_vars <- c("prec", "si")
+
+    # Create a regex pattern from climatic_vars to match column names
+    pattern <- paste(climatic_vars, collapse = "|")
+    pattern <- paste0("(", pattern, ")_")
+
+    # Use the pattern in grep to find all climatic columns
+    all_clim_columns <- grep(pattern, colnames(df), value = TRUE)
+
+    # Exclude columns that are in clim_columns
+    clim_columns_not_included <- all_clim_columns[!all_clim_columns %in% clim_columns]
+
+    age_data[clim_columns_not_included] <- lapply(age_data[clim_columns_not_included], function(x) 0)
+
+    df_climatic_hist <- rbind(df_climatic_hist, age_data)
+  }
+  # data <- data[, -which(names(data) == "lulc_sum_62")]
+
+  # Normalize continuous variables
+  continuous_cols <- names(df_climatic_hist)[
+    !grepl("soil|ecoreg|last_LU|protec|indig|agbd|mat_gaus_ker", names(df_climatic_hist))
+  ]
+  df_climatic_hist[continuous_cols] <- lapply(df_climatic_hist[continuous_cols], function(x) {
+    (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
+  })
+  df_climatic_hist <- df_climatic_hist[, colSums(is.na(df_climatic_hist)) < nrow(df_climatic_hist)]
+
+  return(df_climatic_hist)
 }
 
 # Intakes pars <- a vector with the initial parameters to be included
@@ -50,11 +89,25 @@ import_data <- function(path, aggregate) {
 # An example would look like:
 #   growth_curve(c(B0 = 40, A = 80, theta = 5, age = 2), data_10[[1]], c('age'))
 
+# define the climatic parameters - the ones that change yearly
 growth_curve <- function(pars, data, pars_chosen) {
-  k <- data[[1]] * 0
-  for (i in seq_along(pars_chosen)) {
-    k <- k + pars[[pars_chosen[i]]] * data[[pars_chosen[i]]]
+  k <- data[[1]] * 0 #+ pars[["k"]]
+
+  non_clim_vars <- pars_chosen[!pars_chosen %in% climatic_vars]
+
+  if (any(climatic_vars %in% pars_chosen)) {
+      k <- k + rowSums(sapply(non_clim_vars, function(var) pars[[var]] * data[[var]] * data[["age"]]))
+
+    for (clim_var in climatic_vars) {
+      years <- seq(2019, 1985, by = -1)
+      clim_columns <- unlist(paste0(clim_var, "_", years))
+
+      k <- k + rowSums(sapply(clim_columns, function(col) pars[[clim_var]] * data[[col]]))
+    }
+  } else {
+    k <- k + rowSums(sapply(non_clim_vars, function(var) pars[[var]] * data[[var]]))
   }
+
   pars[["B0"]] + (data[["mat_gaus_ker"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]]
 }
 
@@ -112,7 +165,6 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
   return(o)
 }
 
-
 ################### Running model ###################
 
 
@@ -123,54 +175,13 @@ datafiles <- list(
   "data/land_use_5_years_mat_gaus_ker.csv"
 )
 
-
+climatic_vars <- c("prec", "si")
 dataframes <- lapply(datafiles, import_data, aggregate = FALSE)
 names_dataframes <- c("data_5", "data_10", "data_15", "data_5_mat_ker")
 data <- dataframes[[4]]
 
-# define the climatic parameters - the ones that change yearly
-climatic_vars <- c("prec", "si")
-
-# define the non-climatic parameters - the ones that are fixed throughout regrowth and
-# that are used for fitting the model (excludes age and agbd)
-non_climatic <- names(data)[!grepl("prec|si|agbd", names(data))]
-clim_col_indices <- grep("prec", colnames(data))
-tst <- max(clim_col_indices) + 1 - data["age"]
-
-list_of_lists <- list()
-for (i in seq_len(nrow(tst))) {
-  # Generate a sequence from the current tst element to max(clim_col_indices)
-  col_indices <- tst[i, ]:max(clim_col_indices)
-  # Use the sequence to select the corresponding column names
-  col_names <- colnames(data)[col_indices]
-  # Add the column names to the list of lists
-  list_of_lists[[i]] <- col_names
-}
-
-pars <- c(prec = 0.1, si = 0.2)
-
-k <- data[[1]] * 0
-# Calculate the sum of climatic columns and non-climatic columns for each age
-for (age in 1:35) {
-  # Get the relevant years based on age
-  years <- seq(2019, 2019 - age + 1, by = -1)
-  clim_columns <- unlist(lapply(climatic_vars, function(pat) paste0(pat, "_", years)))
-  clim_columns
-  k <- lapply(climatic_vars, function(var) k + pars[var]) # data[[paste0(var, "_", years)]])
-  k
-  # Filter data for the current age
-  age_data <- data %>% filter(age == !!age)
-
-  for (i in c(1:age)) {
-    k <- k + pars[non_clim_var] * age_data[[non_clim_var]]
-  }
-
-  for (clim_var in climatic_var) {
-    k <- k + pars[clim_var] * data[[paste0(clim_var, "_", 2019 - age + 1)]]
-  }
-}
-
-run_one == TRUE
+run_one <- TRUE
+run_all <- TRUE
 
 if (any(run_all, run_one)) {
   # Define conditions
@@ -178,11 +189,10 @@ if (any(run_all, run_one)) {
     'pars["theta"] > 10',
     'pars["theta"] < 0',
     'pars["B0"] < 0'
-    # 'pars["B0"] > pars["A"]'
   )
 
-  # intercept, asymptote, shape term, standard deviation
-  pars_basic <- c(B0 = 40, theta = 5)
+  # intercept, shape term, growth rate
+  pars_basic <- c(B0 = 40, theta = 5) # , k = 0.01
 
   colnames_intersect <- Reduce(intersect, lapply(dataframes, colnames))
   colnames_filtered <- colnames_intersect[!grepl("b1|agbd|latitude|longitude|prec|si", colnames_intersect)]
@@ -192,18 +202,12 @@ if (any(run_all, run_one)) {
     c("num_fires_before_regrowth"),
     c("age", "num_fires_before_regrowth"),
     c("age", "num_fires_before_regrowth", "sur_cover", "fallow", "indig", "protec", "cwd"),
-    colnames_filtered
+    colnames_filtered,
+    c(colnames_filtered, climatic_vars)
   )
-  names_configurations <- c("age", "fires", "age_fires", "all_cat", "all")
+  names_configurations <- c("age", "fires", "age_fires", "all_cat", "all_non_hist", "all_hist")
 }
 
-continuous_cols <- names(data)[!grepl("soil|ecoreg|last_LU|protec|indig", names(data))]
-
-data[continuous_cols] <- lapply(data[continuous_cols], function(x) {
-  (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
-})
-
-data <- data[, -which(names(data) == "lulc_sum_62")]
 
 if (run_one) {
   pars_chosen <- configurations[[4]]
@@ -228,21 +232,11 @@ if (run_one) {
       conditions
     }
   )
-}
 
-pred <- growth_curve(val$par, data, pars_chosen)
-# Calculate R-squared
-calc_r_squared <- function(observed, predicted) {
-  mean_observed <- mean(observed, na.rm = TRUE)
-  TSS <- sum((observed - mean_observed)^2, na.rm = TRUE)
-  RSS <- sum((observed - predicted)^2, na.rm = TRUE)
-  R_squared <- 1 - (RSS / TSS)
-  return(R_squared)
+  pred <- growth_curve(val$par, data, pars_chosen)
+  rsq <- function(x, y) cor(x, y)^2
+  rsq(data$agbd, pred)
 }
-
-calc_r_squared(data$agbd, growth_curve(val$par, data, pars_chosen))
-plot(data$agbd, pred)
-abline(0, 1, col = "red")
 
 
 if (run_all) {
@@ -277,4 +271,3 @@ if (run_all) {
   abline(0, 1)
 
 }
-
