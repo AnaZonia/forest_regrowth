@@ -21,6 +21,7 @@ library(mlr) # for createDummyFeatures
 
 run_all <- FALSE
 run_one <- TRUE
+include_k_par <- TRUE
 
 #------------------ FUNCTIONS ------------------#
 
@@ -28,7 +29,7 @@ run_one <- TRUE
 # - Removes unnecessary columns that will not be used in analysis
 # - Converts categorical data to dummy variables
 
-import_data <- function(path, aggregate) {
+import_data <- function(path, aggregate, normalize) {
   df <- read.csv(path)
   # Drop unnecessary columns
   df <- df[, -which(names(df) %in% c("system.index", ".geo", "latitude", "longitude", "biome"))]
@@ -69,15 +70,16 @@ import_data <- function(path, aggregate) {
     df_climatic_hist <- rbind(df_climatic_hist, age_data)
   }
   # data <- data[, -which(names(data) == "lulc_sum_62")]
-
-  # Normalize continuous variables
-  continuous_cols <- names(df_climatic_hist)[
-    !grepl("soil|ecoreg|last_LU|protec|indig|agbd|mat_gaus_ker", names(df_climatic_hist))
-  ]
-  df_climatic_hist[continuous_cols] <- lapply(df_climatic_hist[continuous_cols], function(x) {
-    (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
-  })
-  df_climatic_hist <- df_climatic_hist[, colSums(is.na(df_climatic_hist)) < nrow(df_climatic_hist)]
+  if (normalize) {
+    # Normalize continuous variables
+    continuous_cols <- names(df_climatic_hist)[
+      !grepl("soil|ecoreg|last_LU|protec|indig|agbd|mat_gaus_ker", names(df_climatic_hist))
+    ]
+    df_climatic_hist[continuous_cols] <- lapply(df_climatic_hist[continuous_cols], function(x) {
+      (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
+    })
+    df_climatic_hist <- df_climatic_hist[, colSums(is.na(df_climatic_hist)) < nrow(df_climatic_hist)]
+  }
 
   return(df_climatic_hist)
 }
@@ -91,8 +93,10 @@ import_data <- function(path, aggregate) {
 
 # define the climatic parameters - the ones that change yearly
 growth_curve <- function(pars, data, pars_chosen) {
-  k <- data[[1]] * 0 #+ pars[["k"]]
-
+  k <- data[[1]] * 0 
+  if (include_k_par) {
+    k <- k + pars[["k"]]
+  }
   non_clim_vars <- pars_chosen[!pars_chosen %in% climatic_vars]
 
   if (any(climatic_vars %in% pars_chosen)) {
@@ -108,7 +112,7 @@ growth_curve <- function(pars, data, pars_chosen) {
     k <- k + rowSums(sapply(non_clim_vars, function(var) pars[[var]] * data[[var]]))
   }
 
-  pars[["B0"]] + (data[["mat_gaus_ker"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]]
+  pars[["B0"]] + (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]]
 }
 
 # Calculates Nonlinear Least Squares
@@ -118,6 +122,7 @@ growth_curve <- function(pars, data, pars_chosen) {
 # data <- the dataframe with the predictors
 # pars_chosen <- the list of parameters to be added into the shape term
 # conditions <- ranges of parameters to be restricted to
+
 
 likelihood <- function(fun, pars, data, pars_chosen, conditions) {
   if (fun == "nll") {
@@ -167,21 +172,15 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
 
 ################### Running model ###################
 
-
 datafiles <- list(
-  "data/unified_data_5_years.csv",
-  "data/unified_data_10_years.csv",
-  "data/unified_data_15_years.csv",
-  "data/land_use_5_years_mat_gaus_ker.csv"
+  "data/15y_LULC.csv"
 )
 
 climatic_vars <- c("prec", "si")
-dataframes <- lapply(datafiles, import_data, aggregate = FALSE)
-names_dataframes <- c("data_5", "data_10", "data_15", "data_5_mat_ker")
-data <- dataframes[[4]]
-
-run_one <- TRUE
-run_all <- TRUE
+dataframes <- lapply(datafiles, import_data, aggregate = FALSE, normalize = FALSE)
+# names_dataframes <- c("data_5", "data_15")
+data <- dataframes[[1]]
+data <- data[!is.na(data$mature_biomass), ]
 
 if (any(run_all, run_one)) {
   # Define conditions
@@ -192,10 +191,13 @@ if (any(run_all, run_one)) {
   )
 
   # intercept, shape term, growth rate
-  pars_basic <- c(B0 = 40, theta = 5) # , k = 0.01
+  pars_basic <- c(B0 = 40, theta = 5)
+  if (include_k_par){
+    pars_basic <- c(pars_basic, k = 0.01)
+  }
 
   colnames_intersect <- Reduce(intersect, lapply(dataframes, colnames))
-  colnames_filtered <- colnames_intersect[!grepl("b1|agbd|latitude|longitude|prec|si", colnames_intersect)]
+  colnames_filtered <- colnames_intersect[!grepl("agbd|latitude|longitude|prec|si|mat_gaus_ker", colnames_intersect)]
 
   configurations <- list(
     c("age"),
@@ -210,7 +212,7 @@ if (any(run_all, run_one)) {
 
 
 if (run_one) {
-  pars_chosen <- configurations[[4]]
+  pars_chosen <- configurations[[3]]
   pars <- c(
     pars_basic,
     setNames(rep(0.1, length(pars_chosen)), pars_chosen)#, setNames(0.1, "sd")
@@ -234,10 +236,9 @@ if (run_one) {
   )
 
   pred <- growth_curve(val$par, data, pars_chosen)
-  rsq <- function(x, y) cor(x, y)^2
-  rsq(data$agbd, pred)
+  rsq_fun <- function(x, y) cor(x, y)^2
+  rsq_fun(data$agbd, pred)
 }
-
 
 if (run_all) {
   sum_squares_fit <- list()
@@ -259,15 +260,18 @@ if (run_all) {
           conditions
         }
       )
-      sum_squares_fit[[paste(names_dataframes[j], names_configurations[i])]] <- o_iter$value
+      pred <- growth_curve(o_iter$par, dataframes[[j]], configurations[[i]])
+      rsq <- rsq_fun(dataframes[[j]]$agbd, pred)
+      print(rsq)
+      sum_squares_fit[[paste(names_dataframes[j], names_configurations[i])]] <- rsq
       pars_fit[[paste(names_dataframes[j], names_configurations[i])]] <- o_iter$par
     }
   }
 
   print(min(unlist(sum_squares_fit)))
 
-  pred <- growth_curve(pars_fit[[15]], dataframes[[3]], configurations[[5]])
-  plot(pred, dataframes[[3]]$agbd)
-  abline(0, 1)
+  # pred <- growth_curve(pars_fit[[15]], dataframes[[3]], configurations[[5]])
+  # plot(pred, dataframes[[3]]$agbd)
+  # abline(0, 1)
 
 }
