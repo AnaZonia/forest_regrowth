@@ -4,10 +4,7 @@ library(fitdistrplus)
 library(ggplot2)
 library(shinystan)
 
-data_5 <- read.csv("data/unified_data_5_years.csv")
-data_10 <- read.csv("data/unified_data_10_years.csv")
-data_15 <- read.csv("data/unified_data_15_years.csv")
-all_data <- read.csv("data/unified_data.csv")
+data <- read.csv("data/15y_LULC.csv")
 
 #--------------------- Switches
 
@@ -16,19 +13,19 @@ all_data <- read.csv("data/unified_data.csv")
 #-----------------------
 # install.packages("httpgd")
 # 10k takes about 10 min
-tst <- aggregate(agbd ~ age, all_data, median)
+tst <- aggregate(agbd ~ age, data, median)
 data_aggregated <- list(age = tst$age, agbd = tst$agbd, n = nrow(tst))
 plot(data_aggregated$age, data_aggregated$agbd)
 
 # Plot the data
 vals <- 30 + 160 * (1 - exp(-(0.01 * c(1:35))))^0.3 + rnorm(n = 35, sd = 5)
 plot(c(1:35), vals)
-fake_data <- list(age=c(1:35), agbd=vals, n=35)
+fake_data <- list(age = c(1:35), agbd = vals, n = 35)
 
 # data_regular <- list(
-#   age = data_10$age,
-#   agbd = data_10$agbd,
-#   n = nrow(data_10)
+#   age = data$age,
+#   agbd = data$agbd,
+#   n = nrow(data)
 # )
 
 iter <- 2000
@@ -38,15 +35,15 @@ chains <- 2
 # nelder mead in stan?
 # transforming things so that all follows more or less a normal around zero is ideal
 
-fit_medians2 <- stan(
-  file = "age_agbd.stan", data = data_aggregated,
+fit_medians <- stan(
+  file = "age_agbd.stan", data = fake_data,
   iter = iter, warmup = warmup,
   chains = chains, cores = 4,
   control = list(max_treedepth = 12)
 )
-print(fit_medians2)
+print(fit_medians)
 
-launch_shinystan(fit_medians2)
+launch_shinystan(fit_medians)
 
 curve(dnorm(x, mean = 40, sd = 10), from = 0, to = 80)
 
@@ -70,8 +67,6 @@ test <- function() {
     geom_line() +
     facet_wrap(~.draw)
 }
-
-
 
 tst <- read.csv("./data/all_land_use.csv")
 nrow(tst)
