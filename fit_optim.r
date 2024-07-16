@@ -22,7 +22,6 @@ library(doParallel)
 
 run_all <- TRUE
 run_one <- TRUE
-include_k_par <- FALSE
 
 #------------------ GLobal Variables ------------------#
 
@@ -108,43 +107,40 @@ import_climatic_data <- function(path, normalize) {
   df_climatic_hist
 }
 
-
 # Intakes pars <- a vector with the initial parameters to be included
 # data <- the dataframe with the predictors
 # pars_chosen <- the list of parameters to be added into the shape term
 
-# An example would look like:
-#   growth_curve(c(B0 = 40, A = 80, theta = 5, age = 2), data_10[[1]], c('age'))
-
 # define the climatic parameters - the ones that change yearly
 growth_curve <- function(pars, data, pars_chosen) {
-  k <- rep(0, nrow(data))
-
-  if (include_k_par) {
-    k <- k + pars[["k"]]
+  if ("k0" %in% pars_chosen) {
+    k <- rep(pars[["k0"]], nrow(data))
+    non_clim_vars <- setdiff(pars_chosen, c("k0", climatic_vars))
+  } else {
+    k <- rep(0, nrow(data))
+    non_clim_vars <- setdiff(pars_chosen, climatic_vars)
   }
 
-  non_clim_vars <- setdiff(pars_chosen, climatic_vars)
-
-  tmp_age <- 1
-  tmp_age1 <- data[[age]]
-  if ("age" %in% pars_chosen)
-  {
-    tmp_age <- data[["age"]]
-    tmp_age1 <- 1
+  implicit_age <- 1
+  if ("implicit_age" %in% pars_chosen) {
+    implicit_age <- data[["age"]]
+    non_clim_vars <- setdiff(non_clim_vars, "implicit_age")
   }
 
-  #if (any(climatic_vars %in% pars_chosen)) {
-  k <- k + rowSums(sapply(non_clim_vars, function(var) pars[[var]] * data[[var]] * tmp_age))
+  k <- k + rowSums(sapply(non_clim_vars, function(var) pars[[var]] * data[[var]] * implicit_age))
 
   for (clim_var in intersect(climatic_vars, pars_chosen)) {
     years <- seq(2019, 1985, by = -1)
     clim_columns <- paste0(clim_var, "_", years)
-    k <- k + rowSums(sapply(clim_columns, function(col) pars[[clim_var]] * data[[col]/tmp_age1]))
+    k <- k + rowSums(sapply(clim_columns, function(col) pars[[clim_var]] * data[[col]]))
   }
 
-
-  pars[["B0"]] + (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]]
+  if ("B0" %in% pars) {
+    return(pars[["B0"]] * (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
+  } else {
+    k[which(k > 7)] <- 7
+    return(data[["mature_biomass"]] * (1 - exp(-k))^pars[["theta"]])
+  }
 }
 
 # Calculates Nonlinear Least Squares
@@ -154,7 +150,6 @@ growth_curve <- function(pars, data, pars_chosen) {
 # data <- the dataframe with the predictors
 # pars_chosen <- the list of parameters to be added into the shape term
 # conditions <- ranges of parameters to be restricted to
-
 
 likelihood <- function(fun, pars, data, pars_chosen, conditions) {
   if (fun == "nll") {
@@ -215,35 +210,28 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
 ################### Running model ###################
 
 datafiles <- list(
-  # "data/5y_LULC.csv",
-  "data/10y_LULC_1km.csv" # "data/15y_LULC_1km.csv",
+  "data/5y_LULC.csv",
+  "data/10y_LULC.csv",
+  "data/15y_LULC.csv"
   # "data/all_LULC.csv"
 )
 
-
-
 dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 
-# adding names can make indexing complicated, so they are being referenced as a vector
-# names_dataframes <- c("data_5", "data_10", "data_15", "data_all")
-# dataframes <- lapply(dataframes, function(df) {
-#   df %>% filter(!is.na(mature_biomass))
-# })
+prop_amaz <- lapply(dataframes, function(df) {
+  nrow(df %>% filter(biome == 1)) / nrow(df)
+})
+# 84% of them are in the Amazon anyways.
 
+# adding names can make indexing complicated, so they are being referenced as a vector
+names_dataframes <- c("data_5", "data_10", "data_15", "data_all")
 
 if (run_all || run_one) {
   # Define conditions
   conditions <- list(
     'pars["theta"] > 10',
-    'pars["theta"] < 0',
-    'pars["B0"] < 0'
+    'pars["theta"] < 0'
   )
-
-  # intercept, shape term, growth rate
-  pars_basic <- c(B0 = 40, theta = 5)
-  if (include_k_par) {
-    pars_basic <- c(pars_basic, k = 0.01)
-  }
 
   # in order to make them comparable, we only fit the columns that are present in all dataframes
   colnames_intersect <- Reduce(intersect, map(dataframes, colnames))
@@ -257,31 +245,31 @@ if (run_all || run_one) {
     c("age"),
     c("num_fires_before_regrowth"),
     c("age", "num_fires_before_regrowth"),
+    c("num_fires_before_regrowth", "implicit_age", "k0"),
     c("indig", "protec", "cwd", "mean_prec", "mean_si", names(data)[str_detect(names(data), "LU")]),
     colnames_filtered,
     c(colnames_filtered, climatic_vars)
   )
 
   # adding names can make indexing complicated, so they are being referenced as a vector
-  names_configurations <- c("age", "fires", "age_fires", "all_cat", "all_non_hist", "all_hist")
+  names_configurations <- c("age", "fires", "age_fires", "implicit_fire", "all_cat", "all_non_hist", "all_hist")
 }
 
-
 if (run_one) {
-  data <- dataframes[[1]]
-  data <- data %>%
-    filter(
-      mature_biomass > agbd
-    )
+  data <- dataframes[[3]]
   pars_chosen <- configurations[[4]]
-  val <- run_optimization(
-    "nls", pars_basic, data, pars_chosen,
-    if ("age" %in% pars_chosen) {
-      c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
-    } else {
-      conditions
-    }
-  )
+
+  # intercept, shape term, growth rate
+  pars_basic <- c(theta = 5)
+
+  if ("age" %in% pars_chosen) {
+    conditions <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
+  } else if (!("k0" %in% pars_chosen)) {
+    pars_basic <- c(pars_basic, B0 = 40)
+    conditions <- c(conditions, list('pars["B0"] < 0'))
+}
+
+  val <- run_optimization("nls", pars_basic, data, pars_chosen, conditions)
 }
 
 
@@ -320,9 +308,6 @@ if (run_all) {
   # print(min(unlist(sum_squares_fit)))
 }
 
-data1 <- dataframes[[1]] %>% filter(biome == 1)
-plot(agbd ~ mature_biomass, data = data1, col = "blue")
-abline(0, 1, col = "red")
 
 run_growth_model <- function(data, initial_pars) {
   conditions <- list(
@@ -339,11 +324,11 @@ run_growth_model <- function(data, initial_pars) {
 
   growth_curve <- if (use_asymptote) {
     function(pars, data) {
-      pars[["B0"]] + (pars[["A"]] - pars[["B0"]]) * (1 - exp(-pars[["k"]] * data$age))^pars[["theta"]]
+      pars[["B0"]] + (pars[["A"]] - pars[["B0"]]) * (1 - exp(-pars[["age"]] * data$age))^pars[["theta"]]
     }
   } else {
     function(pars, data) {
-      pars[["B0"]] + (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-pars[["k"]] * data$age))^pars[["theta"]]
+      pars[["B0"]] + (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-pars[["age"]]))^pars[["theta"]]
     }
   }
 
@@ -375,15 +360,15 @@ run_growth_model <- function(data, initial_pars) {
 # Usage
 for (i in seq_along(dataframes)) {
   print("----------------------------------------------------")
-  # print(names_dataframes[i])
+  print(names_dataframes[i])
 
   # Without asymptote (using mature_biomass)
-  result1 <- run_growth_model(dataframes[[i]], c(B0 = 40, theta = 5, k = 0.1))
+  result1 <- run_growth_model(dataframes[[i]], c(B0 = 40, theta = 5, age = 0.1))
   print(paste("R-squared (fixed asymptote, fit growth rate):", result1$r_squared))
 
-  # With asymptote
-  result2 <- run_growth_model(dataframes[[i]], c(B0 = 40, theta = 5, k = 0.1, A = 100))
-  print(paste("R-squared (fit asymptote, rate fit from age):", result2$r_squared))
+  # # With asymptote
+  # result2 <- run_growth_model(dataframes[[i]], c(B0 = 40, theta = 5, k = 0.1, A = 100))
+  # print(paste("R-squared (fit asymptote, rate fit from age):", result2$r_squared))
 }
 
 
