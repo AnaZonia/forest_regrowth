@@ -1,0 +1,15 @@
+# Ignore directories with "data" in their name
+**/*data*/
+
+# Ignore virtual environment directories
+venv/
+.env/
+**/*env*/
+
+# ignore temporary workspace files
+/.RData
+/.Rhistory
+.ipynb_checkpoints
+__pycache__
+.jupyter
+.vscode
