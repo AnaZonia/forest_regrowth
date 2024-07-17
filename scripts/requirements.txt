@@ -1,0 +1,10 @@
+earthengine-api
+geemap
+jupyter
+matplotlib
+numpy
+pandas
+scipy
+pandas
+seaborn
+"ray[tune]"
