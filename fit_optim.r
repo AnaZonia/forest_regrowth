@@ -13,99 +13,18 @@
 # fit the kernel with sigma in R for the gaussian kernel
 
 library(ggplot2)
-library(tidyverse)
-library(fastDummies)
 library(foreach)
 library(doParallel)
+
+source("1_import_data.r")
 
 #------------------ SWITCHES ------------------#
 
 run_all <- TRUE
 run_one <- TRUE
 
-#------------------ GLobal Variables ------------------#
-
-climatic_vars <- c("prec", "si")
-
 #------------------ FUNCTIONS ------------------#
 
-# - Imports the dataframe
-# - Removes unnecessary columns that will not be used in analysis
-# - Converts categorical data to dummy variables
-
-
-# Main Functions
-
-import_data <- function(path) {
-  data <- read_csv(path) %>%
-    select(-c(.geo, latitude, longitude)) %>%
-    select(-starts_with("system"))
-
-  # Convert specified variables to factors
-  categorical <- c("ecoreg", "soil", "last_LU")
-  # Convert categorical variables to factors
-  data <- data %>%
-    mutate(across(all_of(categorical), as.factor))
-  
-  # data <- data %>%
-  #   group_by(ecoreg) %>%
-  #   mutate(
-  #     mean_per_ecoregion = mean(mature_biomass, na.rm = TRUE),
-  #     sd_per_ecoregion = sd(mature_biomass, na.rm = TRUE)
-  #   ) %>%
-  #   ungroup()
-
-  # data <- data %>%
-  #   filter(
-  #     mature_biomass > agbd,
-  #     mature_biomass < (mean_per_ecoregion + sd_per_ecoregion),
-  #     mature_biomass > (mean_per_ecoregion - sd_per_ecoregion)
-  #   )
-
-  # Create dummy variables
-  data <- dummy_cols(data, select_columns = categorical, remove_selected_columns = TRUE)
-  data <- data %>% filter(!is.na(mature_biomass))
-
-  data
-}
-
-import_climatic_data <- function(path, normalize) {
-  data <- import_data(path)
-
-  means <- sapply(climatic_vars, function(var) rowMeans(data[, grep(var, names(data))], na.rm = TRUE))
-  colnames(means) <- paste0("mean_", climatic_vars)
-  data <- cbind(data, means)
-
-  df_climatic_hist <- tibble()
-  for (age in 1:max(data$age)) {
-    age_data <- data %>% filter(age == .env$age)
-    years <- seq(2019, 2019 - age + 1, by = -1)
-    # Identify all columns including the variables in climatic_vars
-    clim_columns <- expand.grid(climatic_vars, years) %>%
-      unite(col = "col", sep = "_") %>%
-      pull(col)
-
-    # subsect the dataframe to only include the climatic columns of the desired years
-    all_clim_columns <- names(data)[str_detect(names(data), paste(climatic_vars, "_", collapse = "|"))]
-
-    # turn all values in the columns of years not included to 0
-    clim_columns_not_included <- setdiff(all_clim_columns, clim_columns)
-    age_data[clim_columns_not_included] <- 0
-
-    df_climatic_hist <- bind_rows(df_climatic_hist, age_data)
-  }
-
-  if (normalize) {
-    df_climatic_hist <- df_climatic_hist %>%
-      mutate(across(
-        where(is.numeric) &
-          !matches("soil|biome|ecoreg|last_LU|protec|indig|agbd|mature_biomass|mean_per_ecoregion|sd_per_ecoregion"),
-        ~ (. - min(., na.rm = TRUE)) / (max(., na.rm = TRUE) - min(., na.rm = TRUE))
-      )) %>%
-      select(where(~ sum(is.na(.)) < nrow(df_climatic_hist)))
-  }
-  df_climatic_hist
-}
 
 # Intakes pars <- a vector with the initial parameters to be included
 # data <- the dataframe with the predictors
@@ -370,93 +289,3 @@ for (i in seq_along(dataframes)) {
   # result2 <- run_growth_model(dataframes[[i]], c(B0 = 40, theta = 5, k = 0.1, A = 100))
   # print(paste("R-squared (fit asymptote, rate fit from age):", result2$r_squared))
 }
-
-
-
-library(mgcv)
-library(randomForest)
-
-data <- dataframes[[1]]
-# data <- read.csv("data/10y_LULC_1km.csv")
-# data <- data %>% filter(!is.na(mature_biomass))
-# nrow(data)
-# mean(data$agbd)
-# mean(data$mature_biomass)
-
-# lulc_columns <- names(data)[str_detect(names(data), "lulc")]
-# lulc_unique_values <- lapply(lulc_columns, function(col) unique(data[[col]]))
-# names(lulc_unique_values) <- lulc_columns
-# # Print the results
-# for (col in lulc_columns) {
-#   cat(col, ":\n")
-#   print(lulc_unique_values[[col]])
-#   cat("\n")
-# }
-# Split data into training and testing sets
-
-set.seed(123)
-train_indices <- sample(1:nrow(data), size = floor(0.7 * nrow(data)))
-train_data <- data[train_indices, ]
-test_data <- data[-train_indices, ]
-
-
-lulc_sum_columns <- names(data)[str_detect(names(data), "lulc")]
-lulc_sum_columns <- lulc_sum_columns[!grepl("lulc_sum_(48|47|40)$", lulc_sum_columns)]
-
-pars_categ <- c("indig", "protec", names(data)[str_detect(names(data), "LU")])
-# pars_categ <- c()
-pars_smooth <- c("mean_si", "mean_prec", "cwd", "mature_biomass"
-# , lulc_sum_columns # "lulc_sum_15"
-)
-
-# Fit a GAM model
-formula <- as.formula(paste(
-  "agbd ~",
-  paste(sapply(pars_smooth, function(x) paste0("s(", x, ")")), collapse = " + "),
-  "+",
-  paste(pars_categ, collapse = " + ")
-))
-
-gam_model <- gam(formula, data = train_data)
-summary(gam_model)
-
-# Predict using the GAM model
-pred_gam <- predict(gam_model, newdata = test_data)
-cor(test_data$agbd, pred_gam)^2
-
-# Plot predictions vs observed
-plot(pred_gam, data$agbd)
-abline(0, 1, col = "red")
-
-rf_pars <- c(pars_smooth, pars_categ, "age")
-rf_pars
-
-rf_formula <- as.formula(paste("agbd ~", paste(rf_pars, collapse = " + ")))
-summary(lm(rf_formula, data = data))
-summary(lm(agbd ~ mature_biomass, data = data))
-
-train_data <- na.omit(train_data)
-
-# Fit a Random Forest model on the training data
-rf_model <- randomForest(rf_formula, data = train_data, ntree = 500, mtry = sqrt(ncol(train_data) - 1), importance = TRUE, keep.forest = TRUE, oob.score = TRUE)
-
-# Print model summary
-print(rf_model)
-
-# Predict using the Random Forest model on the test data
-pred_rf_test <- predict(rf_model, newdata = test_data)
-
-calc_r_squared(test_data$agbd, pred_rf_test)
-
-# Plot predictions vs observed for the test data
-plot(pred_rf_test, test_data$agbd)
-abline(0, 1, col = "red")
-
-
-
-data <- read.csv("./data/mat_for_biomass_and_distance.csv")
-data <- data[, 2:3]
-
-# why in here it is showing only a few points so far away? makes no sense.
-data <- subset(data, distance < 5000)
-plot(data$distance, data$mature_biomass)
