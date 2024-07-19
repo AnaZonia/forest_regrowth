@@ -30,13 +30,6 @@ import_data <- function(path) {
     #   ) %>%
     #   ungroup()
 
-    # data <- data %>%
-    #   filter(
-    #     mature_biomass > agbd,
-    #     mature_biomass < (mean_per_ecoregion + sd_per_ecoregion),
-    #     mature_biomass > (mean_per_ecoregion - sd_per_ecoregion)
-    #   )
-
     # Create dummy variables
     data <- dummy_cols(data, select_columns = categorical, remove_selected_columns = TRUE)
     # data <- data %>% filter(!is.na(mature_biomass))

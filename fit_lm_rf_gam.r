@@ -6,14 +6,23 @@ source("1_import_data.r")
 
 data <- import_climatic_data("./data/15y_LULC.csv", normalize = TRUE)
 data_raw <- read.csv("./data/15y_LULC.csv")
+
 head(data)
-hist(data_raw$agbd)
+hist(data_raw$distance)
 mean(data2_raw$agbd, na.rm = TRUE)
 data2 <- import_climatic_data("./data/15y_LULC_mat_30m.csv", normalize = TRUE)
 data2_raw <- read.csv("./data/15y_LULC_mat_30m.csv")
-hist(data2_raw$num_fires_before_regrowth)
 
 
+data2 <- subset(data, biome == 1)
+data_raw2 <- subset(data_raw, biome == 1)
+data3 <- subset(data2, distance < 0.2)
+hist(data3$distance)
+nrow(data3)
+nrow(data2)
+
+tst <- subset(data_raw, distance > 50000)
+nrow(tst)
 
 lulc_unique_values <- lapply(lulc_columns, function(col) unique(data[[col]]))
 names(lulc_unique_values) <- lulc_columns
@@ -26,7 +35,7 @@ for (col in lulc_columns) {
 
 pars_categ <- c("indig", "protec", names(data)[str_detect(names(data), "LU")])
 pars_smooth <- c(
-    "num_fires_before_regrowth", "fallow", "sur_cover" # "mean_si", "mean_prec", "cwd"
+    "num_fires_before_regrowth", "fallow" # "mean_si", "mean_prec", "cwd"
     # lulc_sum_columns # "lulc_sum_15"
 )
 
