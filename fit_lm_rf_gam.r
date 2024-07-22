@@ -5,15 +5,18 @@ library(tidyverse)
 source("1_import_data.r")
 
 data <- import_climatic_data("./data/15y_LULC.csv", normalize = TRUE)
-data_raw <- read.csv("./data/15y_LULC.csv")
+data_raw <- read.csv("./data/15y_LULC_no_dist_rest.csv")
 
-head(data)
-hist(data_raw$distance)
+data_raw2 <- subset(data_raw, distance < 60000)
+
+hist(data_raw2$distance)
+nrow(data_raw2)
+
 mean(data2_raw$agbd, na.rm = TRUE)
 data2 <- import_climatic_data("./data/15y_LULC_mat_30m.csv", normalize = TRUE)
 data2_raw <- read.csv("./data/15y_LULC_mat_30m.csv")
 
-
+# m,ax distance is about 60k
 data2 <- subset(data, biome == 1)
 data_raw2 <- subset(data_raw, biome == 1)
 data3 <- subset(data2, distance < 0.2)
