@@ -1,8 +1,27 @@
-## Model Overview
-With this code, we are adding:
-- land use land cover
-	total sum of different land use types
-	last observed land use type
+## Project Overview
+CapoERA (Computational Algorithm for Post-agricultural Ecosystem Regrowth Analysis) is a model that predicts the age of secondary forests in Brazil based on satellite data. This script imports and processes remote sensing data from Google Earth Engine, and compares different models to predict the biomass of secondary forests based on climate and previous land use.
+
+### Google Earth Engine Data Processing
+- GEE_1_satellite.ipynb - Processes satellite data from MAPBIOMAS and ESA CCI Biomass
+	- Fire
+	- Land use/land cover
+	- Biomass
+	- Secondary Forest ages
+- GEE_2_categorical.ipynb - Processes categorical data
+	- Indigenous Areas
+	- Conservation Units
+	- Biome/Ecoregion
+	- Soil Type
+- GEE_3_climate.ipynb - Processes climate data from TerraClim
+	- Temperature
+	- Precipitation
+	- Seasonality
+- GEE_4_unifying_data.ipynb - Combines all data into a single dataframe, exported to Google Drive
+
+## Modelling
+- fit_1_import_data.r - Imports unified CSV file and prepares climatic variables for modelling
+- fit_2_lm_rf_gam.r - Preliminary analyses with linear models, random forests, and generalized additive models	
+- fit_3_optim.r - Process-based modelling
 
 ## Dependencies
 - Google Earth Engine
@@ -10,55 +29,4 @@ With this code, we are adding:
 - geemap
 
 install.packages(c("curl", "httr", "openssl", "tidyverse", # required for tidyverse in Fedora
-                   "terra", "rstan", "cmdstanr", "ggplot2"))
-
-## Data Processing
-
-### 1_satellite
-
-	Intakes MAPBIOMAS raw fire data
-
-	Outputs:
-		Masks:
-
-
-		Land use rasters:
-		
--	Total number of fires
--	How many years since regrowth event was the last fire observed
-	Intakes MAPBIOMAS raw land use/land cover data
--	Time since last observation of each land use type
--	Total years under each land use type
--	Last observed land use type before regrowth.
-
-
-
-
-
-### 2_categorical
-	Shapefiles from IBGE 2022: https://brasil.mapbiomas.org/en/tabela-de-camadas/
-
-### 3_climate
-	Intakes: 
-Areas de proteção ambiental 2021 - https://centrodametropole.fflch.usp.br/
-Areas de proteção ambiental 2023 - CNUC MMA
-
-
-### 4_unifying_data
-
-
-From Ma et al 2023
-- fragmentation for 2020
-
-
-## Modelling
-
-### regrowth_functions.r
-
-
-### run_model.r
-
-	Intakes the rasters in model_ready_rasters.
-	Makes sure all are in the same extent and resampled to the same resolution.
-	Extracts values into a single dataframe, central_df
-		Central_df is passed into the model
+                   "terra", "ggplot2"))
