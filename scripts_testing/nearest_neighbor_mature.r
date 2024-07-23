@@ -26,23 +26,16 @@ mean_biomass_within_buffer <- function(coord, dist, biomass_raster) {
 # Set up parallel processing
 registerDoParallel(cores = 20)
 
-# cl <- makeCluster(num_cores)
-# clusterExport(cl, c(
-#     "mean_biomass_within_buffer", "sec_dist_coords", "distances",
-#     "mature_biomass_matrix", "res_x", "res_y", "extent"
-# ))
-
-print(Sys.time())
-
 nearest_biomass <- foreach(i = 1:nrow(sec_dist_coords), .combine = "c") %dopar% {
-    print(i)
     mean_biomass_within_buffer(
         sec_dist_coords[i, ], distances[i, ], mature_biomass
     )
+    print(i)
 }
 
+write.csv(nearest_biomass, "./data/nearest_biomass.csv")
 
 # Create a new raster to store the results
 result <- sec_dist
 result[which(!is.na(values(sec_dist)))] <- nearest_biomass
-writeRaster(result, "nearest_biomass.tif", overwrite = TRUE)
+writeRaster(result, "./data/nearest_biomass.tif")
