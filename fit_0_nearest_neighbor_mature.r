@@ -3,21 +3,15 @@ library(doParallel)
 
 set.seed(0)
 mature_biomass <- rast("./data/mature_biomass_1k.tif")
-data <- read.csv("./data/all_LULC.csv")
 
 #-------- SWITCHES
 use_dist <- TRUE
 
 #-------- FUNCTIONS
 get_coords <- function(raster) {
-    raster <- rast("./data/mature_biomass_1k.tif")
-
     matrix <- as.matrix(raster, wide = TRUE)
     matrix[matrix == 0] <- NA
     non_na_indices <- which(!is.na(matrix), arr.ind = TRUE)
-
-    # Sample 10 random coordinates from non-NA values
-    # non_na_indices <- non_na_indices[sample(nrow(non_na_indices), 1000000, replace = FALSE), ]
 
     # Extract sampled distances
     values <- matrix[cbind(non_na_indices[, 1], non_na_indices[, 2])]
@@ -27,22 +21,23 @@ get_coords <- function(raster) {
 
     # Create data frame
     sampled_points_df <- data.frame(
-        x = xy_coords[, 1],
-        y = xy_coords[, 2],
-        xcoord = non_na_indices[, 2],
-        ycoord = non_na_indices[, 1],
+        longitude = xy_coords[, 1],
+        latitude = xy_coords[, 2],
+        x_index = non_na_indices[, 2], #column number
+        y_index = non_na_indices[, 1], #row number
         values = values
     )
     return(sampled_points_df)
 }
 
 mean_biomass_within_buffer <- function(sec_pixel, mature) {
-    x <- sec_pixel[[3]]
-    y <- sec_pixel[[4]]
-    dist <- sec_pixel[[5]]
+
+    x <- sec_pixel[["x_index"]]
+    y <- sec_pixel[["y_index"]]
+    distance <- sec_pixel[["distance"]]
 
     # Calculate buffer limits
-    buffer_radius <- ceiling(dist / 500)
+    buffer_radius <- ceiling(distance / 500)
 
     # Define the extents of the buffer zone
     x_min <- max(1, x - buffer_radius)
@@ -60,30 +55,46 @@ mean_biomass_within_buffer <- function(sec_pixel, mature) {
     return(mean_biomass)
 }
 
-
 ## -------- MAIN SCRIPT
 
+if (use_dist) {
+    # datafiles <- list(
+    #     "5y_LULC",
+    #     "10y_LULC",
+    #     "15y_LULC",
+    #     "all_LULC"
+    # )
 
-if (use_dist){
+    # for (file in datafiles){
+    # file = datafiles[1]
+    # data <- read.csv(paste0("./data/", file, "_dist_amaz_500.csv"))
+    # sec_vect <- vect(data, geom = c("longitude", "latitude"), crs = crs(mature_biomass))
+
+    # template_raster <- rast(extent = ext(mature_biomass), resolution = res(mature_biomass), crs = crs(mature_biomass))
+    # distance_raster <- rasterize(sec_vect, template_raster, field = "distance")
+    # distance_df <- get_coords(distance_raster)
+    # }
+
+
     dist <- rast("./data/distance.tif")
-    dist_df <- get_coords(dist)
-    sec_vect <- vect(data, geom = c("longitude", "latitude"), crs = crs(dist))
+    data <- get_coords(dist)
 
     # Set up parallel processing
     registerDoParallel(cores = 15)
 
-    nearest_biomass <- foreach(i = 1:nrow(sampled_points_df), .combine = "c") %dopar% {
+    nearest_biomass <- foreach(i = 1:nrow(data), .combine = "c") %dopar% {
         print(i)
-        mean_biomass_within_buffer(sampled_points_df[i, ], mature_biomass)
+        mean_biomass_within_buffer(data[i, ], mature_biomass)
     }
 
-    final_csv <- cbind(sampled_points_df, nearest_biomass)
+    final_csv <- cbind(data, nearest_biomass)
+    write.csv(final_csv, "dist_mature_500m.csv")
 
-    write.csv(final_csv, "./data/nearest_biomass.csv")
+    # write.csv(final_csv, paste0("./data/", datafile, "_mature_asymptote.csv"))
 
     mat_biomass_raster <- rast(final_csv[, c(1, 2, 5, 6)], type = "xyz", crs = crs(sec_dist))
 
-    writeRaster(mat_biomass_raster, "./data/mat_biomass_raster.tif")
+    writeRaster(mat_biomass_raster, "./data/nearest_mat_biomass_500m.tif")
 
 }else{
     mature_df <- get_coords(mature_biomass)
