@@ -3,9 +3,10 @@ library(doParallel)
 
 set.seed(0)
 mature_biomass <- rast("./data/mature_biomass_1k.tif")
+data <- read.csv("./data/all_LULC.csv")
 
 #-------- SWITCHES
-use_dist <- FALSE
+use_dist <- TRUE
 
 #-------- FUNCTIONS
 get_coords <- function(raster) {
@@ -63,11 +64,11 @@ mean_biomass_within_buffer <- function(sec_pixel, mature) {
 ## -------- MAIN SCRIPT
 
 
-dist <- rast("./data/distance.tif")
-data <- read.csv("./data/all_LULC.csv")
-
-
 if (use_dist){
+    dist <- rast("./data/distance.tif")
+    dist_df <- get_coords(dist)
+    sec_vect <- vect(data, geom = c("longitude", "latitude"), crs = crs(dist))
+
     # Set up parallel processing
     registerDoParallel(cores = 15)
 
@@ -88,7 +89,7 @@ if (use_dist){
     mature_df <- get_coords(mature_biomass)
     sec_vect <- vect(data, geom = c("longitude", "latitude"), crs = crs(mature_biomass))
     mature_vect <- vect(mature_df, geom = c("x", "y"), crs = crs(mature_biomass))
-    nn_mat <- nearest(sec_dist, mature_vect)
+    nn_mat <- nearest(sec_vect, mature_vect)
     save(nn_mat, file = "nn_mat.Rdata")
 }
 
