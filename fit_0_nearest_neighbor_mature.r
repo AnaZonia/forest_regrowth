@@ -34,7 +34,7 @@ mean_biomass_within_buffer <- function(sec_pixel, mature) {
 
     x <- sec_pixel[["x_index"]]
     y <- sec_pixel[["y_index"]]
-    distance <- sec_pixel[["distance"]]
+    distance <- sec_pixel[["values"]]
 
     # Calculate buffer limits
     buffer_radius <- ceiling(distance / 500)
