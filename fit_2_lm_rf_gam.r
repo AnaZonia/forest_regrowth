@@ -5,8 +5,8 @@ library(tidyverse)
 source("1_import_data.r")
 
 data <- import_climatic_data("./data/15y_LULC.csv", normalize = TRUE)
-data_raw <- read.csv("./data/15y_LULC.csv")
-
+data_raw <- read.csv("./data/all_LULC.csv")
+head(data_raw)
 data_raw2 <- subset(data_raw, distance < 60000)
 
 hist(data_raw$distance)
