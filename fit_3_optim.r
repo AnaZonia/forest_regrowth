@@ -11,7 +11,7 @@ library(ggplot2)
 library(foreach)
 library(doParallel)
 
-source("1_import_data.r")
+source("fit_1_import_data.r")
 
 #------------------ SWITCHES ------------------#
 
@@ -39,6 +39,7 @@ growth_curve <- function(pars, data, pars_chosen) {
   implicit_age <- 1
   if ("implicit_age" %in% pars_chosen) {
     implicit_age <- data[["age"]]
+    k <- k * implicit_age
     non_clim_vars <- setdiff(non_clim_vars, "implicit_age")
   }
 
@@ -118,6 +119,7 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
 
   pred <- growth_curve(o$par, data, pars_chosen)
   rsq <- cor(data$agbd, pred)^2
+
   print(paste("R-squared:", rsq))
   return(o)
 }
@@ -125,20 +127,18 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
 ################### Running model ###################
 
 
-
-datafiles <- list(
-  "data/5y_LULC.csv",
-  "data/10y_LULC.csv",
-  "data/15y_LULC.csv"
-  # "data/all_LULC.csv"
+datafiles_1 <- list(
+  "5y_LULC",
+  "10y_LULC",
+  "15y_LULC",
+  "all_LULC"
 )
 
-dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
-
-prop_amaz <- lapply(dataframes, function(df) {
-  nrow(df %>% filter(biome == 1)) / nrow(df)
+datafiles <- lapply(datafiles_1, function(file) {
+  paste0("./data/", file, "_mat_dist.csv")
 })
-# 84% of them are in the Amazon anyways.
+
+dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 
 # adding names can make indexing complicated, so they are being referenced as a vector
 names_dataframes <- c("data_5", "data_10", "data_15", "data_all")
@@ -154,7 +154,7 @@ if (run_all || run_one) {
   colnames_intersect <- Reduce(intersect, map(dataframes, colnames))
   # also exclude columns that are not predictors
   colnames_filtered <- colnames_intersect[!grepl(
-    "agbd|latitude|longitude|prec|si|mature_biomass",
+    "agbd|latitude|longitude|prec|si|mature_biomass|distance|biome",
     colnames_intersect
   )]
 
@@ -165,26 +165,32 @@ if (run_all || run_one) {
     c("num_fires_before_regrowth", "implicit_age", "k0"),
     c("indig", "protec", "cwd", "mean_prec", "mean_si", names(data)[str_detect(names(data), "LU")]),
     colnames_filtered,
+    c(setdiff(colnames_filtered, "age"), "k0", "implicit_age"),
     c(colnames_filtered, climatic_vars)
   )
 
   # adding names can make indexing complicated, so they are being referenced as a vector
-  names_configurations <- c("age", "fires", "age_fires", "implicit_fire", "all_cat", "all_non_hist", "all_hist")
+  names_configurations <- c(
+    "age", "fires", "age_fires", "implicit_fire",
+    "all_cat", "all_non_hist", "all_non_hist_implicit", "all_hist"
+  )
 }
 
 if (run_one) {
-  data <- dataframes[[3]]
+  data <- dataframes[[1]]
   pars_chosen <- configurations[[4]]
-
+  pars_chosen
   # intercept, shape term, growth rate
   pars_basic <- c(theta = 5)
 
-  if ("age" %in% pars_chosen) {
-    conditions <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
+  if ("age" %in% configurations) {
+    conditions_iter <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
   } else if (!("k0" %in% pars_chosen)) {
-    pars_basic <- c(pars_basic, B0 = 40)
-    conditions <- c(conditions, list('pars["B0"] < 0'))
-}
+    pars_basic_iter <- c(pars_basic, B0 = 40)
+    conditions_iter <- c(conditions, list('pars["B0"] < 0'))
+  }
+  
+  conditions
 
   val <- run_optimization("nls", pars_basic, data, pars_chosen, conditions)
 }
@@ -194,32 +200,34 @@ if (run_all) {
   # sum_squares_fit <- list()
   # pars_fit <- list()
   # Run optimization
-  configurations <- configurations[1:4]
-  dataframes <- dataframes[1:4]
+  configurations <- configurations[1:length(configurations)]
+  dataframes <- dataframes[1:length(dataframes)]
   iterations <- expand.grid(seq_along(configurations), seq_along(dataframes))
+  registerDoParallel(cores = 15)
 
   results <- foreach(i = iterations$Var1, j = iterations$Var2, .combine = "c") %dopar% {
-    print("----------------------------------------------------")
-    print(names_dataframes[j])
-    print(names_configurations[i])
+    pars_basic_iter <- pars_basic
+    conditions_iter <- conditions
+    if ("age" %in% configurations[[i]]) {
+      conditions_iter <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
+    } else if (!("k0" %in% pars_chosen)) {
+      pars_basic_iter <- c(pars_basic, B0 = 40)
+      conditions_iter <- c(conditions, list('pars["B0"] < 0'))
+    }
 
     o_iter <- run_optimization(
-      "nls", pars_basic, dataframes[[j]], configurations[[i]],
-      if ("age" %in% configurations[[i]]) {
-        c(conditions, list(
-          'pars["age"] < 0',
-          'pars["age"] > 5'
-        ))
-      } else {
-        conditions
-      }
+      "nls", pars_basic_iter, dataframes[[j]], configurations[[i]], conditions_iter
     )
     # pred <- growth_curve(o_iter$par, dataframes[[j]], configurations[[i]])
     # rsq <- rsq_fun(dataframes[[j]]$agbd, pred)
     # print(rsq)
+    print("----------------------------------------------------")
+    print(names_dataframes[j])
+    print(names_configurations[i])
     o_iter
   }
 
+  saveRDS(results, file = "results.rds")
   # sum_squares_fit[[paste(names_dataframes[j], names_configurations[i])]] <- rsq
   # pars_fit[[paste(names_dataframes[j], names_configurations[i])]] <- o_iter$par
   # print(min(unlist(sum_squares_fit)))
@@ -274,16 +282,16 @@ run_growth_model <- function(data, initial_pars) {
   ))
 }
 
-# Usage
-for (i in seq_along(dataframes)) {
-  print("----------------------------------------------------")
-  print(names_dataframes[i])
+# # Usage
+# for (i in seq_along(dataframes)) {
+#   print("----------------------------------------------------")
+#   print(names_dataframes[i])
 
-  # Without asymptote (using mature_biomass)
-  result1 <- run_growth_model(dataframes[[i]], c(B0 = 40, theta = 5, age = 0.1))
-  print(paste("R-squared (fixed asymptote, fit growth rate):", result1$r_squared))
+#   # Without asymptote (using mature_biomass)
+#   result1 <- run_growth_model(dataframes[[i]], c(B0 = 40, theta = 5, age = 0.1))
+#   print(paste("R-squared (fixed asymptote, fit growth rate):", result1$r_squared))
 
-  # # With asymptote
-  # result2 <- run_growth_model(dataframes[[i]], c(B0 = 40, theta = 5, k = 0.1, A = 100))
-  # print(paste("R-squared (fit asymptote, rate fit from age):", result2$r_squared))
-}
+#   # # With asymptote
+#   # result2 <- run_growth_model(dataframes[[i]], c(B0 = 40, theta = 5, k = 0.1, A = 100))
+#   # print(paste("R-squared (fit asymptote, rate fit from age):", result2$r_squared))
+# }
