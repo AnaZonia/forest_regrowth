@@ -16,8 +16,6 @@ import_data <- function(path) {
         select(-c(.geo, latitude, longitude)) %>%
         select(-starts_with("system"))
 
-    data <- data %>% rename(mature_biomass = b1)
-
     # Convert specified variables to factors
     categorical <- c("ecoreg", "soil", "last_LU")
     # Convert categorical variables to factors
@@ -26,6 +24,7 @@ import_data <- function(path) {
 
     # Create dummy variables
     data <- dummy_cols(data, select_columns = categorical, remove_selected_columns = TRUE)
+    data <- dummy_cols(data, select_columns = "biome", remove_selected_columns = FALSE)
 
     data
 }
