@@ -7,11 +7,6 @@
 # Outputs:
 ####################################################################
 
-# get all R squareds and save them properly
-# include nearest neighbor distances for wherever the kernel gives zero
-# how many of the secondary forests distance histogram
-# fit the kernel with sigma in R for the gaussian kernel
-
 library(ggplot2)
 library(foreach)
 library(doParallel)
@@ -22,6 +17,7 @@ source("1_import_data.r")
 
 run_all <- TRUE
 run_one <- TRUE
+fit_gaus_ker <- FALSE
 
 #------------------ FUNCTIONS ------------------#
 
@@ -127,6 +123,8 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
 }
 
 ################### Running model ###################
+
+
 
 datafiles <- list(
   "data/5y_LULC.csv",
