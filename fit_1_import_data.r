@@ -16,6 +16,8 @@ import_data <- function(path) {
         select(-c(.geo, latitude, longitude)) %>%
         select(-starts_with("system"))
 
+    data <- data %>% rename(mature_biomass = b1)
+
     # Convert specified variables to factors
     categorical <- c("ecoreg", "soil", "last_LU")
     # Convert categorical variables to factors
@@ -63,7 +65,7 @@ import_climatic_data <- function(path, normalize) {
         df_climatic_hist <- df_climatic_hist %>%
             mutate(across(
                 where(is.numeric) &
-                    !matches("soil|biome|ecoreg|last_LU|protec|indig|agbd|mature_biomass"),
+                    !matches("soil|biome|ecoreg|last_LU|protec|indig|agbd|mature_biomass|fallow"),
                 ~ (. - min(., na.rm = TRUE)) / (max(., na.rm = TRUE) - min(., na.rm = TRUE))
             )) %>%
             select(where(~ sum(is.na(.)) < nrow(df_climatic_hist)))
