@@ -5,10 +5,6 @@ library(fastDummies)
 # - Removes unnecessary columns that will not be used in analysis
 # - Converts categorical data to dummy variables
 
-#------------------ GLobal Variables ------------------#
-
-climatic_vars <- c("prec", "si")
-
 #------------------- Main Functions -------------------#
 
 import_data <- function(path) {

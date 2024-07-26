@@ -1,7 +1,7 @@
 ####################################################################
 ############### Process data and define functions ##################
 ####################################################################
-# Ana Avila - May 2024
+# Ana Avila - July 2024
 # ~~~~~~~~~~~~~~~~~~~~
 # Intakes:
 # Outputs:
@@ -27,37 +27,51 @@ fit_gaus_ker <- FALSE
 # pars_chosen <- the list of parameters to be added into the shape term
 
 # define the climatic parameters - the ones that change yearly
-growth_curve <- function(pars, data, pars_chosen) {
-  if ("k0" %in% pars_chosen) {
+pars_chosen <- c(setdiff(colnames_filtered, "age"), "k0", "implicit_age")
+
+# intercept, shape term, growth rate
+pars_basic <- c(theta = 5, B0_exp = 0.001, k0 = 0.1)
+data <- dataframes[[3]]
+pars <- c(pars_basic, setNames(0.1, pars_chosen[1]))
+pars
+
+growth_curve <- function(pars, data) {
+
+  if ("k0" %in% names(pars)) {
     k <- rep(pars[["k0"]], nrow(data))
-    non_clim_vars <- setdiff(pars_chosen, c("k0", climatic_vars))
+    non_clim_pars <- pars[!names(pars) %in% c("k0", climatic_pars, names(pars_basic))]
   } else {
     k <- rep(0, nrow(data))
-    non_clim_vars <- setdiff(pars_chosen, climatic_vars)
+    non_clim_pars <- pars[!names(pars) %in% c(climatic_pars, names(pars_basic))]
   }
 
   implicit_age <- 1
-  if ("implicit_age" %in% pars_chosen) {
+  if ("implicit_age" %in% names(pars)) {
     implicit_age <- data[["age"]]
     k <- k * implicit_age
-    non_clim_vars <- setdiff(non_clim_vars, "implicit_age")
+    non_clim_pars <- pars[names(pars) != "implicit_age"]
   }
+non_clim_pars
+  k <- k + rowSums(lapply(names(non_clim_pars), function(var) pars[[var]] * data[[var]] * implicit_age))
 
-  k <- k + rowSums(sapply(non_clim_vars, function(var) pars[[var]] * data[[var]] * implicit_age))
+lapply(names(non_clim_pars), function(par) print(class(par)))
 
-  for (clim_var in intersect(climatic_vars, pars_chosen)) {
+class(pars[["cwd"]])
+  for (clim_par in intersect(climatic_pars, pars)) {
     years <- seq(2019, 1985, by = -1)
-    clim_columns <- paste0(clim_var, "_", years)
-    k <- k + rowSums(sapply(clim_columns, function(col) pars[[clim_var]] * data[[col]]))
+    clim_columns <- paste0(clim_par, "_", years)
+    k <- k + rowSums(sapply(clim_columns, function(col) pars[[clim_par]] * data[[col]]))
   }
 
   if ("B0" %in% pars) {
     return(pars[["B0"]] * (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
   } else {
     k[which(k > 7)] <- 7
-    return(data[["mature_biomass"]] * (1 - exp(-k))^pars[["theta"]])
+    return(data[["mature_biomass"]] * (1 - exp(-(pars[["B0_exp"]] + k))^pars[["theta"]]))
   }
 }
+
+growth_curve(pars, data, pars_chosen)
 
 # Calculates Nonlinear Least Squares
 # Intakes:
@@ -101,7 +115,7 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
   optimize <- function(pars, pars_chosen_subset) {
     optim(pars,
       likelihood,
-      fun = fun,
+      fun = "nls",
       data = data,
       pars_chosen = pars_chosen_subset,
       conditions = conditions
@@ -124,8 +138,9 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
   return(o)
 }
 
-################### Running model ###################
+#------------------ Global Variables ------------------#
 
+climatic_pars <- c("prec", "si")
 
 datafiles_1 <- list(
   "5y_LULC",
@@ -143,12 +158,17 @@ dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 # adding names can make indexing complicated, so they are being referenced as a vector
 names_dataframes <- c("data_5", "data_10", "data_15", "data_all")
 
+################### Running model ###################
+
+
 if (run_all || run_one) {
   # Define conditions
   conditions <- list(
     'pars["theta"] > 10',
     'pars["theta"] < 0'
   )
+
+
 
   # in order to make them comparable, we only fit the columns that are present in all dataframes
   colnames_intersect <- Reduce(intersect, map(dataframes, colnames))
@@ -166,7 +186,7 @@ if (run_all || run_one) {
     c("indig", "protec", "cwd", "mean_prec", "mean_si", names(data)[str_detect(names(data), "LU")]),
     colnames_filtered,
     c(setdiff(colnames_filtered, "age"), "k0", "implicit_age"),
-    c(colnames_filtered, climatic_vars)
+    c(colnames_filtered, climatic_pars)
   )
 
   # adding names can make indexing complicated, so they are being referenced as a vector
@@ -176,12 +196,13 @@ if (run_all || run_one) {
   )
 }
 
+
 if (run_one) {
-  data <- dataframes[[1]]
-  pars_chosen <- configurations[[4]]
+  data <- dataframes[[3]]
+  pars_chosen <- c(setdiff(colnames_filtered, "age"), "k0", "implicit_age")
   pars_chosen
   # intercept, shape term, growth rate
-  pars_basic <- c(theta = 5)
+  pars_basic <- c(theta = 5, B0_exp = 0.001)
 
   if ("age" %in% configurations) {
     conditions_iter <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
@@ -282,6 +303,8 @@ run_growth_model <- function(data, initial_pars) {
   ))
 }
 
+tst <- readRDS("results.rds")
+tst
 # # Usage
 # for (i in seq_along(dataframes)) {
 #   print("----------------------------------------------------")
