@@ -1,0 +1,177 @@
+Loading required package: iterators
+Loading required package: parallel
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.1     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ lubridate 1.9.2     ✔ tibble    3.2.1
+✔ purrr     1.0.1     ✔ tidyr     1.3.0
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ purrr::accumulate() masks foreach::accumulate()
+✖ dplyr::filter()     masks stats::filter()
+✖ dplyr::lag()        masks stats::lag()
+✖ purrr::when()       masks foreach::when()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Thank you for using fastDummies!
+To acknowledge our work, please cite the package:
+Kaplan, J. & Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) Columns and Rows from Categorical Variables. Version 1.7.1. URL: https://github.com/jacobkap/fastDummies, https://jacobkap.github.io/fastDummies/.
+Rows: 125376 Columns: 109
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr   (1): .geo
+dbl (108): system:index, agbd, age, biome, cwd, distance, distance_1, distan...
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+Rows: 126900 Columns: 109
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr   (1): .geo
+dbl (108): system:index, agbd, age, biome, cwd, distance, distance_1, distan...
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+Rows: 126506 Columns: 109
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr   (1): .geo
+dbl (108): system:index, agbd, age, biome, cwd, distance, distance_1, distan...
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+Rows: 133565 Columns: 107
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr   (1): .geo
+dbl (106): system:index, agbd, age, biome, cwd, distance, distance_1, distan...
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+[1] "R-squared: 0.156298810214599"
+[1] "R-squared: 0.155281798923494"
+[1] "----------------------------------------------------"
+[1] "data_5"
+[1] "age"
+[1] "R-squared: 0.129069245892691"
+[1] "----------------------------------------------------"
+[1] "data_10"
+[1] "age"
+[1] "R-squared: 0.177891046092211"
+[1] "----------------------------------------------------"
+[1] "data_5"
+[1] "age_fires"
+[1] "R-squared: 0.000477084562302566"
+[1] "----------------------------------------------------"
+[1] "data_5"
+[1] "fires"
+[1] "R-squared: 0.148727531592648"
+[1] "----------------------------------------------------"
+[1] "data_10"
+[1] "age_fires"
+[1] "R-squared: 0.109678218946315"
+[1] "----------------------------------------------------"
+[1] "data_15"
+[1] "age"
+[1] "R-squared: 0.00162281833599762"
+[1] "----------------------------------------------------"
+[1] "data_10"
+[1] "fires"
+[1] "R-squared: 0.161741666087966"
+[1] "----------------------------------------------------"
+[1] "data_all"
+[1] "age"
+[1] "R-squared: 0.00481722085591686"
+[1] "----------------------------------------------------"
+[1] "data_15"
+[1] "fires"
+[1] "R-squared: 1.48729184067029e-07"
+[1] "----------------------------------------------------"
+[1] "data_all"
+[1] "fires"
+[1] "R-squared: 0.12989480155342"
+[1] "----------------------------------------------------"
+[1] "data_10"
+[1] "implicit_fire"
+[1] "R-squared: 0.156298810214599"
+[1] "----------------------------------------------------"
+[1] "data_5"
+[1] "implicit_fire"
+[1] "R-squared: 0.182416855767691"
+[1] "----------------------------------------------------"
+[1] "data_all"
+[1] "age_fires"
+[1] "R-squared: 0.130588226296867"
+[1] "----------------------------------------------------"
+[1] "data_15"
+[1] "age_fires"
+[1] "R-squared: 0.213102139856465"
+[1] "----------------------------------------------------"
+[1] "data_10"
+[1] "all_cat"
+[1] "R-squared: 0.245181089750722"
+[1] "----------------------------------------------------"
+[1] "data_5"
+[1] "all_cat"
+[1] "R-squared: 0.161885187529144"
+[1] "----------------------------------------------------"
+[1] "data_all"
+[1] "implicit_fire"
+[1] "R-squared: 0.110315360224195"
+[1] "----------------------------------------------------"
+[1] "data_15"
+[1] "implicit_fire"
+[1] "R-squared: 0.343759541097088"
+[1] "----------------------------------------------------"
+[1] "data_5"
+[1] "all_non_hist"
+[1] "R-squared: 0.193504816948353"
+[1] "----------------------------------------------------"
+[1] "data_10"
+[1] "all_non_hist_implicit"
+[1] "R-squared: 0.200345545527804"
+[1] "----------------------------------------------------"
+[1] "data_15"
+[1] "all_cat"
+[1] "R-squared: 0.243548224645602"
+[1] "----------------------------------------------------"
+[1] "data_5"
+[1] "all_hist"
+[1] "R-squared: 0.319607907741826"
+[1] "----------------------------------------------------"
+[1] "data_10"
+[1] "all_non_hist"
+[1] "R-squared: 0.230134501627841"
+[1] "----------------------------------------------------"
+[1] "data_all"
+[1] "all_cat"
+[1] "R-squared: 0.255653236310005"
+[1] "----------------------------------------------------"
+[1] "data_10"
+[1] "all_hist"
+[1] "R-squared: 0.207166041864832"
+[1] "----------------------------------------------------"
+[1] "data_5"
+[1] "all_non_hist_implicit"
+[1] "R-squared: 0.298853722378976"
+[1] "----------------------------------------------------"
+[1] "data_all"
+[1] "all_hist"
+[1] "R-squared: 0.220961265932933"
+[1] "----------------------------------------------------"
+[1] "data_15"
+[1] "all_hist"
+[1] "R-squared: 0.177316486258589"
+[1] "----------------------------------------------------"
+[1] "data_15"
+[1] "all_non_hist_implicit"
+[1] "R-squared: 0.34587230143315"
+[1] "----------------------------------------------------"
+[1] "data_all"
+[1] "all_non_hist"
+[1] "R-squared: 0.317166158424042"
+[1] "----------------------------------------------------"
+[1] "data_15"
+[1] "all_non_hist"
+[1] "R-squared: 0.224029615726084"
+[1] "----------------------------------------------------"
+[1] "data_all"
+[1] "all_non_hist_implicit"

@@ -5,18 +5,12 @@ library(fastDummies)
 # - Removes unnecessary columns that will not be used in analysis
 # - Converts categorical data to dummy variables
 
-#------------------ GLobal Variables ------------------#
-
-climatic_vars <- c("prec", "si")
-
 #------------------- Main Functions -------------------#
 
 import_data <- function(path) {
     data <- read_csv(path) %>%
         select(-c(.geo, latitude, longitude)) %>%
         select(-starts_with("system"))
-
-    data <- data %>% rename(mature_biomass = b1)
 
     # Convert specified variables to factors
     categorical <- c("ecoreg", "soil", "last_LU")
@@ -26,6 +20,7 @@ import_data <- function(path) {
 
     # Create dummy variables
     data <- dummy_cols(data, select_columns = categorical, remove_selected_columns = TRUE)
+    data <- dummy_cols(data, select_columns = "biome", remove_selected_columns = FALSE)
 
     data
 }
