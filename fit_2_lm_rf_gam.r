@@ -57,20 +57,30 @@ datafiles_1 <- list(
 )
 
 datafiles <- lapply(datafiles_1, function(file) {
-    paste0("./data/", file, "_mat.csv")
+    paste0("./data/", file, ".csv")
 })
 
-
 dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
-data <- dataframes[[1]]
+
+# prop_amaz <- lapply(dataframes, function(df) {
+#     nrow(df %>% filter(biome == 1)) / nrow(df)
+# })
+# prop_amaz
+# 67% of them are in the Amazon anyways.
+
+data <- dataframes[[3]]
+unique(data$biome)
 
 for (data in dataframes) {
-    pars_categ <- c("indig", "protec", names(data)[str_detect(names(data), "LU")])
+    # data <- data %>% filter(biome == 1)
+    # data <- data %>% select(-contains(c("distance_2", "mature_biomass_1")))
+    # pars_categ <- c("indig", "protec", names(data)[str_detect(names(data), "LU")])
+    pars_categ <- c()
     pars_smooth <- c(
-        "num_fires_before_regrowth", "fallow"#, "mean_si", "mean_prec", "cwd"
-        #"lulc_sum_9", "lulc_sum_15", "lulc_sum_41", "lulc_sum_21", "lulc_sum_20"   
+        "num_fires_before_regrowth", "num_fires_after_regrowth",
+        "ts_fire_before_regrowth", "ts_fire_after_regrowth", "fallow"#, "mean_si", "mean_prec", "cwd"
+        # ,"lulc_sum_9", "lulc_sum_15", "lulc_sum_41", "lulc_sum_21"   
     )
-
     val <- run_rf_gam_lm(data, pars_categ, pars_smooth, "lm")
 }
 

@@ -2,7 +2,7 @@ library(terra)
 library(doParallel)
 
 set.seed(0)
-mature_biomass <- rast("./data/mature_biomass_1k.tif")
+mature_biomass <- rast("./data/mature_biomass_1000_countrywide.tif")
 
 #-------- SWITCHES
 
@@ -36,11 +36,11 @@ get_coords <- function(raster) {
 }
 
 mean_biomass_within_buffer <- function(sec_pixel) {
-
+    sec_pixel <- data[2,]
     x <- sec_pixel[["x_index"]]
     y <- sec_pixel[["y_index"]]
     distance <- sec_pixel[["values"]]
-
+distance
     # Calculate buffer limits
     buffer_radius <- ceiling(distance / 500)
 
@@ -56,7 +56,7 @@ mean_biomass_within_buffer <- function(sec_pixel) {
     # Calculate the mean biomass
     non_zero_values <- buffer_zone[buffer_zone != 0]
     mean_biomass <- mean(non_zero_values, na.rm = TRUE)
-
+    mean_biomass
     return(mean_biomass)
 }
 
@@ -64,7 +64,7 @@ mean_biomass_within_buffer <- function(sec_pixel) {
 
 if (use_dist) {
 
-    dist <- rast("./data/distance.tif")
+    dist <- rast("./data/distance_1000_countrywide.tif")
     data <- get_coords(dist)
 
     # Set up parallel processing
@@ -74,18 +74,15 @@ if (use_dist) {
         print(i)
         mean_biomass_within_buffer(data[i, ])
     }
-    
     print("nearest_biomass finished")
 
     final_csv <- cbind(data, nearest_biomass)
-    write.csv(final_csv, "./data/dist_mature_500m.csv")
+    write.csv(final_csv, "./data/dist_mature_1000_countrywide.csv")
     print("csv exported")
-
-    final_csv <- read.csv("./data/dist_mature_500m.csv")
 
     mat_biomass_raster <- rast(final_csv[, c(1, 2, 4, 5)], type = "xyz", crs = crs(dist))
 
-    writeRaster(mat_biomass_raster, "./data/nearest_mat_biomass_500m.tif")
+    writeRaster(mat_biomass_raster, "./data/nearest_mat_biomass_1000_countrywide.tif")
     print("raster exported")
 
 
