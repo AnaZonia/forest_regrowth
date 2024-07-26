@@ -5,6 +5,10 @@ library(fastDummies)
 # - Removes unnecessary columns that will not be used in analysis
 # - Converts categorical data to dummy variables
 
+#------------------ Global Variables ------------------#
+
+climatic_pars <- c("prec", "si")
+
 #------------------- Main Functions -------------------#
 
 import_data <- function(path) {
@@ -13,14 +17,13 @@ import_data <- function(path) {
         select(-starts_with("system"))
 
     # Convert specified variables to factors
-    categorical <- c("ecoreg", "soil", "last_LU")
+    categorical <- c("ecoreg", "soil", "last_LU", "biome")
     # Convert categorical variables to factors
     data <- data %>%
         mutate(across(all_of(categorical), as.factor))
 
     # Create dummy variables
     data <- dummy_cols(data, select_columns = categorical, remove_selected_columns = TRUE)
-    data <- dummy_cols(data, select_columns = "biome", remove_selected_columns = FALSE)
 
     data
 }
@@ -28,26 +31,26 @@ import_data <- function(path) {
 import_climatic_data <- function(path, normalize) {
     data <- import_data(path)
 
-    means <- sapply(climatic_vars, function(var) {
+    means <- sapply(climatic_pars, function(var) {
         rowMeans(data[, grep(var, names(data))],
             na.rm = TRUE
         )
     })
 
-    colnames(means) <- paste0("mean_", climatic_vars)
+    colnames(means) <- paste0("mean_", climatic_pars)
     data <- cbind(data, means)
 
     df_climatic_hist <- tibble()
     for (age in 1:max(data$age)) {
         age_data <- data %>% filter(age == .env$age)
         years <- seq(2019, 2019 - age + 1, by = -1)
-        # Identify all columns including the variables in climatic_vars
-        clim_columns <- expand.grid(climatic_vars, years) %>%
+        # Identify all columns including the variables in climatic_pars
+        clim_columns <- expand.grid(climatic_pars, years) %>%
             unite(col = "col", sep = "_") %>%
             pull(col)
 
         # subsect the dataframe to only include the climatic columns of the desired years
-        all_clim_columns <- names(data)[str_detect(names(data), paste(climatic_vars, "_", collapse = "|"))]
+        all_clim_columns <- names(data)[str_detect(names(data), paste(climatic_pars, "_", collapse = "|"))]
 
         # turn all values in the columns of years not included to 0
         clim_columns_not_included <- setdiff(all_clim_columns, clim_columns)

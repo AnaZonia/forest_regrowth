@@ -6,7 +6,6 @@
 # Intakes:
 # Outputs:
 ####################################################################
-
 library(ggplot2)
 library(foreach)
 library(doParallel)
@@ -26,38 +25,22 @@ fit_gaus_ker <- FALSE
 # data <- the dataframe with the predictors
 # pars_chosen <- the list of parameters to be added into the shape term
 
-# define the climatic parameters - the ones that change yearly
-pars_chosen <- c(setdiff(colnames_filtered, "age"), "k0", "implicit_age")
 
-# intercept, shape term, growth rate
-pars_basic <- c(theta = 5, B0_exp = 0.001, k0 = 0.1)
-data <- dataframes[[3]]
-pars <- c(pars_basic, setNames(0.1, pars_chosen[1]))
-pars
-
-growth_curve <- function(pars, data) {
-
-  if ("k0" %in% names(pars)) {
-    k <- rep(pars[["k0"]], nrow(data))
-    non_clim_pars <- pars[!names(pars) %in% c("k0", climatic_pars, names(pars_basic))]
-  } else {
-    k <- rep(0, nrow(data))
-    non_clim_pars <- pars[!names(pars) %in% c(climatic_pars, names(pars_basic))]
-  }
+growth_curve <- function(pars, data, pars_chosen) {
 
   implicit_age <- 1
-  if ("implicit_age" %in% names(pars)) {
+  if ("k0" %in% pars_chosen) {
     implicit_age <- data[["age"]]
-    k <- k * implicit_age
-    non_clim_pars <- pars[names(pars) != "implicit_age"]
+    k <- pars[["k0"]] * implicit_age
+    non_clim_pars <- setdiff(pars_chosen, c("k0", "implicit_age", climatic_pars))
+  } else {
+    k <- rep(0, nrow(data))
+    non_clim_pars <- setdiff(pars_chosen, climatic_pars)
   }
-non_clim_pars
-  k <- k + rowSums(lapply(names(non_clim_pars), function(var) pars[[var]] * data[[var]] * implicit_age))
 
-lapply(names(non_clim_pars), function(par) print(class(par)))
-
-class(pars[["cwd"]])
-  for (clim_par in intersect(climatic_pars, pars)) {
+  k <- k + rowSums(sapply(non_clim_pars, function(par) pars[[par]] * data[[par]] * implicit_age))
+  
+  for (clim_par in intersect(climatic_pars, pars_chosen)) {
     years <- seq(2019, 1985, by = -1)
     clim_columns <- paste0(clim_par, "_", years)
     k <- k + rowSums(sapply(clim_columns, function(col) pars[[clim_par]] * data[[col]]))
@@ -67,12 +50,11 @@ class(pars[["cwd"]])
     return(pars[["B0"]] * (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
   } else {
     k[which(k > 7)] <- 7
-    return(data[["mature_biomass"]] * (1 - exp(-(pars[["B0_exp"]] + k))^pars[["theta"]]))
+    return(data[["mature_biomass"]] * (1 - exp(-(pars[["B0_exp"]] + k)))^pars[["theta"]])
   }
 }
 
 growth_curve(pars, data, pars_chosen)
-
 # Calculates Nonlinear Least Squares
 # Intakes:
 # fun <- the function to be used, either "nls" or "nll"
@@ -104,6 +86,7 @@ likelihood <- function(fun, pars, data, pars_chosen, conditions) {
 }
 
 run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
+
   # Run optimization
   if (fun == "nll") {
     pars_basic <- c(pars_basic, setNames(0.1, "sd"))
@@ -115,7 +98,7 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
   optimize <- function(pars, pars_chosen_subset) {
     optim(pars,
       likelihood,
-      fun = "nls",
+      fun = fun,
       data = data,
       pars_chosen = pars_chosen_subset,
       conditions = conditions
@@ -133,7 +116,6 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
 
   pred <- growth_curve(o$par, data, pars_chosen)
   rsq <- cor(data$agbd, pred)^2
-
   print(paste("R-squared:", rsq))
   return(o)
 }
@@ -142,17 +124,16 @@ run_optimization <- function(fun, pars_basic, data, pars_chosen, conditions) {
 
 climatic_pars <- c("prec", "si")
 
-datafiles_1 <- list(
-  "5y_LULC",
-  "10y_LULC",
-  "15y_LULC",
-  "all_LULC"
+intervals <- list(
+  "5y",
+  "10y",
+  "15y",
+  "all"
 )
 
-datafiles <- lapply(datafiles_1, function(file) {
-  paste0("./data/", file, "_mat_dist.csv")
+datafiles <- lapply(intervals, function(file) {
+  paste0("./data/", file, "_LULC_dist_amaz_500.csv")
 })
-
 dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 
 # adding names can make indexing complicated, so they are being referenced as a vector
@@ -168,53 +149,63 @@ if (run_all || run_one) {
     'pars["theta"] < 0'
   )
 
-
-
   # in order to make them comparable, we only fit the columns that are present in all dataframes
   colnames_intersect <- Reduce(intersect, map(dataframes, colnames))
   # also exclude columns that are not predictors
   colnames_filtered <- colnames_intersect[!grepl(
-    "agbd|latitude|longitude|prec|si|mature_biomass|distance|biome",
+    "age|agbd|latitude|longitude|prec|si|mature_biomass|distance|biome|cwd",
     colnames_intersect
   )]
 
   configurations <- list(
-    c("age"),
-    c("num_fires_before_regrowth"),
-    c("age", "num_fires_before_regrowth"),
-    c("num_fires_before_regrowth", "implicit_age", "k0"),
-    c("indig", "protec", "cwd", "mean_prec", "mean_si", names(data)[str_detect(names(data), "LU")]),
+    c(),
+    c("cwd", "mean_prec", "mean_si"),
+    c("cwd", climatic_pars),
+    colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)],
     colnames_filtered,
-    c(setdiff(colnames_filtered, "age"), "k0", "implicit_age"),
-    c(colnames_filtered, climatic_pars)
+    c(colnames_filtered, "cwd", "mean_prec", "mean_si"),
+    c(colnames_filtered, climatic_pars),
   )
+
+  basic_pars <- list(
+    c(),
+    c("implicit_age", "k0", "B0_exp"),
+    c("implicit_age", "k0", "B0"),
+    c("age", "B0")
+  )
+
+  combined_list <- list()
+  for (config in configurations) {
+    for (basic in basic_pars) {
+      combined_list <- c(combined_list, list(c(config, basic)))
+    }
+  }
 
   # adding names can make indexing complicated, so they are being referenced as a vector
   names_configurations <- c(
-    "age", "fires", "age_fires", "implicit_fire",
-    "all_cat", "all_non_hist", "all_non_hist_implicit", "all_hist"
+    "none", "clim_mean", "clim_hist", "lulc",
+    "lulc_ecoreg_soil", "lulc_ecoreg_soil_clim_mean", "lulc_ecoreg_soil_clim_hist"
   )
 }
 
-
+run_one = TRUE
 if (run_one) {
-  data <- dataframes[[3]]
-  pars_chosen <- c(setdiff(colnames_filtered, "age"), "k0", "implicit_age")
-  pars_chosen
-  # intercept, shape term, growth rate
-  pars_basic <- c(theta = 5, B0_exp = 0.001)
 
-  if ("age" %in% configurations) {
+  pars_basic <- c(theta = 5)
+
+  # intercept, shape term, growth rate
+  data <- dataframes[[3]]
+
+  if ("age" %in% pars_chosen) {
     conditions_iter <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
   } else if (!("k0" %in% pars_chosen)) {
     pars_basic_iter <- c(pars_basic, B0 = 40)
     conditions_iter <- c(conditions, list('pars["B0"] < 0'))
   }
   
-  conditions
-
   val <- run_optimization("nls", pars_basic, data, pars_chosen, conditions)
 }
+  pars_basic <- c(theta = 5, k0 = 0.1, B0_exp = 0.01)
 
 
 if (run_all) {
@@ -226,23 +217,22 @@ if (run_all) {
   iterations <- expand.grid(seq_along(configurations), seq_along(dataframes))
   registerDoParallel(cores = 15)
 
+  pars_basic <- c(theta = 5, k0 = 0.1, B0_exp = 0.01)
+
   results <- foreach(i = iterations$Var1, j = iterations$Var2, .combine = "c") %dopar% {
     pars_basic_iter <- pars_basic
     conditions_iter <- conditions
     if ("age" %in% configurations[[i]]) {
       conditions_iter <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
-    } else if (!("k0" %in% pars_chosen)) {
-      pars_basic_iter <- c(pars_basic, B0 = 40)
+    } else if ("B0" %in% pars_chosen) {
+      # pars_basic_iter <- c(pars_basic, B0 = 40)
       conditions_iter <- c(conditions, list('pars["B0"] < 0'))
     }
 
     o_iter <- run_optimization(
       "nls", pars_basic_iter, dataframes[[j]], configurations[[i]], conditions_iter
     )
-    # pred <- growth_curve(o_iter$par, dataframes[[j]], configurations[[i]])
-    # rsq <- rsq_fun(dataframes[[j]]$agbd, pred)
-    # print(rsq)
-    print("----------------------------------------------------")
+
     print(names_dataframes[j])
     print(names_configurations[i])
     o_iter
