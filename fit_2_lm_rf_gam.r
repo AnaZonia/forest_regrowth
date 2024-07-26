@@ -49,15 +49,15 @@ run_rf_gam_lm <- function(data, pars_categ, pars_smooth, model) {
 
 
 
-datafiles_1 <- list(
-    "5y_LULC",
-    "10y_LULC",
-    "15y_LULC",
-    "all_LULC"
+intervals <- list(
+    "5y",
+    "10y",
+    "15y",
+    "all"
 )
 
-datafiles <- lapply(datafiles_1, function(file) {
-    paste0("./data/", file, ".csv")
+datafiles <- lapply(intervals, function(file) {
+    paste0("./data/", file, "_LULC_dist_amaz_500.csv")
 })
 
 dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
@@ -68,22 +68,34 @@ dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 # prop_amaz
 # 67% of them are in the Amazon anyways.
 
-data <- dataframes[[3]]
-unique(data$biome)
+pars_categ <- c("indig", "protec", names(data)[str_detect(names(data), "LU")])
+# pars_categ <- c()
+pars_smooth <- c(
+    "num_fires_before_regrowth", "num_fires_after_regrowth",
+    "ts_fire_before_regrowth", "ts_fire_after_regrowth", "fallow" # , "mean_si", "mean_prec", "cwd"
+    # ,"lulc_sum_9", "lulc_sum_15", "lulc_sum_41", "lulc_sum_21"
+)
 
-for (data in dataframes) {
-    # data <- data %>% filter(biome == 1)
-    # data <- data %>% select(-contains(c("distance_2", "mature_biomass_1")))
-    # pars_categ <- c("indig", "protec", names(data)[str_detect(names(data), "LU")])
-    pars_categ <- c()
-    pars_smooth <- c(
-        "num_fires_before_regrowth", "num_fires_after_regrowth",
-        "ts_fire_before_regrowth", "ts_fire_after_regrowth", "fallow"#, "mean_si", "mean_prec", "cwd"
-        # ,"lulc_sum_9", "lulc_sum_15", "lulc_sum_41", "lulc_sum_21"   
-    )
+
+lm_df <- data.frame()
+for (i in seq_along(dataframes)) {
+    data <- dataframes[[i]]
+
     val <- run_rf_gam_lm(data, pars_categ, pars_smooth, "lm")
-}
 
+    new_row <- summary(val$model)$coefficients[-1, 1] # -1 to remove (Intercept)
+    new_row <- as.data.frame(t(new_row))
+
+    new_row$model_name <- paste0(intervals[[i]])
+    new_row$model_type <- "lm"
+    new_row$rsq <- val$rsq
+
+    # Reorder columns to have model_name first and rsq second
+    new_row <- new_row %>% select(model_name, model_type, rsq, everything())
+
+    lm_df <- bind_rows(lm_df, new_row)
+}
+head(lm_df)
 
 # Plot predictions vs observed
 plot(pred_gam, data$agbd)
