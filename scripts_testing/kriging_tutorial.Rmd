@@ -1,0 +1,301 @@
+---
+title: "Co-Kriging_Rincon_Updated"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd('C:/Users/Katie Nelson/Documents')
+```
+
+```{r}
+my_data=read.csv('JPL_Rincon_March2020FieldCampaign_DATA_EDIT6.csv', header=TRUE);
+```
+
+
+```{r}
+library(lattice)
+library(gstat)
+library(sp)
+library(ggplot2)
+library(dplyr)
+library(caret)
+library(AppliedPredictiveModeling)
+library(scales)
+library(plotly)
+library(rgdal)
+library(raster)
+library(rgeos)
+library(dismo)
+library(sf)
+```
+
+```{r}
+xy <- data.frame(my_data)
+coordinates(xy) <- c("Long", "Lat")
+proj4string(xy) <- CRS("+proj=longlat +datum=WGS84")  ## for example
+
+res <- spTransform(xy, CRS("+proj=utm +zone=16 ellps=WGS84"))
+res
+#            coordinates ID
+# 1 (-48636.65, 1109577)  1
+# 2    (213372, 5546301)  2
+
+## For a SpatialPoints object rather than a SpatialPointsDataFrame, just do: 
+as(res, "SpatialPoints")
+# SpatialPoints:
+#              x       y
+# [1,] -48636.65 1109577
+# [2,] 213372.05 5546301
+# Coordinate Reference System (CRS) arguments: +proj=utm +zone=51
+# +ellps=WGS84 
+```
+
+```{r}
+my_data <- as.data.frame(res)
+```
+
+
+```{r}
+North_data = slice(my_data, 170:211, 422:793)
+NorthLarge_data <- slice(my_data, 422:793)
+```
+
+
+#Create a sampling grid over the study area 
+```{r}
+NL <- readOGR("LargeNorth_Shapefile.kml")
+NL = spTransform(NL, CRS=CRS('+proj=utm +zone=16'))
+res <- 30
+bb <- bbox(NL)
+gt <- GridTopology(cellcentre.offset = bb[,1], cellsize = c(res, res),
+                   cells.dim = c(diff(bb[,1]), diff(bb[2,])) / res + 1)
+pts <- SpatialPoints(gt, proj4string = CRS(proj4string(NL)))
+
+ov <- sp::over(pts, as(NL, "SpatialPolygons"))
+pts_over <- pts[!is.na(ov)]
+
+plot(NL)
+points(pts_over)
+coordinates(pts_over)
+```
+
+```{r}
+pt <- data.frame(pts_over)
+pt$Lat <- pt$y
+pt$Long <- pt$x
+```
+
+
+
+
+
+
+#Read in NDVI TIFF 
+```{r}
+str_name<-'20190107_rincon_ndvi.tif' 
+ndvi=stack(str_name)
+ndvi
+```
+
+
+```{r}
+ndvi_crop = crop(ndvi, raster(NL))
+```
+
+
+```{r}
+All <- rasterToPoints(ndvi_crop)
+```
+
+```{r}
+Points_ndvi <- as.data.frame(All)
+```
+
+
+```{r}
+Points_ndvi$Lat <- Points_ndvi$y
+Points_ndvi$Long <- Points_ndvi$x
+```
+
+
+
+
+
+
+
+
+
+
+
+##North Ridge Co-Kriging 
+##Making a data fram with only your x, y, important variables
+```{r}
+meuse.fg <- NorthLarge_data[seq(1, length(NorthLarge_data$Fg)), c("Long", "Lat", "Fg")]
+meuse.fg <- cbind(meuse.fg, ltfg = log10(meuse.fg$Fg))
+```
+
+##The same, but for your remotely sensed data 
+#multiply by 100 to scale values 
+```{r}
+meuse.ndvi <- subset(as.data.frame(Points_ndvi), !is.na(X20190107_rincon_ndvi), c("Long", "Lat", "X20190107_rincon_ndvi"))
+meuse.ndvi <- cbind(meuse.ndvi, ltndvi = (log10(meuse.ndvi$X20190107_rincon_ndvi)+2),  sltndvi=log10(meuse.ndvi$X20190107_rincon_ndvi)*10)
+```
+
+
+##Telling the program which variables are coordinates for your rs, concentration, and grid data
+```{r}
+coordinates(meuse.ndvi) <- ~ Lat + Long
+coordinates(meuse.fg) <- ~ Lat + Long
+coordinates(pt) <- ~ Lat + Long
+```
+
+##Calculating your co-kriging parameters step 1
+```{r}
+g=gstat(NULL, id = "ltfg", form = ltfg ~ 1, data=meuse.fg)
+g=gstat(g, id = "ltndvi", form = ltndvi ~ 1, data=meuse.ndvi)
+```
+
+##Making sure your values of log transform are positive (you can probably ignore) 
+```{r}
+meuse.ndvi$ltndvi
+```
+
+##Fitting the variogram 
+```{r}
+v.ltfg <- variogram(ltfg ~ 1, data=meuse.fg)
+plot(v.ltfg, pl=T)
+```
+##fitting the variogram model with lag
+```{r}
+#lag=c(250, 500, 750, 1000, 1250, 1500, 1750)
+lag=c(300, 600, 900, 1200, 1500, 1800)
+v.ltfg <- variogram(ltfg ~ 1, data=meuse.fg, width=lag)
+plot(v.ltfg, pl=T)
+```
+
+##Visual variogram fitting 
+```{r}
+m.ltfg <- vgm(0.02,"Sph",400,0.05)
+plot(v.ltfg, pl=T, model=m.ltfg)
+```
+
+##automatic variogram fitting
+```{r}
+m.ltfg.f <- fit.variogram(v.ltfg, m.ltfg)
+plot(v.ltfg, pl=T, model=m.ltfg.f)
+```
+
+```{r}
+v.ltndvi <- variogram(ltndvi ~ 1, data=meuse.ndvi)
+m.ltndvi <- vgm(0.035,"Exp",450,0.001)
+plot(v.ltndvi, model=m.ltndvi)
+```
+
+
+
+##cross variogram for the combo of co2 and rs
+```{r}
+v.cross <- variogram(g)
+plot(v.cross)
+```
+
+
+
+##applying the variogram model to all the data
+```{r}
+#g <- gstat(g, id=c("ltfg","sltndvi"), model= m.ltfg.f, fill.all = T)
+```
+
+```{r}
+g <- gstat(g, id="ltfg", model= m.ltfg.f)
+g <- gstat(g, id="ltndvi", model= m.ltndvi)
+g <- gstat(g, id=c("ltfg","ltndvi"), model= vgm(0.02,"Sph",400,0.05), fill.all = T)
+```
+
+```{r}
+plot(v.cross, model=g$model)
+```
+
+##fitting the lmc model
+```{r}
+(g <- fit.lmc(v.cross, g))
+plot(variogram(g), model=g$model)
+```
+
+##co-kriging between g and your grid file
+```{r}
+k.c <- predict(g, pt)
+str(k.c)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#####ADD Code to crop ndvi first!
+
+
+```{r}
+vgm.ndvi <- variogram(X20190107_rincon_ndvi ~ 1, locations = ~Lat + Long, data = Points_ndvi)
+vgm.ndvi
+plot(vgm.ndvi)
+```
+
+```{r}
+visual.sph.ndvi <- vgm(0.035, "Sph", 500, 0.001)
+plot(vgm.ndvi, visual.sph.ndvi)
+```
+
+```{r}
+plot(vgm.ndvi) 
+auto.sph.ndvi <- fit.variogram(vgm.ndvi, vgm(0.035, "Sph", 500, 0.001))
+auto.sph.ndvi
+plot(vgm.ndvi, auto.sph.ndvi)
+```
+
+
+Ordinary Kriging
+```{r}
+# ordinary kriging interpolate
+OK_est_ndvi <- krige(NL_est_SGS ~1, locations = ~Lat + Long, data = Points_ndvi, newdata=NorthLarge_data, model=auto.sph.ndvi)
+# summary statistics
+summary(OK_est_ndvi)
+```
+
+```{r}
+write.csv(OK_est_ndvi, "ndviPredictOK.csv")
+```
+
+
+
+
+
+
+
+
+
+
+
+
