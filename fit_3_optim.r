@@ -14,7 +14,7 @@ source("fit_1_import_data.r")
 
 #------------------ SWITCHES ------------------#
 
-run_all <- FALSE
+run_all <- TRUE
 run_one <- TRUE
 fit_gaus_ker <- FALSE
 
@@ -87,8 +87,18 @@ run_optimization <- function(fun, pars_basic, data_pars, data, conditions) {
     pars <- c(pars, setNames(0.1, "sd"))
   }
 
-  current_pars <- c(pars_basic, setNames(0.1, data_pars[1]))
+  current_pars <- c(
+    theta = 5,
+    setNames(
+      rep(0.1, length(c(pars_basic, data_pars[1]))),
+      c(pars_basic, data_pars[1])
+    )
+  )
 
+  if ("B0" %in% pars_basic) {
+    current_pars["B0"] <- 40
+  }
+  
   # Function to perform optimization
   optimize <- function(pars) {
     optim(pars,
@@ -111,7 +121,10 @@ run_optimization <- function(fun, pars_basic, data_pars, data, conditions) {
   pred <- growth_curve(o$par, data)
   rsq <- cor(data$agbd, pred)^2
   print(paste("R-squared:", rsq))
-  return(o)
+  return(results <- list(
+    model = o,
+    rsq = rsq
+  ))
 }
 
 #------------------ Global Variables ------------------#
@@ -132,14 +145,15 @@ intervals <- list(
 datafiles <- lapply(intervals, function(file) {
   paste0("./data/", file, "_LULC_mat_dist.csv")
 })
+
 dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 
-# adding names can make indexing complicated, so they are being referenced as a vector
-names_dataframes <- c("data_5", "data_10", "data_15", "data_all")
+dataframes <- lapply(dataframes, function(df) {
+  sample_n(df, size = 60000)
+})
 
 ################### Running model ###################
-data <- dataframes[[3]]
-head(data)
+
 
 if (run_all || run_one) {
   # Define conditions
@@ -156,8 +170,7 @@ if (run_all || run_one) {
     colnames_intersect
   )]
 
-  configurations <- list(
-    c(),
+  data_pars <- list(
     c("cwd", "mean_prec", "mean_si"),
     c("cwd", climatic_pars),
     colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)],
@@ -175,14 +188,6 @@ if (run_all || run_one) {
     c("age", "B0")
   )
 
-  combined_list <- list()
-
-  for (config in configurations) {
-    for (basic in basic_pars) {
-      combined_list <- c(combined_list, list(c(config, basic)))
-    }
-  }
-
   # adding names can make indexing complicated, so they are being referenced as a vector
   names_configurations <- c(
     "none", "clim_mean", "clim_hist", "lulc",
@@ -190,57 +195,69 @@ if (run_all || run_one) {
   )
 }
 
-
 if (run_one) {
-
-  pars_basic <- c(theta = 5, setNames(rep(0.1, length(basic_pars[[1]])), basic_pars[[1]]))
+  pars_chosen <- data_pars[[2]]
+  pars_basic <- basic_pars[[1]]
 
   if ("age" %in% pars_chosen) {
     conditions_iter <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
-  } else if (("B0" %in% pars_chosen)) {
-    current_pars["B0"] <- 40
+  } else if ("B0" %in% pars_basic) {
     conditions_iter <- c(conditions, list('pars["B0"] < 0'))
   }
   
-  val <- run_optimization("nls", pars_basic, configurations[[2]], data, conditions)
+  o_iter <- run_optimization("nls", pars_basic, pars_chosen, data, conditions)
+
 }
-
-
 
 
 if (run_all) {
   # sum_squares_fit <- list()
   # pars_fit <- list()
   # Run optimization
-  configurations <- configurations[1:length(configurations)]
-  dataframes <- dataframes[1:length(dataframes)]
-  iterations <- expand.grid(seq_along(configurations), seq_along(dataframes))
+  iterations <- expand.grid(
+    dataframe = seq_along(dataframes),
+    data_par = seq_along(data_pars),
+    basic_par = seq_along(basic_pars)
+  )
+
   registerDoParallel(cores = 15)
+  
+  results <- foreach(iter = 1:nrow(iterations),  .combine = 'rbind', .packages = c('dplyr')) %dopar% {
+    
+    i <- iterations$dataframe[iter]
+    j <- iterations$data_par[iter]
+    k <- iterations$basic_par[iter]
 
-  pars_basic <- c(theta = 5, k0 = 0.1, B0_exp = 0.01)
-
-  results <- foreach(i = iterations$Var1, j = iterations$Var2, .combine = "c") %dopar% {
-    pars_basic_iter <- pars_basic
-    conditions_iter <- conditions
-    if ("age" %in% configurations[[i]]) {
+    data <- dataframes[[i]]
+    pars_chosen <- data_pars[[j]]
+    pars_basic <- basic_pars[[k]]
+    
+    if ("age" %in% pars_chosen) {
       conditions_iter <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
     } else if ("B0" %in% pars_chosen) {
-      # pars_basic_iter <- c(pars_basic, B0 = 40)
       conditions_iter <- c(conditions, list('pars["B0"] < 0'))
     }
 
-    o_iter <- run_optimization(
-      "nls", pars_basic_iter, dataframes[[j]], configurations[[i]], conditions_iter
-    )
+    o_iter <- run_optimization("nls", pars_basic, pars_chosen, data, conditions_iter)
 
-    print(names_dataframes[j])
-    print(names_configurations[i])
-    o_iter
+    new_row <- o_iter$model$par
+    new_row <- as.data.frame(t(new_row))
+
+    new_row$model_name <- intervals[[i]]
+    new_row$model_type <- "optim"
+    new_row$rsq <- o_iter$rsq
+
+    # Reorder columns to have model_name first and rsq second
+    new_row <- new_row %>% select(model_name, model_type, rsq, everything())
+    print(new_row)
+    new_row
   }
 
-  saveRDS(results, file = "results.rds")
-  # sum_squares_fit[[paste(names_dataframes[j], names_configurations[i])]] <- rsq
-  # pars_fit[[paste(names_dataframes[j], names_configurations[i])]] <- o_iter$par
-  # print(min(unlist(sum_squares_fit)))
+  # Combine all results into a single dataframe
+  lm_df <- as.data.frame(results)
+
+  # Write the dataframe to a CSV file
+  write.csv(lm_df, "./data/fit_results.csv", row.names = FALSE)
+
 }
 

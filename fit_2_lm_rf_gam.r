@@ -86,7 +86,7 @@ for (i in seq_along(dataframes)) {
     new_row <- summary(val$model)$coefficients[-1, 1] # -1 to remove (Intercept)
     new_row <- as.data.frame(t(new_row))
 
-    new_row$model_name <- paste0(intervals[[i]])
+    new_row$model_name <- intervals[[i]]
     new_row$model_type <- "lm"
     new_row$rsq <- val$rsq
 
