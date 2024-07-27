@@ -9,6 +9,7 @@
 library(ggplot2)
 library(foreach)
 library(doParallel)
+library(mgcv)
 
 source("fit_1_import_data.r")
 set.seed(1)
@@ -128,10 +129,92 @@ run_optimization <- function(fun, pars_basic, data_pars, train_data, test_data, 
   ))
 }
 
+# Function to fit a GAM model and handle the error with an increasing threshold
+fit_gam_model <- function(formula, data, initial_threshold = 5, max_threshold = 20) {
+  threshold <- initial_threshold
+
+  repeat {
+    result <- tryCatch(
+      {
+        model <- gam(formula, data = data)
+        return(model)
+      },
+      error = function(e) {
+        message("Error in fitting GAM model with threshold ", threshold, ": ", e$message)
+
+        # Identify the problematic term(s)
+        terms_in_formula <- all.vars(formula)
+        unique_values_count <- sapply(terms_in_formula, function(term) length(unique(data[[term]])))
+
+        # Find terms with fewer unique values than the threshold
+        problematic_terms <- names(unique_values_count[unique_values_count < threshold])
+
+        if (length(problematic_terms) > 0) {
+          message("Removing problematic terms: ", paste(problematic_terms, collapse = ", "))
+
+          # Remove the problematic terms from the formula
+          updated_terms <- terms_in_formula[!terms_in_formula %in% problematic_terms]
+          updated_formula <- as.formula(paste(
+            "agbd ~",
+            paste(
+              sapply(updated_terms, function(x) paste0("s(", x, ")")),
+              collapse = " + "
+            )
+          ))
+
+          return(list(success = FALSE, formula = updated_formula))
+        } else {
+          return(list(success = FALSE, message = "No problematic terms found, but error persists."))
+        }
+      }
+    )
+
+    if (result$success) {
+      return(result$model)
+    } else {
+      if (threshold >= max_threshold) {
+        stop(result$message)
+      }
+      formula <- result$formula
+      threshold <- threshold + 1
+    }
+  }
+}
+
+# Define the formula
+formula <- as.formula(paste(
+  "agbd ~",
+  paste(sapply(continuous, function(x) paste0("s(", x, ")")), collapse = " + "),
+  "+",
+  paste(categorical, collapse = " + ")
+))
+
+# Fit the GAM model
+model <- fit_gam_model(formula, train_data)
+
+
+
+
+
+
+
 run_rf_gam_lm <- function(train_data, test_data, categorical, continuous, model) {
 
   # Fit a GAM model
   if (model == "gam") {
+    iter=14
+    i <- iterations_lm$dataframe[iter]
+    j <- iterations_lm$data_par[iter]
+i
+    train_data <- train_dataframes[[i]]
+    head(train_data)
+    test_data <- test_dataframes[[i]]
+    pars_chosen <- data_pars_lm[[j]]
+pars_chosen
+    # Filter data_pars to exclude items containing climatic_pars
+    continuous <- c(pars_chosen[!pars_chosen %in% pars_categ])
+    categorical <- pars_chosen[pars_chosen %in% pars_categ]
+
     formula <- as.formula(paste(
       "agbd ~",
       paste(sapply(continuous, function(x) paste0("s(", x, ")")), collapse = " + "),
@@ -139,6 +222,9 @@ run_rf_gam_lm <- function(train_data, test_data, categorical, continuous, model)
       paste(categorical, collapse = " + ")
     ))
     model <- gam(formula, data = train_data)
+
+gam(formula)$df.residual
+
   } else {
     rf_lm_pars <- c(continuous, categorical)
     rf_lm_formula <- as.formula(paste("agbd ~", paste(rf_lm_pars, collapse = " + ")))
@@ -227,6 +313,7 @@ samples <- lapply(dataframes, sample_data, size_train = 60000, size_test = 40000
 # Extract the first and second element of samples
 train_dataframes <- lapply(samples, `[[`, 1)
 test_dataframes <- lapply(samples, `[[`, 2)
+head(train_dataframes[[1]])
 
 ################### Running model ###################
 
