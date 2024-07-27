@@ -19,7 +19,6 @@ set.seed(1)
 
 run_all <- TRUE
 
-
 #------------------ Global Variables ------------------#
 
 climatic_pars <- c("prec", "si")
