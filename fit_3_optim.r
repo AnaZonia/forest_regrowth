@@ -80,7 +80,7 @@ likelihood <- function(fun, pars, data, conditions) {
   }
 }
 
-run_optimization <- function(fun, pars_basic, data_pars, data, conditions) {
+run_optimization <- function(fun, pars_basic, data_pars, train_data, test_data, conditions) {
 
   # Run optimization
   if (fun == "nll") {
@@ -118,8 +118,8 @@ run_optimization <- function(fun, pars_basic, data_pars, data, conditions) {
     }
   }
 
-  pred <- growth_curve(o$par, data)
-  rsq <- cor(data$agbd, pred)^2
+  pred <- growth_curve(o$par, test_data)
+  rsq <- cor(test_data$agbd, pred)^2
   print(paste("R-squared:", rsq))
   return(results <- list(
     model = o,
@@ -170,13 +170,13 @@ run_rf_gam_lm <- function(data, categorical, continuous, model) {
 # Define helper functions
 process_row <- function(output, model_name, model_type, rsq) {
   row <- as.data.frame(t(output))
-  missing_cols <- setdiff(c(unique(unlist(c(data_pars, non_data_pars))), "mature_biomass", "age"), names(row))
+  missing_cols <- setdiff(unique(c(unlist(c(data_pars, non_data_pars)), "mature_biomass", "age")), names(row))
   row[missing_cols] <- NA
-  row <- row[, c(unique(unlist(c(data_pars, non_data_pars))), "mature_biomass", "age")]
+  row <- row[, unique(c(unlist(c(data_pars, non_data_pars)), "mature_biomass", "age"))]
   row$model_name <- model_name
   row$model_type <- model_type
   row$rsq <- rsq
-  row %>% select(model_name, model_type, rsq, "mature_biomass", all_of(non_data_pars), everything())
+  row %>% select(model_name, model_type, rsq, "mature_biomass", "age", all_of(non_data_pars), everything())
 }
 
 #------------------ Global Variables ------------------#
@@ -202,9 +202,20 @@ datafiles <- lapply(intervals, function(file) {
 
 dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 
-dataframes <- lapply(dataframes, function(df) {
-  sample_n(df, size = 60000)
-})
+# Function to create both samples
+sample_data <- function(df, size_train, size_test) {
+  train_dataframes <- sample_n(df, size = size_train)
+  remaining <- df[!(row.names(df) %in% row.names(sample1)), ]
+  test_dataframes <- sample_n(remaining, size = train_dataframes)
+  list(train_dataframes, test_dataframes)
+}
+
+# Apply the function to each dataframe
+samples <- lapply(dataframes, sample_data, size_train = 60000, size_test = 40000)
+
+# Extract the first and second element of samples
+train_dataframes <- lapply(samples, `[[`, 1)
+test_dataframes <- lapply(samples, `[[`, 2)
 
 ################### Running model ###################
 
@@ -239,11 +250,12 @@ if (run_all || run_one) {
     c("k0", "B0_exp") # age is implicit
   )
 }
-
+run_one <- TRUE
 if (run_one) {
   pars_chosen <- data_pars[[2]]
   pars_basic <- basic_pars[[1]]
-  data <- dataframes[[1]]
+  train_data <- train_dataframes[[1]]
+  test_data <- test_dataframes[[1]]
 
   conditions_iter <- conditions
   if ("age" %in% pars_chosen) {
@@ -252,27 +264,29 @@ if (run_one) {
     conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
   }
   
-  o_iter <- run_optimization("nls", pars_basic, pars_chosen, data, conditions_iter)
+  o_iter <- run_optimization("nls", pars_basic, pars_chosen, train_data, test_data, conditions_iter)
 
 }
 
+
+
 if (run_all) {
+  start_time <- Sys.time()
+  print(start_time)
 
   iterations_optim <- expand.grid(
-    dataframe = seq_along(dataframes),
+    dataframe = seq_along(train_dataframes),
     data_par = seq_along(data_pars),
     basic_par = seq_along(basic_pars)
   )
 
   registerDoParallel(cores = 15)
 
-  iterations_optim <- iterations_optim[1,]
-
   results_optim <- foreach(iter = 1:nrow(iterations_optim),  .combine = 'bind_rows', .packages = c('dplyr')) %dopar% {
     print(iter)
-    i <- iterations$dataframe[iter]
-    j <- iterations$data_par[iter]
-    k <- iterations$basic_par[iter]
+    i <- iterations_optim$dataframe[iter]
+    j <- iterations_optim$data_par[iter]
+    k <- iterations_optim$basic_par[iter]
 
     data <- dataframes[[i]]
     pars_chosen <- data_pars[[j]]
@@ -290,39 +304,62 @@ if (run_all) {
     optim_output <- o_iter$model$par
 
     # Reorder columns
-    optim_row <- process_row(optim_output, intervals[[i]], "lm", o_iter$rsq)
+    optim_row <- process_row(optim_output, intervals[[i]], "optim", o_iter$rsq)
 
     print(optim_row)
     optim_row
   }
 
-  class(results_optim)
 
+  data_pars_lm <- append(
+    lapply(data_pars, function(x) c(x, "mature_biomass")),
+    list(c("age"), c("mature_biomass"), c("age", "mature_biomass"))
+  )
+  
   iterations_lm <- expand.grid(
     dataframe = seq_along(dataframes),
-    data_par = seq_along(which(!sapply(data_pars, function(par_set) any(climatic_pars %in% par_set)))),
+    data_par = which(!sapply(data_pars_lm, function(par_set) any(climatic_pars %in% par_set)))
   )
+  
+  results_lm <- foreach(iter = 1:nrow(iterations_lm), .combine = "bind_rows", .packages = c("dplyr")) %dopar% {
+    i <- iterations_lm$dataframe[iter]
+    j <- iterations_lm$data_par[iter]
 
-  # Filter data_pars to exclude items containing climatic_pars
-    continuous <- c(data_pars[[j]][!data_pars[[j]] %in% pars_categ], "mature_biomass")
-    categorical <- data_pars[[j]][data_pars[[j]] %in% pars_categ]
+    data <- dataframes[[i]]
+    pars_chosen <- data_pars_lm[[j]]
+
+    # Filter data_pars to exclude items containing climatic_pars
+    continuous <- c(pars_chosen[!pars_chosen %in% pars_categ])
+    categorical <- pars_chosen[pars_chosen %in% pars_categ]
 
     lm_iter <- run_rf_gam_lm(data, categorical, continuous, "lm")
+    
+    # # Check for rank deficiency
+    # aliased_vars <- summary(model)$aliased
+    # if (any(aliased_vars)) {
+    #   problematic_vars <- names(aliased_vars)[aliased_vars]
+    #   print(paste("Removing rank-deficient variables:", paste(problematic_vars, collapse = ", ")))
+      
+    #   # Remove problematic variables from the formula
+    #   rf_lm_pars <- rf_lm_pars[!rf_lm_pars %in% problematic_vars]
+    #   rf_lm_formula <- as.formula(paste("agbd ~", paste(rf_lm_pars, collapse = " + ")))
 
     lm_output <- summary(lm_iter$model)$coefficients[-1, 1] # -1 to remove (Intercept)
 
-    lm_row <- process_row(lm_output, intervals[[i]], "optim", lm_iter$rsq)
+    lm_row <- process_row(lm_output, intervals[[i]], "lm", lm_iter$rsq)
 
-    print(bind_rows(optim_row, lm_row))
-
-
+    print(lm_row)
+    lm_row
+  }
 
   # Combine all results into a single dataframe
-  df <- as.data.frame(results)
-
-
+  df <- as.data.frame(rbind(results_optim, results_lm))
 
   # Write the dataframe to a CSV file
   write.csv(df, "./data/fit_results.csv", row.names = FALSE)
+  print(paste("written! Time took: ", as.numeric(difftime(Sys.time(), start_time, units = "hours")), " hours"))
 
 }
+
+tst <- read.csv("./data/fit_results.csv")
+head(tst)
