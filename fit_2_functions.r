@@ -1,33 +1,64 @@
-
+################################################################################
+#                                                                              #
+#                 Forest Regrowth Model Functions and Utilities                #
+#                                                                              #
+#                              Ana Avila - July 2024                           #
+#                                                                              #
+#     This script defines the core functions used in the forest regrowth       #
+#     modeling process (fit_3_run_model.r)                                     #
+#                                                                              #
+#     Functions included:                                                      #
+#     - growth_curve                                                           #
+#     - likelihood                                                             #
+#     - run_optimization                                                       #
+#     - run_gam_lm                                                             #
+#     - run_rf                                                                 #
+#     - process_row                                                            #
+#                                                                              #
+################################################################################
 
 library(mgcv)
 library(randomForest)
 library(tidyverse)
 
-#------------------ FUNCTIONS ------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#------------------- Growth Curve -----------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
-# Intakes pars <- a vector with the initial parameters to be included
-# data <- the dataframe with the predictors
-# pars <- the list of parameters to be added into the shape term
+#     This function calculates the Chapman-Richards growth curve based on the provided
+#     parameters and data. It can incorporate:
+#     - Yearly-changing climatic parameters (prec and si)
+#     - The intercept term defined either as B0 or B0_exp (out or in of the exponential)
+#     - A growth rate intercept term k0
+#     - Ages of secondary forests as an explicit parameter (part of "pars")
+#       or as an implicit parameter (multiplying all non-yearly predictors by age)
+#
+# Intakes:
+#   pars <- a vector with the named parameters to be included
+#   data <- the chosen training dataframe
 
 growth_curve <- function(pars, data) {
 
+  # Define parameters that are not expected to change yearly (not prec or si)
   non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
-
+  # Define whether age is an explicit or implicit parameter (to multiply the other parameters by)
   implicit_age <- if (!"age" %in% names(pars)) data[["age"]] else rep(1, nrow(data))
-  
+  # Define whether the intercept k0 is to be included in the growth rate k
   k <- if ("k0" %in% names(pars)) pars[["k0"]] * implicit_age else rep(0, nrow(data))
 
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Calculate the growth rate k
   k <- k + rowSums(sapply(non_clim_pars, function(par) pars[[par]] * data[[par]] * implicit_age))
 
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
   for (clim_par in intersect(climatic_pars, names(pars))) {
     years <- seq(2019, 1985, by = -1)
     clim_columns <- paste0(clim_par, "_", years)
     k <- k + rowSums(sapply(clim_columns, function(col) pars[[clim_par]] * data[[col]]))
   }
-  
-  k[which(k > 7)] <- 7 # in order to avoid increasinly small values for exp(k)
+
+  k[which(k > 7)] <- 7 # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
 
   if ("B0" %in% names(pars)) {
     return(pars[["B0"]] * (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
@@ -36,14 +67,16 @@ growth_curve <- function(pars, data) {
   }
 }
 
-
-# Calculates Nonlinear Least Squares
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#------------------- Likelihood -------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
 # Intakes:
-# fun <- the function to be used, either "nls" or "nll"
-# pars <- a vector with the initial parameters to be included
-# data <- the dataframe with the predictors
-# pars_chosen <- the list of parameters to be added into the shape term
-# conditions <- ranges of parameters to be restricted to
+#   fun <- the function to be used, either "nls" (Nonlinear Least Squares)
+#          or "nll" (Negative Log Likelihood)
+#   pars <- a vector with the named parameters to be included
+#   data <- the chosen training dataframe
+#   conditions <- ranges of parameters to be restricted to
 
 likelihood <- function(fun, pars, data, conditions) {
   if (fun == "nll") {
@@ -58,6 +91,7 @@ likelihood <- function(fun, pars, data, conditions) {
     result <- sum((growth_curve(pars, data) - data$agbd)^2)
   }
 
+  # Check whether any of the parameters is breaking the conditions (e.g. negative values)
   if (any(sapply(conditions, function(cond) eval(parse(text = cond))))) {
     return(-Inf)
   } else if (is.na(result) || result == 0) {
@@ -67,30 +101,33 @@ likelihood <- function(fun, pars, data, conditions) {
   }
 }
 
-run_optimization <- function(fun, pars_basic, pars_chosen, train_data, test_data, conditions) {
-  # pars_chosen <- data_pars[[2]]
-  # pars_basic <- basic_pars[[4]]
-  # train_data <- train_dataframes[[1]]
-  # test_data <- test_dataframes[[1]]
-  # fun = "nls"
-  # Run optimization
-  if (fun == "nll") {
-    pars <- c(pars, setNames(0.1, "sd"))
-  }
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#----------------- Optimization -------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+#     This function prepares the optimization process for the forest regrowth model.
+#     It runs the optimization process iteratively, incorporating one parameter of the
+#     chosen set at a time.
+#
+#     It also determines:
+#     - A new "sd" parameter if the function is set to "nll" (Negative Log Likelihood)
+#     - The theta ("shape") parameter of the Chapman-Richards growth curve
+#     - The values of the initial parameters (0.1 for all except for theta and B0)
+#
+# Intakes:
+#   fun <- the function to be used, either "nls" (Nonlinear Least Squares)
+#          or "nll" (Negative Log Likelihood)
+#   pars_basic <- a vector with the named parameters that do not correspond to data,
+#                 but are to be included as part of the functional form
+#   pars_chosen <- a vector with the chosen parameter set to be included
+#                  (corresponding to columns in dataframe)
+#   train_data <- the chosen training dataframe
+#   test_data <- the chosen testing dataframe (for rsq calculation)
+#   conditions <- ranges of parameters to be restricted to
 
-  current_pars <- c(
-    theta = 5,
-    setNames(
-      rep(0.1, length(c(pars_basic, pars_chosen[1]))),
-      c(pars_basic, pars_chosen[1])
-    )
-  )
-  current_pars
-  if ("B0" %in% pars_basic) {
-    current_pars["B0"] <- 40
-  }
-  
-  # Function to perform optimization
+run_optimization <- function(fun, pars_basic, pars_chosen, train_data, test_data, conditions) {
+
+  # Define function to perform optimization with input parameters
   optimize <- function(pars) {
     optim(pars,
       likelihood,
@@ -100,78 +137,128 @@ run_optimization <- function(fun, pars_basic, pars_chosen, train_data, test_data
     )
   }
 
-  o <- optimize(current_pars)
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Define initial parameters for the first iteration
+  first_iter_pars <- c(
+    theta = 5,
+    setNames(
+      rep(0.1, length(c(pars_basic, pars_chosen[1]))),
+      c(pars_basic, pars_chosen[1])
+    )
+  )
 
+  if (fun == "nll") {
+    first_iter_pars <- c(first_iter_pars, setNames(0.1, "sd"))
+  }
+
+  if ("B0" %in% pars_basic) {
+    first_iter_pars["B0"] <- 40
+  }
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Run first iteration of optimization
+  model <- optimize(first_iter_pars)
+
+  # Intake parameters of previous iteration and run optimization for the next parameter
   if (length(pars_chosen) > 1) {
     for (i in 2:length(pars_chosen)) {
-      current_pars <- c(o$par, setNames(0.1, pars_chosen[i]))
-      o <- optimize(current_pars)
+      current_pars <- c(model$par, setNames(0.1, pars_chosen[i]))
+      model <- optimize(current_pars)
     }
   }
 
-  pred <- growth_curve(o$par, test_data)
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Output R-squared value and model results
+  pred <- growth_curve(model$par, test_data)
   rsq <- cor(test_data$agbd, pred)^2
   print(paste("R-squared:", rsq))
-  return(results <- list(
-    model = o,
-    rsq = rsq
-  ))
-}
-
-
-
-run_gam_lm <- function(train_data, test_data, pars_chosen, model) {
-
-  # Fit a GAM model
-  if (model == "gam") {
-    # Filter data_pars to exclude items containing climatic_pars
-    continuous <- c(pars_chosen[!pars_chosen %in% pars_categ])
-    categorical <- pars_chosen[pars_chosen %in% pars_categ]
-
-    formula <- as.formula(paste(
-      "agbd ~",
-      paste(sapply(continuous, function(x) paste0("s(", x, ")")), collapse = " + "),
-      "+",
-      paste(categorical, collapse = " + ")
-    ))
-
-    model <- gam(formula, data = train_data)
-  } else { # Fit a Linear Model
-
-    rf_lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
-
-    if (model == "lm") {
-      model <- lm(rf_lm_formula, data = train_data)
-      # Check for rank deficiency
-      aliased_vars <- summary(model)$aliased
-
-      if (any(aliased_vars)) {
-        problematic_vars <- names(aliased_vars)[aliased_vars]
-        print(paste("Removing rank-deficient variables:", paste(problematic_vars, collapse = ", ")))
-
-        # Remove problematic variables from the formula
-        pars_chosen <- pars_chosen[!pars_chosen %in% problematic_vars]
-        rf_lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
-        model <- lm(rf_lm_formula, data = train_data)
-      }
-    }
-  }
-
-  pred <- predict(model, newdata = test_data)
-  rsq <- cor(test_data$agbd, pred)^2
-  print(paste("R-squared:", rsq))
-
-  return(results <- list(
+  return(list(
     model = model,
     rsq = rsq
   ))
 }
 
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#------------- Linear Model, Random Forest, and GAM -----------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+# Intake:
+#   train_data <- the chosen training dataframe
+#   test_data <- the chosen testing dataframe (for rsq calculation)
+#   pars_chosen <- a vector with the chosen parameter set to be included
+#                  (corresponding to columns in dataframe)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# GAM
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+run_gam <- function(train_data, test_data, pars_chosen) {
+  # Separate pars_chosen into continuous and categorical variables
+  continuous <- c(pars_chosen[!pars_chosen %in% pars_categ])
+  categorical <- pars_chosen[pars_chosen %in% pars_categ]
+
+  formula <- as.formula(paste(
+    "agbd ~",
+    paste(sapply(continuous, function(x) paste0("s(", x, ")")), collapse = " + "),
+    "+",
+    paste(categorical, collapse = " + ")
+  ))
+
+  model <- gam(formula, data = train_data)
+  pred <- predict(model, newdata = test_data)
+  rsq <- cor(test_data$agbd, pred)^2
+  print(paste("R-squared:", rsq))
+  return(list(
+    model = model,
+    rsq = rsq
+  ))
+}
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Linear Model
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+run_lm <- function(train_data, test_data, pars_chosen) {
+  rf_lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
+
+  model <- lm(rf_lm_formula, data = train_data)
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Check for rank deficiency, and remove variables if necessary
+  # (usually ones with too few unique values)
+  aliased_vars <- summary(model)$aliased
+
+  if (any(aliased_vars)) {
+    problematic_vars <- names(aliased_vars)[aliased_vars]
+    print(paste("Removing rank-deficient variables:", paste(problematic_vars, collapse = ", ")))
+
+    # Remove problematic variables from the formula
+    pars_chosen <- pars_chosen[!pars_chosen %in% problematic_vars]
+    rf_lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
+    model <- lm(rf_lm_formula, data = train_data)
+  }
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Output R-squared value and model results
+  pred <- predict(model, newdata = test_data)
+  rsq <- cor(test_data$agbd, pred)^2
+  print(paste("R-squared:", rsq))
+  return(list(
+    model = model,
+    rsq = rsq
+  ))
+}
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Random Forest
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 run_rf <- function(train_data, test_data, pars_chosen) {
   rf_lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
 
-  sampled_train_data <- train_data[sample(nrow(train_data), 20000), ]
+  # reduce number of rows to 20,000 for faster computation
+  # sampled_train_data <- train_data[sample(nrow(train_data), 20000), ]
 
   model <- randomForest(rf_lm_formula,
     data = sampled_train_data,
@@ -182,17 +269,27 @@ run_rf <- function(train_data, test_data, pars_chosen) {
   pred <- predict(model, newdata = test_data)
   rsq <- cor(test_data$agbd, pred)^2
   print(paste("R-squared:", rsq))
-  return(results <- list(
-    output = importance(rf_iter$model),
+  return(list(
+    model = importance(model),
     rsq = rsq
   ))
 }
 
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#------------- Prepare results for export as dataframe row -----------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+# Intakes:
+#   output <- the output of the model as a matrix (coefficients or rf importance)
+#   data_name <- "5y", "10y", "15y", or "all"
+#   model_type <- "optim", "lm", "rf", or "gam"
+#   rsq <- the calculated r squared for each iteration of the model
 
 # Define helper functions
 process_row <- function(output, model_name, model_type, rsq) {
   row <- as.data.frame(t(output))
+  # Set up columns of parameters that are not included in this iteration as NA
   missing_cols <- setdiff(unique(c(unlist(c(data_pars, non_data_pars)), "mature_biomass", "age")), names(row))
   row[missing_cols] <- NA
   row <- row[, unique(c(unlist(c(data_pars, non_data_pars)), "mature_biomass", "age"))]

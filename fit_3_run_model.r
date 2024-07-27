@@ -32,7 +32,7 @@ set.seed(1)
 # Define climatic parameters that change yearly
 climatic_pars <- c("prec", "si")
 
-# Define non-data parameters used for functional form
+# Define parameters that do not correspond to data, used for functional form
 non_data_pars <- c("k0", "B0_exp", "B0", "theta")
 
 # Define categorical parameters
