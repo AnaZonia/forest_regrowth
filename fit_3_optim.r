@@ -11,6 +11,7 @@ library(foreach)
 library(doParallel)
 
 source("fit_1_import_data.r")
+set.seed(1)
 
 #------------------ SWITCHES ------------------#
 
@@ -28,7 +29,7 @@ growth_curve <- function(pars, data) {
 
   non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
 
-  implicit_age <- if ("implicit_age" %in% names(pars)) data[["age"]] else rep(1, nrow(data))
+  implicit_age <- if (!"age" %in% names(pars)) data[["age"]] else rep(1, nrow(data))
   
   k <- if ("k0" %in% names(pars)) pars[["k0"]] * implicit_age else rep(0, nrow(data))
 
@@ -126,11 +127,54 @@ run_optimization <- function(fun, pars_basic, data_pars, data, conditions) {
   ))
 }
 
+run_rf_gam_lm <- function(data, categorical, continuous, model) {
+  train_indices <- sample(1:nrow(data), size = floor(0.7 * nrow(data)))
+  train_data <- data[train_indices, ]
+  test_data <- data[-train_indices, ]
+
+  # Fit a GAM model
+  if (model == "gam") {
+    formula <- as.formula(paste(
+      "agbd ~",
+      paste(sapply(continuous, function(x) paste0("s(", x, ")")), collapse = " + "),
+      "+",
+      paste(categorical, collapse = " + ")
+    ))
+    model <- gam(formula, data = train_data)
+  } else {
+    rf_lm_pars <- c(continuous, categorical)
+    rf_lm_formula <- as.formula(paste("agbd ~", paste(rf_lm_pars, collapse = " + ")))
+    if (model == "lm") {
+      model <- lm(rf_lm_formula, data = train_data)
+    } else {
+      model <- randomForest(rf_lm_formula,
+        data = train_data,
+        ntree = 500, mtry = sqrt(ncol(train_data) - 1), importance = TRUE,
+        keep.forest = TRUE, oob.score = TRUE
+      )
+    }
+  }
+
+  pred <- predict(model, newdata = test_data)
+  rsq <- cor(test_data$agbd, pred)^2
+  print(rsq)
+
+  return(results <- list(
+    model = model,
+    pred = pred,
+    test_agbd = test_data$agbd,
+    rsq = rsq
+  ))
+}
+
+
 #------------------ Global Variables ------------------#
 
 climatic_pars <- c("prec", "si")
 # parameters not fit with data - just for the functional form
-non_data_pars <- c("implicit_age", "k0", "B0_exp", "B0", "theta")
+non_data_pars <- c("k0", "B0_exp", "B0", "theta")
+
+pars_categ <- c("indig", "protec", names(data)[str_detect(names(data), "LU|ecoreg|soil")])
 
 #------------------ Import Data -------------------#
 
@@ -178,17 +222,13 @@ if (run_all || run_one) {
   )
 
   basic_pars <- list(
-    c("B0"),
-    c("B0_exp"),
-    c("implicit_age", "k0", "B0_exp"),
-    c("implicit_age", "k0", "B0"),
+    c("age", "B0"),
     c("age", "k0", "B0"),
-    c("age", "B0")
+    c("k0", "B0"), # age is implicit
+    c("k0", "B0_exp") # age is implicit
   )
-
-
 }
-run_one <- TRUE
+
 if (run_one) {
   pars_chosen <- data_pars[[2]]
   pars_basic <- basic_pars[[1]]
@@ -203,24 +243,6 @@ if (run_one) {
   
   o_iter <- run_optimization("nls", pars_basic, pars_chosen, data, conditions_iter)
 
-    new_row <- o_iter$model$par
-    new_row <- as.data.frame(t(new_row))
-
-    new_row$model_name <- intervals[[1]]
-    new_row$model_type <- "optim"
-    new_row$rsq <- o_iter$rsq
-
-    new_row <- ensure_consistent_columns(new_row)
-
-    # Reorder columns to have model_name first and rsq second
-    new_row <- new_row %>% select(model_name, model_type, rsq, everything())
-    print(new_row)
-}
-
-ensure_consistent_columns <- function(df) {
-  missing_cols <- setdiff(unique(unlist(c(data_pars, basic_pars))), names(df))
-  df[missing_cols] <- NA
-  df[, unique(unlist(c(data_pars, basic_pars)))]
 }
 
 if (run_all) {
@@ -234,7 +256,7 @@ if (run_all) {
   registerDoParallel(cores = 15)
   
   results <- foreach(iter = 1:nrow(iterations),  .combine = 'bind_rows', .packages = c('dplyr')) %dopar% {
-    
+    print(iter)
     i <- iterations$dataframe[iter]
     j <- iterations$data_par[iter]
     k <- iterations$basic_par[iter]
@@ -255,14 +277,18 @@ if (run_all) {
     new_row <- o_iter$model$par
     new_row <- as.data.frame(t(new_row))
 
+    # ensure consistent columns
+    missing_cols <- setdiff(unique(unlist(c(data_pars, non_data_pars))), names(new_row))
+    new_row[missing_cols] <- NA
+    new_row <- new_row[, unique(unlist(c(data_pars, non_data_pars)))]
+
+
     new_row$model_name <- intervals[[i]]
     new_row$model_type <- "optim"
     new_row$rsq <- o_iter$rsq
 
-    new_row <- ensure_consistent_columns(new_row)
-
     # Reorder columns to have model_name first and rsq second
-    new_row <- new_row %>% select(model_name, model_type, rsq, everything())
+    new_row <- new_row %>% select(model_name, model_type, rsq, all_of(non_data_pars), everything())
     print(new_row)
     new_row
   }
@@ -273,4 +299,50 @@ if (run_all) {
   # Write the dataframe to a CSV file
   write.csv(lm_df, "./data/fit_results.csv", row.names = FALSE)
 
+}
+
+
+if (run_all) {
+  iterations <- expand.grid(
+    dataframe = seq_along(dataframes),
+    data_par = which(!sapply(data_pars, function(par_set) any(climatic_pars %in% par_set)))
+  )
+
+  registerDoParallel(cores = 15)
+
+  results <- foreach(iter = 1:nrow(iterations), .combine = "bind_rows", .packages = c("dplyr")) %dopar% {
+    # i = 1
+    # j = 1
+    i <- iterations$dataframe[iter]
+    j <- iterations$data_par[iter]
+
+    data <- dataframes[[i]]
+    continuous <- c(data_pars[[j]][!data_pars[[j]] %in% pars_categ], "mature_biomass")
+    categorical <- data_pars[[j]][data_pars[[j]] %in% pars_categ]
+
+    val <- run_rf_gam_lm(data, categorical, continuous, "lm")
+
+    new_row <- summary(val$model)$coefficients[-1, 1] # -1 to remove (Intercept)
+    new_row <- as.data.frame(t(new_row))
+
+    # ensure consistent columns
+    missing_cols <- setdiff(c(unique(unlist(c(data_pars))), "mature_biomass"), names(new_row))
+    new_row[missing_cols] <- NA
+    new_row <- new_row[, c(unique(unlist(c(data_pars))), "mature_biomass")]
+
+    new_row$model_name <- intervals[[i]]
+    new_row$model_type <- "lm"
+    new_row$rsq <- val$rsq
+
+    # Reorder columns to have model_name first and rsq second
+    new_row <- new_row %>% select(model_name, model_type, rsq, "mature_biomass", everything())
+    print(new_row)
+    new_row
+  }
+
+  # Combine all results into a single dataframe
+  lm_df <- as.data.frame(results)
+
+  # Write the dataframe to a CSV file
+  write.csv(lm_df, "./data/fit_results.csv", row.names = FALSE)
 }
