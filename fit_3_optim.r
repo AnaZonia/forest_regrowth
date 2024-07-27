@@ -50,6 +50,7 @@ growth_curve <- function(pars, data) {
   }
 }
 
+
 # Calculates Nonlinear Least Squares
 # Intakes:
 # fun <- the function to be used, either "nls" or "nll"
@@ -104,7 +105,7 @@ run_optimization <- function(fun, pars_basic, data_pars, train_data, test_data, 
     optim(pars,
       likelihood,
       fun = fun,
-      data = data,
+      data = train_data,
       conditions = conditions
     )
   }
@@ -127,10 +128,7 @@ run_optimization <- function(fun, pars_basic, data_pars, train_data, test_data, 
   ))
 }
 
-run_rf_gam_lm <- function(data, categorical, continuous, model) {
-  train_indices <- sample(1:nrow(data), size = floor(0.7 * nrow(data)))
-  train_data <- data[train_indices, ]
-  test_data <- data[-train_indices, ]
+run_rf_gam_lm <- function(train_data, test_data, categorical, continuous, model) {
 
   # Fit a GAM model
   if (model == "gam") {
@@ -146,6 +144,19 @@ run_rf_gam_lm <- function(data, categorical, continuous, model) {
     rf_lm_formula <- as.formula(paste("agbd ~", paste(rf_lm_pars, collapse = " + ")))
     if (model == "lm") {
       model <- lm(rf_lm_formula, data = train_data)
+      # Check for rank deficiency
+      aliased_vars <- summary(lm_iter$model)$aliased
+
+      if (any(aliased_vars)) {
+        problematic_vars <- names(aliased_vars)[aliased_vars]
+        print(paste("Removing rank-deficient variables:", paste(problematic_vars, collapse = ", ")))
+
+        # Remove problematic variables from the formula
+        rf_lm_pars <- rf_lm_pars[!rf_lm_pars %in% problematic_vars]
+        rf_lm_formula <- as.formula(paste("agbd ~", paste(rf_lm_pars, collapse = " + ")))
+        model <- lm(rf_lm_formula, data = train_data)
+      }
+
     } else {
       model <- randomForest(rf_lm_formula,
         data = train_data,
@@ -205,8 +216,8 @@ dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 # Function to create both samples
 sample_data <- function(df, size_train, size_test) {
   train_dataframes <- sample_n(df, size = size_train)
-  remaining <- df[!(row.names(df) %in% row.names(sample1)), ]
-  test_dataframes <- sample_n(remaining, size = train_dataframes)
+  remaining <- df[!(row.names(df) %in% row.names(train_dataframes)), ]
+  test_dataframes <- sample_n(remaining, size = size_test)
   list(train_dataframes, test_dataframes)
 }
 
@@ -235,6 +246,7 @@ if (run_all || run_one) {
   )]
 
   data_pars <- list(
+    c("cwd"),
     c("cwd", "mean_prec", "mean_si"),
     c("cwd", climatic_pars),
     colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)],
@@ -250,9 +262,9 @@ if (run_all || run_one) {
     c("k0", "B0_exp") # age is implicit
   )
 }
-run_one <- TRUE
+
 if (run_one) {
-  pars_chosen <- data_pars[[2]]
+  pars_chosen <- data_pars[[1]]
   pars_basic <- basic_pars[[1]]
   train_data <- train_dataframes[[1]]
   test_data <- test_dataframes[[1]]
@@ -267,8 +279,6 @@ if (run_one) {
   o_iter <- run_optimization("nls", pars_basic, pars_chosen, train_data, test_data, conditions_iter)
 
 }
-
-
 
 if (run_all) {
   start_time <- Sys.time()
@@ -288,7 +298,8 @@ if (run_all) {
     j <- iterations_optim$data_par[iter]
     k <- iterations_optim$basic_par[iter]
 
-    data <- dataframes[[i]]
+    train_data <- train_dataframes[[i]]
+    test_data <- test_dataframes[[i]]
     pars_chosen <- data_pars[[j]]
     pars_basic <- basic_pars[[k]]
     
@@ -299,7 +310,7 @@ if (run_all) {
       conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
     }
 
-    o_iter <- run_optimization("nls", pars_basic, pars_chosen, data, conditions_iter)
+    o_iter <- run_optimization("nls", pars_basic, pars_chosen, train_data, test_data, conditions_iter)
 
     optim_output <- o_iter$model$par
 
@@ -320,31 +331,23 @@ if (run_all) {
     dataframe = seq_along(dataframes),
     data_par = which(!sapply(data_pars_lm, function(par_set) any(climatic_pars %in% par_set)))
   )
-  
+
   results_lm <- foreach(iter = 1:nrow(iterations_lm), .combine = "bind_rows", .packages = c("dplyr")) %dopar% {
+
     i <- iterations_lm$dataframe[iter]
     j <- iterations_lm$data_par[iter]
 
-    data <- dataframes[[i]]
+    train_data <- train_dataframes[[i]]
+    test_data <- test_dataframes[[i]]
     pars_chosen <- data_pars_lm[[j]]
 
     # Filter data_pars to exclude items containing climatic_pars
     continuous <- c(pars_chosen[!pars_chosen %in% pars_categ])
     categorical <- pars_chosen[pars_chosen %in% pars_categ]
 
-    lm_iter <- run_rf_gam_lm(data, categorical, continuous, "lm")
-    
-    # # Check for rank deficiency
-    # aliased_vars <- summary(model)$aliased
-    # if (any(aliased_vars)) {
-    #   problematic_vars <- names(aliased_vars)[aliased_vars]
-    #   print(paste("Removing rank-deficient variables:", paste(problematic_vars, collapse = ", ")))
-      
-    #   # Remove problematic variables from the formula
-    #   rf_lm_pars <- rf_lm_pars[!rf_lm_pars %in% problematic_vars]
-    #   rf_lm_formula <- as.formula(paste("agbd ~", paste(rf_lm_pars, collapse = " + ")))
+    lm_iter <- run_rf_gam_lm(train_data, test_data, categorical, continuous, "lm")
 
-    lm_output <- summary(lm_iter$model)$coefficients[-1, 1] # -1 to remove (Intercept)
+    lm_output <- summary(lm_iter$model)$coefficients[-1, 1, drop = FALSE] # -1 to remove (Intercept)
 
     lm_row <- process_row(lm_output, intervals[[i]], "lm", lm_iter$rsq)
 
@@ -356,10 +359,8 @@ if (run_all) {
   df <- as.data.frame(rbind(results_optim, results_lm))
 
   # Write the dataframe to a CSV file
-  write.csv(df, "./data/fit_results.csv", row.names = FALSE)
+  write.csv(df, "./data/fit_results_test_train.csv", row.names = FALSE)
   print(paste("written! Time took: ", as.numeric(difftime(Sys.time(), start_time, units = "hours")), " hours"))
 
 }
 
-tst <- read.csv("./data/fit_results.csv")
-head(tst)
