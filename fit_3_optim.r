@@ -10,6 +10,7 @@ library(ggplot2)
 library(foreach)
 library(doParallel)
 library(mgcv)
+library(randomForest)
 
 source("fit_1_import_data.r")
 set.seed(1)
@@ -17,7 +18,6 @@ set.seed(1)
 #------------------ SWITCHES ------------------#
 
 run_all <- TRUE
-run_one <- FALSE
 
 #------------------ FUNCTIONS ------------------#
 
@@ -82,8 +82,12 @@ likelihood <- function(fun, pars, data, conditions) {
   }
 }
 
-run_optimization <- function(fun, pars_basic, data_pars, train_data, test_data, conditions) {
-
+run_optimization <- function(fun, pars_basic, pars_chosen, train_data, test_data, conditions) {
+  # pars_chosen <- data_pars[[2]]
+  # pars_basic <- basic_pars[[4]]
+  # train_data <- train_dataframes[[1]]
+  # test_data <- test_dataframes[[1]]
+  # fun = "nls"
   # Run optimization
   if (fun == "nll") {
     pars <- c(pars, setNames(0.1, "sd"))
@@ -92,11 +96,11 @@ run_optimization <- function(fun, pars_basic, data_pars, train_data, test_data, 
   current_pars <- c(
     theta = 5,
     setNames(
-      rep(0.1, length(c(pars_basic, data_pars[1]))),
-      c(pars_basic, data_pars[1])
+      rep(0.1, length(c(pars_basic, pars_chosen[1]))),
+      c(pars_basic, pars_chosen[1])
     )
   )
-
+  current_pars
   if ("B0" %in% pars_basic) {
     current_pars["B0"] <- 40
   }
@@ -113,9 +117,9 @@ run_optimization <- function(fun, pars_basic, data_pars, train_data, test_data, 
 
   o <- optimize(current_pars)
 
-  if (length(data_pars) > 1) {
-    for (i in 2:length(data_pars)) {
-      current_pars <- c(o$par, setNames(0.1, data_pars[i]))
+  if (length(pars_chosen) > 1) {
+    for (i in 2:length(pars_chosen)) {
+      current_pars <- c(o$par, setNames(0.1, pars_chosen[i]))
       o <- optimize(current_pars)
     }
   }
@@ -129,88 +133,12 @@ run_optimization <- function(fun, pars_basic, data_pars, train_data, test_data, 
   ))
 }
 
-# Function to fit a GAM model and handle the error with an increasing threshold
-fit_gam_model <- function(formula, data, initial_threshold = 5, max_threshold = 20) {
-  threshold <- initial_threshold
-
-  repeat {
-    result <- tryCatch(
-      {
-        model <- gam(formula, data = data)
-        return(model)
-      },
-      error = function(e) {
-        message("Error in fitting GAM model with threshold ", threshold, ": ", e$message)
-
-        # Identify the problematic term(s)
-        terms_in_formula <- all.vars(formula)
-        unique_values_count <- sapply(terms_in_formula, function(term) length(unique(data[[term]])))
-
-        # Find terms with fewer unique values than the threshold
-        problematic_terms <- names(unique_values_count[unique_values_count < threshold])
-
-        if (length(problematic_terms) > 0) {
-          message("Removing problematic terms: ", paste(problematic_terms, collapse = ", "))
-
-          # Remove the problematic terms from the formula
-          updated_terms <- terms_in_formula[!terms_in_formula %in% problematic_terms]
-          updated_formula <- as.formula(paste(
-            "agbd ~",
-            paste(
-              sapply(updated_terms, function(x) paste0("s(", x, ")")),
-              collapse = " + "
-            )
-          ))
-
-          return(list(success = FALSE, formula = updated_formula))
-        } else {
-          return(list(success = FALSE, message = "No problematic terms found, but error persists."))
-        }
-      }
-    )
-
-    if (result$success) {
-      return(result$model)
-    } else {
-      if (threshold >= max_threshold) {
-        stop(result$message)
-      }
-      formula <- result$formula
-      threshold <- threshold + 1
-    }
-  }
-}
-
-# Define the formula
-formula <- as.formula(paste(
-  "agbd ~",
-  paste(sapply(continuous, function(x) paste0("s(", x, ")")), collapse = " + "),
-  "+",
-  paste(categorical, collapse = " + ")
-))
-
-# Fit the GAM model
-model <- fit_gam_model(formula, train_data)
 
 
-
-
-
-
-
-run_rf_gam_lm <- function(train_data, test_data, categorical, continuous, model) {
+run_gam_lm <- function(train_data, test_data, pars_chosen, model) {
 
   # Fit a GAM model
   if (model == "gam") {
-    iter=14
-    i <- iterations_lm$dataframe[iter]
-    j <- iterations_lm$data_par[iter]
-i
-    train_data <- train_dataframes[[i]]
-    head(train_data)
-    test_data <- test_dataframes[[i]]
-    pars_chosen <- data_pars_lm[[j]]
-pars_chosen
     # Filter data_pars to exclude items containing climatic_pars
     continuous <- c(pars_chosen[!pars_chosen %in% pars_categ])
     categorical <- pars_chosen[pars_chosen %in% pars_categ]
@@ -221,48 +149,61 @@ pars_chosen
       "+",
       paste(categorical, collapse = " + ")
     ))
+
     model <- gam(formula, data = train_data)
+  } else { # Fit a Linear Model
 
-gam(formula)$df.residual
+    rf_lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
 
-  } else {
-    rf_lm_pars <- c(continuous, categorical)
-    rf_lm_formula <- as.formula(paste("agbd ~", paste(rf_lm_pars, collapse = " + ")))
     if (model == "lm") {
       model <- lm(rf_lm_formula, data = train_data)
       # Check for rank deficiency
-      aliased_vars <- summary(lm_iter$model)$aliased
+      aliased_vars <- summary(model)$aliased
 
       if (any(aliased_vars)) {
         problematic_vars <- names(aliased_vars)[aliased_vars]
         print(paste("Removing rank-deficient variables:", paste(problematic_vars, collapse = ", ")))
 
         # Remove problematic variables from the formula
-        rf_lm_pars <- rf_lm_pars[!rf_lm_pars %in% problematic_vars]
-        rf_lm_formula <- as.formula(paste("agbd ~", paste(rf_lm_pars, collapse = " + ")))
+        pars_chosen <- pars_chosen[!pars_chosen %in% problematic_vars]
+        rf_lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
         model <- lm(rf_lm_formula, data = train_data)
       }
-
-    } else {
-      model <- randomForest(rf_lm_formula,
-        data = train_data,
-        ntree = 500, mtry = sqrt(ncol(train_data) - 1), importance = TRUE,
-        keep.forest = TRUE, oob.score = TRUE
-      )
     }
   }
 
   pred <- predict(model, newdata = test_data)
   rsq <- cor(test_data$agbd, pred)^2
-  print(rsq)
+  print(paste("R-squared:", rsq))
 
   return(results <- list(
     model = model,
-    pred = pred,
-    test_agbd = test_data$agbd,
     rsq = rsq
   ))
 }
+
+
+run_rf <- function(train_data, test_data, pars_chosen) {
+  rf_lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
+
+  sampled_train_data <- train_data[sample(nrow(train_data), 20000), ]
+
+  model <- randomForest(rf_lm_formula,
+    data = sampled_train_data,
+    ntree = 100, mtry = 2, importance = TRUE,
+    keep.forest = TRUE, oob.score = TRUE, do.trace = 10, parallel = TRUE
+  )
+
+  pred <- predict(model, newdata = test_data)
+  rsq <- cor(test_data$agbd, pred)^2
+  print(paste("R-squared:", rsq))
+  return(results <- list(
+    output = importance(rf_iter$model),
+    rsq = rsq
+  ))
+}
+
+
 
 # Define helper functions
 process_row <- function(output, model_name, model_type, rsq) {
@@ -313,59 +254,54 @@ samples <- lapply(dataframes, sample_data, size_train = 60000, size_test = 40000
 # Extract the first and second element of samples
 train_dataframes <- lapply(samples, `[[`, 1)
 test_dataframes <- lapply(samples, `[[`, 2)
-head(train_dataframes[[1]])
+
+# Define conditions
+conditions <- list(
+  'pars["theta"] > 10',
+  'pars["theta"] < 0'
+)
+
+# in order to make them comparable, we only fit the columns that are present in all dataframes
+colnames_intersect <- Reduce(intersect, map(dataframes, colnames))
+# also exclude columns that are not predictors
+colnames_filtered <- colnames_intersect[!grepl(
+  "age|agbd|latitude|longitude|prec|si|mature_biomass|distance|biome|cwd",
+  colnames_intersect
+)]
+
+data_pars <- list(
+  c("cwd"),
+  c("cwd", "mean_prec", "mean_si"),
+  c("cwd", climatic_pars),
+  colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)],
+  colnames_filtered,
+  c(colnames_filtered, "cwd", "mean_prec", "mean_si"),
+  c(colnames_filtered, climatic_pars)
+)
+
+basic_pars <- list(
+  c("age", "B0"),
+  c("age", "k0", "B0"),
+  c("k0", "B0"), # age is implicit
+  c("k0", "B0_exp") # age is implicit
+)
 
 ################### Running model ###################
 
-if (run_all || run_one) {
-  # Define conditions
-  conditions <- list(
-    'pars["theta"] > 10',
-    'pars["theta"] < 0'
-  )
+# pars_chosen <- data_pars[[1]]
+# pars_basic <- basic_pars[[4]]
+# train_data <- train_dataframes[[1]]
+# test_data <- test_dataframes[[1]]
 
-  # in order to make them comparable, we only fit the columns that are present in all dataframes
-  colnames_intersect <- Reduce(intersect, map(dataframes, colnames))
-  # also exclude columns that are not predictors
-  colnames_filtered <- colnames_intersect[!grepl(
-    "age|agbd|latitude|longitude|prec|si|mature_biomass|distance|biome|cwd",
-    colnames_intersect
-  )]
+# conditions_iter <- conditions
+# if ("age" %in% pars_chosen) {
+#   conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
+# } else if ("B0" %in% pars_chosen) {
+#   conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
+# }
 
-  data_pars <- list(
-    c("cwd"),
-    c("cwd", "mean_prec", "mean_si"),
-    c("cwd", climatic_pars),
-    colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)],
-    colnames_filtered,
-    c(colnames_filtered, "cwd", "mean_prec", "mean_si"),
-    c(colnames_filtered, climatic_pars)
-  )
+# o_iter <- run_optimization("nls", pars_basic, pars_chosen, train_data, test_data, conditions_iter)
 
-  basic_pars <- list(
-    c("age", "B0"),
-    c("age", "k0", "B0"),
-    c("k0", "B0"), # age is implicit
-    c("k0", "B0_exp") # age is implicit
-  )
-}
-
-if (run_one) {
-  pars_chosen <- data_pars[[1]]
-  pars_basic <- basic_pars[[1]]
-  train_data <- train_dataframes[[1]]
-  test_data <- test_dataframes[[1]]
-
-  conditions_iter <- conditions
-  if ("age" %in% pars_chosen) {
-    conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
-  } else if ("B0" %in% pars_chosen) {
-    conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
-  }
-  
-  o_iter <- run_optimization("nls", pars_basic, pars_chosen, train_data, test_data, conditions_iter)
-
-}
 
 if (run_all) {
   start_time <- Sys.time()
@@ -377,9 +313,11 @@ if (run_all) {
     basic_par = seq_along(basic_pars)
   )
 
-  registerDoParallel(cores = 15)
+  registerDoParallel(cores = 25)
 
-  results_optim <- foreach(iter = 1:nrow(iterations_optim),  .combine = 'bind_rows', .packages = c('dplyr')) %dopar% {
+  results_optim <- foreach(iter = 1:nrow(iterations_optim), .combine = 'bind_rows', 
+  .packages = c('dplyr')) %dopar% {
+    
     print(iter)
     i <- iterations_optim$dataframe[iter]
     j <- iterations_optim$data_par[iter]
@@ -405,6 +343,7 @@ if (run_all) {
     optim_row <- process_row(optim_output, intervals[[i]], "optim", o_iter$rsq)
 
     print(optim_row)
+    print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
     optim_row
   }
 
@@ -420,7 +359,7 @@ if (run_all) {
   )
 
   results_lm <- foreach(iter = 1:nrow(iterations_lm), .combine = "bind_rows", .packages = c("dplyr")) %dopar% {
-
+    print(iter)
     i <- iterations_lm$dataframe[iter]
     j <- iterations_lm$data_par[iter]
 
@@ -428,25 +367,50 @@ if (run_all) {
     test_data <- test_dataframes[[i]]
     pars_chosen <- data_pars_lm[[j]]
 
-    # Filter data_pars to exclude items containing climatic_pars
-    continuous <- c(pars_chosen[!pars_chosen %in% pars_categ])
-    categorical <- pars_chosen[pars_chosen %in% pars_categ]
-
-    lm_iter <- run_rf_gam_lm(train_data, test_data, categorical, continuous, "lm")
+    lm_iter <- run_gam_lm(train_data, test_data, pars_chosen, "lm")
 
     lm_output <- summary(lm_iter$model)$coefficients[-1, 1, drop = FALSE] # -1 to remove (Intercept)
 
     lm_row <- process_row(lm_output, intervals[[i]], "lm", lm_iter$rsq)
 
     print(lm_row)
+    print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
     lm_row
   }
 
+
+  results_rf <- foreach(
+    iter = 1:nrow(iterations_lm), .combine = "bind_rows",
+    .packages = c("dplyr", "randomForest")
+  ) %dopar% {
+
+    print(iter)
+    i <- iterations_lm$dataframe[iter]
+    j <- iterations_lm$data_par[iter]
+
+    train_data <- train_dataframes[[i]]
+    test_data <- test_dataframes[[i]]
+    pars_chosen <- data_pars_lm[[j]]
+
+    rf_iter <- run_rf(train_data, test_data, pars_chosen)
+
+    # writing only %IncMSE into the dataframe
+    rf_row <- process_row(rf_iter$output[, 1], intervals[[i]], "rf", rf_iter$rsq)
+    
+    print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
+    print(rf_row)
+    rf_row
+  }
+  
+  
+  print(paste("written! Time for the whole operation: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
+
+
   # Combine all results into a single dataframe
-  df <- as.data.frame(rbind(results_optim, results_lm))
+  df <- as.data.frame(rbind(results_optim, results_lm, results_rf))
 
   # Write the dataframe to a CSV file
-  write.csv(df, "./data/fit_results_test_train.csv", row.names = FALSE)
+  write.csv(df, "./data/fit_results_test_train_rf.csv", row.names = FALSE)
   print(paste("written! Time took: ", as.numeric(difftime(Sys.time(), start_time, units = "hours")), " hours"))
 
 }
