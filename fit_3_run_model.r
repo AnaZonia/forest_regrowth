@@ -1,8 +1,17 @@
-####################################################################
-############### Run model with optim, lm, gam and rf ###############
-####################################################################
-# Ana Avila - July 2024
-####################################################################
+################################################################################
+#                                                                              #
+#                 Forest Regrowth Model Fitting and Comparison                 #
+#                                                                              #
+#                              Ana Avila - July 2024                           #
+#                                                                              #
+#     This script runs and compares the Chapman-Richards growth curve fit      #
+#     through optim, as well as linear, GAM, and random forest models for      #
+#     forest regrowth analysis. The results are combined into a single         #
+#     dataframe and saved as 'fit_results_test_train_rf.csv' in the            #
+#     './data/' directory.                                                     #
+#                                                                              #
+################################################################################
+
 
 library(ggplot2)
 library(foreach)
