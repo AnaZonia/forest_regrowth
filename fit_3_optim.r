@@ -15,8 +15,7 @@ source("fit_1_import_data.r")
 #------------------ SWITCHES ------------------#
 
 run_all <- TRUE
-run_one <- TRUE
-fit_gaus_ker <- FALSE
+run_one <- FALSE
 
 #------------------ FUNCTIONS ------------------#
 
@@ -154,7 +153,6 @@ dataframes <- lapply(dataframes, function(df) {
 
 ################### Running model ###################
 
-
 if (run_all || run_one) {
   # Define conditions
   conditions <- list(
@@ -188,32 +186,45 @@ if (run_all || run_one) {
     c("age", "B0")
   )
 
-  # adding names can make indexing complicated, so they are being referenced as a vector
-  names_configurations <- c(
-    "none", "clim_mean", "clim_hist", "lulc",
-    "lulc_ecoreg_soil", "lulc_ecoreg_soil_clim_mean", "lulc_ecoreg_soil_clim_hist"
-  )
-}
 
+}
+run_one <- TRUE
 if (run_one) {
   pars_chosen <- data_pars[[2]]
   pars_basic <- basic_pars[[1]]
+  data <- dataframes[[1]]
 
+  conditions_iter <- conditions
   if ("age" %in% pars_chosen) {
-    conditions_iter <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
-  } else if ("B0" %in% pars_basic) {
-    conditions_iter <- c(conditions, list('pars["B0"] < 0'))
+    conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
+  } else if ("B0" %in% pars_chosen) {
+    conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
   }
   
-  o_iter <- run_optimization("nls", pars_basic, pars_chosen, data, conditions)
+  o_iter <- run_optimization("nls", pars_basic, pars_chosen, data, conditions_iter)
 
+    new_row <- o_iter$model$par
+    new_row <- as.data.frame(t(new_row))
+
+    new_row$model_name <- intervals[[1]]
+    new_row$model_type <- "optim"
+    new_row$rsq <- o_iter$rsq
+
+    new_row <- ensure_consistent_columns(new_row)
+
+    # Reorder columns to have model_name first and rsq second
+    new_row <- new_row %>% select(model_name, model_type, rsq, everything())
+    print(new_row)
 }
 
+ensure_consistent_columns <- function(df) {
+  missing_cols <- setdiff(unique(unlist(c(data_pars, basic_pars))), names(df))
+  df[missing_cols] <- NA
+  df[, unique(unlist(c(data_pars, basic_pars)))]
+}
 
 if (run_all) {
-  # sum_squares_fit <- list()
-  # pars_fit <- list()
-  # Run optimization
+
   iterations <- expand.grid(
     dataframe = seq_along(dataframes),
     data_par = seq_along(data_pars),
@@ -222,7 +233,7 @@ if (run_all) {
 
   registerDoParallel(cores = 15)
   
-  results <- foreach(iter = 1:nrow(iterations),  .combine = 'rbind', .packages = c('dplyr')) %dopar% {
+  results <- foreach(iter = 1:nrow(iterations),  .combine = 'bind_rows', .packages = c('dplyr')) %dopar% {
     
     i <- iterations$dataframe[iter]
     j <- iterations$data_par[iter]
@@ -232,10 +243,11 @@ if (run_all) {
     pars_chosen <- data_pars[[j]]
     pars_basic <- basic_pars[[k]]
     
+    conditions_iter <- conditions
     if ("age" %in% pars_chosen) {
-      conditions_iter <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
+      conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
     } else if ("B0" %in% pars_chosen) {
-      conditions_iter <- c(conditions, list('pars["B0"] < 0'))
+      conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
     }
 
     o_iter <- run_optimization("nls", pars_basic, pars_chosen, data, conditions_iter)
@@ -246,6 +258,8 @@ if (run_all) {
     new_row$model_name <- intervals[[i]]
     new_row$model_type <- "optim"
     new_row$rsq <- o_iter$rsq
+
+    new_row <- ensure_consistent_columns(new_row)
 
     # Reorder columns to have model_name first and rsq second
     new_row <- new_row %>% select(model_name, model_type, rsq, everything())
@@ -260,4 +274,3 @@ if (run_all) {
   write.csv(lm_df, "./data/fit_results.csv", row.names = FALSE)
 
 }
-
