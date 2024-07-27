@@ -167,6 +167,17 @@ run_rf_gam_lm <- function(data, categorical, continuous, model) {
   ))
 }
 
+# Define helper functions
+process_row <- function(output, model_name, model_type, rsq) {
+  row <- as.data.frame(t(output))
+  missing_cols <- setdiff(c(unique(unlist(c(data_pars, non_data_pars))), "mature_biomass", "age"), names(row))
+  row[missing_cols] <- NA
+  row <- row[, c(unique(unlist(c(data_pars, non_data_pars))), "mature_biomass", "age")]
+  row$model_name <- model_name
+  row$model_type <- model_type
+  row$rsq <- rsq
+  row %>% select(model_name, model_type, rsq, "mature_biomass", all_of(non_data_pars), everything())
+}
 
 #------------------ Global Variables ------------------#
 
@@ -247,15 +258,17 @@ if (run_one) {
 
 if (run_all) {
 
-  iterations <- expand.grid(
+  iterations_optim <- expand.grid(
     dataframe = seq_along(dataframes),
     data_par = seq_along(data_pars),
     basic_par = seq_along(basic_pars)
   )
 
   registerDoParallel(cores = 15)
-  
-  results <- foreach(iter = 1:nrow(iterations),  .combine = 'bind_rows', .packages = c('dplyr')) %dopar% {
+
+  iterations_optim <- iterations_optim[1,]
+
+  results_optim <- foreach(iter = 1:nrow(iterations_optim),  .combine = 'bind_rows', .packages = c('dplyr')) %dopar% {
     print(iter)
     i <- iterations$dataframe[iter]
     j <- iterations$data_par[iter]
@@ -274,75 +287,42 @@ if (run_all) {
 
     o_iter <- run_optimization("nls", pars_basic, pars_chosen, data, conditions_iter)
 
-    new_row <- o_iter$model$par
-    new_row <- as.data.frame(t(new_row))
+    optim_output <- o_iter$model$par
 
-    # ensure consistent columns
-    missing_cols <- setdiff(unique(unlist(c(data_pars, non_data_pars))), names(new_row))
-    new_row[missing_cols] <- NA
-    new_row <- new_row[, unique(unlist(c(data_pars, non_data_pars)))]
+    # Reorder columns
+    optim_row <- process_row(optim_output, intervals[[i]], "lm", o_iter$rsq)
 
-
-    new_row$model_name <- intervals[[i]]
-    new_row$model_type <- "optim"
-    new_row$rsq <- o_iter$rsq
-
-    # Reorder columns to have model_name first and rsq second
-    new_row <- new_row %>% select(model_name, model_type, rsq, all_of(non_data_pars), everything())
-    print(new_row)
-    new_row
+    print(optim_row)
+    optim_row
   }
 
-  # Combine all results into a single dataframe
-  lm_df <- as.data.frame(results)
+  class(results_optim)
 
-  # Write the dataframe to a CSV file
-  write.csv(lm_df, "./data/fit_results.csv", row.names = FALSE)
-
-}
-
-
-if (run_all) {
-  iterations <- expand.grid(
+  iterations_lm <- expand.grid(
     dataframe = seq_along(dataframes),
-    data_par = which(!sapply(data_pars, function(par_set) any(climatic_pars %in% par_set)))
+    data_par = seq_along(which(!sapply(data_pars, function(par_set) any(climatic_pars %in% par_set)))),
   )
 
-  registerDoParallel(cores = 15)
-
-  results <- foreach(iter = 1:nrow(iterations), .combine = "bind_rows", .packages = c("dplyr")) %dopar% {
-    # i = 1
-    # j = 1
-    i <- iterations$dataframe[iter]
-    j <- iterations$data_par[iter]
-
-    data <- dataframes[[i]]
+  # Filter data_pars to exclude items containing climatic_pars
     continuous <- c(data_pars[[j]][!data_pars[[j]] %in% pars_categ], "mature_biomass")
     categorical <- data_pars[[j]][data_pars[[j]] %in% pars_categ]
 
-    val <- run_rf_gam_lm(data, categorical, continuous, "lm")
+    lm_iter <- run_rf_gam_lm(data, categorical, continuous, "lm")
 
-    new_row <- summary(val$model)$coefficients[-1, 1] # -1 to remove (Intercept)
-    new_row <- as.data.frame(t(new_row))
+    lm_output <- summary(lm_iter$model)$coefficients[-1, 1] # -1 to remove (Intercept)
 
-    # ensure consistent columns
-    missing_cols <- setdiff(c(unique(unlist(c(data_pars))), "mature_biomass"), names(new_row))
-    new_row[missing_cols] <- NA
-    new_row <- new_row[, c(unique(unlist(c(data_pars))), "mature_biomass")]
+    lm_row <- process_row(lm_output, intervals[[i]], "optim", lm_iter$rsq)
 
-    new_row$model_name <- intervals[[i]]
-    new_row$model_type <- "lm"
-    new_row$rsq <- val$rsq
+    print(bind_rows(optim_row, lm_row))
 
-    # Reorder columns to have model_name first and rsq second
-    new_row <- new_row %>% select(model_name, model_type, rsq, "mature_biomass", everything())
-    print(new_row)
-    new_row
-  }
+
 
   # Combine all results into a single dataframe
-  lm_df <- as.data.frame(results)
+  df <- as.data.frame(results)
+
+
 
   # Write the dataframe to a CSV file
-  write.csv(lm_df, "./data/fit_results.csv", row.names = FALSE)
+  write.csv(df, "./data/fit_results.csv", row.names = FALSE)
+
 }
