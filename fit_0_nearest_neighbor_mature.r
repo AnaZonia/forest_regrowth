@@ -1,8 +1,16 @@
+################################################################################
+#                                                                              #
+#                 Get Nearest Mature forest                                           #
+#                                                                              #
+################################################################################
+
+
+
 library(terra)
 library(doParallel)
 
 set.seed(0)
-mature_biomass <- rast("./data/mature_biomass_1000_countrywide.tif")
+mature_biomass <- rast("./data/mature_biomass_500m.tif")
 
 #-------- SWITCHES
 
