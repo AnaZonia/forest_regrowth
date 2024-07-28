@@ -24,6 +24,7 @@ source("fit_1_import_data.r")
 source("fit_2_functions.r")
 
 set.seed(1)
+registerDoParallel(cores = 25)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #----------------- Global Variables ---------------#
@@ -133,11 +134,11 @@ iterations_lm <- expand.grid(
   data_par = which(!sapply(data_pars_lm, function(par_set) any(climatic_pars %in% par_set)))
 )
 
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #------------------- Run Model --------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-registerDoParallel(cores = 25)
 start_time <- Sys.time()
 print(start_time)
 
