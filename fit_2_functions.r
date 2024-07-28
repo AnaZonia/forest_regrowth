@@ -258,10 +258,10 @@ run_rf <- function(train_data, test_data, pars_chosen) {
   rf_lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
 
   # reduce number of rows to 20,000 for faster computation
-  # sampled_train_data <- train_data[sample(nrow(train_data), 20000), ]
+  train_data <- train_data[sample(nrow(train_data), 20000), ]
 
   model <- randomForest(rf_lm_formula,
-    data = sampled_train_data,
+    data = train_data,
     ntree = 100, mtry = 2, importance = TRUE,
     keep.forest = TRUE, oob.score = TRUE, do.trace = 10, parallel = TRUE
   )
@@ -277,7 +277,7 @@ run_rf <- function(train_data, test_data, pars_chosen) {
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#------------- Prepare results for export as dataframe row -----------------------------#
+#------------- Prepare iteration results as dataframe row -----------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
 # Intakes:
@@ -287,14 +287,42 @@ run_rf <- function(train_data, test_data, pars_chosen) {
 #   rsq <- the calculated r squared for each iteration of the model
 
 # Define helper functions
-process_row <- function(output, model_name, model_type, rsq) {
-  row <- as.data.frame(t(output))
+process_row <- function(output, data_name, model_type, rsq) {
+  row <- as.data.frame(t(rf_iter$model[, 1]))
   # Set up columns of parameters that are not included in this iteration as NA
-  missing_cols <- setdiff(unique(c(unlist(c(data_pars, non_data_pars)), "mature_biomass", "age")), names(row))
+  missing_cols <- setdiff(unique(unlist(c(data_pars_lm, non_data_pars, data_pars))), names(row))
   row[missing_cols] <- NA
-  row <- row[, unique(c(unlist(c(data_pars, non_data_pars)), "mature_biomass", "age"))]
-  row$model_name <- model_name
+  row <- row[, unique(unlist(c(data_pars_lm, non_data_pars, data_pars)))]
+  row$data_name <- data_name
   row$model_type <- model_type
   row$rsq <- rsq
-  row %>% select(model_name, model_type, rsq, "mature_biomass", "age", all_of(non_data_pars), everything())
+  row %>% select(data_name, model_type, rsq, "mature_biomass", "age", all_of(non_data_pars), everything())
 }
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ------- Prepare final combined results for export as dataframe ----------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+# Intakes:
+#   results <- final dataframe of combined foreach output
+#   prefix <- optional for the dataframe name on export
+
+write_results_to_csv <- function(results, prefix = "") {
+  
+  # Get the name of the results object as a string
+  results_name <- deparse(substitute(results))
+
+  # Calculate and print the total time taken
+  total_time <- as.numeric(difftime(Sys.time(), start_time, units = "hours"))
+  print(paste(
+    results_name, "results written! Time for the whole operation: ",
+    total_time, " hours"
+  ))
+
+  # Combine all results into a single dataframe
+  df <- as.data.frame(results)
+
+  # Write the dataframe to a CSV file
+  write.csv(df, paste0("./data/", prefix, results_name, ".csv"), row.names = FALSE)
+}
+
