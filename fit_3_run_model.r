@@ -136,19 +136,6 @@ iterations_lm <- expand.grid(
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #------------------- Run Model --------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# pars_chosen <- data_pars[[1]]
-# pars_basic <- basic_pars[[4]]
-# train_data <- train_dataframes[[1]]
-# test_data <- test_dataframes[[1]]
-
-# conditions_iter <- conditions
-# if ("age" %in% pars_chosen) {
-#   conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
-# } else if ("B0" %in% pars_chosen) {
-#   conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
-# }
-
-# o_iter <- run_optimization("nls", pars_basic, pars_chosen, train_data, test_data, conditions_iter)
 
 registerDoParallel(cores = 25)
 start_time <- Sys.time()
@@ -192,6 +179,8 @@ results_optim <- foreach(iter = 1:nrow(iterations_optim),
   optim_row
 }
 
+write_results_to_csv(results_optim)
+
 # ~~~~~~~~~~~~~~~~ LINEAR MODEL ~~~~~~~~~~~~~~~~~~#
 
 
@@ -206,7 +195,7 @@ results_lm <- foreach(iter = 1:nrow(iterations_lm),
   test_data <- test_dataframes[[i]]
   pars_chosen <- data_pars_lm[[j]]
 
-  lm_iter <- run_gam_lm(train_data, test_data, pars_chosen, "lm")
+  lm_iter <- run_lm(train_data, test_data, pars_chosen)
 
   lm_output <- summary(lm_iter$model)$coefficients[-1, 1, drop = FALSE] # -1 to remove (Intercept)
 
@@ -221,12 +210,13 @@ results_lm <- foreach(iter = 1:nrow(iterations_lm),
   lm_row
 }
 
+write_results_to_csv(results_lm)
+
 # ~~~~~~~~~~~~~~~~ RANDOM FOREST ~~~~~~~~~~~~~~~~~~#
 
 results_rf <- foreach(iter = 1:nrow(iterations_lm),
-  .combine = "bind_rows",
-  .packages = c("dplyr", "randomForest")) %dopar% {
-
+  .combine = "bind_rows", .packages = c("dplyr", "randomForest")) %dopar% {
+    iter = 1
   print(iter)
   i <- iterations_lm$dataframe[iter]
   j <- iterations_lm$data_par[iter]
@@ -239,24 +229,14 @@ results_rf <- foreach(iter = 1:nrow(iterations_lm),
 
   # Organizes result into a new row for the final dataframe
   rf_row <- process_row(
-    rf_iter$output[, 1], intervals[[i]],
+    rf_iter$model[, 1], intervals[[1]],
     "rf", rf_iter$rsq
   )
-  
+
+
   print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
   print(rf_row)
   rf_row
 }
 
-
-# ~~~~~~~~~~~~~~~~ Finish and Export ~~~~~~~~~~~~~~~~~~#
-
-print(paste("written! Time for the whole operation: ",
-as.numeric(difftime(Sys.time(), start_time, units = "hours")), " hours"))
-
-# Combine all results into a single dataframe
-df <- as.data.frame(rbind(results_optim, results_lm, results_rf))
-
-# Write the dataframe to a CSV file
-write.csv(df, "./data/fit_results_test_train_rf.csv", row.names = FALSE)
-
+write_results_to_csv(results_rf)
