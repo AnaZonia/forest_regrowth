@@ -288,7 +288,7 @@ run_rf <- function(train_data, test_data, pars_chosen) {
 
 # Define helper functions
 process_row <- function(output, data_name, model_type, rsq) {
-  row <- as.data.frame(t(rf_iter$model[, 1]))
+  row <- as.data.frame(t(output))
   # Set up columns of parameters that are not included in this iteration as NA
   missing_cols <- setdiff(unique(unlist(c(data_pars_lm, non_data_pars, data_pars))), names(row))
   row[missing_cols] <- NA
@@ -315,7 +315,7 @@ write_results_to_csv <- function(results, prefix = "") {
   # Calculate and print the total time taken
   total_time <- as.numeric(difftime(Sys.time(), start_time, units = "hours"))
   print(paste(
-    results_name, "results written! Time for the whole operation: ",
+    results_name, "written! Time for the whole operation: ",
     total_time, " hours"
   ))
 
