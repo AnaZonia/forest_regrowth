@@ -52,11 +52,14 @@ create_correlation_plot <- function(df, interval_name) {
 }
 
 
+results_optim <- read.csv("./data/results_optim.csv")
+results_lm <- read.csv("./data/results_lm.csv")
+results_rf <- read.csv("./data/results_rf.csv")
 
-tst <- read.csv("./data/fit_results.csv")
+
 
 # Order the data frame by the column rsq
-tst_ordered <- tst %>%
+tst_ordered <- results_rf %>%
     arrange(desc(rsq))
 
 # View the first few rows of the ordered data frame

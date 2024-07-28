@@ -96,7 +96,7 @@ data_pars <- list(
   c("cwd"),
   c("cwd", "mean_prec", "mean_si"),
   c("cwd", climatic_pars),
-  colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)],
+  colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)], # land use only
   colnames_filtered,
   c(colnames_filtered, "cwd", "mean_prec", "mean_si"),
   c(colnames_filtered, climatic_pars)
@@ -142,82 +142,82 @@ iterations_lm <- expand.grid(
 start_time <- Sys.time()
 print(start_time)
 
-# ~~~~~~~~~~~~~~~~ OPTIM ~~~~~~~~~~~~~~~~~~~~~#
-# Run optimization with growth curve
+# # ~~~~~~~~~~~~~~~~ OPTIM ~~~~~~~~~~~~~~~~~~~~~#
+# # Run optimization with growth curve
 
-results_optim <- foreach(iter = 1:nrow(iterations_optim), 
-.combine = 'bind_rows', .packages = c('dplyr')) %dopar% {
+# results_optim <- foreach(iter = 1:nrow(iterations_optim), 
+# .combine = 'bind_rows', .packages = c('dplyr')) %dopar% {
   
-  print(iter)
-  i <- iterations_optim$dataframe[iter]
-  j <- iterations_optim$data_par[iter]
-  k <- iterations_optim$basic_par[iter]
+#   print(iter)
+#   i <- iterations_optim$dataframe[iter]
+#   j <- iterations_optim$data_par[iter]
+#   k <- iterations_optim$basic_par[iter]
 
-  train_data <- train_dataframes[[i]]
-  test_data <- test_dataframes[[i]]
-  pars_chosen <- data_pars[[j]]
-  pars_basic <- basic_pars[[k]]
+#   train_data <- train_dataframes[[i]]
+#   test_data <- test_dataframes[[i]]
+#   pars_chosen <- data_pars[[j]]
+#   pars_basic <- basic_pars[[k]]
   
-  conditions_iter <- conditions
-  if ("age" %in% pars_chosen) {
-    conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
-  } else if ("B0" %in% pars_chosen) {
-    conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
-  }
+#   conditions_iter <- conditions
+#   if ("age" %in% pars_chosen) {
+#     conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
+#   } else if ("B0" %in% pars_chosen) {
+#     conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
+#   }
 
-  o_iter <- run_optimization("nls", pars_basic, pars_chosen, train_data, test_data, conditions_iter)
+#   o_iter <- run_optimization("nls", pars_basic, pars_chosen, train_data, test_data, conditions_iter)
 
-  optim_output <- o_iter$model$par
+#   optim_output <- o_iter$model$par
 
-  # Organizes result into a new row for the final dataframe
-  optim_row <- process_row(
-    optim_output, intervals[[i]],
-    "optim", o_iter$rsq
-  )
+#   # Organizes result into a new row for the final dataframe
+#   optim_row <- process_row(
+#     optim_output, intervals[[i]],
+#     "optim", o_iter$rsq
+#   )
 
-  print(optim_row)
-  print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
-  optim_row
-}
+#   print(optim_row)
+#   print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
+#   optim_row
+# }
 
-write_results_to_csv(results_optim)
+# write_results_to_csv(results_optim)
 
-# ~~~~~~~~~~~~~~~~ LINEAR MODEL ~~~~~~~~~~~~~~~~~~#
+# # ~~~~~~~~~~~~~~~~ LINEAR MODEL ~~~~~~~~~~~~~~~~~~#
 
 
-results_lm <- foreach(iter = 1:nrow(iterations_lm), 
-.combine = "bind_rows", .packages = c("dplyr")) %dopar% {
+# results_lm <- foreach(iter = 1:nrow(iterations_lm), 
+# .combine = "bind_rows", .packages = c("dplyr")) %dopar% {
 
-  print(iter)
-  i <- iterations_lm$dataframe[iter]
-  j <- iterations_lm$data_par[iter]
+#   print(iter)
+#   i <- iterations_lm$dataframe[iter]
+#   j <- iterations_lm$data_par[iter]
 
-  train_data <- train_dataframes[[i]]
-  test_data <- test_dataframes[[i]]
-  pars_chosen <- data_pars_lm[[j]]
+#   train_data <- train_dataframes[[i]]
+#   test_data <- test_dataframes[[i]]
+#   pars_chosen <- data_pars_lm[[j]]
 
-  lm_iter <- run_lm(train_data, test_data, pars_chosen)
+#   lm_iter <- run_lm(train_data, test_data, pars_chosen)
 
-  lm_output <- summary(lm_iter$model)$coefficients[-1, 1, drop = FALSE] # -1 to remove (Intercept)
+#   lm_output <- summary(lm_iter$model)$coefficients[-1, 1, drop = FALSE] # -1 to remove (Intercept)
 
-  # Organizes result into a new row for the final dataframe
-  lm_row <- process_row(
-    lm_output, intervals[[i]],
-    "lm", lm_iter$rsq
-  )
+#   # Organizes result into a new row for the final dataframe
+#   lm_row <- process_row(
+#     lm_output, intervals[[i]],
+#     "lm", lm_iter$rsq
+#   )
 
-  print(lm_row)
-  print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
-  lm_row
-}
+#   print(lm_row)
+#   print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
+#   lm_row
+# }
 
-write_results_to_csv(results_lm)
+# write_results_to_csv(results_lm)
 
 # ~~~~~~~~~~~~~~~~ RANDOM FOREST ~~~~~~~~~~~~~~~~~~#
 
 results_rf <- foreach(iter = 1:nrow(iterations_lm),
   .combine = "bind_rows", .packages = c("dplyr", "randomForest")) %dopar% {
-    iter = 1
+
   print(iter)
   i <- iterations_lm$dataframe[iter]
   j <- iterations_lm$data_par[iter]
@@ -230,7 +230,7 @@ results_rf <- foreach(iter = 1:nrow(iterations_lm),
 
   # Organizes result into a new row for the final dataframe
   rf_row <- process_row(
-    rf_iter$model[, 1], intervals[[1]],
+    rf_iter$model[, i], intervals[[i]],
     "rf", rf_iter$rsq
   )
 
