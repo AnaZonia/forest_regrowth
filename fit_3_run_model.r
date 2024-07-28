@@ -230,7 +230,7 @@ results_rf <- foreach(iter = 1:nrow(iterations_lm),
 
   # Organizes result into a new row for the final dataframe
   rf_row <- process_row(
-    rf_iter$model[, i], intervals[[i]],
+    rf_iter$model[, 1], intervals[[i]],
     "rf", rf_iter$rsq
   )
 
