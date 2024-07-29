@@ -27,6 +27,18 @@ set.seed(1)
 registerDoParallel(cores = 25)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#----------------- Switches ---------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+run_all <- TRUE
+# run_optim <- TRUE
+run_optim <- FALSE
+# run_lm <- TRUE
+run_lm <- FALSE
+# run_rf <- TRUE
+run_rf <- FALSE
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #----------------- Global Variables ---------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
@@ -84,6 +96,7 @@ conditions <- list(
 )
 
 # Identify common columns across all dataframes
+# (avoids errors for parameters like last_LU, that not all dataframes may contain depending on how many rows were sampled)
 # and filter out non-predictors
 colnames_intersect <- Reduce(intersect, map(dataframes, colnames))
 colnames_filtered <- colnames_intersect[!grepl(
@@ -99,7 +112,12 @@ data_pars <- list(
   colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)], # land use only
   colnames_filtered,
   c(colnames_filtered, "cwd", "mean_prec", "mean_si"),
-  c(colnames_filtered, climatic_pars)
+  c(colnames_filtered, "cwd", climatic_pars)
+)
+
+data_pars_names <- c(
+  "cwd", "meanclim", "yearlyclim", "LU", "LU_soil_ecor",
+  "LU_soil_ecor_meanclim", "LU_soil_ecor_yearlyclim"
 )
 
 # Define basic parameter sets for modeling
@@ -110,29 +128,52 @@ basic_pars <- list(
   c("k0", "B0_exp") # age is implicit
 )
 
+basic_pars_names <- as.list(sapply(basic_pars, function(par_set) paste(par_set, collapse = "_")))
+
+# for linear model and random forest
+# - remove climatic_pars (since they are only used in optim for yearly change)
+# - add mature_biomass (nearest neighbor) to each parameter set
+# - add new parameter sets
+data_pars_lm <- c(
+  lapply(
+    Filter(function(x) !any(climatic_pars %in% x), data_pars), # remove sets with prec or si
+    function(x) c(x, "mature_biomass")
+  ),
+
+  # Add additional parameter sets
+  list(
+    c("age"),
+    c("mature_biomass"),
+    c("age", "mature_biomass")
+  )
+)
+
+data_pars_lm_names <- append(data_pars_names, list("age", "mat_biomass", "age_mat_biomass"))
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Create grids of different combinations of model inputs
 
-# for optim / growth curve
+# Optim / growth curve
 iterations_optim <- expand.grid(
-  dataframe = seq_along(train_dataframes),
+  dataframe = seq_along(dataframes),
   data_par = seq_along(data_pars),
   basic_par = seq_along(basic_pars)
 )
 
-# for linear model and random forest
-# - add mature_biomass (nearest neighbor) to each parameter set
-# - add new parameter sets
-# - remove climatic_pars (since they are only used in optim for yearly change)
-data_pars_lm <- append(
-  lapply(data_pars, function(x) c(x, "mature_biomass")),
-  list(c("age"), c("mature_biomass"), c("age", "mature_biomass"))
-)
-
+# Linear Model
 iterations_lm <- expand.grid(
   dataframe = seq_along(dataframes),
-  data_par = which(!sapply(data_pars_lm, function(par_set) any(climatic_pars %in% par_set)))
+  data_par = seq_along(data_pars_lm)
 )
+
+# Random Forest
+# Identify rows in iterations_lm where data_pars_lm has only one predictor
+remove_single_parameter <- sapply(iterations_lm$data_par, function(i) {
+  length(data_pars_lm[[i]]) == 1
+})
+
+# Subset iterations_lm to keep only rows where there are more than one predictor
+iterations_rf <- iterations_lm[!rows_to_remove, ]
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -142,102 +183,122 @@ iterations_lm <- expand.grid(
 start_time <- Sys.time()
 print(start_time)
 
-# # ~~~~~~~~~~~~~~~~ OPTIM ~~~~~~~~~~~~~~~~~~~~~#
-# # Run optimization with growth curve
+# ~~~~~~~~~~~~~~~~ OPTIM ~~~~~~~~~~~~~~~~~~~~~#
+# Run optimization with growth curve
 
-# results_optim <- foreach(iter = 1:nrow(iterations_optim), 
-# .combine = 'bind_rows', .packages = c('dplyr')) %dopar% {
-  
-#   print(iter)
-#   i <- iterations_optim$dataframe[iter]
-#   j <- iterations_optim$data_par[iter]
-#   k <- iterations_optim$basic_par[iter]
+if (run_optim || run_all){
 
-#   train_data <- train_dataframes[[i]]
-#   test_data <- test_dataframes[[i]]
-#   pars_chosen <- data_pars[[j]]
-#   pars_basic <- basic_pars[[k]]
-  
-#   conditions_iter <- conditions
-#   if ("age" %in% pars_chosen) {
-#     conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
-#   } else if ("B0" %in% pars_chosen) {
-#     conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
-#   }
+  results_optim <- foreach(iter = 1,#1:nrow(iterations_optim), 
+  .combine = 'bind_rows', .packages = c('dplyr')) %dopar% {
+    
+    print(iter)
+    i <- iterations_optim$dataframe[iter]
+    j <- iterations_optim$data_par[iter]
+    k <- iterations_optim$basic_par[iter]
 
-#   o_iter <- run_optimization("nls", pars_basic, pars_chosen, train_data, test_data, conditions_iter)
+    train_data <- train_dataframes[[i]]
+    test_data <- test_dataframes[[i]]
+    pars_chosen <- data_pars[[j]]
+    pars_basic <- basic_pars[[k]]
+    
+    conditions_iter <- conditions
+    if ("age" %in% pars_chosen) {
+      conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
+    } else if ("B0" %in% pars_chosen) {
+      conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
+    }
 
-#   optim_output <- o_iter$model$par
+    optim_output <- run_optim("nls", pars_basic, pars_chosen, train_data, test_data, conditions_iter)
 
-#   # Organizes result into a new row for the final dataframe
-#   optim_row <- process_row(
-#     optim_output, intervals[[i]],
-#     "optim", o_iter$rsq
-#   )
+    optim_fit_pars <- optim_output$model$par
 
-#   print(optim_row)
-#   print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
-#   optim_row
-# }
+    # Organizes result into a new row for the final dataframe
+    optim_row <- process_row(
+      optim_fit_pars, intervals[[i]],
+      "optim", data_pars_names[[j]], optim_output, basic_pars_names = basic_pars_names[[k]]
+    )
 
-# write_results_to_csv(results_optim)
+    print(optim_row)
+    print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
+    optim_row
+  }
 
-# # ~~~~~~~~~~~~~~~~ LINEAR MODEL ~~~~~~~~~~~~~~~~~~#
+  df_optim <- write_results_to_csv(results_optim)
+}
 
 
-# results_lm <- foreach(iter = 1:nrow(iterations_lm), 
-# .combine = "bind_rows", .packages = c("dplyr")) %dopar% {
 
-#   print(iter)
-#   i <- iterations_lm$dataframe[iter]
-#   j <- iterations_lm$data_par[iter]
+# ~~~~~~~~~~~~~~~~ LINEAR MODEL ~~~~~~~~~~~~~~~~~~#
 
-#   train_data <- train_dataframes[[i]]
-#   test_data <- test_dataframes[[i]]
-#   pars_chosen <- data_pars_lm[[j]]
+if (run_lm || run_all){
 
-#   lm_iter <- run_lm(train_data, test_data, pars_chosen)
+  results_lm <- foreach(iter = 1,#1:nrow(iterations_lm), 
+  .combine = "bind_rows", .packages = c("dplyr")) %dopar% {
 
-#   lm_output <- summary(lm_iter$model)$coefficients[-1, 1, drop = FALSE] # -1 to remove (Intercept)
+    print(iter)
+    i <- iterations_lm$dataframe[iter]
+    j <- iterations_lm$data_par[iter]
 
-#   # Organizes result into a new row for the final dataframe
-#   lm_row <- process_row(
-#     lm_output, intervals[[i]],
-#     "lm", lm_iter$rsq
-#   )
+    train_data <- train_dataframes[[i]]
+    test_data <- test_dataframes[[i]]
+    pars_chosen <- data_pars_lm[[j]]
 
-#   print(lm_row)
-#   print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
-#   lm_row
-# }
+    lm_output <- run_lm(train_data, test_data, pars_chosen)
 
-# write_results_to_csv(results_lm)
+    lm_fit_pars <- summary(lm_output$model)$coefficients[-1, 1, drop = FALSE] # -1 to remove (Intercept)
+
+    # Organizes result into a new row for the final dataframe
+    lm_row <- process_row(
+      lm_fit_pars, intervals[[i]],
+      "lm", data_pars_lm_names[[j]], lm_output
+    )
+
+    print(lm_row)
+    print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
+    lm_row
+  }
+
+  df_lm <- write_results_to_csv(results_lm)
+
+}
 
 # ~~~~~~~~~~~~~~~~ RANDOM FOREST ~~~~~~~~~~~~~~~~~~#
 
-results_rf <- foreach(iter = 1:nrow(iterations_lm),
-  .combine = "bind_rows", .packages = c("dplyr", "randomForest")) %dopar% {
+if (run_rf || run_all){
 
-  print(iter)
-  i <- iterations_lm$dataframe[iter]
-  j <- iterations_lm$data_par[iter]
+  results_rf <- foreach(iter = 1, #1:nrow(iterations_rf),
+    .combine = "bind_rows", .packages = c("dplyr", "randomForest")) %dopar% {
 
-  train_data <- train_dataframes[[i]]
-  test_data <- test_dataframes[[i]]
-  pars_chosen <- data_pars_lm[[j]]
+    print(iter)
+    i <- iterations_rf$dataframe[iter]
+    j <- iterations_rf$data_par[iter]
 
-  rf_iter <- run_rf(train_data, test_data, pars_chosen)
+    train_data <- train_dataframes[[i]]
+    test_data <- test_dataframes[[i]]
+    pars_chosen <- data_pars_lm[[j]]
 
-  # Organizes result into a new row for the final dataframe
-  rf_row <- process_row(
-    rf_iter$model[, 1], intervals[[i]],
-    "rf", rf_iter$rsq
-  )
+    rf_output <- run_rf(train_data, test_data, pars_chosen)
+    rf_fit_pars <- rf_output$model[, 1]
+    
+    # Organizes result into a new row for the final dataframe
+    rf_row <- process_row(
+      rf_fit_pars, intervals[[i]],
+      "rf", data_pars_lm_names[[j]], rf_output
+    )
 
+    print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
+    print(rf_row)
+    rf_row
+  }
 
-  print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
-  print(rf_row)
-  rf_row
+  df_rf <- write_results_to_csv(results_rf)
+
 }
 
-write_results_to_csv(results_rf)
+if (run_all) {
+  results_all <- bind_rows(df_optim, df_lm, df_rf) %>%
+    arrange(pars_set, data_name)
+
+  write.csv(results_all, "./data/results_all.csv")
+
+}

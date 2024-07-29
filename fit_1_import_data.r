@@ -12,7 +12,7 @@ climatic_pars <- c("prec", "si")
 #------------------- Main Functions -------------------#
 
 import_data <- function(path) {
-    data <- read_csv(path) %>%
+    data <- read_csv(path, show_col_types = FALSE) %>% #show_col_types = FALSE quiets a large message during import
         select(-c(.geo, latitude, longitude)) %>%
         select(-starts_with("system"))
 

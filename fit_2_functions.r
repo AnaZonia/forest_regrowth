@@ -125,14 +125,13 @@ likelihood <- function(fun, pars, data, conditions) {
 #   test_data <- the chosen testing dataframe (for rsq calculation)
 #   conditions <- ranges of parameters to be restricted to
 
-run_optimization <- function(fun, pars_basic, pars_chosen, train_data, test_data, conditions) {
-
+run_optim <- function(fun, pars_basic, pars_chosen, train_data, test_data, conditions) {
   # Define function to perform optimization with input parameters
-  optimize <- function(pars) {
+  optimize <- function(pars, data) {
     optim(pars,
       likelihood,
       fun = fun,
-      data = train_data,
+      data = data,
       conditions = conditions
     )
   }
@@ -156,25 +155,47 @@ run_optimization <- function(fun, pars_basic, pars_chosen, train_data, test_data
   }
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # Run first iteration of optimization
-  model <- optimize(first_iter_pars)
 
-  # Intake parameters of previous iteration and run optimization for the next parameter
-  if (length(pars_chosen) > 1) {
-    for (i in 2:length(pars_chosen)) {
-      current_pars <- c(model$par, setNames(0.1, pars_chosen[i]))
-      model <- optimize(current_pars)
+  optimize_iteratively <- function(data) {
+    # Run first iteration of optimization
+    model <- optimize(first_iter_pars, data)
+
+    # Intake parameters of previous iteration and run optimization for the next parameter
+    if (length(pars_chosen) > 1) {
+      for (i in 2:length(pars_chosen)) {
+        current_pars <- c(model$par, setNames(0.1, pars_chosen[i]))
+        model <- optimize(current_pars, data)
+      }
     }
+
+    return(model)
   }
+
+  model <- optimize_iteratively(train_data)
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Output R-squared value and model results
   pred <- growth_curve(model$par, test_data)
   rsq <- cor(test_data$agbd, pred)^2
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # fitting optim with testing and training data raised issues.
+  # A few times, the predictions for the training data were fine, but for the testing data there were NAs.
+  # In those cases, I told optim to run again with the entire dataframe and let me know if there was a discrepancy.
+  discrepancy = FALSE
+  if (is.na(rsq)){
+    discrepancy = TRUE
+    all_data <- bind_rows(train_data, test_data)
+    model <- optimize_iteratively(all_data)
+    pred <- growth_curve(model$par, all_data)
+    rsq <- cor(all_data$agbd, pred)^2
+  }
+
   print(paste("R-squared:", rsq))
   return(list(
     model = model,
-    rsq = rsq
+    rsq = rsq,
+    discrepancy = discrepancy
   ))
 }
 
@@ -287,16 +308,27 @@ run_rf <- function(train_data, test_data, pars_chosen) {
 #   rsq <- the calculated r squared for each iteration of the model
 
 # Define helper functions
-process_row <- function(output, data_name, model_type, rsq) {
-  row <- as.data.frame(t(output))
+process_row <- function(fit_pars, data_name, model_type, data_pars_names, output, basic_pars_names = NULL) {
+  row <- as.data.frame(t(fit_pars))
   # Set up columns of parameters that are not included in this iteration as NA
   missing_cols <- setdiff(unique(unlist(c(data_pars_lm, non_data_pars, data_pars))), names(row))
   row[missing_cols] <- NA
   row <- row[, unique(unlist(c(data_pars_lm, non_data_pars, data_pars)))]
+  
   row$data_name <- data_name
   row$model_type <- model_type
-  row$rsq <- rsq
-  row %>% select(data_name, model_type, rsq, "mature_biomass", "age", all_of(non_data_pars), everything())
+  row$data_pars <- data_pars_names
+  row$rsq <- output$rsq
+
+  if (model_type == "optim"){
+    row$discrepancy <- output$discrepancy
+    row$basic_pars <- basic_pars_names
+  } else {
+    row$discrepancy <- NA
+    row$basic_pars <- NA
+  }
+  
+  row %>% select(data_name, "data_pars", "basic_pars", model_type, rsq, "discrepancy", "mature_biomass", "age", all_of(non_data_pars), everything())
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -324,5 +356,7 @@ write_results_to_csv <- function(results, prefix = "") {
 
   # Write the dataframe to a CSV file
   write.csv(df, paste0("./data/", prefix, results_name, ".csv"), row.names = FALSE)
+
+  return(df)
 }
 
