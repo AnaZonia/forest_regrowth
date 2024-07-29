@@ -301,8 +301,10 @@ run_rf <- function(train_data, test_data, pars_chosen) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Define a function to run foreach for different models
-run_foreach <- function(iterations, model_type, run_function, additional_params = list(), pars_basic = NULL) {
-  foreach(iter = if (test_switch) 1 else 1:nrow(iterations), .combine = "bind_rows", .packages = c("dplyr", "randomForest")) %dopar% {
+run_foreach <- function(iterations, model_type, run_function, conditions = NULL) {
+
+  results <- foreach(iter = if (test_switch) 1 else 1:nrow(iterations),
+  .combine = "bind_rows", .packages = c("dplyr", "randomForest")) %dopar% {
     
     i <- iterations$dataframe[iter]
     j <- iterations$data_par[iter]
@@ -312,18 +314,29 @@ run_foreach <- function(iterations, model_type, run_function, additional_params 
 
     if (model_type == "optim") {
       k <- iterations$basic_par[iter]
-
       pars_chosen <- data_pars[[j]]
-      additional_params <- c(additional_params, basic_pars[[k]])
+      pars_basic <- basic_pars[[k]]
       pars_names <- data_pars_names[[j]]
       basic_pars_names <- basic_pars_names[[k]]
+
+      conditions_iter <- conditions
+      if ("age" %in% pars_chosen) {
+        conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
+      } else if ("B0" %in% pars_chosen) {
+        conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
+      }
+
+
+      # Call run_optim with the correct parameters
+      model_output <- run_function("nls", pars_basic, pars_chosen, train_data, test_data, conditions)
     } else {
       pars_chosen <- data_pars_lm[[j]]
       pars_names <- data_pars_lm_names[[j]]
-      basic_pars_names <- NULL # Not used for non-optim models
-    }
+      basic_pars_names <- NULL
 
-    model_output <- run_function(train_data, test_data, pars_chosen, additional_params)
+      # Call run_function for non-optim models
+      model_output <- run_function(train_data, test_data, pars_chosen)
+    }
 
     # Extract fitting parameters based on model type
     fit_pars <- switch(model_type,
@@ -338,8 +351,26 @@ run_foreach <- function(iterations, model_type, run_function, additional_params 
     )
 
     print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
+    
     row
+  
   }
+
+  # Calculate and print the total time taken
+  total_time <- as.numeric(difftime(Sys.time(), start_time, units = "hours"))
+  print(paste(
+    model_type, "finished! Time for the whole operation: ",
+    total_time, " hours"
+  ))
+
+  # Combine all results into a single dataframe
+  df <- as.data.frame(results)
+
+  # Write the dataframe to a CSV file
+  write.csv(df, paste0("./data/", model_type, "_results.csv"), row.names = FALSE)
+
+  return(df)
+
 }
 
 
