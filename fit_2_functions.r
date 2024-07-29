@@ -296,6 +296,52 @@ run_rf <- function(train_data, test_data, pars_chosen) {
   ))
 }
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#------------- Prepare iteration results as dataframe row -----------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# Define a function to run foreach for different models
+run_foreach <- function(iterations, model_type, run_function, additional_params = list(), pars_basic = NULL) {
+  foreach(iter = if (test_switch) 1 else 1:nrow(iterations), .combine = "bind_rows", .packages = c("dplyr", "randomForest")) %dopar% {
+    
+    i <- iterations$dataframe[iter]
+    j <- iterations$data_par[iter]
+
+    train_data <- train_dataframes[[i]]
+    test_data <- test_dataframes[[i]]
+
+    if (model_type == "optim") {
+      k <- iterations$basic_par[iter]
+
+      pars_chosen <- data_pars[[j]]
+      additional_params <- c(additional_params, basic_pars[[k]])
+      pars_names <- data_pars_names[[j]]
+      basic_pars_names <- basic_pars_names[[k]]
+    } else {
+      pars_chosen <- data_pars_lm[[j]]
+      pars_names <- data_pars_lm_names[[j]]
+      basic_pars_names <- NULL # Not used for non-optim models
+    }
+
+    model_output <- run_function(train_data, test_data, pars_chosen, additional_params)
+
+    # Extract fitting parameters based on model type
+    fit_pars <- switch(model_type,
+      "optim" = model_output$model$par,
+      "lm" = summary(model_output$model)$coefficients[-1, 1, drop = FALSE],
+      "rf" = model_output$model[, 1]
+    )
+
+    # Organize result
+    row <- process_row(fit_pars, intervals[[i]], model_type, pars_names, model_output,
+      basic_pars_names = basic_pars_names
+    )
+
+    print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
+    row
+  }
+}
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #------------- Prepare iteration results as dataframe row -----------------------#
