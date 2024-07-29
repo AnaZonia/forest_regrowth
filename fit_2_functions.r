@@ -14,6 +14,7 @@
 #     - run_gam_lm                                                             #
 #     - run_rf                                                                 #
 #     - process_row                                                            #
+#     - run_foreach                                                            #
 #                                                                              #
 ################################################################################
 
@@ -367,7 +368,7 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
   df <- as.data.frame(results)
 
   # Write the dataframe to a CSV file
-  write.csv(df, paste0("./data/", model_type, "_results.csv"), row.names = FALSE)
+  write.csv(df, paste0("./data/results_", model_type, ".csv"), row.names = FALSE)
 
   return(df)
 
@@ -406,34 +407,5 @@ process_row <- function(fit_pars, data_name, model_type, data_pars_names, output
   }
   
   row %>% select(data_name, "data_pars", "basic_pars", model_type, rsq, "discrepancy", "mature_biomass", "age", all_of(non_data_pars), everything())
-}
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ------- Prepare final combined results for export as dataframe ----------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
-# Intakes:
-#   results <- final dataframe of combined foreach output
-#   prefix <- optional for the dataframe name on export
-
-write_results_to_csv <- function(results, prefix = "") {
-  
-  # Get the name of the results object as a string
-  results_name <- deparse(substitute(results))
-
-  # Calculate and print the total time taken
-  total_time <- as.numeric(difftime(Sys.time(), start_time, units = "hours"))
-  print(paste(
-    results_name, "written! Time for the whole operation: ",
-    total_time, " hours"
-  ))
-
-  # Combine all results into a single dataframe
-  df <- as.data.frame(results)
-
-  # Write the dataframe to a CSV file
-  write.csv(df, paste0("./data/", prefix, results_name, ".csv"), row.names = FALSE)
-
-  return(df)
 }
 
