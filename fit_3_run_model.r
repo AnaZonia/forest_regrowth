@@ -30,13 +30,17 @@ registerDoParallel(cores = 25)
 #----------------- Switches ---------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-run_all <- TRUE
-# run_optim <- TRUE
-run_optim <- FALSE
-# run_lm <- TRUE
-run_lm <- FALSE
-# run_rf <- TRUE
-run_rf <- FALSE
+test_switch <- TRUE # Set to TRUE for single row or FALSE for all rows
+
+all_switch <- TRUE
+# optim_switch <- TRUE
+optim_switch <- FALSE
+# lm_switch <- TRUE
+lm_switch <- FALSE
+# rf_switch <- TRUE
+rf_switch <- FALSE
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #----------------- Global Variables ---------------#
@@ -56,17 +60,8 @@ pars_categ <- c("indig", "protec", names(data)[str_detect(names(data), "LU|ecore
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Define land-use history intervals to import four dataframes
-intervals <- list(
-  "5y",
-  "10y",
-  "15y",
-  "all"
-)
-
-datafiles <- lapply(intervals, function(file) {
-  paste0("./data/", file, "_LULC_mat_dist.csv")
-})
-
+intervals <- list("5y", "10y", "15y", "all")
+datafiles <- paste0("./data/", intervals, "_LULC_mat_dist.csv")
 dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -80,8 +75,6 @@ sample_data <- function(df, size_train, size_test) {
 }
 
 samples <- lapply(dataframes, sample_data, size_train = 60000, size_test = 40000)
-
-# Extract the first and second element of samples
 train_dataframes <- lapply(samples, `[[`, 1)
 test_dataframes <- lapply(samples, `[[`, 2)
 
@@ -90,10 +83,7 @@ test_dataframes <- lapply(samples, `[[`, 2)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Define conditions for parameter constraints
-conditions <- list(
-  'pars["theta"] > 10',
-  'pars["theta"] < 0'
-)
+conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0')
 
 # Identify common columns across all dataframes
 # (avoids errors for parameters like last_LU, that not all dataframes may contain depending on how many rows were sampled)
@@ -139,12 +129,8 @@ data_pars_lm <- c(
     Filter(function(x) !any(climatic_pars %in% x), data_pars), # remove sets with prec or si
     function(x) c(x, "mature_biomass")
   ),
-
-  # Add additional parameter sets
   list(
-    c("age"),
-    c("mature_biomass"),
-    c("age", "mature_biomass")
+    c("age"), c("mature_biomass"), c("age", "mature_biomass")
   )
 )
 
@@ -167,12 +153,10 @@ iterations_lm <- expand.grid(
 )
 
 # Random Forest
-# Identify rows in iterations_lm where data_pars_lm has only one predictor
-remove_single_parameter <- sapply(iterations_lm$data_par, function(i) {
+# Filter out single-predictor cases
+rows_to_remove <- sapply(iterations_lm$data_par, function(i) {
   length(data_pars_lm[[i]]) == 1
 })
-
-# Subset iterations_lm to keep only rows where there are more than one predictor
 iterations_rf <- iterations_lm[!rows_to_remove, ]
 
 
@@ -183,12 +167,14 @@ iterations_rf <- iterations_lm[!rows_to_remove, ]
 start_time <- Sys.time()
 print(start_time)
 
+
+
 # ~~~~~~~~~~~~~~~~ OPTIM ~~~~~~~~~~~~~~~~~~~~~#
 # Run optimization with growth curve
 
-if (run_optim || run_all){
+if (optim_switch || all_switch){
 
-  results_optim <- foreach(iter = 1,#1:nrow(iterations_optim), 
+  results_optim <- foreach(iter = 1:nrow(iterations_optim), 
   .combine = 'bind_rows', .packages = c('dplyr')) %dopar% {
     
     print(iter)
@@ -224,15 +210,17 @@ if (run_optim || run_all){
   }
 
   df_optim <- write_results_to_csv(results_optim)
+} else {
+    NULL
 }
 
 
 
 # ~~~~~~~~~~~~~~~~ LINEAR MODEL ~~~~~~~~~~~~~~~~~~#
 
-if (run_lm || run_all){
+if (lm_switch || all_switch){
 
-  results_lm <- foreach(iter = 1,#1:nrow(iterations_lm), 
+  results_lm <- foreach(iter = 1:nrow(iterations_lm), 
   .combine = "bind_rows", .packages = c("dplyr")) %dopar% {
 
     print(iter)
@@ -260,13 +248,15 @@ if (run_lm || run_all){
 
   df_lm <- write_results_to_csv(results_lm)
 
+} else {
+    NULL
 }
 
 # ~~~~~~~~~~~~~~~~ RANDOM FOREST ~~~~~~~~~~~~~~~~~~#
 
-if (run_rf || run_all){
+if (rf_switch || all_switch){
 
-  results_rf <- foreach(iter = 1, #1:nrow(iterations_rf),
+  results_rf <- foreach(iter = 1:nrow(iterations_rf),
     .combine = "bind_rows", .packages = c("dplyr", "randomForest")) %dopar% {
 
     print(iter)
@@ -293,11 +283,13 @@ if (run_rf || run_all){
 
   df_rf <- write_results_to_csv(results_rf)
 
+} else {
+    NULL
 }
 
-if (run_all) {
+if (all_switch) {
   results_all <- bind_rows(df_optim, df_lm, df_rf) %>%
-    arrange(pars_set, data_name)
+    arrange(data_pars, basic_pars, data_name)
 
   write.csv(results_all, "./data/results_all.csv")
 
