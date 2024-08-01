@@ -75,6 +75,7 @@ sample_data <- function(df, size_train, size_test) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Preparing dataframes whether or not there is a split between biomes
 
+
 if (split_biome) {
   # 1 = Amazonia
   # 2 = Caatinga
@@ -201,114 +202,24 @@ print(iterations_rf)
 start_time <- Sys.time()
 print(start_time)
 
-prefix <- 'countrywide_'
-
-# ~~~~~~~~~~~~~~~~ OPTIM ~~~~~~~~~~~~~~~~~~~~~#
 # Run optimization with growth curve
-
 if (optim_switch || all_switch) {
-
-  results_optim <- foreach(iter = 1:nrow(iterations_optim), 
-    .combine = "bind_rows", .packages = c("dplyr")) %dopar%
-    {
-
-    print(iter)
-    i <- iterations_optim$dataframe[iter]
-    j <- iterations_optim$data_par[iter]
-    k <- iterations_optim$basic_par[iter]
-
-    train_data <- train_dataframes[[i]]
-    test_data <- test_dataframes[[i]]
-    pars_chosen <- data_pars[[j]]
-    pars_basic <- basic_pars[[k]]
-
-    optim_output <- run_optim("nls", pars_basic, pars_chosen, train_data, test_data, conditions)
-
-    # Organizes result into a new row for the final dataframe
-    optim_row <- process_row(
-      optim_output, "optim", intervals[[i]],
-      data_pars_names[[j]],
-      basic_pars_names = basic_pars_names[[k]]
-    )
-
-    print(optim_row)
-    print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
-    optim_row
-  }
-
-  df_optim <- write_results_to_csv(results_optim, prefix)
+  results_optim <- run_foreach(iterations_optim, "optim", run_optim, conditions)
 }
 
-
-
-
-# ~~~~~~~~~~~~~~~~ LINEAR MODEL ~~~~~~~~~~~~~~~~~~#
-
+# Run linear model
 if (lm_switch || all_switch) {
-
-  results_lm <- foreach(iter = 1:nrow(iterations_lm), 
-    .combine = "bind_rows", .packages = c("dplyr")
-  ) %dopar% {
-
-    print(iter)
-    i <- iterations_lm$dataframe[iter]
-    j <- iterations_lm$data_par[iter]
-
-    train_data <- train_dataframes[[i]]
-    test_data <- test_dataframes[[i]]
-    pars_chosen <- data_pars_lm[[j]]
-
-    lm_output <- run_lm(train_data, test_data, pars_chosen)
-
-    # Organizes result into a new row for the final dataframe
-    lm_row <- process_row(
-      lm_output$pars, intervals[[i]],
-      "lm", data_pars_lm_names[[j]], lm_output
-    )
-
-    print(lm_row)
-    print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
-    lm_row
-  }
-
-  df_lm <- write_results_to_csv(results_lm, prefix)
+  results_lm <- run_foreach(iterations_lm, "lm", run_lm)
 }
 
-# ~~~~~~~~~~~~~~~~ RANDOM FOREST ~~~~~~~~~~~~~~~~~~#
-
+# Run random forest
 if (rf_switch || all_switch) {
-
-  results_rf <- foreach(iter = 1:nrow(iterations_rf), 
-    .combine = "bind_rows", .packages = c("dplyr", "randomForest")
-  ) %dopar% {
-
-    print(iter)
-    i <- iterations_rf$dataframe[iter]
-    j <- iterations_rf$data_par[iter]
-
-    train_data <- train_dataframes[[i]]
-    test_data <- test_dataframes[[i]]
-    pars_chosen <- data_pars_lm[[j]]
-
-    rf_output <- run_rf(train_data, test_data, pars_chosen)
-
-    # Organizes result into a new row for the final dataframe
-    rf_row <- process_row(
-      rf_fit_pars, intervals[[i]],
-      "rf", data_pars_lm_names[[j]], rf_output
-    )
-
-    print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
-    print(rf_row)
-    rf_row
-  }
-
-  df_rf <- write_results_to_csv(results_rf, prefix)
+  results_rf <- run_foreach(iterations_rf, "rf", run_rf)
 }
 
+# Combine all results if all_switch is TRUE
 if (all_switch) {
-  results_all <- bind_rows(df_optim, df_lm, df_rf) %>%
+  results_all <- bind_rows(results_optim, results_lm, results_rf) %>%
     arrange(data_pars, basic_pars, data_name)
-
-  write.csv(results_all, "./data/countrywide_results_all.csv")
+  write.csv(results_all, "./data/", prefix, "_results_all.csv", row.names = FALSE)
 }
