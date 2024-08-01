@@ -347,7 +347,7 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
     }
 
     # Organize result
-    row <- process_row(fit_pars, intervals[[i]], model_type, pars_names, model_output,
+    row <- process_row(model_output, model_type, intervals[[i]], pars_names,
       basic_pars_names = basic_pars_names
     )
 
@@ -359,18 +359,19 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
   }
 
   # Calculate and print the total time taken
-  total_time <- as.numeric(difftime(Sys.time(), start_time, units = "hours"))
   print(paste(
     model_type, "finished! Time for the whole operation: ",
-    total_time, " hours"
+    as.numeric(difftime(Sys.time(), start_time, units = "hours")), " hours"
   ))
 
   # Combine all results into a single dataframe
   df <- as.data.frame(results)
 
-  # Write the dataframe to a CSV file
-  write.csv(df, paste0("./data/results_", model_type, ".csv"), row.names = FALSE)
-
+  # Write the dataframe to a CSV file based on all_switch
+  if (!all_switch) {
+    write.csv(df, paste0("./data/", prefix, "_results_", model_type, ".csv"), row.names = FALSE)
+  }
+  
   return(df)
 
 }
@@ -387,8 +388,8 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
 #   rsq <- the calculated r squared for each iteration of the model
 
 # Define helper functions
-process_row <- function(fit_pars, data_name, model_type, data_pars_names, output, basic_pars_names = NULL) {
-  row <- as.data.frame(t(fit_pars))
+process_row <- function(output, model_type, data_name, data_pars_names, basic_pars_names = NULL) {
+  row <- as.data.frame(t(output$pars))
   # Set up columns of parameters that are not included in this iteration as NA
   missing_cols <- setdiff(unique(unlist(c(data_pars_lm, non_data_pars, data_pars))), names(row))
   row[missing_cols] <- NA
@@ -402,7 +403,6 @@ process_row <- function(fit_pars, data_name, model_type, data_pars_names, output
   if (model_type == "optim"){
     row$basic_pars <- basic_pars_names
   } else {
-    row$discrepancy <- NA
     row$basic_pars <- NA
   }
   

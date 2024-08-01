@@ -106,3 +106,4 @@ mean_rsq_per_data_name <- tst %>%
     group_by(data_pars) %>%
     summarise(mean_rsq = mean(rsq, na.rm = TRUE)) %>%
     arrange(desc(mean_rsq))
+

@@ -47,7 +47,7 @@ mean_biomass_within_buffer <- function(sec_pixel) {
 
     x <- sec_pixel[["x_index"]]
     y <- sec_pixel[["y_index"]]
-    distance <- sec_pixel[["values"]]
+    distance <- sec_pixel[["distance"]]
 
     # Calculate buffer limits
     buffer_radius <- ceiling(distance / 500) + 5
@@ -70,11 +70,11 @@ mean_biomass_within_buffer <- function(sec_pixel) {
 
 ## -------- MAIN SCRIPT
 
-mature_biomass <- rast("./data/mature_biomass_500m_all_country.tif")
+mature_biomass <- rast("./data/mature_biomass_500m_countrywide.tif")
 
 if (use_dist) {
 
-    dist <- rast("./data/distance_1000m_all_country.tif")
+    dist <- rast("./data/distance_1000m_countrywide.tif")
     data <- get_coords(dist)
 
     nearest_biomass <- foreach(i = 1:nrow(data), .combine = "c") %dopar% {
@@ -86,12 +86,13 @@ if (use_dist) {
     final_csv <- cbind(data, nearest_biomass)
     final_csv <- na.omit(final_csv)
 
-    write.csv(final_csv, "./data/dist_mature_1000m_all_country.csv", row.names = FALSE)
+    write.csv(final_csv, "./data/dist_mature_1000m_countrywide.csv", row.names = FALSE)
     print("csv exported")
 
     mat_biomass_raster <- rast(final_csv[, c("longitude", "latitude", "distance", "nearest_biomass")], type = "xyz", crs = crs(mature_biomass))
+    names(mat_biomass_raster) <- c("distance", "mature_biomass")
 
-    writeRaster(mat_biomass_raster, "./data/nearest_mat_biomass_1000m_all_country.tif")
+    writeRaster(mat_biomass_raster, "./data/nearest_mat_biomass_1000m_countrywide.tif")
     print("raster exported")
 
 
