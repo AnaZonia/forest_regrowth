@@ -127,76 +127,87 @@ likelihood <- function(fun, pars, data, conditions) {
 #   conditions <- ranges of parameters to be restricted to
 
 run_optim <- function(fun, pars_basic, pars_chosen, train_data, test_data, conditions) {
-  # Define function to perform optimization with input parameters
-  optimize <- function(pars, data) {
-    optim(pars,
-      likelihood,
-      fun = fun,
-      data = data,
-      conditions = conditions
-    )
-  }
 
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # Define initial parameters for the first iteration
-  first_iter_pars <- c(
+  iter_pars <- c(
     theta = 5,
     setNames(
-      rep(0.1, length(c(pars_basic, pars_chosen[1]))),
-      c(pars_basic, pars_chosen[1])
+      rep(0.1, length(pars_basic)),
+      c(pars_basic)
+    ),
+    setNames(
+      rep(0, length(pars_chosen)),
+      c(pars_chosen)
     )
   )
 
-  if (fun == "nll") {
-    first_iter_pars <- c(first_iter_pars, setNames(0.1, "sd"))
+  conditions_iter <- conditions
+  if ("age" %in% pars_basic) {
+    conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
+  }
+  if ("B0" %in% pars_basic) {
+    iter_pars["B0"] <- 40
+    conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
   }
 
-  if ("B0" %in% pars_basic) {
-    first_iter_pars["B0"] <- 40
-  }
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # FITTING
+  # theta + other essential parameters
+  remaining <- 1:length(iter_pars) # after find each one, remove from remaining list
+  best <- list()
+  best$AIC <- 0
+  best$par <- c(iter_pars[c(1:(length(pars_basic) + 1))]) # identify which parameter was optimal.
 
-  optimize_iteratively <- function(data) {
-    # Run first iteration of optimization
-    model <- optimize(first_iter_pars, data)
+  tmpinfo <- iter_pars
+  tmpinfo[names(iter_pars)] <- NA
+  tmpinfo <- c(likelihood = 0, tmpinfo)
 
-    # Intake parameters of previous iteration and run optimization for the next parameter
-    if (length(pars_chosen) > 1) {
-      for (i in 2:length(pars_chosen)) {
-        current_pars <- c(model$par, setNames(0.1, pars_chosen[i]))
-        model <- optimize(current_pars, data)
-      }
+  tmp <- as.data.frame(matrix(tmpinfo, nrow = 1))
+  names(tmp) <- names(tmpinfo)
+  taken <- length(remaining) + 1 # out of the range of values such that remaining[-taken] = remaining for the first iteration
+
+  # iterate through # variables - keep best one, and go to next
+  for (i in (length(pars_basic) + 2):length(iter_pars)) {
+    print(i)
+
+    tmp1 <- foreach(j = remaining[-taken]) %dopar% {
+      inipar <- c(iter_pars[j], best$par) # as starting point, taking the best values from last time
+
+      model <- optim(inipar,
+        likelihood,
+        fun = fun,
+        data = train_data,
+        conditions = conditions_iter
+      )
+
+      tmpinfo[names(inipar)] <- model$par
+      tmpinfo["likelihood"] <- model$value
+      return(tmpinfo) # standardize output to make easier to combine
     }
 
-    return(model)
+    tmp <- as.data.frame(do.call(rbind, tmp1))
+    pos <- which.min(tmp$likelihood)
+    tmp_AIC <- 2 * tmp$likelihood[pos] + 2 * i
+    if (best$AIC == 0 | tmp_AIC < best$AIC) # keep the parameter values
+      {
+        best$AIC <- tmp_AIC
+        # rewrite
+        best$par <- tmp[pos, names(iter_pars)]
+        taken <- which(!is.na(best$par))
+        best$par <- best$par[taken]
+      } else {
+      # there is no improvement, exit loop
+      return(best)
+    }
   }
 
-  model <- optimize_iteratively(train_data)
-
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # Output R-squared value and model results
-  pred <- growth_curve(model$par, test_data)
+  pred <- growth_curve(best$par, test_data)
   rsq <- cor(test_data$agbd, pred)^2
-
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # fitting optim with testing and training data raised issues.
-  # A few times, the predictions for the training data were fine, but for the testing data there were NAs.
-  # In those cases, I told optim to run again with the entire dataframe and let me know if there was a discrepancy.
-  discrepancy = FALSE
-  if (is.na(rsq)){
-    discrepancy = TRUE
-    all_data <- bind_rows(train_data, test_data)
-    model <- optimize_iteratively(all_data)
-    pred <- growth_curve(model$par, all_data)
-    rsq <- cor(all_data$agbd, pred)^2
-  }
 
   print(paste("R-squared:", rsq))
   return(list(
-    model = model,
-    rsq = rsq,
-    discrepancy = discrepancy
+    pars = best$par,
+    rsq = rsq
   ))
 }
 
@@ -228,11 +239,13 @@ run_gam <- function(train_data, test_data, pars_chosen) {
   ))
 
   model <- gam(formula, data = train_data)
+
   pred <- predict(model, newdata = test_data)
   rsq <- cor(test_data$agbd, pred)^2
   print(paste("R-squared:", rsq))
+
   return(list(
-    model = model,
+    pars = summary(lm_output$model)$coefficients[-1, 1, drop = FALSE] # -1 to remove (Intercept),
     rsq = rsq
   ))
 }
@@ -242,9 +255,9 @@ run_gam <- function(train_data, test_data, pars_chosen) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 run_lm <- function(train_data, test_data, pars_chosen) {
-  rf_lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
+  lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
 
-  model <- lm(rf_lm_formula, data = train_data)
+  model <- lm(lm_formula, data = train_data)
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Check for rank deficiency, and remove variables if necessary
@@ -257,8 +270,8 @@ run_lm <- function(train_data, test_data, pars_chosen) {
 
     # Remove problematic variables from the formula
     pars_chosen <- pars_chosen[!pars_chosen %in% problematic_vars]
-    rf_lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
-    model <- lm(rf_lm_formula, data = train_data)
+    lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
+    model <- lm(lm_formula, data = train_data)
   }
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -277,12 +290,12 @@ run_lm <- function(train_data, test_data, pars_chosen) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 run_rf <- function(train_data, test_data, pars_chosen) {
-  rf_lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
+  rf_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
 
   # reduce number of rows to 20,000 for faster computation
   train_data <- train_data[sample(nrow(train_data), 20000), ]
 
-  model <- randomForest(rf_lm_formula,
+  model <- randomForest(rf_formula,
     data = train_data,
     ntree = 100, mtry = 2, importance = TRUE,
     keep.forest = TRUE, oob.score = TRUE, do.trace = 10, parallel = TRUE
@@ -291,8 +304,9 @@ run_rf <- function(train_data, test_data, pars_chosen) {
   pred <- predict(model, newdata = test_data)
   rsq <- cor(test_data$agbd, pred)^2
   print(paste("R-squared:", rsq))
+
   return(list(
-    model = importance(model),
+    model = importance(model)[, 1],
     rsq = rsq
   ))
 }
@@ -307,6 +321,7 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
   results <- foreach(iter = if (test_switch) 1 else 1:nrow(iterations),
   .combine = "bind_rows", .packages = c("dplyr", "randomForest")) %dopar% {
     
+    print(iter)
     i <- iterations$dataframe[iter]
     j <- iterations$data_par[iter]
 
@@ -320,14 +335,6 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
       pars_names <- data_pars_names[[j]]
       basic_pars_names <- basic_pars_names[[k]]
 
-      conditions_iter <- conditions
-      if ("age" %in% pars_chosen) {
-        conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
-      } else if ("B0" %in% pars_chosen) {
-        conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
-      }
-
-
       # Call run_optim with the correct parameters
       model_output <- run_function("nls", pars_basic, pars_chosen, train_data, test_data, conditions)
     } else {
@@ -339,20 +346,14 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
       model_output <- run_function(train_data, test_data, pars_chosen)
     }
 
-    # Extract fitting parameters based on model type
-    fit_pars <- switch(model_type,
-      "optim" = model_output$model$par,
-      "lm" = summary(model_output$model)$coefficients[-1, 1, drop = FALSE],
-      "rf" = model_output$model[, 1]
-    )
-
     # Organize result
     row <- process_row(fit_pars, intervals[[i]], model_type, pars_names, model_output,
       basic_pars_names = basic_pars_names
     )
 
     print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
-    
+    print(row)
+
     row
   
   }
@@ -399,13 +400,41 @@ process_row <- function(fit_pars, data_name, model_type, data_pars_names, output
   row$rsq <- output$rsq
 
   if (model_type == "optim"){
-    row$discrepancy <- output$discrepancy
     row$basic_pars <- basic_pars_names
   } else {
     row$discrepancy <- NA
     row$basic_pars <- NA
   }
   
-  row %>% select(data_name, "data_pars", "basic_pars", model_type, rsq, "discrepancy", "mature_biomass", "age", all_of(non_data_pars), everything())
+  row %>% select(data_name, "data_pars", "basic_pars", model_type, rsq, "mature_biomass", "age", all_of(non_data_pars), everything())
 }
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ------- Prepare final combined results for export as dataframe ----------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+# Intakes:
+#   results <- final dataframe of combined foreach output
+#   prefix <- optional for the dataframe name on export
+
+write_results_to_csv <- function(results, prefix = "") {
+  # Get the name of the results object as a string
+  results_name <- deparse(substitute(results))
+
+  # Calculate and print the total time taken
+  total_time <- as.numeric(difftime(Sys.time(), start_time, units = "hours"))
+  print(paste(
+    results_name, "written! Time for the whole operation: ",
+    total_time, " hours"
+  ))
+
+  # Combine all results into a single dataframe
+  df <- as.data.frame(results)
+
+  # Write the dataframe to a CSV file based on all_switch
+  # if (!all_switch) {
+    write.csv(df, paste0("./data/", prefix, results_name, ".csv"), row.names = FALSE)
+  # }
+
+  return(df)
+}

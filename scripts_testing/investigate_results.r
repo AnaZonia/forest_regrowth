@@ -9,7 +9,6 @@ library(tidyverse)
 
 source("fit_1_import_data.r")
 
-
 # Define land-use history intervals to import four dataframes
 intervals <- list(
     "5y",
@@ -53,15 +52,57 @@ create_correlation_plot <- function(df, interval_name) {
 }
 
 
-results_optim <- read.csv("./data/results_optim.csv")
-results_lm <- read.csv("./data/results_lm.csv")
-results_rf <- read.csv("./data/results_rf.csv")
+results_optim <- read.csv("./data/countrywide_results_optim.csv")
+results_lm <- read.csv("./data/countrywide_results_lm.csv")
+results_rf <- read.csv("./data/countrywide_results_rf.csv")
 
 
+results_all <- bind_rows(results_optim, results_lm, results_rf) %>%
+    arrange(data_pars, basic_pars, data_name)
+write.csv(results_all, "./data/results_all.csv", row.names = FALSE)
+
+results_all <- read.csv("./data/results_all.csv")
+
+top_5_per_data_pars <- results_all %>%
+    group_by(data_pars) %>%
+    top_n(5, rsq) %>%
+    arrange(data_pars, desc(rsq)) %>%
+    ungroup()
+
+# View the result
+print(top_5_per_data_pars)
+write.csv(top_5_per_data_pars, "./data/amaz_top_5_per_data_pars.csv", row.names = FALSE)
 
 # Order the data frame by the column rsq
-tst_ordered <- results_rf %>%
+tst_ordered <- results_all %>%
+    filter(model_type == "lm") %>%
     arrange(desc(rsq))
 
 # View the first few rows of the ordered data frame
-head(tst_ordered)
+tst_ordered[c(1:5), c(1:5)]
+
+# Assuming results_all is your dataframe
+mean_rsq_per_data_name <- results_lm %>%
+    # filter(model_type == "optim")%>%
+    group_by(data_pars) %>%
+    summarise(mean_rsq = mean(rsq, na.rm = TRUE)) %>%
+        arrange(desc(mean_rsq))
+
+# View the result
+print(mean_rsq_per_data_name)
+
+# Perform one-way ANOVA
+anova_result <- aov(rsq ~ data_name, data = results_all)
+
+# Print the ANOVA summary
+print(summary(anova_result))
+
+
+tst <- read.csv("./data/all_LULC_countrywide.csv")
+
+# Assuming results_all is your dataframe
+mean_rsq_per_data_name <- tst %>%
+    filter(biome == 1)%>%
+    group_by(data_pars) %>%
+    summarise(mean_rsq = mean(rsq, na.rm = TRUE)) %>%
+    arrange(desc(mean_rsq))
