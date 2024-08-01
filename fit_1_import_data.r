@@ -17,13 +17,15 @@ import_data <- function(path) {
         select(-starts_with("system"))
 
     # Convert specified variables to factors
-    categorical <- c("ecoreg", "soil", "last_LU", "biome")
+    categorical <- c("ecoreg", "soil", "last_LU")
     # Convert categorical variables to factors
     data <- data %>%
         mutate(across(all_of(categorical), as.factor))
 
     # Create dummy variables
     data <- dummy_cols(data, select_columns = categorical, remove_selected_columns = TRUE)
+    
+    print("Imported!")
 
     data
 }
