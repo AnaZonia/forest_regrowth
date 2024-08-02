@@ -69,7 +69,6 @@ top_5_per_data_pars <- results_all %>%
     arrange(data_pars, desc(rsq)) %>%
     ungroup()
 
-# View the result
 print(top_5_per_data_pars)
 write.csv(top_5_per_data_pars, "./data/amaz_top_5_per_data_pars.csv", row.names = FALSE)
 
@@ -78,23 +77,18 @@ tst_ordered <- results_all %>%
     filter(model_type == "lm") %>%
     arrange(desc(rsq))
 
-# View the first few rows of the ordered data frame
 tst_ordered[c(1:5), c(1:5)]
 
-# Assuming results_all is your dataframe
 mean_rsq_per_data_name <- results_lm %>%
     # filter(model_type == "optim")%>%
     group_by(data_pars) %>%
     summarise(mean_rsq = mean(rsq, na.rm = TRUE)) %>%
         arrange(desc(mean_rsq))
 
-# View the result
 print(mean_rsq_per_data_name)
 
-# Perform one-way ANOVA
 anova_result <- aov(rsq ~ data_name, data = results_all)
 
-# Print the ANOVA summary
 print(summary(anova_result))
 
 
@@ -107,6 +101,30 @@ mean_rsq_per_data_name <- tst %>%
     summarise(mean_rsq = mean(rsq, na.rm = TRUE)) %>%
     arrange(desc(mean_rsq))
 
-tst <- read.csv("./data/amaz_results_all.csv")
-head(tst)
-hist(tst$mature_biomass)
+
+tst <- read.csv("./data/amaz_15yr.csv")
+colnames(tst)
+
+
+
+
+# Function to count occurrences of a substring in a file
+count_occurrences <- function(file_path, substring) {
+    count <- 0
+    file_content <- readLines(file_path)
+
+    for (line in file_content) {
+        if (grepl(substring, line)) {
+            count <- count + 1
+        }
+    }
+
+    return(count)
+}
+
+total_string_count <- count_occurrences("nohup.out", "Time so far")
+
+print(paste("Total occurrences of string:", total_string_count))
+
+# should take 54 min to go through all optim iterations with 
+224/80*19.4691248297691
