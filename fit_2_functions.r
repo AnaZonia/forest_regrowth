@@ -204,12 +204,15 @@ run_optim <- function(fun, pars_basic, pars_chosen, train_data, test_data, condi
   pred <- growth_curve(best$par, test_data)
   rsq <- cor(test_data$agbd, pred)^2
 
+  print(class(best$par))
+
   print(paste("R-squared:", rsq))
   return(list(
     pars = best$par,
     rsq = rsq
   ))
 }
+
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -245,7 +248,6 @@ run_gam <- function(train_data, test_data, pars_chosen) {
   print(paste("R-squared:", rsq))
 
   return(list(
-    pars = summary(lm_output$model)$coefficients[-1, 1, drop = FALSE] # -1 to remove (Intercept),
     rsq = rsq
   ))
 }
@@ -278,9 +280,10 @@ run_lm <- function(train_data, test_data, pars_chosen) {
   # Output R-squared value and model results
   pred <- predict(model, newdata = test_data)
   rsq <- cor(test_data$agbd, pred)^2
+
   print(paste("R-squared:", rsq))
   return(list(
-    model = model,
+    pars = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
     rsq = rsq
   ))
 }
@@ -306,10 +309,48 @@ run_rf <- function(train_data, test_data, pars_chosen) {
   print(paste("R-squared:", rsq))
 
   return(list(
-    model = importance(model)[, 1],
+    pars = t(importance(model)[, 1]),
     rsq = rsq
   ))
 }
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#------------- K-fold cross-validation -----------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+cross_valid <- function(data, run_function, pars_chosen, pars_basic = NULL, conditions = NULL) {
+  
+  r_squared_values <- c()
+
+  indices <- sample(nrow(data))
+  folds <- split(indices, cut(indices, breaks = 5, labels = FALSE))
+
+  for (i in 1:5) {
+    # Define the test and train sets
+    test_indices <- folds[[i]]
+    train_indices <- unlist(folds[-i])
+
+    test_data <- data[test_indices, ]
+    train_data <- data[train_indices, ]
+
+    # Run the function on the training data and evaluate on the test data
+    if (identical(run_function, run_optim)) {
+      model_output <- run_function("nls", pars_basic, pars_chosen, train_data, test_data, conditions)
+    } else {
+      model_output <- run_function(train_data, test_data, pars_chosen)
+    }
+
+    # Store the R squared value
+    r_squared_values[i] <- model_output$rsq
+  }
+
+  mean_r_squared <- mean(r_squared_values)
+  sd_r_squared <- sd(r_squared_values)
+  # return parameters of last fit
+  list(rsq = mean_r_squared, rsq_sd = sd_r_squared, pars = model_output$pars)
+}
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #------------- Prepare iteration results as dataframe row -----------------------#
@@ -322,11 +363,20 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
   .combine = "bind_rows", .packages = c("dplyr", "randomForest")) %dopar% {
     
     print(iter)
-    i <- iterations$dataframe[iter]
+    i <- iterations$interval[iter]
     j <- iterations$data_par[iter]
 
-    train_data <- train_dataframes[[i]]
-    test_data <- test_dataframes[[i]]
+
+    if (split_biome) {
+      h <- iterations$biome[iter]
+      biome_name <- biomes[[h]]
+      data <- dataframes[[i]][[h]]
+    } else {
+      biome_name <- NULL
+      data <- dataframes[[i]]
+    }
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
 
     if (model_type == "optim") {
       k <- iterations$basic_par[iter]
@@ -334,21 +384,18 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
       pars_basic <- basic_pars[[k]]
       pars_names <- data_pars_names[[j]]
       basic_pars_names <- basic_pars_names[[k]]
-
-      # Call run_optim with the correct parameters
-      model_output <- run_function("nls", pars_basic, pars_chosen, train_data, test_data, conditions)
     } else {
       pars_chosen <- data_pars_lm[[j]]
       pars_names <- data_pars_lm_names[[j]]
+      pars_basic <- NULL
       basic_pars_names <- NULL
-
-      # Call run_function for non-optim models
-      model_output <- run_function(train_data, test_data, pars_chosen)
     }
+    
+    cross_valid_output <- cross_valid(data, run_function, pars_chosen, pars_basic, conditions)
 
     # Organize result
-    row <- process_row(model_output, model_type, intervals[[i]], pars_names,
-      basic_pars_names = basic_pars_names
+    row <- process_row(cross_valid_output, model_type, intervals[[i]], pars_names,
+      basic_pars_names = basic_pars_names, biome_name = biome_name
     )
 
     print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
@@ -369,7 +416,7 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
 
   # Write the dataframe to a CSV file based on all_switch
   if (!all_switch) {
-    write.csv(df, paste0("./data/", prefix, "_results_", model_type, ".csv"), row.names = FALSE)
+    write.csv(df, paste0("./data/", region, "_results_", model_type, ".csv"), row.names = FALSE)
   }
   
   return(df)
@@ -388,8 +435,10 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
 #   rsq <- the calculated r squared for each iteration of the model
 
 # Define helper functions
-process_row <- function(output, model_type, data_name, data_pars_names, basic_pars_names = NULL) {
-  row <- as.data.frame(t(output$pars))
+process_row <- function(output, model_type, data_name, data_pars_names, basic_pars_names = NULL,
+biome_name = NULL) {
+
+  row <- as.data.frame(output$pars)
   # Set up columns of parameters that are not included in this iteration as NA
   missing_cols <- setdiff(unique(unlist(c(data_pars_lm, non_data_pars, data_pars))), names(row))
   row[missing_cols] <- NA
@@ -399,14 +448,30 @@ process_row <- function(output, model_type, data_name, data_pars_names, basic_pa
   row$model_type <- model_type
   row$data_pars <- data_pars_names
   row$rsq <- output$rsq
+  row$rsq_sd <- output$rsq_sd
 
   if (model_type == "optim"){
     row$basic_pars <- basic_pars_names
   } else {
     row$basic_pars <- NA
   }
-  
-  row %>% select(data_name, "data_pars", "basic_pars", model_type, rsq, "mature_biomass", "age", all_of(non_data_pars), everything())
+
+  # Define the desired order of columns
+  desired_column_order <- c(
+    "data_name", "data_pars", "model_type", "rsq", "rsq_sd", "basic_pars",
+    "mature_biomass", "age"
+  )
+
+  if (!is.null(biome_name)) {
+    row <- row %>%
+      mutate(biome = biome_name) %>%
+      select(biome, all_of(desired_column_order), all_of(non_data_pars), everything())
+  } else {
+    row <- row %>%
+      select(all_of(desired_column_order), all_of(non_data_pars), everything())
+  }
+
+  print(row)
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

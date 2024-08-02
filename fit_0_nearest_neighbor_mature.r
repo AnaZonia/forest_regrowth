@@ -24,7 +24,7 @@ get_coords <- function(raster) {
     non_na_indices <- which(!is.na(matrix), arr.ind = TRUE)
 
     # Sample 10 random coordinates from non-NA values
-    non_na_indices <- non_na_indices[sample(nrow(non_na_indices), 100000, replace = FALSE), ]
+    # non_na_indices <- non_na_indices[sample(nrow(non_na_indices), 100000, replace = FALSE), ]
 
     # Extract sampled distances
     values <- matrix[cbind(non_na_indices[, 1], non_na_indices[, 2])]

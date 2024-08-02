@@ -107,3 +107,6 @@ mean_rsq_per_data_name <- tst %>%
     summarise(mean_rsq = mean(rsq, na.rm = TRUE)) %>%
     arrange(desc(mean_rsq))
 
+tst <- read.csv("./data/amaz_results_all.csv")
+head(tst)
+hist(tst$mature_biomass)
