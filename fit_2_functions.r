@@ -204,16 +204,12 @@ run_optim <- function(fun, pars_basic, pars_chosen, train_data, test_data, condi
   pred <- growth_curve(best$par, test_data)
   rsq <- cor(test_data$agbd, pred)^2
 
-  print(class(best$par))
-
   print(paste("R-squared:", rsq))
   return(list(
     pars = best$par,
     rsq = rsq
   ))
 }
-
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #------------- Linear Model, Random Forest, and GAM -----------------------------#
@@ -414,14 +410,18 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
   # Combine all results into a single dataframe
   df <- as.data.frame(results)
 
-  # Write the dataframe to a CSV file based on all_switch
-  if (!all_switch) {
+  # Write the dataframe to a CSV file
+  # if (!all_switch) {
+  if (split_biome) {
+    write.csv(df, paste0("./data/", region, "_results_", model_type, "_split_biome.csv"), row.names = FALSE)
+  } else {
     write.csv(df, paste0("./data/", region, "_results_", model_type, ".csv"), row.names = FALSE)
   }
+  # }
   
   return(df)
 
-}
+}    
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -472,34 +472,4 @@ biome_name = NULL) {
   }
 
   print(row)
-}
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ------- Prepare final combined results for export as dataframe ----------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
-# Intakes:
-#   results <- final dataframe of combined foreach output
-#   prefix <- optional for the dataframe name on export
-
-write_results_to_csv <- function(results, prefix = "") {
-  # Get the name of the results object as a string
-  results_name <- deparse(substitute(results))
-
-  # Calculate and print the total time taken
-  total_time <- as.numeric(difftime(Sys.time(), start_time, units = "hours"))
-  print(paste(
-    results_name, "written! Time for the whole operation: ",
-    total_time, " hours"
-  ))
-
-  # Combine all results into a single dataframe
-  df <- as.data.frame(results)
-
-  # Write the dataframe to a CSV file based on all_switch
-  # if (!all_switch) {
-    write.csv(df, paste0("./data/", prefix, results_name, ".csv"), row.names = FALSE)
-  # }
-
-  return(df)
 }

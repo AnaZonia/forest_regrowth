@@ -30,16 +30,16 @@ registerDoParallel(cores = 25)
 #----------------- Switches ---------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-test_switch <- TRUE # Set to TRUE for single row or FALSE for all rows
-split_biome <- FALSE # FALSE to execute for the whole country, TRUE to split dataframe between biomes
+test_switch <- FALSE # Set to TRUE for single row or FALSE for all rows
+split_biome <- TRUE # FALSE to execute for the whole country, TRUE to split dataframe between biomes
 
 optim_switch <- FALSE
 lm_switch <- FALSE
 rf_switch <- FALSE
 all_switch <- TRUE
 
-# region <- "countrywide"
-region <- "amaz"
+region <- "countrywide"
+# region <- "amaz"
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #----------------- Global Variables ---------------#
@@ -59,7 +59,7 @@ pars_categ <- c("indig", "protec", names(data)[str_detect(names(data), "LU|ecore
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Define land-use history intervals to import four dataframes
-intervals <- list("5yr", "10yr", "15yr")
+intervals <- list("5yr", "10yr", "15yr", "all")
 datafiles <- paste0("./data/", region, "_", intervals, ".csv")
 dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 
@@ -92,6 +92,8 @@ if (split_biome) {
     sapply(sublist, nrow)
   }))
 
+  print('number of rows considered': smallest_nrow)
+
   # Print the smallest number of rows found
   n_samples <- smallest_nrow %/% 500 * 500
 
@@ -105,6 +107,8 @@ if (split_biome) {
 
 }
 
+
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #--------------- Define Parameters ----------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -115,7 +119,23 @@ conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0')
 # Identify common columns across all dataframes
 # (avoids errors for parameters like last_LU, that not all dataframes may contain depending on how many rows were sampled)
 # and filter out non-predictors
-colnames_intersect <- Reduce(intersect, map(dataframes, colnames))
+
+if (split_biome) {
+
+  colnames_lists <- lapply(dataframes, function(df_list) {
+    lapply(df_list, function(df) colnames(df))
+  })
+
+  colnames_lists <- lapply(colnames_lists, unlist)
+
+  # Step 2: Find the intersection of all column names
+  colnames_intersect <- Reduce(intersect, colnames_lists)
+
+} else {
+  colnames_intersect <- Reduce(intersect, map(dataframes, colnames))
+}
+
+
 colnames_filtered <- colnames_intersect[!grepl(
   "age|agbd|latitude|longitude|prec|si|mature_biomass|distance|biome|cwd",
   colnames_intersect
@@ -163,7 +183,6 @@ data_pars_lm <- c(
 
 filtered_data_pars_names <- data_pars_names[!sapply(data_pars, function(x) any(climatic_pars %in% x))]
 data_pars_lm_names <- c(filtered_data_pars_names, "age", "mat_biomass", "age_mat_biomass")
-print(data_pars_lm_names)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Create grids of different combinations of model inputs
@@ -199,7 +218,6 @@ rows_to_remove <- sapply(iterations_lm$data_par, function(i) {
 })
 iterations_rf <- iterations_lm[!rows_to_remove, ]
 
-print(iterations_rf)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #------------------- Run Model --------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -222,16 +240,23 @@ if (rf_switch || all_switch) {
   results_rf <- run_foreach(iterations_rf, "rf", run_rf)
 }
 
-print(paste(
-  model_type, "finished! Time for the whole operation: ",
-  as.numeric(difftime(Sys.time(), start_time, units = "hours")), " hours"
-))
-
-
 # Combine all results if all_switch is TRUE
 if (all_switch) {
-  results_all <- bind_rows(results_optim, results_lm, results_rf) %>%
-    arrange(data_pars, basic_pars, data_name)
   
-  write.csv(results_all, paste0("./data/", region, "_results_all.csv"), row.names = FALSE)
+  results_all <- bind_rows(results_optim, results_lm, results_rf) %>%
+    arrange(data_pars, basic_pars, data_name) # sort rows by parameter
+
+  if (split_biome) {
+    write.csv(df, paste0("./data/", region, "_results_all_split_biome.csv"), row.names = FALSE)
+  } else {
+    write.csv(df, paste0("./data/", region, "_results_all.csv"), row.names = FALSE)
+  }
+
 }
+
+
+
+print(paste(
+  model_type, "ALL DONE! Time for the whole thing: ",
+  as.numeric(difftime(Sys.time(), start_time, units = "hours")), " hours"
+))
