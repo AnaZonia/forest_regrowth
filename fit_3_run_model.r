@@ -30,13 +30,16 @@ registerDoParallel(cores = 25)
 #----------------- Switches ---------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-test_switch <- FALSE # Set to TRUE for single row or FALSE for all rows
+test_switch <- TRUE # Set to TRUE for single row or FALSE for all rows
 split_biome <- FALSE # FALSE to execute for the whole country, TRUE to split dataframe between biomes
 
 optim_switch <- FALSE
 lm_switch <- FALSE
 rf_switch <- FALSE
-all_switch <- FALSE
+all_switch <- TRUE
+
+# region <- "countrywide"
+region <- "amaz"
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #----------------- Global Variables ---------------#
@@ -56,25 +59,15 @@ pars_categ <- c("indig", "protec", names(data)[str_detect(names(data), "LU|ecore
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Define land-use history intervals to import four dataframes
-intervals <- list("5y", "10y", "15y", "all")
-datafiles <- paste0("./data/", intervals, "_LULC_countrywide.csv") # "_LULC_amaz.csv")
+intervals <- list("5yr", "10yr", "15yr")
+datafiles <- paste0("./data/", region, "_", intervals, ".csv")
 dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
-nrow(dataframes[[1]])
 
-lapply(dataframes, nrow)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Function to create training and testing samples
 
-sample_data <- function(df, size_train, size_test) {
-  train_dataframes <- sample_n(df, size = size_train)
-  remaining <- df[!(row.names(df) %in% row.names(train_dataframes)), ]
-  test_dataframes <- sample_n(remaining, size = size_test)
-  list(train_dataframes, test_dataframes)
-}
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Preparing dataframes whether or not there is a split between biomes
-
 
 if (split_biome) {
   # 1 = Amazonia
@@ -83,33 +76,34 @@ if (split_biome) {
   # 4 = Mata Atlantica
   # 5 = Pampa
   # 6 = Pantanal
-  biomes <- c("amaz", "caat", "cerr", "mata", "pamp", "pant")
+  # biomes <- c("amaz", "caat", "cerr", "mata", "pamp", "pant")
+  biomes <- c("amaz", "mata")
+
+  dataframes <- lapply(dataframes, function(df) {
+    df[df$biome %in% c(1, 4), ]
+  })
 
   # Split each dataframe by biome and store in a nested list
-  split_dataframes <- lapply(dataframes, function(df) {
+  dataframes <- lapply(dataframes, function(df) {
     split(df, df$biome)
   })
 
-  # Initialize lists to store training and testing dataframes for each biome
-  train_dataframes <- list()
-  test_dataframes <- list()
+  smallest_nrow <- min(sapply(dataframes, function(sublist) {
+    sapply(sublist, nrow)
+  }))
 
-  # Iterate over each biome and interval
-  for (biome in biomes) {
-    train_dataframes[[biome]] <- list()
-    test_dataframes[[biome]] <- list()
-    for (interval in seq_along(intervals)) {
-      df_biome <- split_dataframes[[interval]][[biome]]
-      samples <- sample_data(df_biome, size_train = 60000, size_test = 40000)
-      train_dataframes[[biome]][[intervals[interval]]] <- samples[[1]]
-      test_dataframes[[biome]][[intervals[interval]]] <- samples[[2]]
-    }
-  }
+  # Print the smallest number of rows found
+  n_samples <- smallest_nrow %/% 500 * 500
+
+  # Assuming value_sample is defined as the number of rows to sample
+  dataframes <- lapply(dataframes, function(list_of_dfs) {
+    lapply(list_of_dfs, function(df) {
+        df_sampled <- df[sample(nrow(df), n_samples, replace = FALSE), ]
+      return(df_sampled)
+    })
+  })
+
 }
-
-samples <- lapply(dataframes, sample_data, size_train = 60000, size_test = 40000)
-train_dataframes <- lapply(samples, `[[`, 1)
-test_dataframes <- lapply(samples, `[[`, 2)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #--------------- Define Parameters ----------------#
@@ -176,16 +170,27 @@ print(data_pars_lm_names)
 
 # Optim / growth curve
 iterations_optim <- expand.grid(
-  dataframe = seq_along(dataframes),
+  interval = seq_along(intervals),
   data_par = seq_along(data_pars),
   basic_par = seq_along(basic_pars)
 )
 
 # Linear Model
 iterations_lm <- expand.grid(
-  dataframe = seq_along(dataframes),
+  interval = seq_along(intervals),
   data_par = seq_along(data_pars_lm)
 )
+
+if (split_biome) {
+  # Create a grid for the biome dimension
+  biome_grid <- expand.grid(
+    biome = seq_along(biomes)
+  )
+
+  # Merge base_grid with biome_grid to include the biome dimension
+  iterations_optim <- merge(iterations_optim, biome_grid, by = NULL)
+  iterations_lm <- merge(iterations_lm, biome_grid, by = NULL)
+}
 
 # Random Forest
 # Filter out single-predictor cases
@@ -217,9 +222,16 @@ if (rf_switch || all_switch) {
   results_rf <- run_foreach(iterations_rf, "rf", run_rf)
 }
 
+print(paste(
+  model_type, "finished! Time for the whole operation: ",
+  as.numeric(difftime(Sys.time(), start_time, units = "hours")), " hours"
+))
+
+
 # Combine all results if all_switch is TRUE
 if (all_switch) {
   results_all <- bind_rows(results_optim, results_lm, results_rf) %>%
     arrange(data_pars, basic_pars, data_name)
-  write.csv(results_all, "./data/", prefix, "_results_all.csv", row.names = FALSE)
+  
+  write.csv(results_all, paste0("./data/", region, "_results_all.csv"), row.names = FALSE)
 }
