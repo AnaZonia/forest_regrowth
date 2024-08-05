@@ -16,21 +16,21 @@
 library(ggplot2)
 library(foreach)
 library(doParallel)
-library(mgcv)
-library(randomForest)
+library(tidyverse)
 
 # Source external R scripts for data import and function definitions
 source("fit_1_import_data.r")
 source("fit_2_functions.r")
 
 set.seed(1)
-registerDoParallel(cores = 25)
+registerDoParallel(cores = 4)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#----------------- Switches ---------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# -------------------------------------- Switches ---------------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-test_switch <- FALSE # Set to TRUE for single row or FALSE for all rows
+test_switch <- FALSE # Set to TRUE for test_rows or FALSE to run all rows
+test_rows <- 1 # include test_rows rows to test
 split_biome <- TRUE # FALSE to execute for the whole country, TRUE to split dataframe between biomes
 
 optim_switch <- FALSE
@@ -41,9 +41,9 @@ all_switch <- TRUE
 region <- "countrywide"
 # region <- "amaz"
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#----------------- Global Variables ---------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------------------------------- Global Variables ------------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Define climatic parameters that change yearly
 climatic_pars <- c("prec", "si")
@@ -54,9 +54,9 @@ non_data_pars <- c("k0", "B0_exp", "B0", "theta")
 # Define categorical parameters
 pars_categ <- c("indig", "protec", names(data)[str_detect(names(data), "LU|ecoreg|soil")])
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#------------------ Import Data -------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ---------------------------------- Import Data ----------------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Define land-use history intervals to import four dataframes
 intervals <- list("5yr", "10yr", "15yr", "all")
@@ -92,10 +92,10 @@ if (split_biome) {
     sapply(sublist, nrow)
   }))
 
-  print('number of rows considered': smallest_nrow)
-
   # Print the smallest number of rows found
   n_samples <- smallest_nrow %/% 500 * 500
+
+  print(paste("number of rows considered:", n_samples))
 
   # Assuming value_sample is defined as the number of rows to sample
   dataframes <- lapply(dataframes, function(list_of_dfs) {
@@ -109,9 +109,9 @@ if (split_biome) {
 
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#--------------- Define Parameters ----------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------------------------------- Define Parameters -----------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Define conditions for parameter constraints
 conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0')
@@ -174,7 +174,7 @@ basic_pars_names <- as.list(sapply(basic_pars, function(par_set) paste(par_set, 
 data_pars_lm <- c(
   lapply(
     Filter(function(x) !any(climatic_pars %in% x), data_pars), # remove climatic_pars
-    function(x) c(x, "mature_biomass")
+    function(x) c(x, "mature_biomass")#, "age")
   ),
   list(
     c("age"), c("mature_biomass"), c("age", "mature_biomass")
@@ -218,9 +218,10 @@ rows_to_remove <- sapply(iterations_lm$data_par, function(i) {
 })
 iterations_rf <- iterations_lm[!rows_to_remove, ]
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#------------------- Run Model --------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ------------------------------------- Run Model ---------------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 
 start_time <- Sys.time()
 print(start_time)
@@ -246,17 +247,19 @@ if (all_switch) {
   results_all <- bind_rows(results_optim, results_lm, results_rf) %>%
     arrange(data_pars, basic_pars, data_name) # sort rows by parameter
 
+
   if (split_biome) {
-    write.csv(df, paste0("./data/", region, "_results_all_split_biome.csv"), row.names = FALSE)
+    write.csv(results_all, paste0("./data/", region, "_results_all_split_biome.csv"), row.names = FALSE)
   } else {
-    write.csv(df, paste0("./data/", region, "_results_all.csv"), row.names = FALSE)
+    write.csv(results_all, paste0("./data/", region, "_results_all.csv"), row.names = FALSE)
   }
 
 }
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
 print(paste(
-  model_type, "ALL DONE! Time for the whole thing: ",
+  region, "ALL DONE! Time for the whole thing: ",
   as.numeric(difftime(Sys.time(), start_time, units = "hours")), " hours"
 ))

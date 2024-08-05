@@ -24,8 +24,9 @@ get_coords <- function(raster) {
     non_na_indices <- which(!is.na(matrix), arr.ind = TRUE)
 
     # Sample 10 random coordinates from non-NA values
-    # non_na_indices <- non_na_indices[sample(nrow(non_na_indices), 100000, replace = FALSE), ]
-
+    non_na_indices <- non_na_indices[sample(nrow(non_na_indices), 2500000, replace = FALSE), ]
+    # should take about 6h to run 2.5 million rows with 20 cores
+    
     # Extract sampled distances
     values <- matrix[cbind(non_na_indices[, 1], non_na_indices[, 2])]
 
@@ -75,20 +76,30 @@ mature_biomass <- rast("./data/mature_biomass_500m_countrywide.tif")
 dist <- rast("./data/distance_1000m_countrywide.tif")
 data <- get_coords(dist)
 
+start_time <- Sys.time()
+print(start_time)
+
 nearest_biomass <- foreach(i = 1:nrow(data), .combine = "c") %dopar% {
-if (i %% 10000 == 0) { print(paste("Processing iteration:", i))}
+    if (i %% 10000 == 0) {
+        print(paste("Processing iteration:", i))
+        print(paste("Time so far: ", as.numeric(difftime(
+            Sys.time(), start_time,
+            units = "mins"
+        )), " minutes"))
+    }
     mean_biomass_within_buffer(data[i, ])
 }
+
 print("nearest_biomass finished")
 
 final_csv <- cbind(data, nearest_biomass)
 final_csv <- na.omit(final_csv)
+final_csv <- final_csv %>% rename("mature_biomass" = "nearest_biomass")
 
 write.csv(final_csv, "./data/dist_mature_1000m_countrywide.csv", row.names = FALSE)
 print("csv exported")
 
 mat_biomass_raster <- rast(final_csv[, c("longitude", "latitude", "distance", "nearest_biomass")], type = "xyz", crs = crs(mature_biomass))
-names(mat_biomass_raster) <- c("distance", "mature_biomass")
 
 writeRaster(mat_biomass_raster, "./data/nearest_mat_biomass_1000m_countrywide.tif")
 print("raster exported")

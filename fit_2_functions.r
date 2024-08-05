@@ -2,7 +2,7 @@
 #                                                                              #
 #                 Forest Regrowth Model Functions and Utilities                #
 #                                                                              #
-#                              Ana Avila - July 2024                           #
+#                            Ana Avila - August 2024                           #
 #                                                                              #
 #     This script defines the core functions used in the forest regrowth       #
 #     modeling process (fit_3_run_model.r)                                     #
@@ -10,8 +10,10 @@
 #     Functions included:                                                      #
 #     - growth_curve                                                           #
 #     - likelihood                                                             #
-#     - run_optimization                                                       #
-#     - run_gam_lm                                                             #
+#     - filter_test_data                                                       #
+#     - run_optim                                                              #
+#     - run_gam                                                                #
+#     - run_lm                                                                 #
 #     - run_rf                                                                 #
 #     - process_row                                                            #
 #     - run_foreach                                                            #
@@ -20,11 +22,11 @@
 
 library(mgcv)
 library(randomForest)
-library(tidyverse)
+set.seed(1)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#------------------- Growth Curve -----------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ------------------------------------ Growth Curve -------------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 #     This function calculates the Chapman-Richards growth curve based on the provided
 #     parameters and data. It can incorporate:
@@ -68,9 +70,9 @@ growth_curve <- function(pars, data) {
   }
 }
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#------------------- Likelihood -------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#--------------------------------------- Likelihood -------------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
 # Intakes:
 #   fun <- the function to be used, either "nls" (Nonlinear Least Squares)
@@ -102,9 +104,30 @@ likelihood <- function(fun, pars, data, conditions) {
   }
 }
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#----------------- Optimization -------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#----------------- Ensuring testing data is within testing data range -------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+filter_test_data <- function(train_data, test_data) {
+  # Calculate min and max for each column in train_data
+  train_min <- sapply(train_data, min)
+  train_max <- sapply(train_data, max)
+
+  # Function to check if a row is within the range
+  is_within_range <- function(row) {
+    all(row >= train_min & row <= train_max)
+  }
+
+  # Apply the function to each row of test_data
+  filtered_test_data <- test_data[apply(test_data, 1, is_within_range), ]
+
+  return(filtered_test_data)
+}
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ---------------------------------- Optimization ---------------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
 #     This function prepares the optimization process for the forest regrowth model.
 #     It runs the optimization process iteratively, incorporating one parameter of the
@@ -149,7 +172,6 @@ run_optim <- function(fun, pars_basic, pars_chosen, train_data, test_data, condi
     conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
   }
 
-
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # FITTING
   # theta + other essential parameters
@@ -168,11 +190,9 @@ run_optim <- function(fun, pars_basic, pars_chosen, train_data, test_data, condi
 
   # iterate through # variables - keep best one, and go to next
   for (i in (length(pars_basic) + 2):length(iter_pars)) {
-    print(i)
 
     tmp1 <- foreach(j = remaining[-taken]) %dopar% {
       inipar <- c(iter_pars[j], best$par) # as starting point, taking the best values from last time
-
       model <- optim(inipar,
         likelihood,
         fun = fun,
@@ -195,25 +215,30 @@ run_optim <- function(fun, pars_basic, pars_chosen, train_data, test_data, condi
         best$par <- tmp[pos, names(iter_pars)]
         taken <- which(!is.na(best$par))
         best$par <- best$par[taken]
+        print(best$par)
+
       } else {
-      # there is no improvement, exit loop
-      return(best)
+        print("No improvement. Exiting loop.")
+        print(best$par)
+        break
     }
   }
 
-  pred <- growth_curve(best$par, test_data)
-  rsq <- cor(test_data$agbd, pred)^2
-
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  filtered_test_data <- filter_test_data(train_data, test_data)
+  pred <- growth_curve(best$par, filtered_test_data)
+  rsq <- cor(filtered_test_data$agbd, pred)^2
   print(paste("R-squared:", rsq))
+  
   return(list(
     pars = best$par,
     rsq = rsq
   ))
 }
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#------------- Linear Model, Random Forest, and GAM -----------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ------------------------ Linear Model, Random Forest, and GAM -------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
 # Intake:
 #   train_data <- the chosen training dataframe
@@ -239,8 +264,11 @@ run_gam <- function(train_data, test_data, pars_chosen) {
 
   model <- gam(formula, data = train_data)
 
-  pred <- predict(model, newdata = test_data)
-  rsq <- cor(test_data$agbd, pred)^2
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Output R-squared value and model results
+  filtered_test_data <- filter_test_data(train_data, test_data)
+  pred <- predict(model, newdata = filtered_test_data)
+  rsq <- cor(filtered_test_data$agbd, pred)^2
   print(paste("R-squared:", rsq))
 
   return(list(
@@ -274,10 +302,11 @@ run_lm <- function(train_data, test_data, pars_chosen) {
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Output R-squared value and model results
-  pred <- predict(model, newdata = test_data)
-  rsq <- cor(test_data$agbd, pred)^2
-
+  filtered_test_data <- filter_test_data(train_data, test_data)
+  pred <- predict(model, newdata = filtered_test_data)
+  rsq <- cor(filtered_test_data$agbd, pred)^2
   print(paste("R-squared:", rsq))
+
   return(list(
     pars = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
     rsq = rsq
@@ -300,8 +329,11 @@ run_rf <- function(train_data, test_data, pars_chosen) {
     keep.forest = TRUE, oob.score = TRUE, do.trace = 10, parallel = TRUE
   )
 
-  pred <- predict(model, newdata = test_data)
-  rsq <- cor(test_data$agbd, pred)^2
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Output R-squared value and model results
+  filtered_test_data <- filter_test_data(train_data, test_data)
+  pred <- predict(model, newdata = filtered_test_data)
+  rsq <- cor(filtered_test_data$agbd, pred)^2
   print(paste("R-squared:", rsq))
 
   return(list(
@@ -311,24 +343,20 @@ run_rf <- function(train_data, test_data, pars_chosen) {
 }
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#------------- K-fold cross-validation -----------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ----------------------------- K-fold cross-validation ---------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 cross_valid <- function(data, run_function, pars_chosen, pars_basic = NULL, conditions = NULL) {
   
   r_squared_values <- c()
 
-  indices <- sample(nrow(data))
-  folds <- split(indices, cut(indices, breaks = 5, labels = FALSE))
+  indices <- sample(c(1:5), nrow(data), replace = TRUE)
 
   for (i in 1:5) {
     # Define the test and train sets
-    test_indices <- folds[[i]]
-    train_indices <- unlist(folds[-i])
-
-    test_data <- data[test_indices, ]
-    train_data <- data[train_indices, ]
+    test_data <- data[indices == i, ]
+    train_data <- data[!indices == i, ]
 
     # Run the function on the training data and evaluate on the test data
     if (identical(run_function, run_optim)) {
@@ -337,25 +365,30 @@ cross_valid <- function(data, run_function, pars_chosen, pars_basic = NULL, cond
       model_output <- run_function(train_data, test_data, pars_chosen)
     }
 
-    # Store the R squared value
-    r_squared_values[i] <- model_output$rsq
+    if (is.na(model_output$rsq)) {
+      print(paste0("RSQ NA!", model_output$pars))
+    } else {
+      # Store the R squared value
+      r_squared_values[i] <- model_output$rsq
+    }
+
   }
 
   mean_r_squared <- mean(r_squared_values)
   sd_r_squared <- sd(r_squared_values)
   # return parameters of last fit
-  list(rsq = mean_r_squared, rsq_sd = sd_r_squared, pars = model_output$pars)
+  return(list(rsq = mean_r_squared, rsq_sd = sd_r_squared, pars = model_output$pars))
 }
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#------------- Prepare iteration results as dataframe row -----------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------------------------- Apply all models to the data ------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Define a function to run foreach for different models
 run_foreach <- function(iterations, model_type, run_function, conditions = NULL) {
 
-  results <- foreach(iter = if (test_switch) 1 else 1:nrow(iterations),
+  results <- foreach(iter = if (test_switch) test_rows else 1:nrow(iterations),
   .combine = "bind_rows", .packages = c("dplyr", "randomForest")) %dopar% {
     
     print(iter)
@@ -394,7 +427,8 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
       basic_pars_names = basic_pars_names, biome_name = biome_name
     )
 
-    print(paste("Time so far: ", as.numeric(difftime(Sys.time(), start_time, units = "mins")), " minutes"))
+    print(paste("Time so far: ", as.numeric(difftime(
+      Sys.time(), start_time, units = "mins")), " minutes"))
     print(row)
 
     row
@@ -424,9 +458,9 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
 }    
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#------------- Prepare iteration results as dataframe row -----------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#--------------------- Prepare iteration results as dataframe row -----------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
 # Intakes:
 #   output <- the output of the model as a matrix (coefficients or rf importance)
@@ -471,5 +505,5 @@ biome_name = NULL) {
       select(all_of(desired_column_order), all_of(non_data_pars), everything())
   }
 
-  print(row)
+  return(row)
 }
