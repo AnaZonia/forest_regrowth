@@ -11,19 +11,22 @@ source("fit_1_import_data.r")
 
 # Define land-use history intervals to import four dataframes
 intervals <- list(
-    "5y",
-    "10y",
-    "15y",
+    "5yr",
+    "10yr",
+    "15yr",
     "all"
 )
 
 datafiles <- lapply(intervals, function(file) {
-    paste0("./data/", file, "_LULC_mat_dist.csv")
+    paste0("./data/amaz_", file, ".csv")
 })
 
 dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 
-head(dataframes[[1]])
+data <- dataframes[[1]]
+
+tst <- read.csv("./data/dist_mature_1000m_countrywide.csv")
+
 
 create_correlation_plot <- function(df, interval_name) {
     # Remove non-numeric columns
@@ -52,10 +55,11 @@ create_correlation_plot <- function(df, interval_name) {
 }
 
 
-results_optim <- read.csv("./data/countrywide_results_optim.csv")
+results_optim <- read.csv("./data/amaz_results_all.csv")
 results_lm <- read.csv("./data/countrywide_results_lm.csv")
 results_rf <- read.csv("./data/countrywide_results_rf.csv")
 
+head(results_optim)
 
 results_all <- bind_rows(results_optim, results_lm, results_rf) %>%
     arrange(data_pars, basic_pars, data_name)
@@ -122,9 +126,9 @@ count_occurrences <- function(file_path, substring) {
     return(count)
 }
 
-total_string_count <- count_occurrences("nohup.out", "Time so far")
+total_string_count <- count_occurrences("nohup_countrywide_biome.out", "Time so far")
 
 print(paste("Total occurrences of string:", total_string_count))
 
-# should take 54 min to go through all optim iterations with 
-224/80*19.4691248297691
+# should take 54 min to go through all optim iterations with 40000 rows per df
+(224/12)*14.4

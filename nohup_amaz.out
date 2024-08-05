@@ -1,0 +1,564 @@
+Loading required package: iterators
+Loading required package: parallel
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.1     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ lubridate 1.9.2     ✔ tibble    3.2.1
+✔ purrr     1.0.1     ✔ tidyr     1.3.0
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ purrr::accumulate() masks foreach::accumulate()
+✖ dplyr::filter()     masks stats::filter()
+✖ dplyr::lag()        masks stats::lag()
+✖ purrr::when()       masks foreach::when()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Thank you for using fastDummies!
+To acknowledge our work, please cite the package:
+Kaplan, J. & Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) Columns and Rows from Categorical Variables. Version 1.7.1. URL: https://github.com/jacobkap/fastDummies, https://jacobkap.github.io/fastDummies/.
+Loading required package: nlme
+
+Attaching package: ‘nlme’
+
+The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+This is mgcv 1.9-0. For overview type 'help("mgcv-package")'.
+randomForest 4.7-1.1
+Type rfNews() to see new features/changes/bug fixes.
+
+Attaching package: ‘randomForest’
+
+The following object is masked from ‘package:dplyr’:
+
+    combine
+
+The following object is masked from ‘package:ggplot2’:
+
+    margin
+
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+[1] "2024-08-04 21:09:53 EDT"
+[1] 1
+[1] 2
+[1] 3
+[1] 4
+     theta          age       B0          cwd
+4 0.383712 5.346207e-05 31.97172 8.303542e-05
+      theta          age       B0          cwd
+4 0.3628019 9.933886e-05 19.26125 0.0001301211
+      theta          age      B0          cwd
+4 0.4848085 0.0003387589 35.2096 0.0004603758
+[1] "R-squared: 0.254387188625073"
+      theta          age       B0         cwd
+4 0.4680183 0.0003611555 32.52702 0.000368544
+[1] "R-squared: 0.198749153019721"
+[1] "R-squared: 0.220853030642193"
+[1] "R-squared: 0.248926152458386"
+      theta          age       B0          cwd
+4 0.3362527 1.808303e-05 31.70361 2.133825e-05
+     theta          age       B0          cwd
+4 0.387622 0.0001711463 20.05337 0.0002053852
+[1] "R-squared: 0.247712816128944"
+[1] "R-squared: 0.196162796174448"
+      theta          age       B0          cwd
+4 0.4362387 0.0001335423 35.00876 0.0001956617
+      theta          age     B0          cwd
+4 0.4027363 6.540576e-05 43.937 5.620587e-05
+[1] "R-squared: 0.219429065044366"
+[1] "R-squared: 0.253522334534483"
+      theta          age       B0          cwd
+4 0.3675112 4.291449e-05 31.82495 5.375631e-05
+[1] "R-squared: 0.258871969844034"
+      theta          age      B0          cwd
+4 0.4049396 0.0002432051 19.2849 0.0003493562
+[1] "R-squared: 0.198017379806017"
+      theta          age       B0          cwd
+4 0.3673158 2.863224e-05 34.32103 4.110741e-05
+[1] "R-squared: 0.216843472336217"
+      theta          age       B0          cwd
+4 0.4507368 0.0002946459 32.04956 0.0002722284
+[1] "R-squared: 0.243260429582221"
+      theta          age       B0          cwd
+4 0.3900811 7.453761e-05 31.86085 9.015834e-05
+      theta          age       B0          cwd
+4 0.3512665 7.662364e-05 18.97528 0.0001011743
+[1] "R-squared: 0.251038001805412"
+[1] "R-squared: 0.1959773952176"
+      theta          age       B0          cwd
+4 0.4619462 0.0002131075 34.80967 0.0003164395
+[1] "R-squared: 0.222921784772522"
+      theta         age       B0          cwd
+4 0.4269092 0.000106212 42.71466 0.0001039609
+[1] "R-squared: 0.243980588755758"
+      theta          age       B0         cwd
+4 0.3376088 5.472186e-05 18.91776 6.87944e-05
+      theta          age       B0          cwd
+4 0.3527955 2.849308e-05 31.76618 3.527633e-05
+[1] "R-squared: 0.205438091682123"
+[1] "Time so far:  0.416399729251862  minutes"
+  data_name data_pars model_type      rsq      rsq_sd basic_pars mature_biomass
+4      15yr       cwd      optim 0.198869 0.003859323     age_B0             NA
+           age k0 B0_exp       B0     theta         cwd mean_prec mean_si
+4 5.472186e-05 NA     NA 18.91776 0.3376088 6.87944e-05        NA      NA
+  fallow indig lulc_sum_15 lulc_sum_21 lulc_sum_35 lulc_sum_39 lulc_sum_41
+4     NA    NA          NA          NA          NA          NA          NA
+  lulc_sum_9 mature_forest_years num_fires_after_regrowth
+4         NA                  NA                       NA
+  num_fires_before_regrowth protec sur_cover ts_fire_after_regrowth
+4                        NA     NA        NA                     NA
+  ts_fire_before_regrowth last_LU_9 last_LU_15 last_LU_21 last_LU_35 last_LU_39
+4                      NA        NA         NA         NA         NA         NA
+  last_LU_41 ecoreg_446 ecoreg_464 ecoreg_465 ecoreg_466 ecoreg_467 ecoreg_469
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_473 ecoreg_474 ecoreg_476 ecoreg_480 ecoreg_481 ecoreg_482 ecoreg_484
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_485 ecoreg_490 ecoreg_496 ecoreg_497 ecoreg_498 ecoreg_503 ecoreg_505
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_507 ecoreg_508 ecoreg_511 ecoreg_518 ecoreg_529 ecoreg_540 ecoreg_567
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_570 ecoreg_584 ecoreg_611 soil_2 soil_3 soil_7 soil_8 soil_9 soil_10
+4         NA         NA         NA     NA     NA     NA     NA     NA      NA
+  soil_14 soil_16 soil_19 soil_22 soil_23 soil_25 soil_28 soil_31 soil_32 prec
+4      NA      NA      NA      NA      NA      NA      NA      NA      NA   NA
+  si
+4 NA
+[1] 7
+[1] "R-squared: 0.262945258599461"
+[1] "Time so far:  0.418503395716349  minutes"
+  data_name data_pars model_type      rsq      rsq_sd basic_pars mature_biomass
+4       5yr       cwd      optim 0.254991 0.006068256     age_B0             NA
+           age k0 B0_exp       B0     theta          cwd mean_prec mean_si
+4 2.849308e-05 NA     NA 31.76618 0.3527955 3.527633e-05        NA      NA
+  fallow indig lulc_sum_15 lulc_sum_21 lulc_sum_35 lulc_sum_39 lulc_sum_41
+4     NA    NA          NA          NA          NA          NA          NA
+  lulc_sum_9 mature_forest_years num_fires_after_regrowth
+4         NA                  NA                       NA
+  num_fires_before_regrowth protec sur_cover ts_fire_after_regrowth
+4                        NA     NA        NA                     NA
+  ts_fire_before_regrowth last_LU_9 last_LU_15 last_LU_21 last_LU_35 last_LU_39
+4                      NA        NA         NA         NA         NA         NA
+  last_LU_41 ecoreg_446 ecoreg_464 ecoreg_465 ecoreg_466 ecoreg_467 ecoreg_469
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_473 ecoreg_474 ecoreg_476 ecoreg_480 ecoreg_481 ecoreg_482 ecoreg_484
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_485 ecoreg_490 ecoreg_496 ecoreg_497 ecoreg_498 ecoreg_503 ecoreg_505
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_507 ecoreg_508 ecoreg_511 ecoreg_518 ecoreg_529 ecoreg_540 ecoreg_567
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_570 ecoreg_584 ecoreg_611 soil_2 soil_3 soil_7 soil_8 soil_9 soil_10
+4         NA         NA         NA     NA     NA     NA     NA     NA      NA
+  soil_14 soil_16 soil_19 soil_22 soil_23 soil_25 soil_28 soil_31 soil_32 prec
+4      NA      NA      NA      NA      NA      NA      NA      NA      NA   NA
+  si
+4 NA
+[1] 5
+      theta         age       B0          cwd
+4 0.4093479 8.54272e-05 34.23569 0.0001119072
+[1] "R-squared: 0.211689642105791"
+[1] "Time so far:  0.426490453879039  minutes"
+  data_name data_pars model_type       rsq      rsq_sd basic_pars
+4      10yr       cwd      optim 0.2183474 0.004328993     age_B0
+  mature_biomass         age k0 B0_exp       B0     theta          cwd
+4             NA 8.54272e-05 NA     NA 34.23569 0.4093479 0.0001119072
+  mean_prec mean_si fallow indig lulc_sum_15 lulc_sum_21 lulc_sum_35
+4        NA      NA     NA    NA          NA          NA          NA
+  lulc_sum_39 lulc_sum_41 lulc_sum_9 mature_forest_years
+4          NA          NA         NA                  NA
+  num_fires_after_regrowth num_fires_before_regrowth protec sur_cover
+4                       NA                        NA     NA        NA
+  ts_fire_after_regrowth ts_fire_before_regrowth last_LU_9 last_LU_15
+4                     NA                      NA        NA         NA
+  last_LU_21 last_LU_35 last_LU_39 last_LU_41 ecoreg_446 ecoreg_464 ecoreg_465
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_466 ecoreg_467 ecoreg_469 ecoreg_473 ecoreg_474 ecoreg_476 ecoreg_480
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_481 ecoreg_482 ecoreg_484 ecoreg_485 ecoreg_490 ecoreg_496 ecoreg_497
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_498 ecoreg_503 ecoreg_505 ecoreg_507 ecoreg_508 ecoreg_511 ecoreg_518
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_529 ecoreg_540 ecoreg_567 ecoreg_570 ecoreg_584 ecoreg_611 soil_2
+4         NA         NA         NA         NA         NA         NA     NA
+  soil_3 soil_7 soil_8 soil_9 soil_10 soil_14 soil_16 soil_19 soil_22 soil_23
+4     NA     NA     NA     NA      NA      NA      NA      NA      NA      NA
+  soil_25 soil_28 soil_31 soil_32 prec si
+4      NA      NA      NA      NA   NA NA
+[1] 6
+      theta          age       B0          cwd
+4 0.3602609 4.323578e-05 30.29079 4.085344e-05
+[1] "R-squared: 0.243817481214756"
+[1] "Time so far:  0.454954298337301  minutes"
+  data_name data_pars model_type       rsq      rsq_sd basic_pars
+4       all       cwd      optim 0.2467014 0.004445075     age_B0
+  mature_biomass          age k0 B0_exp       B0     theta          cwd
+4             NA 4.323578e-05 NA     NA 30.29079 0.3602609 4.085344e-05
+  mean_prec mean_si fallow indig lulc_sum_15 lulc_sum_21 lulc_sum_35
+4        NA      NA     NA    NA          NA          NA          NA
+  lulc_sum_39 lulc_sum_41 lulc_sum_9 mature_forest_years
+4          NA          NA         NA                  NA
+  num_fires_after_regrowth num_fires_before_regrowth protec sur_cover
+4                       NA                        NA     NA        NA
+  ts_fire_after_regrowth ts_fire_before_regrowth last_LU_9 last_LU_15
+4                     NA                      NA        NA         NA
+  last_LU_21 last_LU_35 last_LU_39 last_LU_41 ecoreg_446 ecoreg_464 ecoreg_465
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_466 ecoreg_467 ecoreg_469 ecoreg_473 ecoreg_474 ecoreg_476 ecoreg_480
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_481 ecoreg_482 ecoreg_484 ecoreg_485 ecoreg_490 ecoreg_496 ecoreg_497
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_498 ecoreg_503 ecoreg_505 ecoreg_507 ecoreg_508 ecoreg_511 ecoreg_518
+4         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_529 ecoreg_540 ecoreg_567 ecoreg_570 ecoreg_584 ecoreg_611 soil_2
+4         NA         NA         NA         NA         NA         NA     NA
+  soil_3 soil_7 soil_8 soil_9 soil_10 soil_14 soil_16 soil_19 soil_22 soil_23
+4     NA     NA     NA     NA      NA      NA      NA      NA      NA      NA
+  soil_25 soil_28 soil_31 soil_32 prec si
+4      NA      NA      NA      NA   NA NA
+[1] 8
+      theta          age       B0         cwd
+4 0.3932029 0.0002062837 19.26047 0.000255805
+      theta          age       B0          cwd
+4 0.3724862 4.997227e-05 31.84307 5.670805e-05
+      theta          age       B0      mean_si
+6 0.1499718 0.0006246831 2.328518 0.0002502583
+      theta          age       B0      mean_si
+6 0.2991416 3.506831e-05 18.14645 2.547084e-05
+      theta          age       B0          cwd      mean_si
+2 0.3652759 0.0004091125 12.62335 0.0003136809 0.0001858667
+      theta          age       B0          cwd      mean_si
+2 0.3722243 0.0003660342 10.96891 0.0004648232 0.0003687366
+      theta         age       B0        cwd     mean_si
+1 0.5879433 0.005094161 9.033974 0.01056572 0.009240583
+      theta          age       B0          cwd      mean_si
+1 0.3217806 0.0003460546 9.885597 0.0001726338 0.0001473272
+      theta          age      B0          cwd     mean_prec     mean_si
+1 0.3311655 0.0001451463 10.9325 0.0004419173 -0.0004613271 0.000206598
+      theta          age       B0         cwd     mean_prec      mean_si
+1 0.3043385 0.0002327258 8.833626 0.000482537 -0.0004776957 0.0001843745
+[1] "R-squared: 0.223341393206726"
+      theta         age       B0         cwd    mean_prec     mean_si
+1 0.5462919 0.001968049 13.16992 0.007010978 -0.005698796 0.004064042
+[1] "R-squared: 0.273243856339658"
+[1] "R-squared: 0.250305987421741"
+      theta          age       B0          cwd     mean_prec      mean_si
+1 0.3129187 0.0001024148 13.02657 0.0001598903 -0.0001689363 7.547393e-05
+[1] "R-squared: NA"
+[1] "RSQ NA!0.312918701623695"     "RSQ NA!0.000102414756793467" 
+[3] "RSQ NA!13.0265700395103"      "RSQ NA!0.000159890267785489" 
+[5] "RSQ NA!-0.000168936346154787" "RSQ NA!7.54739320311836e-05" 
+      theta          age       B0          cwd
+4 0.3858506 6.792126e-05 31.99217 7.886838e-05
+      theta          age       B0          cwd
+4 0.3707041 0.0001139554 19.09238 0.0001646399
+      theta          age       B0          cwd
+4 0.4086242 8.635985e-05 35.03477 0.0001003869
+      theta          age       B0      mean_si
+6 0.1061308 0.0004456984 1.825032 3.368911e-05
+      theta          age       B0          cwd      mean_si
+2 0.3683095 0.0002429996 12.48793 0.0003337126 0.0002152052
+      theta          age      B0          cwd      mean_si
+2 0.3742665 0.0003271405 11.4693 0.0004793968 0.0003990635
+      theta          age       B0         cwd      mean_si
+2 0.3835243 0.0002684732 13.81293 0.000404596 0.0003286686
+      theta          age      B0          cwd      mean_si
+1 0.1253573 9.173775e-05 2.55727 1.442013e-05 1.530199e-06
+      theta          age       B0          cwd     mean_prec      mean_si
+1 0.3862508 0.0001866597 15.46238 0.0006302667 -0.0006544852 0.0002897458
+      theta          age       B0          cwd     mean_prec     mean_si
+1 0.3237736 0.0001293747 11.55457 0.0003327264 -0.0003421235 0.000149346
+[1] "R-squared: 0.234305828233961"
+      theta          age       B0         cwd     mean_prec      mean_si
+1 0.3997417 0.0002003112 18.05365 0.000558955 -0.0004760554 0.0002792116
+[1] "R-squared: 0.235083182587482"
+[1] "R-squared: 0.269112769577091"
+      theta          age       B0          cwd     mean_prec      mean_si
+1 0.1693603 6.441931e-05 3.726728 7.816865e-05 -8.430829e-05 4.059262e-05
+[1] "R-squared: 0.244660181024253"
+      theta          age       B0          cwd
+4 0.4207198 0.0001048223 35.03321 0.0001430159
+      theta          age      B0          cwd
+4 0.3671514 0.0001216836 19.1147 0.0001394553
+      theta          age       B0          cwd
+4 0.3461987 2.303253e-05 31.84107 2.860899e-05
+      theta          age       B0      mean_si
+6 0.2354609 0.0008360033 4.298766 0.0004169475
+      theta          age       B0          cwd      mean_si
+2 0.4691879 0.0001876777 31.53343 0.0003006442 0.0002531961
+     theta          age       B0          cwd      mean_si
+2 0.398166 0.0003103156 12.90773 0.0005672596 0.0004007024
+      theta          age       B0          cwd      mean_si
+2 0.3126905 0.0003857619 8.157725 0.0004039033 0.0001378185
+      theta         age       B0         cwd     mean_si
+1 0.3508925 0.008672291 3.782098 0.003666065 0.006526236
+      theta         age       B0          cwd    mean_prec      mean_si
+1 0.3758811 0.000132662 16.65758 0.0004117516 -0.000427791 0.0001898853
+      theta          age       B0          cwd     mean_prec      mean_si
+1 0.4137957 0.0001182091 28.33791 0.0002900436 -0.0003042202 0.0001367094
+[1] "R-squared: 0.228993884370713"
+[1] "R-squared: 0.24326564211288"
+      theta          age       B0          cwd     mean_prec      mean_si
+1 0.3013482 0.0001402754 10.12948 0.0002862257 -0.0002856188 0.0001141078
+[1] "R-squared: 0.267162672211871"
+      theta         age       B0         cwd    mean_prec     mean_si
+1 0.3099368 0.003748903 4.061015 0.005307463 -0.005258922 0.002244196
+[1] "R-squared: 0.26912299857"
+      theta          age       B0          cwd
+4 0.3715793 4.197434e-05 34.32737 4.156947e-05
+      theta          age       B0          cwd
+4 0.3693402 0.0001132436 19.13091 0.0001587978
+      theta          age       B0          cwd
+4 0.3596548 3.381986e-05 31.79407 4.195551e-05
+      theta          age       B0          cwd      mean_si
+2 0.3762562 4.322035e-05 26.29773 7.047919e-05 5.028088e-05
+      theta          age       B0          cwd
+4 0.4121191 0.0001287104 32.16346 0.0001284865
+      theta          age       B0          cwd      mean_si
+2 0.3906952 0.0004116601 11.43337 0.0006294323 0.0004503984
+      theta          age       B0          cwd      mean_si
+2 0.3534904 0.0002771471 13.38038 0.0002078758 0.0001225247
+     theta          age     B0          cwd     mean_prec      mean_si
+1 0.355613 3.994099e-05 25.636 8.547421e-05 -8.578491e-05 3.616265e-05
+[1] "R-squared: 0.238181289642826"
+      theta          age       B0          cwd     mean_prec      mean_si
+1 0.3549287 0.0001305974 14.12365 0.0003928018 -0.0004156301 0.0001800254
+[1] "R-squared: NA"
+[1] "RSQ NA!0.354928670168636"     "RSQ NA!0.000130597374671287" 
+[3] "RSQ NA!14.1236517989636"      "RSQ NA!0.000392801814985486" 
+[5] "RSQ NA!-0.000415630144385718" "RSQ NA!0.000180025420390323" 
+      theta         age       B0         cwd      mean_si
+2 0.4674791 0.000925507 17.00989 0.000775688 0.0008930424
+      theta          age       B0          cwd     mean_prec      mean_si
+1 0.3627061 0.0001483994 16.45608 0.0003357613 -0.0003143763 0.0001465652
+[1] "R-squared: 0.269130918425246"
+      theta          age       B0          cwd     mean_prec      mean_si
+1 0.4016735 0.0002744514 18.63407 0.0005333028 -0.0005621107 0.0002634875
+[1] "R-squared: 0.279749292243429"
+      theta          age      B0      mean_si
+6 0.3816023 4.921402e-05 34.4187 6.624414e-05
+      theta         age      B0          cwd
+4 0.4328317 0.000207674 26.0778 0.0003052139
+     theta          age       B0          cwd
+4 0.332865 1.612959e-05 31.68966 1.896246e-05
+      theta          age     B0          cwd      mean_si
+1 0.3783096 0.0001424089 17.139 0.0001903686 0.0001555986
+      theta         age       B0         cwd     mean_si
+2 0.3974222 0.001343877 7.317979 0.002054229 0.001575159
+      theta         age       B0     mean_si
+6 0.2331921 0.007964192 2.651185 0.001514635
+     theta          age       B0          cwd      mean_si
+2 0.305452 0.0003324432 8.471034 0.0003161981 5.811357e-05
+      theta          age       B0          cwd     mean_prec      mean_si
+1 0.3432798 6.655485e-05 16.62531 0.0001993922 -0.0002061791 9.754861e-05
+[1] "R-squared: 0.23794543374496"
+[1] "Time so far:  1.78915841976802  minutes"
+  data_name data_pars model_type       rsq      rsq_sd basic_pars
+1      10yr  meanclim      optim 0.2409563 0.006000192     age_B0
+  mature_biomass          age k0 B0_exp       B0     theta          cwd
+1             NA 6.655485e-05 NA     NA 16.62531 0.3432798 0.0001993922
+      mean_prec      mean_si fallow indig lulc_sum_15 lulc_sum_21 lulc_sum_35
+1 -0.0002061791 9.754861e-05     NA    NA          NA          NA          NA
+  lulc_sum_39 lulc_sum_41 lulc_sum_9 mature_forest_years
+1          NA          NA         NA                  NA
+  num_fires_after_regrowth num_fires_before_regrowth protec sur_cover
+1                       NA                        NA     NA        NA
+  ts_fire_after_regrowth ts_fire_before_regrowth last_LU_9 last_LU_15
+1                     NA                      NA        NA         NA
+  last_LU_21 last_LU_35 last_LU_39 last_LU_41 ecoreg_446 ecoreg_464 ecoreg_465
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_466 ecoreg_467 ecoreg_469 ecoreg_473 ecoreg_474 ecoreg_476 ecoreg_480
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_481 ecoreg_482 ecoreg_484 ecoreg_485 ecoreg_490 ecoreg_496 ecoreg_497
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_498 ecoreg_503 ecoreg_505 ecoreg_507 ecoreg_508 ecoreg_511 ecoreg_518
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_529 ecoreg_540 ecoreg_567 ecoreg_570 ecoreg_584 ecoreg_611 soil_2
+1         NA         NA         NA         NA         NA         NA     NA
+  soil_3 soil_7 soil_8 soil_9 soil_10 soil_14 soil_16 soil_19 soil_22 soil_23
+1     NA     NA     NA     NA      NA      NA      NA      NA      NA      NA
+  soil_25 soil_28 soil_31 soil_32 prec si
+1      NA      NA      NA      NA   NA NA
+[1] 10
+      theta          age       B0          cwd     mean_prec      mean_si
+1 0.3365831 0.0002796009 8.898839 0.0008928483 -0.0009270573 0.0004121679
+[1] "R-squared: 0.22982735346469"
+[1] "Time so far:  1.79757558107376  minutes"
+  data_name data_pars model_type rsq rsq_sd basic_pars mature_biomass
+1      15yr  meanclim      optim  NA     NA     age_B0             NA
+           age k0 B0_exp       B0     theta          cwd     mean_prec
+1 0.0002796009 NA     NA 8.898839 0.3365831 0.0008928483 -0.0009270573
+       mean_si fallow indig lulc_sum_15 lulc_sum_21 lulc_sum_35 lulc_sum_39
+1 0.0004121679     NA    NA          NA          NA          NA          NA
+  lulc_sum_41 lulc_sum_9 mature_forest_years num_fires_after_regrowth
+1          NA         NA                  NA                       NA
+  num_fires_before_regrowth protec sur_cover ts_fire_after_regrowth
+1                        NA     NA        NA                     NA
+  ts_fire_before_regrowth last_LU_9 last_LU_15 last_LU_21 last_LU_35 last_LU_39
+1                      NA        NA         NA         NA         NA         NA
+  last_LU_41 ecoreg_446 ecoreg_464 ecoreg_465 ecoreg_466 ecoreg_467 ecoreg_469
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_473 ecoreg_474 ecoreg_476 ecoreg_480 ecoreg_481 ecoreg_482 ecoreg_484
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_485 ecoreg_490 ecoreg_496 ecoreg_497 ecoreg_498 ecoreg_503 ecoreg_505
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_507 ecoreg_508 ecoreg_511 ecoreg_518 ecoreg_529 ecoreg_540 ecoreg_567
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_570 ecoreg_584 ecoreg_611 soil_2 soil_3 soil_7 soil_8 soil_9 soil_10
+1         NA         NA         NA     NA     NA     NA     NA     NA      NA
+  soil_14 soil_16 soil_19 soil_22 soil_23 soil_25 soil_28 soil_31 soil_32 prec
+1      NA      NA      NA      NA      NA      NA      NA      NA      NA   NA
+  si
+1 NA
+[1] 11
+      theta       age       B0        cwd    mean_si
+1 0.2208299 0.1184728 1.286984 0.03027896 0.02112355
+      theta          age       B0          cwd     mean_prec      mean_si
+1 0.2793589 0.0001174171 8.940255 0.0002218937 -0.0002246913 8.925087e-05
+[1] "R-squared: 0.267491595374945"
+[1] "Time so far:  1.82337883313497  minutes"
+  data_name data_pars model_type       rsq      rsq_sd basic_pars
+1       5yr  meanclim      optim 0.2692284 0.002420252     age_B0
+  mature_biomass          age k0 B0_exp       B0     theta          cwd
+1             NA 0.0001174171 NA     NA 8.940255 0.2793589 0.0002218937
+      mean_prec      mean_si fallow indig lulc_sum_15 lulc_sum_21 lulc_sum_35
+1 -0.0002246913 8.925087e-05     NA    NA          NA          NA          NA
+  lulc_sum_39 lulc_sum_41 lulc_sum_9 mature_forest_years
+1          NA          NA         NA                  NA
+  num_fires_after_regrowth num_fires_before_regrowth protec sur_cover
+1                       NA                        NA     NA        NA
+  ts_fire_after_regrowth ts_fire_before_regrowth last_LU_9 last_LU_15
+1                     NA                      NA        NA         NA
+  last_LU_21 last_LU_35 last_LU_39 last_LU_41 ecoreg_446 ecoreg_464 ecoreg_465
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_466 ecoreg_467 ecoreg_469 ecoreg_473 ecoreg_474 ecoreg_476 ecoreg_480
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_481 ecoreg_482 ecoreg_484 ecoreg_485 ecoreg_490 ecoreg_496 ecoreg_497
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_498 ecoreg_503 ecoreg_505 ecoreg_507 ecoreg_508 ecoreg_511 ecoreg_518
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_529 ecoreg_540 ecoreg_567 ecoreg_570 ecoreg_584 ecoreg_611 soil_2
+1         NA         NA         NA         NA         NA         NA     NA
+  soil_3 soil_7 soil_8 soil_9 soil_10 soil_14 soil_16 soil_19 soil_22 soil_23
+1     NA     NA     NA     NA      NA      NA      NA      NA      NA      NA
+  soil_25 soil_28 soil_31 soil_32 prec si
+1      NA      NA      NA      NA   NA NA
+[1] 9
+      theta        age       B0        cwd   mean_prec    mean_si
+1 0.2154932 0.07519089 1.355431 0.04986862 -0.05594914 0.02844646
+[1] "R-squared: 0.252812756050642"
+[1] "Time so far:  1.89801334540049  minutes"
+  data_name data_pars model_type rsq rsq_sd basic_pars mature_biomass
+1       all  meanclim      optim  NA     NA     age_B0             NA
+         age k0 B0_exp       B0     theta        cwd   mean_prec    mean_si
+1 0.07519089 NA     NA 1.355431 0.2154932 0.04986862 -0.05594914 0.02844646
+  fallow indig lulc_sum_15 lulc_sum_21 lulc_sum_35 lulc_sum_39 lulc_sum_41
+1     NA    NA          NA          NA          NA          NA          NA
+  lulc_sum_9 mature_forest_years num_fires_after_regrowth
+1         NA                  NA                       NA
+  num_fires_before_regrowth protec sur_cover ts_fire_after_regrowth
+1                        NA     NA        NA                     NA
+  ts_fire_before_regrowth last_LU_9 last_LU_15 last_LU_21 last_LU_35 last_LU_39
+1                      NA        NA         NA         NA         NA         NA
+  last_LU_41 ecoreg_446 ecoreg_464 ecoreg_465 ecoreg_466 ecoreg_467 ecoreg_469
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_473 ecoreg_474 ecoreg_476 ecoreg_480 ecoreg_481 ecoreg_482 ecoreg_484
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_485 ecoreg_490 ecoreg_496 ecoreg_497 ecoreg_498 ecoreg_503 ecoreg_505
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_507 ecoreg_508 ecoreg_511 ecoreg_518 ecoreg_529 ecoreg_540 ecoreg_567
+1         NA         NA         NA         NA         NA         NA         NA
+  ecoreg_570 ecoreg_584 ecoreg_611 soil_2 soil_3 soil_7 soil_8 soil_9 soil_10
+1         NA         NA         NA     NA     NA     NA     NA     NA      NA
+  soil_14 soil_16 soil_19 soil_22 soil_23 soil_25 soil_28 soil_31 soil_32 prec
+1      NA      NA      NA      NA      NA      NA      NA      NA      NA   NA
+  si
+1 NA
+[1] 12
+      theta          age       B0          cwd
+4 0.3837845 6.430053e-05 31.89154 7.519225e-05
+      theta          age       B0          cwd
+4 0.4278372 0.0001353162 33.02879 0.0001773441
+      theta          age       B0          cwd
+4 0.3962775 0.0001866613 19.28415 0.0002894728
+      theta          age       B0          cwd
+4 0.3966885 5.223695e-05 43.87472 4.747994e-05
+      theta         age       B0         cwd           si
+2 0.5601087 0.002826813 13.22552 0.003942807 0.0001191952
+      theta         age       B0         cwd          si
+2 0.4348257 0.001977711 7.626996 0.003288508 6.80181e-05
+      theta         age       B0         cwd           si
+2 0.4134064 0.000869793 10.13353 0.001651166 2.801672e-05
+     theta          age     B0          cwd           si
+2 0.539575 0.0004634702 39.925 0.0004949714 1.771124e-05
+    theta         age       B0        cwd          prec          si
+1 0.54984 0.001428395 16.96335 0.00460805 -0.0001255361 9.40952e-05
+[1] "R-squared: 0.256010529931834"
+      theta          age       B0          cwd          prec           si
+1 0.3207131 0.0004641073 7.920893 0.0009944566 -2.852667e-05 1.199611e-05
+[1] "R-squared: 0.274283454595025"
+      theta          age      B0         cwd          prec           si
+1 0.3603902 0.0006481478 7.92756 0.002009443 -6.487129e-05 3.119687e-05
+[1] "R-squared: 0.230315085220097"
+      theta          age       B0          cwd          prec           si
+1 0.4261466 0.0002627776 16.88042 0.0006114667 -4.244286e-06 1.467394e-05
+[1] "R-squared: 0.24371328625321"
+     theta          age       B0          cwd
+4 0.375433 5.487131e-05 31.85566 6.172035e-05
+      theta          age       B0          cwd
+4 0.4528058 0.0001898109 34.95411 0.0002576172
+      theta          age       B0          cwd
+4 0.3871972 0.0001624293 19.71438 0.0002159425
+      theta          age       B0          cwd
+4 0.3555685 4.025541e-05 30.25861 3.522155e-05
+      theta         age       B0       cwd           si
+2 0.5963228 0.002055454 15.16954 0.0056934 0.0001069959
+      theta         age       B0         cwd           si
+2 0.4165362 0.001297065 9.390664 0.001869197 3.713317e-05
+      theta          age      B0          cwd           si
+2 0.3995989 0.0002180554 15.6131 0.0003175131 9.887754e-06
+      theta         age       B0          cwd          si
+2 0.3777693 0.001042365 9.365092 0.0005851852 2.50767e-05
+      theta          age       B0         cwd          prec           si
+1 0.3142838 0.0003612288 8.896229 0.000490451 -1.577039e-05 7.224238e-06
+[1] "R-squared: NA"
+[1] "RSQ NA!0.314283778852776"    "RSQ NA!0.000361228811770663"
+[3] "RSQ NA!8.89622926385213"     "RSQ NA!0.000490450956850415"
+[5] "RSQ NA!-1.5770385179545e-05" "RSQ NA!7.22423806599515e-06"
+     theta          age       B0          cwd          prec           si
+1 0.375492 8.541934e-05 21.21092 0.0002119816 -7.013199e-06 3.613368e-06
+[1] "R-squared: 0.227770986585521"
+      theta          age       B0         cwd          prec          si
+1 0.3551525 0.0005416101 9.443531 0.001233548 -3.725389e-05 1.83651e-05
+[1] "R-squared: 0.275282335151943"
+      theta          age       B0         cwd          prec           si
+1 0.4117572 0.0009881673 9.724841 0.002916802 -8.992064e-05 4.694992e-05
+[1] "R-squared: 0.235486316318669"
+      theta          age       B0          cwd
+4 0.3703472 4.885696e-05 31.61657 5.292163e-05
+      theta          age       B0          cwd
+4 0.3433395 2.423172e-05 31.73052 2.420887e-05
+      theta          age      B0          cwd
+4 0.3868694 5.193704e-05 34.0221 7.008623e-05
+      theta          age       B0          cwd
+4 0.3669976 0.0001028817 19.08988 0.0001584526
+      theta          age       B0          cwd           si
+2 0.3970643 0.0005084935 14.56278 0.0003120133 1.179218e-05
+      theta          age       B0          cwd           si
+2 0.3074025 0.0001858298 9.055336 0.0002008621 4.196375e-06
+      theta          age       B0          cwd           si
+2 0.3629782 0.0002939649 10.83567 0.0003844433 1.021858e-05
+      theta          age       B0         cwd           si
+2 0.3776816 0.0005522037 11.54209 0.000549181 7.944192e-06
+      theta          age       B0          cwd          prec           si
+1 0.2198314 0.0002592005 4.696909 0.0002899185 -9.285543e-06 4.179998e-06
+[1] "R-squared: 0.255022387197831"
+      theta          age       B0          cwd          prec           si
+1 0.3644599 0.0001654159 17.15667 0.0002861265 -6.815205e-06 2.601118e-06
+[1] "R-squared: 0.270350845856396"
+      theta          age       B0          cwd         prec           si
+1 0.2754374 6.082421e-05 9.932761 0.0001059603 -3.67545e-06 2.118308e-06
+[1] "R-squared: 0.223958565330337"
+      theta        age       B0         cwd          prec           si
+1 0.2863642 0.00011673 8.801942 0.000213976 -7.458137e-06 3.995369e-06
+[1] "R-squared: 0.209440797377239"

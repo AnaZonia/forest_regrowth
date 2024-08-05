@@ -1,8 +1,4 @@
-library(ggplot2)
-library(foreach)
-library(doParallel)
 
-source("fit_1_import_data.r")
 
 
 run_growth_model <- function(data, initial_pars) {
