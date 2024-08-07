@@ -10,7 +10,7 @@ library(doParallel)
 set.seed(0)
 
 # Set up parallel processing
-registerDoParallel(cores = 20)
+registerDoParallel(cores = 3)
 
 #-------- SWITCHES
 
@@ -24,9 +24,9 @@ get_coords <- function(raster) {
     non_na_indices <- which(!is.na(matrix), arr.ind = TRUE)
 
     # Sample 10 random coordinates from non-NA values
-    non_na_indices <- non_na_indices[sample(nrow(non_na_indices), 2500000, replace = FALSE), ]
+    non_na_indices <- non_na_indices[sample(nrow(non_na_indices), 1000000, replace = FALSE), ]
     # should take about 6h to run 2.5 million rows with 20 cores
-    
+
     # Extract sampled distances
     values <- matrix[cbind(non_na_indices[, 1], non_na_indices[, 2])]
 

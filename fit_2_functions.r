@@ -1,24 +1,24 @@
-################################################################################
-#                                                                              #
-#                 Forest Regrowth Model Functions and Utilities                #
-#                                                                              #
-#                            Ana Avila - August 2024                           #
-#                                                                              #
-#     This script defines the core functions used in the forest regrowth       #
-#     modeling process (fit_3_run_model.r)                                     #
-#                                                                              #
-#     Functions included:                                                      #
-#     - growth_curve                                                           #
-#     - likelihood                                                             #
-#     - filter_test_data                                                       #
-#     - run_optim                                                              #
-#     - run_gam                                                                #
-#     - run_lm                                                                 #
-#     - run_rf                                                                 #
-#     - process_row                                                            #
-#     - run_foreach                                                            #
-#                                                                              #
-################################################################################
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#                                                                              
+#                 Forest Regrowth Model Functions and Utilities                
+#                                                                              
+#                            Ana Avila - August 2024                           
+#                                                                              
+#     This script defines the core functions used in the forest regrowth       
+#     modeling process (fit_3_run_model.r)                                     
+#                                                                              
+#     Functions included:                                                      
+#     - growth_curve                                                           
+#     - likelihood                                                             
+#     - filter_test_data                                                       
+#     - run_optim                                                              
+#     - run_gam                                                                
+#     - run_lm                                                                 
+#     - run_rf                                                                 
+#     - process_row                                                            
+#     - run_foreach                                                            
+#                                                                              
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 library(mgcv)
 library(randomForest)
@@ -51,7 +51,9 @@ growth_curve <- function(pars, data) {
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Calculate the growth rate k
-  k <- k + rowSums(sapply(non_clim_pars, function(par) pars[[par]] * data[[par]] * implicit_age))
+  if (length(non_clim_pars) > 0){
+    k <- k + rowSums(sapply(non_clim_pars, function(par) pars[[par]] * data[[par]] * implicit_age))
+  }
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
@@ -141,88 +143,31 @@ filter_test_data <- function(train_data, test_data) {
 # Intakes:
 #   fun <- the function to be used, either "nls" (Nonlinear Least Squares)
 #          or "nll" (Negative Log Likelihood)
-#   pars_basic <- a vector with the named parameters that do not correspond to data,
+#   basic_pars_iter <- a vector with the named parameters that do not correspond to data,
 #                 but are to be included as part of the functional form
-#   pars_chosen <- a vector with the chosen parameter set to be included
+#   data_pars_iter <- a vector with the chosen parameter set to be included
 #                  (corresponding to columns in dataframe)
 #   train_data <- the chosen training dataframe
 #   test_data <- the chosen testing dataframe (for rsq calculation)
 #   conditions <- ranges of parameters to be restricted to
 
-run_optim <- function(fun, pars_basic, pars_chosen, train_data, test_data, conditions) {
-
-  iter_pars <- c(
-    theta = 5,
-    setNames(
-      rep(0.1, length(pars_basic)),
-      c(pars_basic)
-    ),
-    setNames(
-      rep(0, length(pars_chosen)),
-      c(pars_chosen)
-    )
-  )
+run_optim <- function(fun, pars, train_data, test_data, conditions) {
 
   conditions_iter <- conditions
-  if ("age" %in% pars_basic) {
+  if ("age" %in% names(pars)) {
     conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
   }
-  if ("B0" %in% pars_basic) {
-    iter_pars["B0"] <- 40
+  if ("B0" %in% names(pars)) {
+    all_pars_iter["B0"] <- 40
     conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
   }
 
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # FITTING
-  # theta + other essential parameters
-  remaining <- 1:length(iter_pars) # after find each one, remove from remaining list
-  best <- list()
-  best$AIC <- 0
-  best$par <- c(iter_pars[c(1:(length(pars_basic) + 1))]) # identify which parameter was optimal.
-
-  tmpinfo <- iter_pars
-  tmpinfo[names(iter_pars)] <- NA
-  tmpinfo <- c(likelihood = 0, tmpinfo)
-
-  tmp <- as.data.frame(matrix(tmpinfo, nrow = 1))
-  names(tmp) <- names(tmpinfo)
-  taken <- length(remaining) + 1 # out of the range of values such that remaining[-taken] = remaining for the first iteration
-
-  # iterate through # variables - keep best one, and go to next
-  for (i in (length(pars_basic) + 2):length(iter_pars)) {
-
-    tmp1 <- foreach(j = remaining[-taken]) %dopar% {
-      inipar <- c(iter_pars[j], best$par) # as starting point, taking the best values from last time
-      model <- optim(inipar,
-        likelihood,
-        fun = fun,
-        data = train_data,
-        conditions = conditions_iter
-      )
-
-      tmpinfo[names(inipar)] <- model$par
-      tmpinfo["likelihood"] <- model$value
-      return(tmpinfo) # standardize output to make easier to combine
-    }
-
-    tmp <- as.data.frame(do.call(rbind, tmp1))
-    pos <- which.min(tmp$likelihood)
-    tmp_AIC <- 2 * tmp$likelihood[pos] + 2 * i
-    if (best$AIC == 0 | tmp_AIC < best$AIC) # keep the parameter values
-      {
-        best$AIC <- tmp_AIC
-        # rewrite
-        best$par <- tmp[pos, names(iter_pars)]
-        taken <- which(!is.na(best$par))
-        best$par <- best$par[taken]
-        print(best$par)
-
-      } else {
-        print("No improvement. Exiting loop.")
-        print(best$par)
-        break
-    }
-  }
+  model <- optim(pars,
+    likelihood,
+    fun = fun,
+    data = data,
+    conditions = conditions_iter
+  )
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   filtered_test_data <- filter_test_data(train_data, test_data)
@@ -243,17 +188,21 @@ run_optim <- function(fun, pars_basic, pars_chosen, train_data, test_data, condi
 # Intake:
 #   train_data <- the chosen training dataframe
 #   test_data <- the chosen testing dataframe (for rsq calculation)
-#   pars_chosen <- a vector with the chosen parameter set to be included
+#   data_pars_iter <- a vector with the chosen parameter set to be included
 #                  (corresponding to columns in dataframe)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # GAM
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-run_gam <- function(train_data, test_data, pars_chosen) {
-  # Separate pars_chosen into continuous and categorical variables
-  continuous <- c(pars_chosen[!pars_chosen %in% pars_categ])
-  categorical <- pars_chosen[pars_chosen %in% pars_categ]
+run_gam <- function(train_data, test_data, data_pars_iter) {
+
+  # Define categorical parameters
+  pars_categ <- c("indig", "protec", names(train_data)[str_detect(names(train_data), "LU|ecoreg|soil")])
+
+  # Separate data_pars_iter into continuous and categorical variables
+  continuous <- c(data_pars_iter[!data_pars_iter %in% pars_categ])
+  categorical <- data_pars_iter[data_pars_iter %in% pars_categ]
 
   formula <- as.formula(paste(
     "agbd ~",
@@ -280,8 +229,8 @@ run_gam <- function(train_data, test_data, pars_chosen) {
 # Linear Model
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-run_lm <- function(train_data, test_data, pars_chosen) {
-  lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
+run_lm <- function(train_data, test_data, data_pars_iter) {
+  lm_formula <- as.formula(paste("agbd ~", paste(data_pars_iter, collapse = " + ")))
 
   model <- lm(lm_formula, data = train_data)
 
@@ -295,8 +244,8 @@ run_lm <- function(train_data, test_data, pars_chosen) {
     print(paste("Removing rank-deficient variables:", paste(problematic_vars, collapse = ", ")))
 
     # Remove problematic variables from the formula
-    pars_chosen <- pars_chosen[!pars_chosen %in% problematic_vars]
-    lm_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
+    data_pars_iter <- data_pars_iter[!data_pars_iter %in% problematic_vars]
+    lm_formula <- as.formula(paste("agbd ~", paste(data_pars_iter, collapse = " + ")))
     model <- lm(lm_formula, data = train_data)
   }
 
@@ -317,8 +266,8 @@ run_lm <- function(train_data, test_data, pars_chosen) {
 # Random Forest
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-run_rf <- function(train_data, test_data, pars_chosen) {
-  rf_formula <- as.formula(paste("agbd ~", paste(pars_chosen, collapse = " + ")))
+run_rf <- function(train_data, test_data, data_pars_iter) {
+  rf_formula <- as.formula(paste("agbd ~", paste(data_pars_iter, collapse = " + ")))
 
   # reduce number of rows to 20,000 for faster computation
   train_data <- train_data[sample(nrow(train_data), 20000), ]
@@ -344,11 +293,142 @@ run_rf <- function(train_data, test_data, pars_chosen) {
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------------------------- Apply all models to the data ------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+find_combination_pars <- function(iterations, fun = "nls") {
+
+  ideal_par_combination <- list()
+
+  for (iter in 1:nrow(iterations)) {
+    iter = 101
+    iterations <- iterations_optim
+    fun = "nls"
+    i <- iterations$interval[iter]
+    j <- iterations$data_par[iter]
+    k <- iterations$basic_par[iter]
+
+    data_pars_iter <- data_pars[[j]]
+    basic_pars_iter <- basic_pars[[k]]
+
+    if (split_biome) {
+      h <- iterations$biome[iter]
+      data <- dataframes[[i]][[h]]
+    } else {
+      data <- dataframes[[i]]
+    }
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
+    all_pars_iter <- c(
+      theta = 5,
+      setNames(
+        rep(0.1, length(basic_pars_iter)),
+        c(basic_pars_iter)
+      ),
+      setNames(
+        rep(0, length(data_pars_iter)),
+        c(data_pars_iter)
+      )
+    )
+
+    conditions_iter <- conditions
+    if ("age" %in% basic_pars_iter) {
+      conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
+    }
+    if ("B0" %in% basic_pars_iter) {
+      all_pars_iter["B0"] <- 40
+      conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
+    }
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Account for dummy variables
+    # after find each one, remove from remaining list
+
+    categorical <- c("ecoreg", "soil", "last_LU")
+    
+    for (cat_var in categorical) {
+      dummy_indices <- grep(cat_var, data_pars_iter)
+      if (length(dummy_indices) > 0) {
+        data_pars_iter <- c(data_pars_iter[-dummy_indices], cat_var)
+      }
+    }
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    remaining <- 1:length(data_pars_iter)
+    best <- list()
+    best$AIC <- 0
+    # initial vector is theta + all basic parameters
+    best$par <- c(all_pars_iter[c(1:(length(basic_pars_iter) + 1))])
+    taken <- length(remaining) + 1 # out of the range of values such that remaining[-taken] = remaining for the first iteration
+    
+    base_row <- all_pars_iter
+    base_row[names(all_pars_iter)] <- NA
+    base_row <- c(likelihood = 0, base_row)
+
+    # iterate through # variables - keep best one, and go to next
+    for (i in 1:length(data_pars_iter)) {
+      
+      optim_remaining_pars <- foreach(j = remaining[-taken]) %dopar% {
+        # check for categorical variables (to be included as a group)
+        if (data_pars_iter[j] %in% c("last_LU", "ecoreg", "soil")) {
+          all_pars_iter_var <- all_pars_iter[grep(data_pars_iter[j], names(all_pars_iter))]
+          inipar <- c(best$par, all_pars_iter_var)
+        } else {
+          inipar <- c(best$par, all_pars_iter[data_pars_iter[j]]) # as starting point, taking the best values from last time
+        }
+
+        model <- optim(inipar,
+          likelihood,
+          fun = fun,
+          data = data,
+          conditions = conditions_iter
+        )
+
+        iter_row <- base_row
+        iter_row[names(inipar)] <- model$par
+        iter_row["likelihood"] <- model$value
+        return(iter_row)
+      }
+
+      iter_df <- as.data.frame(do.call(rbind, optim_remaining_pars))
+      best_model <- which.min(iter_df$likelihood)
+      best_model_AIC <- 2 * iter_df$likelihood[best_model] + 2 * (i + length(basic_pars) + 1)
+
+      print(paste0("iteration: ", iter, ", num parameters included: ", i))
+      print(best_model_AIC)
+      
+      if (best$AIC == 0 | best_model_AIC < best$AIC) # keep the parameter values
+        {
+          best$AIC <- best_model_AIC
+          best$par <- iter_df[best_model, names(all_pars_iter)]
+          best$par <- Filter(function(x) !is.na(x), best$par)
+
+          taken <- which(sapply(data_pars_iter, function(x) any(grepl(x, names(best$par)))))
+
+        } else {
+          print("No improvement. Exiting loop.")
+          break
+        }
+      
+    } # end for i in 1:length(data_pars_iter)
+    
+  ideal_par_combination <- append(ideal_par_combination, list(best$par))
+  write_rds(ideal_par_combination, paste0("./data/", region, "_ideal_par_combination.rds"))
+
+  } #end for iter in 1:nrow(iterations)
+
+  return(ideal_par_combination)
+
+}
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ----------------------------- K-fold cross-validation ---------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-cross_valid <- function(data, run_function, pars_chosen, pars_basic = NULL, conditions = NULL) {
-  
+cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
   r_squared_values <- c()
 
   indices <- sample(c(1:5), nrow(data), replace = TRUE)
@@ -360,9 +440,9 @@ cross_valid <- function(data, run_function, pars_chosen, pars_basic = NULL, cond
 
     # Run the function on the training data and evaluate on the test data
     if (identical(run_function, run_optim)) {
-      model_output <- run_function("nls", pars_basic, pars_chosen, train_data, test_data, conditions)
+      model_output <- run_function("nls", pars_iter, train_data, test_data, conditions)
     } else {
-      model_output <- run_function(train_data, test_data, pars_chosen)
+      model_output <- run_function(train_data, test_data, pars_iter)
     }
 
     if (is.na(model_output$rsq)) {
@@ -371,7 +451,6 @@ cross_valid <- function(data, run_function, pars_chosen, pars_basic = NULL, cond
       # Store the R squared value
       r_squared_values[i] <- model_output$rsq
     }
-
   }
 
   mean_r_squared <- mean(r_squared_values)
@@ -408,19 +487,20 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
 
     if (model_type == "optim") {
-      k <- iterations$basic_par[iter]
-      pars_chosen <- data_pars[[j]]
-      pars_basic <- basic_pars[[k]]
+      pars_iter <- initial_pars[[j]] # after definition 
       pars_names <- data_pars_names[[j]]
+      
+      k <- iterations$basic_par[iter]
       basic_pars_names <- basic_pars_names[[k]]
     } else {
-      pars_chosen <- data_pars_lm[[j]]
+      pars_iter <- data_pars_lm[[j]]
       pars_names <- data_pars_lm_names[[j]]
-      pars_basic <- NULL
+
+      basic_pars_iter <- NULL
       basic_pars_names <- NULL
     }
     
-    cross_valid_output <- cross_valid(data, run_function, pars_chosen, pars_basic, conditions)
+    cross_valid_output <- cross_valid(data, run_function, pars_iter, conditions)
 
     # Organize result
     row <- process_row(cross_valid_output, model_type, intervals[[i]], pars_names,
