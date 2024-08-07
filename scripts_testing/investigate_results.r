@@ -5,25 +5,28 @@
 ################################################################################
 
 library(corrplot)
+library(tidyverse)
 
 source("fit_1_import_data.r")
 
-
 # Define land-use history intervals to import four dataframes
 intervals <- list(
-    "5y",
-    "10y",
-    "15y",
+    "5yr",
+    "10yr",
+    "15yr",
     "all"
 )
 
 datafiles <- lapply(intervals, function(file) {
-    paste0("./data/", file, "_LULC_mat_dist.csv")
+    paste0("./data/amaz_", file, ".csv")
 })
 
 dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 
-head(dataframes[[1]])
+data <- dataframes[[1]]
+
+tst <- read.csv("./data/dist_mature_1000m_countrywide.csv")
+
 
 create_correlation_plot <- function(df, interval_name) {
     # Remove non-numeric columns
@@ -52,12 +55,82 @@ create_correlation_plot <- function(df, interval_name) {
 }
 
 
+results_optim <- read.csv("./data/amaz_results_all.csv")
+results_lm <- read.csv("./data/countrywide_results_lm.csv")
+results_rf <- read.csv("./data/countrywide_results_rf.csv")
 
-tst <- read.csv("./data/fit_results.csv")
+head(results_optim)
+
+results_all <- bind_rows(results_optim, results_lm, results_rf) %>%
+    arrange(data_pars, basic_pars, data_name)
+write.csv(results_all, "./data/results_all.csv", row.names = FALSE)
+
+results_all <- read.csv("./data/results_all.csv")
+
+top_5_per_data_pars <- results_all %>%
+    group_by(data_pars) %>%
+    top_n(5, rsq) %>%
+    arrange(data_pars, desc(rsq)) %>%
+    ungroup()
+
+print(top_5_per_data_pars)
+write.csv(top_5_per_data_pars, "./data/amaz_top_5_per_data_pars.csv", row.names = FALSE)
 
 # Order the data frame by the column rsq
-tst_ordered <- tst %>%
+tst_ordered <- results_all %>%
+    filter(model_type == "lm") %>%
     arrange(desc(rsq))
 
-# View the first few rows of the ordered data frame
-head(tst_ordered)
+tst_ordered[c(1:5), c(1:5)]
+
+mean_rsq_per_data_name <- results_lm %>%
+    # filter(model_type == "optim")%>%
+    group_by(data_pars) %>%
+    summarise(mean_rsq = mean(rsq, na.rm = TRUE)) %>%
+        arrange(desc(mean_rsq))
+
+print(mean_rsq_per_data_name)
+
+anova_result <- aov(rsq ~ data_name, data = results_all)
+
+print(summary(anova_result))
+
+
+tst <- read.csv("./data/all_LULC_countrywide.csv")
+
+# Assuming results_all is your dataframe
+mean_rsq_per_data_name <- tst %>%
+    filter(biome == 1)%>%
+    group_by(data_pars) %>%
+    summarise(mean_rsq = mean(rsq, na.rm = TRUE)) %>%
+    arrange(desc(mean_rsq))
+
+
+tst <- read.csv("./data/amaz_15yr.csv")
+colnames(tst)
+
+
+
+
+# Function to count occurrences of a substring in a file
+count_occurrences <- function(file_path, substring) {
+    count <- 0
+    file_content <- readLines(file_path)
+
+    for (line in file_content) {
+        if (grepl(substring, line)) {
+            count <- count + 1
+        }
+    }
+
+    return(count)
+}
+
+total_string_count <- count_occurrences("nohup_countrywide_biome.out", "Time so far")
+print(paste("Total occurrences of string:", total_string_count))
+
+
+
+tst <- readRDS("countrywide_ideal_par_combination.rds")
+length(tst)
+tst[[16]]
