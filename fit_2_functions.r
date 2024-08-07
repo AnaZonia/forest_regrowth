@@ -110,7 +110,7 @@ likelihood <- function(fun, pars, data, conditions) {
 #----------------- Ensuring testing data is within testing data range -------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-filter_test_data <- function(train_data, test_data) {
+rsq_filtered_data <- function(train_data, test_data, model_type) {
   # Calculate min and max for each column in train_data
   train_min <- sapply(train_data, min)
   train_max <- sapply(train_data, max)
@@ -123,7 +123,18 @@ filter_test_data <- function(train_data, test_data) {
   # Apply the function to each row of test_data
   filtered_test_data <- test_data[apply(test_data, 1, is_within_range), ]
 
-  return(filtered_test_data)
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Output R-squared value and model results
+  if (model_type == "optim"){
+    pred <- growth_curve(model$par, filtered_test_data)
+  } else {
+    pred <- predict(model, newdata = filtered_test_data)
+  }
+
+  rsq <- cor(filtered_test_data$agbd, pred)^2
+  print(paste("R-squared:", rsq))
+
+  return(rsq)
 }
 
 
@@ -151,34 +162,31 @@ filter_test_data <- function(train_data, test_data) {
 #   test_data <- the chosen testing dataframe (for rsq calculation)
 #   conditions <- ranges of parameters to be restricted to
 
-run_optim <- function(fun, pars, train_data, test_data, conditions) {
+run_optim <- function(fun, pars, train_data, conditions, test_data = NULL) {
 
-  conditions_iter <- conditions
   if ("age" %in% names(pars)) {
-    conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
+    conditions <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
   }
   if ("B0" %in% names(pars)) {
-    all_pars_iter["B0"] <- 40
-    conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
+    conditions <- c(conditions, list('pars["B0"] < 0'))
   }
 
   model <- optim(pars,
     likelihood,
     fun = fun,
-    data = data,
-    conditions = conditions_iter
+    data = train_data,
+    conditions = conditions
   )
 
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  filtered_test_data <- filter_test_data(train_data, test_data)
-  pred <- growth_curve(best$par, filtered_test_data)
-  rsq <- cor(filtered_test_data$agbd, pred)^2
-  print(paste("R-squared:", rsq))
-  
-  return(list(
-    pars = best$par,
-    rsq = rsq
-  ))
+  if (is.null(test_data)){
+    return(model)
+  } else {
+    return(list(
+      pars = model$par,
+      rsq = rsq_filtered_data(train_data, test_data, "optim")
+    ))
+  }
+
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -188,21 +196,21 @@ run_optim <- function(fun, pars, train_data, test_data, conditions) {
 # Intake:
 #   train_data <- the chosen training dataframe
 #   test_data <- the chosen testing dataframe (for rsq calculation)
-#   data_pars_iter <- a vector with the chosen parameter set to be included
+#   pars <- a vector with the chosen parameter set to be included
 #                  (corresponding to columns in dataframe)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # GAM
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-run_gam <- function(train_data, test_data, data_pars_iter) {
+run_gam <- function(train_data, test_data, pars) {
 
   # Define categorical parameters
   pars_categ <- c("indig", "protec", names(train_data)[str_detect(names(train_data), "LU|ecoreg|soil")])
 
-  # Separate data_pars_iter into continuous and categorical variables
-  continuous <- c(data_pars_iter[!data_pars_iter %in% pars_categ])
-  categorical <- data_pars_iter[data_pars_iter %in% pars_categ]
+  # Separate pars into continuous and categorical variables
+  continuous <- pars[!pars %in% pars_categ]
+  categorical <- pars[pars %in% pars_categ]
 
   formula <- as.formula(paste(
     "agbd ~",
@@ -213,15 +221,8 @@ run_gam <- function(train_data, test_data, data_pars_iter) {
 
   model <- gam(formula, data = train_data)
 
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # Output R-squared value and model results
-  filtered_test_data <- filter_test_data(train_data, test_data)
-  pred <- predict(model, newdata = filtered_test_data)
-  rsq <- cor(filtered_test_data$agbd, pred)^2
-  print(paste("R-squared:", rsq))
-
   return(list(
-    rsq = rsq
+    rsq = rsq_filtered_data(train_data, test_data, "gam")
   ))
 }
 
@@ -229,8 +230,8 @@ run_gam <- function(train_data, test_data, data_pars_iter) {
 # Linear Model
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-run_lm <- function(train_data, test_data, data_pars_iter) {
-  lm_formula <- as.formula(paste("agbd ~", paste(data_pars_iter, collapse = " + ")))
+run_lm <- function(train_data, test_data, pars) {
+  lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
 
   model <- lm(lm_formula, data = train_data)
 
@@ -244,21 +245,15 @@ run_lm <- function(train_data, test_data, data_pars_iter) {
     print(paste("Removing rank-deficient variables:", paste(problematic_vars, collapse = ", ")))
 
     # Remove problematic variables from the formula
-    data_pars_iter <- data_pars_iter[!data_pars_iter %in% problematic_vars]
-    lm_formula <- as.formula(paste("agbd ~", paste(data_pars_iter, collapse = " + ")))
+    pars <- pars[!pars %in% problematic_vars]
+    lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
     model <- lm(lm_formula, data = train_data)
   }
 
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # Output R-squared value and model results
-  filtered_test_data <- filter_test_data(train_data, test_data)
-  pred <- predict(model, newdata = filtered_test_data)
-  rsq <- cor(filtered_test_data$agbd, pred)^2
-  print(paste("R-squared:", rsq))
 
   return(list(
     pars = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
-    rsq = rsq
+    rsq = rsq_filtered_data(train_data, test_data, "lm")
   ))
 }
 
@@ -266,11 +261,9 @@ run_lm <- function(train_data, test_data, data_pars_iter) {
 # Random Forest
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-run_rf <- function(train_data, test_data, data_pars_iter) {
-  rf_formula <- as.formula(paste("agbd ~", paste(data_pars_iter, collapse = " + ")))
+run_rf <- function(train_data, test_data, pars) {
 
-  # reduce number of rows to 20,000 for faster computation
-  train_data <- train_data[sample(nrow(train_data), 20000), ]
+  rf_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
 
   model <- randomForest(rf_formula,
     data = train_data,
@@ -278,16 +271,9 @@ run_rf <- function(train_data, test_data, data_pars_iter) {
     keep.forest = TRUE, oob.score = TRUE, do.trace = 10, parallel = TRUE
   )
 
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # Output R-squared value and model results
-  filtered_test_data <- filter_test_data(train_data, test_data)
-  pred <- predict(model, newdata = filtered_test_data)
-  rsq <- cor(filtered_test_data$agbd, pred)^2
-  print(paste("R-squared:", rsq))
-
   return(list(
     pars = t(importance(model)[, 1]),
-    rsq = rsq
+    rsq = rsq_filtered_data(train_data, test_data, "rf")
   ))
 }
 
@@ -308,9 +294,7 @@ find_combination_pars <- function(iterations, fun = "nls") {
   ideal_par_combination <- list()
 
   for (iter in 1:nrow(iterations)) {
-    iter = 101
-    iterations <- iterations_optim
-    fun = "nls"
+
     i <- iterations$interval[iter]
     j <- iterations$data_par[iter]
     k <- iterations$basic_par[iter]
@@ -338,13 +322,8 @@ find_combination_pars <- function(iterations, fun = "nls") {
       )
     )
 
-    conditions_iter <- conditions
-    if ("age" %in% basic_pars_iter) {
-      conditions_iter <- c(conditions_iter, list('pars["age"] < 0', 'pars["age"] > 5'))
-    }
-    if ("B0" %in% basic_pars_iter) {
+    if ("B0" %in% basic_pars_iter){
       all_pars_iter["B0"] <- 40
-      conditions_iter <- c(conditions_iter, list('pars["B0"] < 0'))
     }
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -385,12 +364,7 @@ find_combination_pars <- function(iterations, fun = "nls") {
           inipar <- c(best$par, all_pars_iter[data_pars_iter[j]]) # as starting point, taking the best values from last time
         }
 
-        model <- optim(inipar,
-          likelihood,
-          fun = fun,
-          data = data,
-          conditions = conditions_iter
-        )
+        model <- run_optim("nls", inipar, data, conditions)
 
         iter_row <- base_row
         iter_row[names(inipar)] <- model$par
@@ -447,7 +421,7 @@ cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
 
     # Run the function on the training data and evaluate on the test data
     if (identical(run_function, run_optim)) {
-      model_output <- run_function("nls", pars_iter, train_data, test_data, conditions)
+      model_output <- run_function("nls", pars_iter, train_data, conditions, test_data)
     } else {
       model_output <- run_function(train_data, test_data, pars_iter)
     }
