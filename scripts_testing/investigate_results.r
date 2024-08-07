@@ -127,8 +127,10 @@ count_occurrences <- function(file_path, substring) {
 }
 
 total_string_count <- count_occurrences("nohup_countrywide_biome.out", "Time so far")
-
 print(paste("Total occurrences of string:", total_string_count))
 
-# should take 54 min to go through all optim iterations with 40000 rows per df
-(224/12)*14.4
+
+
+tst <- readRDS("countrywide_ideal_par_combination.rds")
+length(tst)
+tst[[16]]

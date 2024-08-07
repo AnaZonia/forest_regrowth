@@ -1,16 +1,16 @@
-################################################################################
-#                                                                              #
-#                 Forest Regrowth Model Fitting and Comparison                 #
-#                                                                              #
-#                              Ana Avila - July 2024                           #
-#                                                                              #
-#     This script runs and compares the Chapman-Richards growth curve fit      #
-#     through optim, as well as linear, GAM, and random forest models for      #
-#     forest regrowth analysis. The results are combined into a single         #
-#     dataframe and saved as 'fit_results_test_train_rf.csv' in the            #
-#     './data/' directory.                                                     #
-#                                                                              #
-################################################################################
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#                                                                              
+#                 Forest Regrowth Model Fitting and Comparison                 
+#                                                                              
+#                            Ana Avila - August 2024                           
+#                                                                              
+#     This script runs and compares the Chapman-Richards growth curve fit      
+#     through optim, as well as linear, GAM, and random forest models for      
+#     forest regrowth analysis. The results are combined into a single         
+#     dataframe and saved as 'region_results_all.csv' in the            
+#     './data/' directory.    
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
 library(ggplot2)
@@ -23,7 +23,8 @@ source("fit_1_import_data.r")
 source("fit_2_functions.r")
 
 set.seed(1)
-registerDoParallel(cores = 4)
+ncores <- 25
+registerDoParallel(cores = ncores)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------------------------------- Switches ---------------------------------------#
@@ -33,10 +34,12 @@ test_switch <- FALSE # Set to TRUE for test_rows or FALSE to run all rows
 test_rows <- 1 # include test_rows rows to test
 split_biome <- TRUE # FALSE to execute for the whole country, TRUE to split dataframe between biomes
 
+run_initial_fit_by_order <- TRUE
+
 optim_switch <- FALSE
 lm_switch <- FALSE
 rf_switch <- FALSE
-all_switch <- TRUE
+all_switch <- FALSE
 
 region <- "countrywide"
 # region <- "amaz"
@@ -50,9 +53,6 @@ climatic_pars <- c("prec", "si")
 
 # Define parameters that do not correspond to data, used for functional form
 non_data_pars <- c("k0", "B0_exp", "B0", "theta")
-
-# Define categorical parameters
-pars_categ <- c("indig", "protec", names(data)[str_detect(names(data), "LU|ecoreg|soil")])
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------------------------- Import Data ----------------------------------------#
@@ -77,7 +77,7 @@ if (split_biome) {
   # 5 = Pampa
   # 6 = Pantanal
   # biomes <- c("amaz", "caat", "cerr", "mata", "pamp", "pant")
-  biomes <- c("amaz", "mata")
+  biomes <- c("amaz", "atla")
 
   dataframes <- lapply(dataframes, function(df) {
     df[df$biome %in% c(1, 4), ]
@@ -88,12 +88,8 @@ if (split_biome) {
     split(df, df$biome)
   })
 
-  smallest_nrow <- min(sapply(dataframes, function(sublist) {
-    sapply(sublist, nrow)
-  }))
-
   # Print the smallest number of rows found
-  n_samples <- smallest_nrow %/% 500 * 500
+  n_samples <- 10000
 
   print(paste("number of rows considered:", n_samples))
 
@@ -184,6 +180,7 @@ data_pars_lm <- c(
 filtered_data_pars_names <- data_pars_names[!sapply(data_pars, function(x) any(climatic_pars %in% x))]
 data_pars_lm_names <- c(filtered_data_pars_names, "age", "mat_biomass", "age_mat_biomass")
 
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Create grids of different combinations of model inputs
 
@@ -219,9 +216,19 @@ rows_to_remove <- sapply(iterations_lm$data_par, function(i) {
 iterations_rf <- iterations_lm[!rows_to_remove, ]
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ----------------------------- Find ideal parameters -----------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+if (run_initial_fit_by_order){
+  # keep combination of parameters for initial fit
+  initial_pars <- find_combination_pars(iterations_optim, "nls")
+} else {
+  initial_pars <- readRDS(paste0("./data/", region, "_ideal_par_combination.rds"))
+}
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Run Model ---------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
 
 start_time <- Sys.time()
 print(start_time)
@@ -247,7 +254,6 @@ if (all_switch) {
   results_all <- bind_rows(results_optim, results_lm, results_rf) %>%
     arrange(data_pars, basic_pars, data_name) # sort rows by parameter
 
-
   if (split_biome) {
     write.csv(results_all, paste0("./data/", region, "_results_all_split_biome.csv"), row.names = FALSE)
   } else {
@@ -258,8 +264,7 @@ if (all_switch) {
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
 print(paste(
-  region, "ALL DONE! Time for the whole thing: ",
+  region, "ALL DONE! Time for the whole thing using ", ncores, " cores: ",
   as.numeric(difftime(Sys.time(), start_time, units = "hours")), " hours"
 ))

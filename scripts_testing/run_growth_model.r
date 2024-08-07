@@ -1,27 +1,36 @@
+library(ggplot2)
+library(foreach)
+library(doParallel)
+library(tidyverse)
+
+# Source external R scripts for data import and function definitions
+source("fit_1_import_data.r")
+source("fit_2_functions.r")
+
+set.seed(1)
+
+# Define land-use history intervals to import four dataframes
+intervals <- list("5yr", "10yr", "15yr", "all")
+datafiles_amaz <- paste0("./data/amaz_", intervals, ".csv")
+dataframes_amaz <- lapply(datafiles_amaz, import_climatic_data, normalize = TRUE)
+datafiles_countrywide <- paste0("./data/countrywide_", intervals, ".csv")
+dataframes_countrywide <- lapply(datafiles_countrywide, import_climatic_data, normalize = TRUE)
 
 
 
 run_growth_model <- function(data, initial_pars) {
     conditions <- list(
-        'pars["theta"] > 10',
-        'pars["theta"] < 0',
-        'pars["B0"] < 0'
+        'pars["theta"] > 10'
+        ,'pars["theta"] < 0'
+        ,'pars["B0"] < 0'
+        ,'pars["age"] < 0'
+        ,'pars["age"] > 5'
     )
 
-    use_asymptote <- length(initial_pars) > 3
+    k <- c(pars[["age"]] * data[["age"]] + pars[["cwd"]] * data[["cwd"]])
 
-    if (use_asymptote) {
-        conditions <- c(conditions, 'pars["B0"] > pars["A"]')
-    }
-
-    growth_curve <- if (use_asymptote) {
-        function(pars, data) {
-            pars[["B0"]] + (pars[["A"]] - pars[["B0"]]) * (1 - exp(-pars[["age"]] * data$age))^pars[["theta"]]
-        }
-    } else {
-        function(pars, data) {
-            pars[["B0"]] + (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-pars[["age"]]))^pars[["theta"]]
-        }
+    growth_curve <- function(pars, data) {
+        pars[["B0"]] + (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]]
     }
 
     likelihood <- function(pars, data, conditions) {
@@ -50,16 +59,15 @@ run_growth_model <- function(data, initial_pars) {
 }
 
 
-# # Usage
-# for (i in seq_along(dataframes)) {
-#   print("----------------------------------------------------")
-#   print(names_dataframes[i])
+for (i in seq_along(dataframes_amaz)) {
+  print("----------------------------------------------------")
+  print(i)
 
-#   # Without asymptote (using mature_biomass)
-#   result1 <- run_growth_model(dataframes[[i]], c(B0 = 40, theta = 5, age = 0.1))
-#   print(paste("R-squared (fixed asymptote, fit growth rate):", result1$r_squared))
+  # Without asymptote (using mature_biomass)
+  result1 <- run_growth_model(dataframes_amaz[[i]], c(B0 = 40, theta = 5, age = 0, cwd = 0))
+  print(paste("R-squared amaz:", result1$r_squared))
 
-#   # # With asymptote
-#   # result2 <- run_growth_model(dataframes[[i]], c(B0 = 40, theta = 5, k = 0.1, A = 100))
-#   # print(paste("R-squared (fit asymptote, rate fit from age):", result2$r_squared))
-# }
+  # # With asymptote
+  result2 <- run_growth_model(dataframes_countrywide[[i]], c(B0 = 40, theta = 5, age = 0, cwd = 0))
+  print(paste("R-squared countrywide_amaz_subset:", result2$r_squared))
+}
