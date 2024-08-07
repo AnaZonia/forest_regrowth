@@ -295,6 +295,13 @@ run_rf <- function(train_data, test_data, data_pars_iter) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------- Apply all models to the data ------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# 
+# Intake:
+#   train_data <- the chosen training dataframe
+#   test_data <- the chosen testing dataframe (for rsq calculation)
+#   data_pars_iter <- a vector with the chosen parameter set to be included
+#                  (corresponding to columns in dataframe)
+
 
 find_combination_pars <- function(iterations, fun = "nls") {
 
