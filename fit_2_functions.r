@@ -40,10 +40,11 @@ set.seed(1)
 #   pars <- a vector with the named parameters to be included
 #   data <- the chosen training dataframe
 
-growth_curve <- function(pars, data) {
 
+growth_curve <- function(pars, data) {
   # Define parameters that are not expected to change yearly (not prec or si)
   non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
+
   # Define whether age is an explicit or implicit parameter (to multiply the other parameters by)
   implicit_age <- if (!"age" %in% names(pars)) data[["age"]] else rep(1, nrow(data))
   # Define whether the intercept k0 is to be included in the growth rate k
@@ -63,14 +64,26 @@ growth_curve <- function(pars, data) {
     k <- k + rowSums(sapply(clim_columns, function(col) pars[[clim_par]] * data[[col]]))
   }
 
-  k[which(k > 7)] <- 7 # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
+  # na_indices <- which(k < 0)
+  # if (length(na_indices) > 0){
+  #   # cat("number of rows removed due to negative k:", length(na_indices), "out of", length(k))
+  #   k[na_indices] <- 0
+  # }
 
-  if ("B0" %in% names(pars)) {
-    return(pars[["B0"]] * (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
+  k[which(k > 7)] <- 7 # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
+  
+  if (fit_logistic) {
+    return(data[["mature_biomass"]] * (1 / (1 + exp(k))))
+    # return(pars[["B0"]] * data[["mature_biomass"]] * exp(k)) / ((data[["mature_biomass"]] - B0) + B0 * exp(k))
   } else {
-    return(data[["mature_biomass"]] * (1 - exp(-(pars[["B0_exp"]] + k)))^pars[["theta"]])
+    if ("B0" %in% names(pars)) {
+      return(pars[["B0"]] + (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
+    } else {
+      return(data[["mature_biomass"]] * (1 - exp(-(pars[["B0_exp"]] + k)))^pars[["theta"]])
+    }
   }
 }
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #--------------------------------------- Likelihood -------------------------------------#
@@ -110,7 +123,7 @@ likelihood <- function(fun, pars, data, conditions) {
 #----------------- Ensuring testing data is within testing data range -------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-rsq_filtered_data <- function(train_data, test_data, model_type) {
+rsq_filtered_data <- function(train_data, test_data, model, model_type) {
   # Calculate min and max for each column in train_data
   train_min <- sapply(train_data, min)
   train_max <- sapply(train_data, max)
@@ -162,6 +175,7 @@ rsq_filtered_data <- function(train_data, test_data, model_type) {
 #   test_data <- the chosen testing dataframe (for rsq calculation)
 #   conditions <- ranges of parameters to be restricted to
 
+
 run_optim <- function(fun, pars, train_data, conditions, test_data = NULL) {
 
   if ("age" %in% names(pars)) {
@@ -171,19 +185,31 @@ run_optim <- function(fun, pars, train_data, conditions, test_data = NULL) {
     conditions <- c(conditions, list('pars["B0"] < 0'))
   }
 
-  model <- optim(pars,
-    likelihood,
-    fun = fun,
-    data = train_data,
-    conditions = conditions
+  
+  # Use tryCatch to handle errors during optimization
+  model <- tryCatch(
+    {
+      optim(pars,
+        likelihood,
+        fun = fun,
+        data = train_data,
+        conditions = conditions
+      )
+    },
+    error = function(e) {
+      # Print the parameters if an error occurs
+      print(e)
+      print(pars)
+    }
   )
+
 
   if (is.null(test_data)){
     return(model)
   } else {
     return(list(
-      pars = model$par,
-      rsq = rsq_filtered_data(train_data, test_data, "optim")
+      pars = t(model$par),
+      rsq = rsq_filtered_data(train_data, test_data, model, "optim")
     ))
   }
 
@@ -222,7 +248,7 @@ run_gam <- function(train_data, test_data, pars) {
   model <- gam(formula, data = train_data)
 
   return(list(
-    rsq = rsq_filtered_data(train_data, test_data, "gam")
+    rsq = rsq_filtered_data(train_data, test_data, model, "gam")
   ))
 }
 
@@ -253,7 +279,7 @@ run_lm <- function(train_data, test_data, pars) {
 
   return(list(
     pars = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
-    rsq = rsq_filtered_data(train_data, test_data, "lm")
+    rsq = rsq_filtered_data(train_data, test_data, model, "lm")
   ))
 }
 
@@ -273,7 +299,7 @@ run_rf <- function(train_data, test_data, pars) {
 
   return(list(
     pars = t(importance(model)[, 1]),
-    rsq = rsq_filtered_data(train_data, test_data, "rf")
+    rsq = rsq_filtered_data(train_data, test_data, model, "rf")
   ))
 }
 
@@ -310,21 +336,31 @@ find_combination_pars <- function(iterations, fun = "nls") {
     }
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
-    all_pars_iter <- c(
-      theta = 5,
-      setNames(
-        rep(0.1, length(basic_pars_iter)),
-        c(basic_pars_iter)
-      ),
-      setNames(
-        rep(0, length(data_pars_iter)),
-        c(data_pars_iter)
-      )
-    )
-
-    if ("B0" %in% basic_pars_iter){
-      all_pars_iter["B0"] <- 40
+    all_pars_iter <- c(setNames(
+      rep(0, length(data_pars_iter)),
+      c(data_pars_iter)
+    ))
+    
+    if (!fit_logistic) {
+      all_pars_iter[["theta"]] <- 1
     }
+
+    if ("B0" %in% basic_pars_iter) {
+      all_pars_iter["B0"] <- mean(data[["agbd"]])
+    }
+    
+    if ("age" %in% basic_pars_iter) {
+      all_pars_iter["age"] <- 0
+    }
+
+    if ("k0" %in% basic_pars_iter) {
+      if ("B0" %in% basic_pars_iter) {
+        all_pars_iter["k0"] <- -log(1 - mean(data[["agbd"]]) / mean(data[["mature_biomass"]]))
+      }
+      all_pars_iter["B0_exp"] <- -log(1 - mean(data[["agbd"]]) / mean(data[["mature_biomass"]]))
+      all_pars_iter["k0"] <- 0
+    }
+
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Account for dummy variables
@@ -345,7 +381,7 @@ find_combination_pars <- function(iterations, fun = "nls") {
     best <- list()
     best$AIC <- 0
     # initial vector is theta + all basic parameters
-    best$par <- c(all_pars_iter[c(1:(length(basic_pars_iter) + 1))])
+    best$par <- all_pars_iter[names(all_pars_iter) %in% c(basic_pars_iter, "theta")]
     taken <- length(remaining) + 1 # out of the range of values such that remaining[-taken] = remaining for the first iteration
     
     base_row <- all_pars_iter
@@ -395,7 +431,8 @@ find_combination_pars <- function(iterations, fun = "nls") {
     } # end for i in 1:length(data_pars_iter)
     
   ideal_par_combination <- append(ideal_par_combination, list(best$par))
-  write_rds(ideal_par_combination, paste0("./data/", region, "_ideal_par_combination.rds"))
+
+  write_rds(ideal_par_combination, paste0("./data/", name, "_ideal_par_combination.rds"))
 
   } #end for iter in 1:nrow(iterations)
 
@@ -404,17 +441,18 @@ find_combination_pars <- function(iterations, fun = "nls") {
 }
 
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ----------------------------- K-fold cross-validation ---------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
+
   r_squared_values <- c()
 
   indices <- sample(c(1:5), nrow(data), replace = TRUE)
 
   for (i in 1:5) {
+    # print(i)
     # Define the test and train sets
     test_data <- data[indices == i, ]
     train_data <- data[!indices == i, ]
@@ -427,7 +465,7 @@ cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
     }
 
     if (is.na(model_output$rsq)) {
-      print(paste0("RSQ NA!", model_output$pars))
+      print(paste0(names(pars_iter), ":", model_output$pars))
     } else {
       # Store the R squared value
       r_squared_values[i] <- model_output$rsq
@@ -451,7 +489,12 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
   results <- foreach(iter = if (test_switch) test_rows else 1:nrow(iterations),
   .combine = "bind_rows", .packages = c("dplyr", "randomForest")) %dopar% {
     
-    print(iter)
+    # iter = 1
+    # iterations <- iterations_optim
+    # print(iter)
+    # run_function <- run_optim
+    
+    
     i <- iterations$interval[iter]
     j <- iterations$data_par[iter]
 
@@ -468,7 +511,7 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
 
     if (model_type == "optim") {
-      pars_iter <- initial_pars[[j]] # after definition 
+      pars_iter <- initial_pars[[iter]] # after definition 
       pars_names <- data_pars_names[[j]]
       
       k <- iterations$basic_par[iter]
@@ -480,7 +523,7 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
       basic_pars_iter <- NULL
       basic_pars_names <- NULL
     }
-    
+
     cross_valid_output <- cross_valid(data, run_function, pars_iter, conditions)
 
     # Organize result
@@ -506,13 +549,9 @@ run_foreach <- function(iterations, model_type, run_function, conditions = NULL)
   df <- as.data.frame(results)
 
   # Write the dataframe to a CSV file
-  # if (!all_switch) {
-  if (split_biome) {
-    write.csv(df, paste0("./data/", region, "_results_", model_type, "_split_biome.csv"), row.names = FALSE)
-  } else {
-    write.csv(df, paste0("./data/", region, "_results_", model_type, ".csv"), row.names = FALSE)
+  if (export_intermediaries) {
+    write.csv(df, paste0("./data/", name, "_results_", model_type, ".csv"), row.names = FALSE)
   }
-  # }
   
   return(df)
 
@@ -553,8 +592,8 @@ biome_name = NULL) {
 
   # Define the desired order of columns
   desired_column_order <- c(
-    "data_name", "data_pars", "model_type", "rsq", "rsq_sd", "basic_pars",
-    "mature_biomass", "age"
+    "data_name", "data_pars", "basic_pars", "model_type",
+    "rsq", "rsq_sd", "mature_biomass", "age"
   )
 
   if (!is.null(biome_name)) {

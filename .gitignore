@@ -13,4 +13,4 @@ venv/
 __pycache__
 .jupyter
 .vscode
-nohup.out
+nohup

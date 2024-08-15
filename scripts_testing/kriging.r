@@ -4,7 +4,7 @@ library(sf)
 library(jsonlite)
 
 
-sec <- read.csv("data/unified_data.csv")
+mat <- read.csv("data/mature_amazon_500m.csv")
 coordinates(sec) <- ~ longitude + latitude
 sec <- read.csv("data/unified_data.csv")
 
@@ -20,7 +20,6 @@ class(grid)
 grid <- data.frame(grid)
 names(grid) <- c("longitude", "latitude")
 
-mat <- read.csv("data/mature_biomass_climate_categ.csv")
 
 coords_df <- data.frame()
 # Parse the JSON strings and extract the coordinates
