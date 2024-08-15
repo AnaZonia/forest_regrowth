@@ -10,7 +10,7 @@ library(doParallel)
 set.seed(0)
 
 # Set up parallel processing
-registerDoParallel(cores = 3)
+registerDoParallel(cores = 15)
 
 #-------- SWITCHES
 

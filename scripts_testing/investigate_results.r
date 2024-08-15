@@ -106,10 +106,13 @@ mean_rsq_per_data_name <- tst %>%
     arrange(desc(mean_rsq))
 
 
-tst <- read.csv("./data/amaz_15yr.csv")
-colnames(tst)
+data <- read.csv("./data/amaz_results_optim.csv")
 
-
+best_rsq_df <- data %>%
+    group_by(data_name, data_pars) %>%
+    slice_max(rsq, with_ties = FALSE) %>%
+    arrange(data_pars, data_name)
+best_rsq_df[, c(1:5)]
 
 
 # Function to count occurrences of a substring in a file
@@ -126,11 +129,89 @@ count_occurrences <- function(file_path, substring) {
     return(count)
 }
 
-total_string_count <- count_occurrences("nohup_countrywide_biome.out", "Time so far")
+total_string_count <- count_occurrences("nohup_amaz.out", "Time so far")
 print(paste("Total occurrences of string:", total_string_count))
 
 
 
-tst <- readRDS("countrywide_ideal_par_combination.rds")
-length(tst)
-tst[[16]]
+
+amazon <- read.csv("./data/amaz_5yr.csv")
+
+amazon_subset <- read.csv("./data/countrywide_5yr.csv")
+amazon_subset <- subset(amazon_subset, biome == 1)
+
+range(amazon$cwd)
+range(amazon_subset$cwd)
+
+summary(lm(agbd ~ cwd, amazon))
+summary(lm(agbd ~ cwd, amazon_subset))
+summary(lm(agbd ~ mature_biomass, amazon))
+summary(lm(agbd ~ mature_biomass, amazon_subset))
+
+# Example character vector
+# Example character vector
+vec <- c(
+    "theta:1.31979333088066",
+    "fallow:5.30356802403215",
+    "lulc_sum_41:0.129769992345671",
+    "num_fires_after_regrowth:-0.514237069703973",
+    "num_fires_before_regrowth:-0.0422835348018823",
+    "protec:0.0624703092189218",
+    "sur_cover:0.723205699759347",
+    "ts_fire_after_regrowth:-0.288191882147403",
+    "ts_fire_before_regrowth:-0.0358069389792399",
+    "ecoreg_446:10.149607211274",
+    "ecoreg_464:0.326839933603352",
+    "ecoreg_465:0.0166891133152462",
+    "ecoreg_466:0.375550319421151",
+    "ecoreg_467:-0.075066596486651",
+    "ecoreg_469:4.20822231013806",
+    "ecoreg_473:0.54306256718872",
+    "ecoreg_474:0.433638435318312",
+    "ecoreg_476:0.380942011954866",
+    "ecoreg_480:-0.0299180281881416",
+    "ecoreg_481:0.193396063436363",
+    "ecoreg_482:0.435423794889215",
+    "ecoreg_484:0.66260358371134",
+    "ecoreg_485:0.378149989980357",
+    "ecoreg_490:10.3259203819715",
+    "ecoreg_496:0.340517292109795",
+    "ecoreg_497:0.424245959872319",
+    "ecoreg_498:0.160239549461896",
+    "ecoreg_503:0.21325730789524",
+    "ecoreg_505:1.17566454986428",
+    "ecoreg_507:0.671915895164663",
+    "ecoreg_508:0.408966481117558",
+    "ecoreg_511:0.0499144529129286",
+    "ecoreg_518:0.244738032607572",
+    "ecoreg_529:0.279182351982756",
+    "ecoreg_540:0.5658506478689",
+    "ecoreg_567:0.23536885714865",
+    "ecoreg_570:0.0431826319683144",
+    "ecoreg_584:0.335136359975363",
+    "ecoreg_611:0.0133026489911424",
+    "B0:87.5818691937891",
+    "age:0.72828971492447"
+)
+
+# Split each element into name and value
+split_vec <- strsplit(vec, ":")
+
+# Convert to a named list
+pars <- setNames(
+    lapply(split_vec, function(x) as.numeric(x[2])),
+    sapply(split_vec, function(x) x[1])
+)
+
+# Print the result
+print(result_list)
+
+
+A <- runif(35, 120, 199)
+theta <- 7
+B0 <- 40
+k <- 0.2
+
+curve(B0 + (A - B0) * (1 - exp(-k * x))^theta, from = 1, to = 35, n = 35)
+
+curve((B0 * A * exp(k * x)) / ((A - B0) + B0 * exp(k * x)), from = 1, to = 35, n = 35)

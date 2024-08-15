@@ -16,8 +16,6 @@ dataframes_amaz <- lapply(datafiles_amaz, import_climatic_data, normalize = TRUE
 datafiles_countrywide <- paste0("./data/countrywide_", intervals, ".csv")
 dataframes_countrywide <- lapply(datafiles_countrywide, import_climatic_data, normalize = TRUE)
 
-
-
 run_growth_model <- function(data, initial_pars) {
     conditions <- list(
         'pars["theta"] > 10'

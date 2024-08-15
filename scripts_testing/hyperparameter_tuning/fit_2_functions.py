@@ -1,43 +1,4 @@
-r"""
-Date
-    05/05/2024
 
-Purpose
-    Fits simple growth model with scipy (Nelder-Mead)
-
-Author
-    Ana Catarina Avila
-    McGill University
-"""
-
-import numpy as np
-import pandas as pd
-from scipy.optimize import minimize
-from scipy.stats import norm
-from ray import tune
-# from ray.tune.suggest.bayesopt import BayesOptSearch
-
-
-def import_data(path: str):
-    r"""This function:
-    - Imports the dataframe
-    - Removes unnecessary columns that will not be used in analysis
-    - Converts categorical data to dummy variables"""
-
-    # Read the CSV file
-    data = pd.read_csv("./data/unified_data_15_years.csv")
-
-    # Drop unnecessary columns
-    data = data.drop(columns=["system:index", ".geo", "biome"])
-
-    # Convert 'soil' and 'ecoreg' to categorical data
-    categorical = ["soil", "ecoreg"]
-    data[categorical] = data[categorical].astype("category")
-
-    # Create dummy variables for 'ecoreg' and 'soil'
-    data = pd.get_dummies(data, columns=["ecoreg", "soil"])
-
-    return data
 
 
 # Define a function to unpack parameters from a list
@@ -77,6 +38,7 @@ def fit_scipy(data):
 
     return result.x
 
+
 def objective(config, data):
     params = unpack_parameters([config["B0"], config["A"], config["theta"], config["sd"], config["age"]])
     return neg_log_likelihood(params, data)
@@ -110,14 +72,3 @@ def fit_ray(data):
     best_params = best_trial.config
 
     return best_params
-
-
-def main():
-    path = "./data/unified_data_15_years.csv"
-    data = import_data(path)
-    print(fit_scipy(data))
-    print(fit_ray(data))
-
-
-if __name__ == "__main__":
-    main()
