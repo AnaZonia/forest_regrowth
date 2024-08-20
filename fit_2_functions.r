@@ -40,7 +40,6 @@ set.seed(1)
 #   pars <- a vector with the named parameters to be included
 #   data <- the chosen training dataframe
 
-
 growth_curve <- function(pars, data) {
   # Define parameters that are not expected to change yearly (not prec or si)
   non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
@@ -73,8 +72,8 @@ growth_curve <- function(pars, data) {
   k[which(k > 7)] <- 7 # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
   
   if (fit_logistic) {
-    return(data[["mature_biomass"]] * (1 / (1 + exp(k))))
-    # return(pars[["B0"]] * data[["mature_biomass"]] * exp(k)) / ((data[["mature_biomass"]] - B0) + B0 * exp(k))
+    # return(data[["mature_biomass"]] * (1 / (1 + exp(k))))
+    return(pars[["B0"]] * data[["mature_biomass"]] * exp(k)) / ((data[["mature_biomass"]] - B0) + B0 * exp(k))
   } else {
     if ("B0" %in% names(pars)) {
       return(pars[["B0"]] + (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
@@ -275,7 +274,6 @@ run_lm <- function(train_data, test_data, pars) {
     lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
     model <- lm(lm_formula, data = train_data)
   }
-
 
   return(list(
     pars = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
