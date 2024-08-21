@@ -5,14 +5,14 @@ library(fastDummies)
 # - Removes unnecessary columns that will not be used in analysis
 # - Converts categorical data to dummy variables
 
-#------------------ GLobal Variables ------------------#
+#------------------ Global Variables ------------------#
 
-climatic_vars <- c("prec", "si")
+climatic_pars <- c("prec", "si")
 
 #------------------- Main Functions -------------------#
 
 import_data <- function(path) {
-    data <- read_csv(path) %>%
+    data <- read_csv(path, show_col_types = FALSE) %>% #show_col_types = FALSE quiets a large message during import
         select(-c(.geo, latitude, longitude)) %>%
         select(-starts_with("system"))
 
@@ -22,17 +22,10 @@ import_data <- function(path) {
     data <- data %>%
         mutate(across(all_of(categorical), as.factor))
 
-    # data <- data %>%
-    #   group_by(ecoreg) %>%
-    #   mutate(
-    #     mean_per_ecoregion = mean(mature_biomass, na.rm = TRUE),
-    #     sd_per_ecoregion = sd(mature_biomass, na.rm = TRUE)
-    #   ) %>%
-    #   ungroup()
-
     # Create dummy variables
     data <- dummy_cols(data, select_columns = categorical, remove_selected_columns = TRUE)
-    # data <- data %>% filter(!is.na(mature_biomass))
+    
+    print("Imported!")
 
     data
 }
@@ -40,21 +33,26 @@ import_data <- function(path) {
 import_climatic_data <- function(path, normalize) {
     data <- import_data(path)
 
-    means <- sapply(climatic_vars, function(var) rowMeans(data[, grep(var, names(data))], na.rm = TRUE))
-    colnames(means) <- paste0("mean_", climatic_vars)
+    means <- sapply(climatic_pars, function(var) {
+        rowMeans(data[, grep(var, names(data))],
+            na.rm = TRUE
+        )
+    })
+
+    colnames(means) <- paste0("mean_", climatic_pars)
     data <- cbind(data, means)
 
     df_climatic_hist <- tibble()
     for (age in 1:max(data$age)) {
         age_data <- data %>% filter(age == .env$age)
         years <- seq(2019, 2019 - age + 1, by = -1)
-        # Identify all columns including the variables in climatic_vars
-        clim_columns <- expand.grid(climatic_vars, years) %>%
+        # Identify all columns including the variables in climatic_pars
+        clim_columns <- expand.grid(climatic_pars, years) %>%
             unite(col = "col", sep = "_") %>%
             pull(col)
 
         # subsect the dataframe to only include the climatic columns of the desired years
-        all_clim_columns <- names(data)[str_detect(names(data), paste(climatic_vars, "_", collapse = "|"))]
+        all_clim_columns <- names(data)[str_detect(names(data), paste(climatic_pars, "_", collapse = "|"))]
 
         # turn all values in the columns of years not included to 0
         clim_columns_not_included <- setdiff(all_clim_columns, clim_columns)
@@ -67,7 +65,7 @@ import_climatic_data <- function(path, normalize) {
         df_climatic_hist <- df_climatic_hist %>%
             mutate(across(
                 where(is.numeric) &
-                    !matches("soil|biome|ecoreg|last_LU|protec|indig|agbd|mature_biomass|mean_per_ecoregion|sd_per_ecoregion"),
+                    !matches("soil|biome|ecoreg|last_LU|protec|indig|agbd|mature_biomass|fallow"),
                 ~ (. - min(., na.rm = TRUE)) / (max(., na.rm = TRUE) - min(., na.rm = TRUE))
             )) %>%
             select(where(~ sum(is.na(.)) < nrow(df_climatic_hist)))
