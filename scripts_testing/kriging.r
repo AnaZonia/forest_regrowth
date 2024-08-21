@@ -2,16 +2,10 @@ library(terra)
 library(gstat)
 library(sf)
 library(jsonlite)
-<<<<<<< HEAD
-
-
-mat <- read.csv("data/mature_amazon_500m.csv")
-coordinates(sec) <- ~ longitude + latitude
-sec <- read.csv("data/unified_data.csv")
-=======
 library(sp)
 library(ggplot2)
->>>>>>> gee
+=======
+
 
 shp <- vect("data/br_shapefile")
 shp <- st_as_sf(shp)
@@ -25,13 +19,22 @@ class(grid)
 grid <- data.frame(grid)
 names(grid) <- c("longitude", "latitude")
 
-<<<<<<< HEAD
-=======
 mat <- read.csv("data/mature_amazon_500m.csv")
 mat <- mat[, c("longitude", "latitude", "mature_biomass")]
 coordinates(mat) <- ~ longitude + latitude
 proj4string(mat) <- proj4string(grid)
->>>>>>> gee
+
+coords_df <- data.frame()
+# Parse the JSON strings and extract the coordinates
+for (x in mat$.geo) {
+    coords <- fromJSON(x)$coordinates
+    coords_df <- rbind(coords_df, c(longitude = coords[1], latitude = coords[2]))
+}
+names(coords_df) <- c("longitude", "latitude")
+# Combine the original dataframe with the coordinates dataframe
+mat <- cbind(mat, coords_df)
+
+
 
 plot(var_mat <- variogram(mature_biomass ~ 1, data = mat, cutoff = 7, width = 0.5), pl = TRUE)
 
