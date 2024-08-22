@@ -1,0 +1,2488 @@
+Loading required package: iterators
+Loading required package: parallel
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.1     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ lubridate 1.9.2     ✔ tibble    3.2.1
+✔ purrr     1.0.1     ✔ tidyr     1.3.0
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ purrr::accumulate() masks foreach::accumulate()
+✖ dplyr::filter()     masks stats::filter()
+✖ dplyr::lag()        masks stats::lag()
+✖ purrr::when()       masks foreach::when()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Loading required package: nlme
+
+Attaching package: ‘nlme’
+
+The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+This is mgcv 1.9-0. For overview type 'help("mgcv-package")'.
+randomForest 4.7-1.1
+Type rfNews() to see new features/changes/bug fixes.
+
+Attaching package: ‘randomForest’
+
+The following object is masked from ‘package:dplyr’:
+
+    combine
+
+The following object is masked from ‘package:ggplot2’:
+
+    margin
+
+Thank you for using fastDummies!
+To acknowledge our work, please cite the package:
+Kaplan, J. & Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) Columns and Rows from Categorical Variables. Version 1.7.1. URL: https://github.com/jacobkap/fastDummies, https://jacobkap.github.io/fastDummies/.
+Error: './data/aggregated_5yr.csv' does not exist in current working directory ('/home/aavila/forest_regrowth').
+Execution halted
+Loading required package: iterators
+Loading required package: parallel
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.1     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ lubridate 1.9.2     ✔ tibble    3.2.1
+✔ purrr     1.0.1     ✔ tidyr     1.3.0
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ purrr::accumulate() masks foreach::accumulate()
+✖ dplyr::filter()     masks stats::filter()
+✖ dplyr::lag()        masks stats::lag()
+✖ purrr::when()       masks foreach::when()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Loading required package: nlme
+
+Attaching package: ‘nlme’
+
+The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+This is mgcv 1.9-0. For overview type 'help("mgcv-package")'.
+randomForest 4.7-1.1
+Type rfNews() to see new features/changes/bug fixes.
+
+Attaching package: ‘randomForest’
+
+The following object is masked from ‘package:dplyr’:
+
+    combine
+
+The following object is masked from ‘package:ggplot2’:
+
+    margin
+
+Thank you for using fastDummies!
+To acknowledge our work, please cite the package:
+Kaplan, J. & Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) Columns and Rows from Categorical Variables. Version 1.7.1. URL: https://github.com/jacobkap/fastDummies, https://jacobkap.github.io/fastDummies/.
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+Error: object 'biomes' not found
+Execution halted
+Loading required package: iterators
+Loading required package: parallel
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.1     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ lubridate 1.9.2     ✔ tibble    3.2.1
+✔ purrr     1.0.1     ✔ tidyr     1.3.0
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ purrr::accumulate() masks foreach::accumulate()
+✖ dplyr::filter()     masks stats::filter()
+✖ dplyr::lag()        masks stats::lag()
+✖ purrr::when()       masks foreach::when()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Loading required package: nlme
+
+Attaching package: ‘nlme’
+
+The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+This is mgcv 1.9-0. For overview type 'help("mgcv-package")'.
+randomForest 4.7-1.1
+Type rfNews() to see new features/changes/bug fixes.
+
+Attaching package: ‘randomForest’
+
+The following object is masked from ‘package:dplyr’:
+
+    combine
+
+The following object is masked from ‘package:ggplot2’:
+
+    margin
+
+Thank you for using fastDummies!
+To acknowledge our work, please cite the package:
+Kaplan, J. & Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) Columns and Rows from Categorical Variables. Version 1.7.1. URL: https://github.com/jacobkap/fastDummies, https://jacobkap.github.io/fastDummies/.
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+Error: object 'run_initial_fit_by_order' not found
+Execution halted
+Loading required package: iterators
+Loading required package: parallel
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.1     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ lubridate 1.9.2     ✔ tibble    3.2.1
+✔ purrr     1.0.1     ✔ tidyr     1.3.0
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ purrr::accumulate() masks foreach::accumulate()
+✖ dplyr::filter()     masks stats::filter()
+✖ dplyr::lag()        masks stats::lag()
+✖ purrr::when()       masks foreach::when()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Loading required package: nlme
+
+Attaching package: ‘nlme’
+
+The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+This is mgcv 1.9-0. For overview type 'help("mgcv-package")'.
+randomForest 4.7-1.1
+Type rfNews() to see new features/changes/bug fixes.
+
+Attaching package: ‘randomForest’
+
+The following object is masked from ‘package:dplyr’:
+
+    combine
+
+The following object is masked from ‘package:ggplot2’:
+
+    margin
+
+Thank you for using fastDummies!
+To acknowledge our work, please cite the package:
+Kaplan, J. & Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) Columns and Rows from Categorical Variables. Version 1.7.1. URL: https://github.com/jacobkap/fastDummies, https://jacobkap.github.io/fastDummies/.
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+Error in { : 
+  task 1 failed - "function cannot be evaluated at initial parameters"
+Calls: find_combination_pars -> %dopar% -> <Anonymous>
+Execution halted
+Loading required package: iterators
+Loading required package: parallel
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.1     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ lubridate 1.9.2     ✔ tibble    3.2.1
+✔ purrr     1.0.1     ✔ tidyr     1.3.0
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ purrr::accumulate() masks foreach::accumulate()
+✖ dplyr::filter()     masks stats::filter()
+✖ dplyr::lag()        masks stats::lag()
+✖ purrr::when()       masks foreach::when()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Loading required package: nlme
+
+Attaching package: ‘nlme’
+
+The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+This is mgcv 1.9-0. For overview type 'help("mgcv-package")'.
+randomForest 4.7-1.1
+Type rfNews() to see new features/changes/bug fixes.
+
+Attaching package: ‘randomForest’
+
+The following object is masked from ‘package:dplyr’:
+
+    combine
+
+The following object is masked from ‘package:ggplot2’:
+
+    margin
+
+Thank you for using fastDummies!
+To acknowledge our work, please cite the package:
+Kaplan, J. & Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) Columns and Rows from Categorical Variables. Version 1.7.1. URL: https://github.com/jacobkap/fastDummies, https://jacobkap.github.io/fastDummies/.
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+Error in { : 
+  task 1 failed - "function cannot be evaluated at initial parameters"
+Calls: find_combination_pars -> %dopar% -> <Anonymous>
+Execution halted
+Loading required package: iterators
+Loading required package: parallel
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.1     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ lubridate 1.9.2     ✔ tibble    3.2.1
+✔ purrr     1.0.1     ✔ tidyr     1.3.0
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ purrr::accumulate() masks foreach::accumulate()
+✖ dplyr::filter()     masks stats::filter()
+✖ dplyr::lag()        masks stats::lag()
+✖ purrr::when()       masks foreach::when()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Loading required package: nlme
+
+Attaching package: ‘nlme’
+
+The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+This is mgcv 1.9-0. For overview type 'help("mgcv-package")'.
+randomForest 4.7-1.1
+Type rfNews() to see new features/changes/bug fixes.
+
+Attaching package: ‘randomForest’
+
+The following object is masked from ‘package:dplyr’:
+
+    combine
+
+The following object is masked from ‘package:ggplot2’:
+
+    margin
+
+Thank you for using fastDummies!
+To acknowledge our work, please cite the package:
+Kaplan, J. & Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) Columns and Rows from Categorical Variables. Version 1.7.1. URL: https://github.com/jacobkap/fastDummies, https://jacobkap.github.io/fastDummies/.
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+[1] "iteration: 1, num parameters included: 1"
+[1] 78364522
+[1] "iteration: 2, num parameters included: 1"
+[1] 80708795
+[1] "iteration: 3, num parameters included: 1"
+[1] 83854891
+[1] "iteration: 4, num parameters included: 1"
+[1] 83129685
+[1] "iteration: 5, num parameters included: 1"
+[1] 77051255
+[1] "iteration: 5, num parameters included: 2"
+[1] 76987659
+[1] "iteration: 5, num parameters included: 3"
+[1] 75109182
+[1] "iteration: 6, num parameters included: 1"
+[1] 79624609
+[1] "iteration: 6, num parameters included: 2"
+[1] 79515754
+[1] "iteration: 6, num parameters included: 3"
+[1] 77449885
+[1] "iteration: 7, num parameters included: 1"
+[1] 83854889
+[1] "iteration: 7, num parameters included: 2"
+[1] 80819680
+[1] "iteration: 7, num parameters included: 3"
+[1] 80737951
+[1] "iteration: 8, num parameters included: 1"
+[1] 83129667
+[1] "iteration: 8, num parameters included: 2"
+[1] 80895442
+[1] "iteration: 8, num parameters included: 3"
+[1] 80676552
+[1] "iteration: 9, num parameters included: 1"
+[1] 75411798
+[1] "iteration: 9, num parameters included: 2"
+[1] 71811915
+[1] "iteration: 9, num parameters included: 3"
+[1] 68708367
+[1] "iteration: 9, num parameters included: 4"
+[1] 65463903
+[1] "iteration: 9, num parameters included: 5"
+[1] 64038766
+[1] "iteration: 9, num parameters included: 6"
+[1] 63707335
+[1] "iteration: 9, num parameters included: 7"
+[1] 63139052
+[1] "iteration: 9, num parameters included: 8"
+[1] 63091594
+[1] "iteration: 9, num parameters included: 9"
+[1] 63074063
+[1] "iteration: 9, num parameters included: 10"
+[1] 63058389
+[1] "iteration: 9, num parameters included: 11"
+[1] 63039956
+[1] "iteration: 9, num parameters included: 12"
+[1] 63039958
+[1] "No improvement. Exiting loop."
+[1] "iteration: 10, num parameters included: 1"
+[1] 78164976
+[1] "iteration: 10, num parameters included: 2"
+[1] 72569337
+[1] "iteration: 10, num parameters included: 3"
+[1] 66724783
+[1] "iteration: 10, num parameters included: 4"
+[1] 65079137
+[1] "iteration: 10, num parameters included: 5"
+[1] 63731695
+[1] "iteration: 10, num parameters included: 6"
+[1] 62729665
+[1] "iteration: 10, num parameters included: 7"
+[1] 62467792
+[1] "iteration: 10, num parameters included: 8"
+[1] 62318454
+[1] "iteration: 10, num parameters included: 9"
+[1] 62233315
+[1] "iteration: 10, num parameters included: 10"
+[1] 62172575
+[1] "iteration: 10, num parameters included: 11"
+[1] 62152384
+[1] "iteration: 10, num parameters included: 12"
+[1] 62133274
+[1] "iteration: 10, num parameters included: 13"
+[1] 62123508
+[1] "iteration: 10, num parameters included: 14"
+[1] 62118568
+[1] "iteration: 10, num parameters included: 15"
+[1] 62115149
+[1] "iteration: 10, num parameters included: 16"
+[1] 62112212
+[1] "iteration: 10, num parameters included: 17"
+[1] 62110214
+[1] "iteration: 10, num parameters included: 18"
+[1] 62109167
+[1] "iteration: 10, num parameters included: 19"
+[1] 62108172
+[1] "iteration: 10, num parameters included: 20"
+[1] 62107161
+[1] "iteration: 10, num parameters included: 21"
+[1] 62106436
+[1] "iteration: 11, num parameters included: 1"
+[1] 80887499
+[1] "iteration: 11, num parameters included: 2"
+[1] 79291980
+[1] "iteration: 11, num parameters included: 3"
+[1] 78413336
+[1] "iteration: 11, num parameters included: 4"
+[1] 77509281
+[1] "iteration: 11, num parameters included: 5"
+[1] 77396766
+[1] "iteration: 11, num parameters included: 6"
+[1] 77360065
+[1] "iteration: 11, num parameters included: 7"
+[1] 77337378
+[1] "iteration: 11, num parameters included: 8"
+[1] 77336094
+[1] "iteration: 11, num parameters included: 9"
+[1] 77335262
+[1] "iteration: 11, num parameters included: 10"
+[1] 77333939
+[1] "iteration: 11, num parameters included: 11"
+[1] 77332635
+[1] "iteration: 11, num parameters included: 12"
+[1] 77331842
+[1] "iteration: 11, num parameters included: 13"
+[1] 77331616
+[1] "iteration: 11, num parameters included: 14"
+[1] 77330741
+[1] "iteration: 11, num parameters included: 15"
+[1] 77329117
+[1] "iteration: 11, num parameters included: 16"
+[1] 77327300
+[1] "iteration: 11, num parameters included: 17"
+[1] 77327202
+[1] "iteration: 11, num parameters included: 18"
+[1] 77326400
+[1] "iteration: 11, num parameters included: 19"
+[1] 77324663
+[1] "iteration: 11, num parameters included: 20"
+[1] 77323523
+[1] "iteration: 11, num parameters included: 21"
+[1] 77322271
+[1] "iteration: 12, num parameters included: 1"
+[1] 80562474
+[1] "iteration: 12, num parameters included: 2"
+[1] 79141550
+[1] "iteration: 12, num parameters included: 3"
+[1] 78427159
+[1] "iteration: 12, num parameters included: 4"
+[1] 78298770
+[1] "iteration: 12, num parameters included: 5"
+[1] 78213056
+[1] "iteration: 12, num parameters included: 6"
+[1] 77843798
+[1] "iteration: 12, num parameters included: 7"
+[1] 77547894
+[1] "iteration: 12, num parameters included: 8"
+[1] 77461115
+[1] "iteration: 12, num parameters included: 9"
+[1] 77430921
+[1] "iteration: 12, num parameters included: 10"
+[1] 77402991
+[1] "iteration: 12, num parameters included: 11"
+[1] 77400847
+[1] "iteration: 12, num parameters included: 12"
+[1] 77400510
+[1] "iteration: 12, num parameters included: 13"
+[1] 77400512
+[1] "No improvement. Exiting loop."
+[1] "iteration: 13, num parameters included: 1"
+[1] 75411798
+[1] "iteration: 13, num parameters included: 2"
+[1] 71811915
+[1] "iteration: 13, num parameters included: 3"
+[1] 68708367
+[1] "iteration: 13, num parameters included: 4"
+[1] 65463903
+[1] "iteration: 13, num parameters included: 5"
+[1] 64038766
+[1] "iteration: 13, num parameters included: 6"
+[1] 63485076
+[1] "iteration: 13, num parameters included: 7"
+[1] 63309039
+[1] "iteration: 13, num parameters included: 8"
+[1] 63309041
+[1] "No improvement. Exiting loop."
+[1] "iteration: 14, num parameters included: 1"
+[1] 78048647
+[1] "iteration: 14, num parameters included: 2"
+[1] 76040178
+[1] "iteration: 14, num parameters included: 3"
+[1] 74306353
+[1] "iteration: 14, num parameters included: 4"
+[1] 73859078
+[1] "iteration: 14, num parameters included: 5"
+[1] 73732374
+[1] "iteration: 14, num parameters included: 6"
+[1] 73496179
+[1] "iteration: 14, num parameters included: 7"
+[1] 72605256
+[1] "iteration: 14, num parameters included: 8"
+[1] 72605258
+[1] "No improvement. Exiting loop."
+[1] "iteration: 15, num parameters included: 1"
+[1] 80887499
+[1] "iteration: 15, num parameters included: 2"
+[1] 78169510
+[1] "iteration: 15, num parameters included: 3"
+[1] 77222853
+[1] "iteration: 15, num parameters included: 4"
+[1] 76807993
+[1] "iteration: 15, num parameters included: 5"
+[1] 76582891
+[1] "iteration: 15, num parameters included: 6"
+[1] 76078746
+[1] "iteration: 15, num parameters included: 7"
+[1] 75398280
+[1] "iteration: 15, num parameters included: 8"
+[1] 75398282
+[1] "No improvement. Exiting loop."
+[1] "iteration: 16, num parameters included: 1"
+[1] 80562474
+[1] "iteration: 16, num parameters included: 2"
+[1] 78367148
+[1] "iteration: 16, num parameters included: 3"
+[1] 77231744
+[1] "iteration: 16, num parameters included: 4"
+[1] 76324643
+[1] "iteration: 16, num parameters included: 5"
+[1] 75941878
+[1] "iteration: 16, num parameters included: 6"
+[1] 75800072
+[1] "iteration: 16, num parameters included: 7"
+[1] 75707854
+[1] "iteration: 16, num parameters included: 8"
+[1] 75638188
+[1] "iteration: 16, num parameters included: 9"
+[1] 75580079
+[1] "iteration: 16, num parameters included: 10"
+[1] 75516237
+[1] "iteration: 16, num parameters included: 11"
+[1] 75474078
+[1] "iteration: 16, num parameters included: 12"
+[1] 75456254
+[1] "iteration: 16, num parameters included: 13"
+[1] 75451187
+[1] "iteration: 16, num parameters included: 14"
+[1] 75432828
+[1] "iteration: 16, num parameters included: 15"
+[1] 75408366
+[1] "iteration: 16, num parameters included: 16"
+[1] 75346268
+[1] "iteration: 16, num parameters included: 17"
+[1] 75346270
+[1] "No improvement. Exiting loop."
+[1] "iteration: 17, num parameters included: 1"
+[1] 75411798
+[1] "iteration: 17, num parameters included: 2"
+[1] 71811915
+[1] "iteration: 17, num parameters included: 3"
+[1] 68708367
+[1] "iteration: 17, num parameters included: 4"
+[1] 65463903
+[1] "iteration: 17, num parameters included: 5"
+[1] 64038766
+[1] "iteration: 17, num parameters included: 6"
+[1] 63485076
+[1] "iteration: 17, num parameters included: 7"
+[1] 63309039
+[1] "iteration: 17, num parameters included: 8"
+[1] 63309041
+[1] "No improvement. Exiting loop."
+[1] "iteration: 18, num parameters included: 1"
+[1] 78048647
+[1] "iteration: 18, num parameters included: 2"
+[1] 76040178
+[1] "iteration: 18, num parameters included: 3"
+[1] 74306353
+[1] "iteration: 18, num parameters included: 4"
+[1] 73859078
+[1] "iteration: 18, num parameters included: 5"
+[1] 73732374
+[1] "iteration: 18, num parameters included: 6"
+[1] 73496179
+[1] "iteration: 18, num parameters included: 7"
+[1] 72605256
+[1] "iteration: 18, num parameters included: 8"
+[1] 72605258
+[1] "No improvement. Exiting loop."
+[1] "iteration: 19, num parameters included: 1"
+[1] 80887499
+[1] "iteration: 19, num parameters included: 2"
+[1] 78169510
+[1] "iteration: 19, num parameters included: 3"
+[1] 77222853
+[1] "iteration: 19, num parameters included: 4"
+[1] 76807993
+[1] "iteration: 19, num parameters included: 5"
+[1] 76582891
+[1] "iteration: 19, num parameters included: 6"
+[1] 76078746
+[1] "iteration: 19, num parameters included: 7"
+[1] 75398280
+[1] "iteration: 19, num parameters included: 8"
+[1] 75398282
+[1] "No improvement. Exiting loop."
+[1] "iteration: 20, num parameters included: 1"
+[1] 80562474
+[1] "iteration: 20, num parameters included: 2"
+[1] 78367148
+[1] "iteration: 20, num parameters included: 3"
+[1] 77231744
+[1] "iteration: 20, num parameters included: 4"
+[1] 76324643
+[1] "iteration: 20, num parameters included: 5"
+[1] 75941878
+[1] "iteration: 20, num parameters included: 6"
+[1] 75800072
+[1] "iteration: 20, num parameters included: 7"
+[1] 75707854
+[1] "iteration: 20, num parameters included: 8"
+[1] 75638188
+[1] "iteration: 20, num parameters included: 9"
+[1] 75580079
+[1] "iteration: 20, num parameters included: 10"
+[1] 75516237
+[1] "iteration: 20, num parameters included: 11"
+[1] 75473846
+[1] "iteration: 20, num parameters included: 12"
+[1] 75458240
+[1] "iteration: 20, num parameters included: 13"
+[1] 75430937
+[1] "iteration: 20, num parameters included: 14"
+[1] 75430939
+[1] "No improvement. Exiting loop."
+[1] "iteration: 21, num parameters included: 1"
+[1] 77993875
+[1] "iteration: 22, num parameters included: 1"
+[1] 80673408
+[1] "iteration: 23, num parameters included: 1"
+[1] 83854890
+[1] "iteration: 24, num parameters included: 1"
+[1] 82793513
+[1] "iteration: 25, num parameters included: 1"
+[1] 77912695
+[1] "iteration: 25, num parameters included: 2"
+[1] 76182823
+[1] "iteration: 25, num parameters included: 3"
+[1] 75768569
+[1] "iteration: 26, num parameters included: 1"
+[1] 80673408
+[1] "iteration: 26, num parameters included: 2"
+[1] 79479511
+[1] "iteration: 26, num parameters included: 3"
+[1] 79061775
+[1] "iteration: 27, num parameters included: 1"
+[1] 83844353
+[1] "iteration: 27, num parameters included: 2"
+[1] 82631936
+[1] "iteration: 27, num parameters included: 3"
+[1] 81761091
+[1] "iteration: 28, num parameters included: 1"
+[1] 82793513
+[1] "iteration: 28, num parameters included: 2"
+[1] 81008705
+[1] "iteration: 28, num parameters included: 3"
+[1] 80955649
+[1] "iteration: 29, num parameters included: 1"
+[1] 75585729
+[1] "iteration: 29, num parameters included: 2"
+[1] 73431015
+[1] "iteration: 29, num parameters included: 3"
+[1] 66627841
+[1] "iteration: 29, num parameters included: 4"
+[1] 61373918
+[1] "iteration: 29, num parameters included: 5"
+[1] 59377438
+[1] "iteration: 29, num parameters included: 6"
+[1] 58939694
+[1] "iteration: 29, num parameters included: 7"
+[1] 58841877
+[1] "iteration: 29, num parameters included: 8"
+[1] 58788042
+[1] "iteration: 29, num parameters included: 9"
+[1] 58757333
+[1] "iteration: 29, num parameters included: 10"
+[1] 58752409
+[1] "iteration: 29, num parameters included: 11"
+[1] 58749655
+[1] "iteration: 29, num parameters included: 12"
+[1] 58746907
+[1] "iteration: 29, num parameters included: 13"
+[1] 58742339
+[1] "iteration: 29, num parameters included: 14"
+[1] 58739820
+[1] "iteration: 29, num parameters included: 15"
+[1] 58739253
+[1] "iteration: 29, num parameters included: 16"
+[1] 58738619
+[1] "iteration: 29, num parameters included: 17"
+[1] 58738021
+[1] "iteration: 29, num parameters included: 18"
+[1] 58737908
+[1] "iteration: 29, num parameters included: 19"
+[1] 58737415
+[1] "iteration: 29, num parameters included: 20"
+[1] 58736910
+[1] "iteration: 29, num parameters included: 21"
+[1] 58736793
+[1] "iteration: 30, num parameters included: 1"
+[1] 78095857
+[1] "iteration: 30, num parameters included: 2"
+[1] 67598297
+[1] "iteration: 30, num parameters included: 3"
+[1] 65077593
+[1] "iteration: 30, num parameters included: 4"
+[1] 63285959
+[1] "iteration: 30, num parameters included: 5"
+[1] 62535242
+[1] "iteration: 30, num parameters included: 6"
+[1] 62393345
+[1] "iteration: 30, num parameters included: 7"
+[1] 62283770
+[1] "iteration: 30, num parameters included: 8"
+[1] 62184228
+[1] "iteration: 30, num parameters included: 9"
+[1] 62121675
+[1] "iteration: 30, num parameters included: 10"
+[1] 62094187
+[1] "iteration: 30, num parameters included: 11"
+[1] 62088192
+[1] "iteration: 30, num parameters included: 12"
+[1] 62079340
+[1] "iteration: 30, num parameters included: 13"
+[1] 62072834
+[1] "iteration: 30, num parameters included: 14"
+[1] 62069597
+[1] "iteration: 30, num parameters included: 15"
+[1] 62068326
+[1] "iteration: 30, num parameters included: 16"
+[1] 62067847
+[1] "iteration: 30, num parameters included: 17"
+[1] 62067471
+[1] "iteration: 30, num parameters included: 18"
+[1] 62067141
+[1] "iteration: 30, num parameters included: 19"
+[1] 62066869
+[1] "iteration: 30, num parameters included: 20"
+[1] 62066725
+[1] "iteration: 30, num parameters included: 21"
+[1] 62066557
+[1] "iteration: 31, num parameters included: 1"
+[1] 81737540
+[1] "iteration: 31, num parameters included: 2"
+[1] 79161191
+[1] "iteration: 31, num parameters included: 3"
+[1] 68924958
+[1] "iteration: 31, num parameters included: 4"
+[1] 67141862
+[1] "iteration: 31, num parameters included: 5"
+[1] 66526646
+[1] "iteration: 31, num parameters included: 6"
+[1] 65942617
+[1] "iteration: 31, num parameters included: 7"
+[1] 65224412
+[1] "iteration: 31, num parameters included: 8"
+[1] 64803870
+[1] "iteration: 31, num parameters included: 9"
+[1] 64708418
+[1] "iteration: 31, num parameters included: 10"
+[1] 64660661
+[1] "iteration: 31, num parameters included: 11"
+[1] 64626767
+[1] "iteration: 31, num parameters included: 12"
+[1] 64614198
+[1] "iteration: 31, num parameters included: 13"
+[1] 64604134
+[1] "iteration: 31, num parameters included: 14"
+[1] 64592814
+[1] "iteration: 31, num parameters included: 15"
+[1] 64590318
+[1] "iteration: 31, num parameters included: 16"
+[1] 64588808
+[1] "iteration: 31, num parameters included: 17"
+[1] 64587253
+[1] "iteration: 31, num parameters included: 18"
+[1] 64586196
+[1] "iteration: 31, num parameters included: 19"
+[1] 64585647
+[1] "iteration: 31, num parameters included: 20"
+[1] 64584244
+[1] "iteration: 31, num parameters included: 21"
+[1] 64583963
+[1] "iteration: 32, num parameters included: 1"
+[1] 81046943
+[1] "iteration: 32, num parameters included: 2"
+[1] 79143064
+[1] "iteration: 32, num parameters included: 3"
+[1] 78129908
+[1] "iteration: 32, num parameters included: 4"
+[1] 77234935
+[1] "iteration: 32, num parameters included: 5"
+[1] 75774153
+[1] "iteration: 32, num parameters included: 6"
+[1] 75599917
+[1] "iteration: 32, num parameters included: 7"
+[1] 75528006
+[1] "iteration: 32, num parameters included: 8"
+[1] 75463691
+[1] "iteration: 32, num parameters included: 9"
+[1] 75438318
+[1] "iteration: 32, num parameters included: 10"
+[1] 75432260
+[1] "iteration: 32, num parameters included: 11"
+[1] 75424607
+[1] "iteration: 32, num parameters included: 12"
+[1] 75421910
+[1] "iteration: 32, num parameters included: 13"
+[1] 75418445
+[1] "iteration: 32, num parameters included: 14"
+[1] 75415643
+[1] "iteration: 32, num parameters included: 15"
+[1] 75414593
+[1] "iteration: 32, num parameters included: 16"
+[1] 75414595
+[1] "No improvement. Exiting loop."
+[1] "iteration: 33, num parameters included: 1"
+[1] 75494470
+[1] "iteration: 33, num parameters included: 2"
+[1] 73663225
+[1] "iteration: 33, num parameters included: 3"
+[1] 72136239
+[1] "iteration: 33, num parameters included: 4"
+[1] 71454633
+[1] "iteration: 33, num parameters included: 5"
+[1] 71351624
+[1] "iteration: 33, num parameters included: 6"
+[1] 71269161
+[1] "iteration: 33, num parameters included: 7"
+[1] 71238749
+[1] "iteration: 33, num parameters included: 8"
+[1] 71210990
+[1] "iteration: 33, num parameters included: 9"
+[1] 71187915
+[1] "iteration: 33, num parameters included: 10"
+[1] 71157526
+[1] "iteration: 33, num parameters included: 11"
+[1] 71101850
+[1] "iteration: 33, num parameters included: 12"
+[1] 71075842
+[1] "iteration: 33, num parameters included: 13"
+[1] 71054158
+[1] "iteration: 33, num parameters included: 14"
+[1] 71015395
+[1] "iteration: 33, num parameters included: 15"
+[1] 70947294
+[1] "iteration: 33, num parameters included: 16"
+[1] 70934289
+[1] "iteration: 33, num parameters included: 17"
+[1] 70934291
+[1] "No improvement. Exiting loop."
+[1] "iteration: 34, num parameters included: 1"
+[1] 78095857
+[1] "iteration: 34, num parameters included: 2"
+[1] 67598297
+[1] "iteration: 34, num parameters included: 3"
+[1] 65077593
+[1] "iteration: 34, num parameters included: 4"
+[1] 63285959
+[1] "iteration: 34, num parameters included: 5"
+[1] 62535242
+[1] "iteration: 34, num parameters included: 6"
+[1] 61921094
+[1] "iteration: 34, num parameters included: 7"
+[1] 61682739
+[1] "iteration: 34, num parameters included: 8"
+[1] 61621643
+[1] "iteration: 34, num parameters included: 9"
+[1] 61575040
+[1] "iteration: 34, num parameters included: 10"
+[1] 61553495
+[1] "iteration: 34, num parameters included: 11"
+[1] 61527241
+[1] "iteration: 34, num parameters included: 12"
+[1] 61505720
+[1] "iteration: 34, num parameters included: 13"
+[1] 61498975
+[1] "iteration: 34, num parameters included: 14"
+[1] 61498362
+[1] "iteration: 34, num parameters included: 15"
+[1] 61498364
+[1] "No improvement. Exiting loop."
+[1] "iteration: 35, num parameters included: 1"
+[1] 81565018
+[1] "iteration: 35, num parameters included: 2"
+[1] 80005458
+[1] "iteration: 35, num parameters included: 3"
+[1] 78652443
+[1] "iteration: 35, num parameters included: 4"
+[1] 78167780
+[1] "iteration: 35, num parameters included: 5"
+[1] 77452936
+[1] "iteration: 35, num parameters included: 6"
+[1] 77135158
+[1] "iteration: 35, num parameters included: 7"
+[1] 76918532
+[1] "iteration: 35, num parameters included: 8"
+[1] 76810756
+[1] "iteration: 35, num parameters included: 9"
+[1] 76714773
+[1] "iteration: 35, num parameters included: 10"
+[1] 76675401
+[1] "iteration: 35, num parameters included: 11"
+[1] 76664397
+[1] "iteration: 35, num parameters included: 12"
+[1] 76644364
+[1] "iteration: 35, num parameters included: 13"
+[1] 76610903
+[1] "iteration: 35, num parameters included: 14"
+[1] 76608471
+[1] "iteration: 35, num parameters included: 15"
+[1] 76555297
+[1] "iteration: 35, num parameters included: 16"
+[1] 76555299
+[1] "No improvement. Exiting loop."
+[1] "iteration: 36, num parameters included: 1"
+[1] 80770749
+[1] "iteration: 36, num parameters included: 2"
+[1] 79645723
+[1] "iteration: 36, num parameters included: 3"
+[1] 77552352
+[1] "iteration: 36, num parameters included: 4"
+[1] 76397038
+[1] "iteration: 36, num parameters included: 5"
+[1] 76127905
+[1] "iteration: 36, num parameters included: 6"
+[1] 75897888
+[1] "iteration: 36, num parameters included: 7"
+[1] 75644134
+[1] "iteration: 36, num parameters included: 8"
+[1] 75449671
+[1] "iteration: 36, num parameters included: 9"
+[1] 75313152
+[1] "iteration: 36, num parameters included: 10"
+[1] 75135809
+[1] "iteration: 36, num parameters included: 11"
+[1] 74958309
+[1] "iteration: 36, num parameters included: 12"
+[1] 74925504
+[1] "iteration: 36, num parameters included: 13"
+[1] 74925506
+[1] "No improvement. Exiting loop."
+[1] "iteration: 37, num parameters included: 1"
+[1] 75494470
+[1] "iteration: 37, num parameters included: 2"
+[1] 73663225
+[1] "iteration: 37, num parameters included: 3"
+[1] 72136239
+[1] "iteration: 37, num parameters included: 4"
+[1] 71454633
+[1] "iteration: 37, num parameters included: 5"
+[1] 71351624
+[1] "iteration: 37, num parameters included: 6"
+[1] 71269161
+[1] "iteration: 37, num parameters included: 7"
+[1] 71238749
+[1] "iteration: 37, num parameters included: 8"
+[1] 71210990
+[1] "iteration: 37, num parameters included: 9"
+[1] 71187915
+[1] "iteration: 37, num parameters included: 10"
+[1] 71157526
+[1] "iteration: 37, num parameters included: 11"
+[1] 71101850
+[1] "iteration: 37, num parameters included: 12"
+[1] 71073311
+[1] "iteration: 37, num parameters included: 13"
+[1] 71060335
+[1] "iteration: 37, num parameters included: 14"
+[1] 71053783
+[1] "iteration: 37, num parameters included: 15"
+[1] 71043010
+[1] "iteration: 37, num parameters included: 16"
+[1] 70931019
+[1] "iteration: 37, num parameters included: 17"
+[1] 70931021
+[1] "No improvement. Exiting loop."
+[1] "iteration: 38, num parameters included: 1"
+[1] 78095857
+[1] "iteration: 38, num parameters included: 2"
+[1] 67598297
+[1] "iteration: 38, num parameters included: 3"
+[1] 65077593
+[1] "iteration: 38, num parameters included: 4"
+[1] 63285959
+[1] "iteration: 38, num parameters included: 5"
+[1] 62535242
+[1] "iteration: 38, num parameters included: 6"
+[1] 61921094
+[1] "iteration: 38, num parameters included: 7"
+[1] 61682739
+[1] "iteration: 38, num parameters included: 8"
+[1] 61621643
+[1] "iteration: 38, num parameters included: 9"
+[1] 61575040
+[1] "iteration: 38, num parameters included: 10"
+[1] 61553495
+[1] "iteration: 38, num parameters included: 11"
+[1] 61527241
+[1] "iteration: 38, num parameters included: 12"
+[1] 61505720
+[1] "iteration: 38, num parameters included: 13"
+[1] 61498975
+[1] "iteration: 38, num parameters included: 14"
+[1] 61498362
+[1] "iteration: 38, num parameters included: 15"
+[1] 61498364
+[1] "No improvement. Exiting loop."
+[1] "iteration: 39, num parameters included: 1"
+[1] 81565018
+[1] "iteration: 39, num parameters included: 2"
+[1] 80005458
+[1] "iteration: 39, num parameters included: 3"
+[1] 78652443
+[1] "iteration: 39, num parameters included: 4"
+[1] 78167780
+[1] "iteration: 39, num parameters included: 5"
+[1] 77452936
+[1] "iteration: 39, num parameters included: 6"
+[1] 77135158
+[1] "iteration: 39, num parameters included: 7"
+[1] 76918532
+[1] "iteration: 39, num parameters included: 8"
+[1] 76810756
+[1] "iteration: 39, num parameters included: 9"
+[1] 76714024
+[1] "iteration: 39, num parameters included: 10"
+[1] 76673016
+[1] "iteration: 39, num parameters included: 11"
+[1] 76669014
+[1] "iteration: 39, num parameters included: 12"
+[1] 76669016
+[1] "No improvement. Exiting loop."
+[1] "iteration: 40, num parameters included: 1"
+[1] 80770749
+[1] "iteration: 40, num parameters included: 2"
+[1] 79645723
+[1] "iteration: 40, num parameters included: 3"
+[1] 77552352
+[1] "iteration: 40, num parameters included: 4"
+[1] 76397038
+[1] "iteration: 40, num parameters included: 5"
+[1] 76127905
+[1] "iteration: 40, num parameters included: 6"
+[1] 75897888
+[1] "iteration: 40, num parameters included: 7"
+[1] 75644134
+[1] "iteration: 40, num parameters included: 8"
+[1] 75449671
+[1] "iteration: 40, num parameters included: 9"
+[1] 75313152
+[1] "iteration: 40, num parameters included: 10"
+[1] 75135809
+[1] "iteration: 40, num parameters included: 11"
+[1] 74958309
+[1] "iteration: 40, num parameters included: 12"
+[1] 74925504
+[1] "iteration: 40, num parameters included: 13"
+[1] 74925506
+[1] "No improvement. Exiting loop."
+[1] "iteration: 41, num parameters included: 1"
+[1] 78364522
+[1] "iteration: 42, num parameters included: 1"
+[1] 80708795
+[1] "iteration: 43, num parameters included: 1"
+[1] 83854891
+[1] "iteration: 44, num parameters included: 1"
+[1] 83129685
+[1] "iteration: 45, num parameters included: 1"
+[1] 78364522
+[1] "iteration: 45, num parameters included: 2"
+[1] 78364524
+[1] "No improvement. Exiting loop."
+[1] "iteration: 46, num parameters included: 1"
+[1] 80708795
+[1] "iteration: 46, num parameters included: 2"
+[1] 80708797
+[1] "No improvement. Exiting loop."
+[1] "iteration: 47, num parameters included: 1"
+[1] 83854891
+[1] "iteration: 47, num parameters included: 2"
+[1] 83854893
+[1] "No improvement. Exiting loop."
+[1] "iteration: 48, num parameters included: 1"
+[1] 83129685
+[1] "iteration: 48, num parameters included: 2"
+[1] 83129687
+[1] "No improvement. Exiting loop."
+[1] "iteration: 49, num parameters included: 1"
+[1] 78364522
+[1] "iteration: 49, num parameters included: 2"
+[1] 78203330
+[1] "iteration: 49, num parameters included: 3"
+[1] 72563240
+[1] "iteration: 50, num parameters included: 1"
+[1] 80708795
+[1] "iteration: 50, num parameters included: 2"
+[1] 75569174
+[1] "iteration: 50, num parameters included: 3"
+[1] 74540419
+[1] "iteration: 51, num parameters included: 1"
+[1] 83854890
+[1] "iteration: 51, num parameters included: 2"
+[1] 83550325
+[1] "iteration: 51, num parameters included: 3"
+[1] 77610606
+[1] "iteration: 52, num parameters included: 1"
+[1] 83129685
+[1] "iteration: 52, num parameters included: 2"
+[1] 83129686
+[1] "No improvement. Exiting loop."
+[1] "iteration: 53, num parameters included: 1"
+[1] 77520705
+[1] "iteration: 53, num parameters included: 2"
+[1] 77335467
+[1] "iteration: 53, num parameters included: 3"
+[1] 77173689
+[1] "iteration: 53, num parameters included: 4"
+[1] 77172003
+[1] "iteration: 53, num parameters included: 5"
+[1] 77172005
+[1] "No improvement. Exiting loop."
+[1] "iteration: 54, num parameters included: 1"
+[1] 80129718
+[1] "iteration: 54, num parameters included: 2"
+[1] 80025741
+[1] "iteration: 54, num parameters included: 3"
+[1] 79936112
+[1] "iteration: 54, num parameters included: 4"
+[1] 79911520
+[1] "iteration: 54, num parameters included: 5"
+[1] 79872199
+[1] "iteration: 54, num parameters included: 6"
+[1] 79869085
+[1] "iteration: 54, num parameters included: 7"
+[1] 79867173
+[1] "iteration: 54, num parameters included: 8"
+[1] 79867175
+[1] "No improvement. Exiting loop."
+[1] "iteration: 55, num parameters included: 1"
+[1] 83307949
+[1] "iteration: 55, num parameters included: 2"
+[1] 83003595
+[1] "iteration: 55, num parameters included: 3"
+[1] 82989507
+[1] "iteration: 55, num parameters included: 4"
+[1] 82988864
+[1] "iteration: 55, num parameters included: 5"
+[1] 82988404
+[1] "iteration: 55, num parameters included: 6"
+[1] 82988406
+[1] "No improvement. Exiting loop."
+[1] "iteration: 56, num parameters included: 1"
+[1] 82891660
+[1] "iteration: 56, num parameters included: 2"
+[1] 82739829
+[1] "iteration: 56, num parameters included: 3"
+[1] 82694438
+[1] "iteration: 56, num parameters included: 4"
+[1] 82664777
+[1] "iteration: 56, num parameters included: 5"
+[1] 82637889
+[1] "iteration: 56, num parameters included: 6"
+[1] 82609875
+[1] "iteration: 56, num parameters included: 7"
+[1] 82608701
+[1] "iteration: 56, num parameters included: 8"
+[1] 82608703
+[1] "No improvement. Exiting loop."
+[1] "iteration: 57, num parameters included: 1"
+[1] 77520705
+[1] "iteration: 57, num parameters included: 2"
+[1] 77024739
+[1] "iteration: 57, num parameters included: 3"
+[1] 76645477
+[1] "iteration: 57, num parameters included: 4"
+[1] 76635785
+[1] "iteration: 57, num parameters included: 5"
+[1] 76635787
+[1] "No improvement. Exiting loop."
+[1] "iteration: 58, num parameters included: 1"
+[1] 79947621
+[1] "iteration: 58, num parameters included: 2"
+[1] 79554237
+[1] "iteration: 58, num parameters included: 3"
+[1] 79369404
+[1] "iteration: 58, num parameters included: 4"
+[1] 79312282
+[1] "iteration: 58, num parameters included: 5"
+[1] 79275260
+[1] "iteration: 58, num parameters included: 6"
+[1] 79244305
+[1] "iteration: 58, num parameters included: 7"
+[1] 79215958
+[1] "iteration: 58, num parameters included: 8"
+[1] 79215960
+[1] "No improvement. Exiting loop."
+[1] "iteration: 59, num parameters included: 1"
+[1] 83072304
+[1] "iteration: 59, num parameters included: 2"
+[1] 82541754
+[1] "iteration: 59, num parameters included: 3"
+[1] 82427808
+[1] "iteration: 59, num parameters included: 4"
+[1] 82401047
+[1] "iteration: 59, num parameters included: 5"
+[1] 82386764
+[1] "iteration: 59, num parameters included: 6"
+[1] 82386766
+[1] "No improvement. Exiting loop."
+[1] "iteration: 60, num parameters included: 1"
+[1] 82753345
+[1] "iteration: 60, num parameters included: 2"
+[1] 82665037
+[1] "iteration: 60, num parameters included: 3"
+[1] 82592061
+[1] "iteration: 60, num parameters included: 4"
+[1] 82546795
+[1] "iteration: 60, num parameters included: 5"
+[1] 82501528
+[1] "iteration: 60, num parameters included: 6"
+[1] 82463874
+[1] "iteration: 60, num parameters included: 7"
+[1] 82428972
+[1] "iteration: 60, num parameters included: 8"
+[1] 82406115
+[1] "iteration: 60, num parameters included: 9"
+[1] 82384319
+[1] "iteration: 60, num parameters included: 10"
+[1] 82371955
+[1] "iteration: 60, num parameters included: 11"
+[1] 82367034
+[1] "iteration: 60, num parameters included: 12"
+[1] 82364646
+[1] "iteration: 60, num parameters included: 13"
+[1] 82363021
+[1] "iteration: 60, num parameters included: 14"
+[1] 82361960
+[1] "iteration: 60, num parameters included: 15"
+[1] 82361321
+[1] "iteration: 60, num parameters included: 16"
+[1] 82360995
+[1] "iteration: 60, num parameters included: 17"
+[1] 82360906
+[1] "iteration: 60, num parameters included: 18"
+[1] 82360908
+[1] "No improvement. Exiting loop."
+[1] "iteration: 61, num parameters included: 1"
+[1] 77520705
+[1] "iteration: 61, num parameters included: 2"
+[1] 77024739
+[1] "iteration: 61, num parameters included: 3"
+[1] 76645477
+[1] "iteration: 61, num parameters included: 4"
+[1] 76635785
+[1] "iteration: 61, num parameters included: 5"
+[1] 76635787
+[1] "No improvement. Exiting loop."
+[1] "iteration: 62, num parameters included: 1"
+[1] 79947621
+[1] "iteration: 62, num parameters included: 2"
+[1] 79554237
+[1] "iteration: 62, num parameters included: 3"
+[1] 79369404
+[1] "iteration: 62, num parameters included: 4"
+[1] 79312282
+[1] "iteration: 62, num parameters included: 5"
+[1] 79275260
+[1] "iteration: 62, num parameters included: 6"
+[1] 79244305
+[1] "iteration: 62, num parameters included: 7"
+[1] 79215958
+[1] "iteration: 62, num parameters included: 8"
+[1] 79215960
+[1] "No improvement. Exiting loop."
+[1] "iteration: 63, num parameters included: 1"
+[1] 83072304
+[1] "iteration: 63, num parameters included: 2"
+[1] 82541754
+[1] "iteration: 63, num parameters included: 3"
+[1] 82427144
+[1] "iteration: 63, num parameters included: 4"
+[1] 82385607
+[1] "iteration: 63, num parameters included: 5"
+[1] 82354029
+[1] "iteration: 63, num parameters included: 6"
+[1] 82321854
+[1] "iteration: 63, num parameters included: 7"
+[1] 82311659
+[1] "iteration: 63, num parameters included: 8"
+[1] 82308173
+[1] "iteration: 63, num parameters included: 9"
+[1] 82308175
+[1] "No improvement. Exiting loop."
+[1] "iteration: 64, num parameters included: 1"
+[1] 82753345
+[1] "iteration: 64, num parameters included: 2"
+[1] 82664586
+[1] "iteration: 64, num parameters included: 3"
+[1] 82597205
+[1] "iteration: 64, num parameters included: 4"
+[1] 82530121
+[1] "iteration: 64, num parameters included: 5"
+[1] 82488987
+[1] "iteration: 64, num parameters included: 6"
+[1] 82450944
+[1] "iteration: 64, num parameters included: 7"
+[1] 82416520
+[1] "iteration: 64, num parameters included: 8"
+[1] 82387952
+[1] "iteration: 64, num parameters included: 9"
+[1] 82370849
+[1] "iteration: 64, num parameters included: 10"
+[1] 82354190
+[1] "iteration: 64, num parameters included: 11"
+[1] 82348451
+[1] "iteration: 64, num parameters included: 12"
+[1] 82346642
+[1] "iteration: 64, num parameters included: 13"
+[1] 82345443
+[1] "iteration: 64, num parameters included: 14"
+[1] 82344698
+[1] "iteration: 64, num parameters included: 15"
+[1] 82344292
+[1] "iteration: 64, num parameters included: 16"
+[1] 82344141
+[1] "iteration: 64, num parameters included: 17"
+[1] 82344137
+[1] "iteration: 64, num parameters included: 18"
+[1] 82344139
+[1] "No improvement. Exiting loop."
+[1] "iteration: 65, num parameters included: 1"
+[1] 77520705
+[1] "iteration: 65, num parameters included: 2"
+[1] 77024739
+[1] "iteration: 65, num parameters included: 3"
+[1] 76645477
+[1] "iteration: 65, num parameters included: 4"
+[1] 76635785
+[1] "iteration: 65, num parameters included: 5"
+[1] 76635787
+[1] "No improvement. Exiting loop."
+[1] "iteration: 66, num parameters included: 1"
+[1] 79947621
+[1] "iteration: 66, num parameters included: 2"
+[1] 79554237
+[1] "iteration: 66, num parameters included: 3"
+[1] 79369404
+[1] "iteration: 66, num parameters included: 4"
+[1] 79312282
+[1] "iteration: 66, num parameters included: 5"
+[1] 79275260
+[1] "iteration: 66, num parameters included: 6"
+[1] 79244305
+[1] "iteration: 66, num parameters included: 7"
+[1] 79215958
+[1] "iteration: 66, num parameters included: 8"
+[1] 79215960
+[1] "No improvement. Exiting loop."
+[1] "iteration: 67, num parameters included: 1"
+[1] 83072304
+[1] "iteration: 67, num parameters included: 2"
+[1] 82541754
+[1] "iteration: 67, num parameters included: 3"
+[1] 82427808
+[1] "iteration: 67, num parameters included: 4"
+[1] 82401047
+[1] "iteration: 67, num parameters included: 5"
+[1] 82386764
+[1] "iteration: 67, num parameters included: 6"
+[1] 82386766
+[1] "No improvement. Exiting loop."
+[1] "iteration: 68, num parameters included: 1"
+[1] 82753345
+[1] "iteration: 68, num parameters included: 2"
+[1] 82664586
+[1] "iteration: 68, num parameters included: 3"
+[1] 82597205
+[1] "iteration: 68, num parameters included: 4"
+[1] 82530121
+[1] "iteration: 68, num parameters included: 5"
+[1] 82488987
+[1] "iteration: 68, num parameters included: 6"
+[1] 82450944
+[1] "iteration: 68, num parameters included: 7"
+[1] 82416520
+[1] "iteration: 68, num parameters included: 8"
+[1] 82387952
+[1] "iteration: 68, num parameters included: 9"
+[1] 82370849
+[1] "iteration: 68, num parameters included: 10"
+[1] 82354190
+[1] "iteration: 68, num parameters included: 11"
+[1] 82348451
+[1] "iteration: 68, num parameters included: 12"
+[1] 82346642
+[1] "iteration: 68, num parameters included: 13"
+[1] 82345443
+[1] "iteration: 68, num parameters included: 14"
+[1] 82344698
+[1] "iteration: 68, num parameters included: 15"
+[1] 82344292
+[1] "iteration: 68, num parameters included: 16"
+[1] 82344141
+[1] "iteration: 68, num parameters included: 17"
+[1] 82344137
+[1] "iteration: 68, num parameters included: 18"
+[1] 82344139
+[1] "No improvement. Exiting loop."
+Error in { : task 1 failed - "non-finite value supplied by optim"
+Calls: find_combination_pars -> %dopar% -> <Anonymous>
+In addition: There were 50 or more warnings (use warnings() to see the first 50)
+Execution halted
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.1     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ ggplot2   3.4.2     ✔ tibble    3.2.1
+✔ lubridate 1.9.2     ✔ tidyr     1.3.0
+✔ purrr     1.0.1     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Thank you for using fastDummies!
+To acknowledge our work, please cite the package:
+Kaplan, J. & Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) Columns and Rows from Categorical Variables. Version 1.7.1. URL: https://github.com/jacobkap/fastDummies, https://jacobkap.github.io/fastDummies/.
+Loading required package: iterators
+Loading required package: parallel
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.1     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ lubridate 1.9.2     ✔ tibble    3.2.1
+✔ purrr     1.0.1     ✔ tidyr     1.3.0
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ purrr::accumulate() masks foreach::accumulate()
+✖ dplyr::filter()     masks stats::filter()
+✖ dplyr::lag()        masks stats::lag()
+✖ purrr::when()       masks foreach::when()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Loading required package: nlme
+
+Attaching package: ‘nlme’
+
+The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+This is mgcv 1.9-0. For overview type 'help("mgcv-package")'.
+randomForest 4.7-1.1
+Type rfNews() to see new features/changes/bug fixes.
+
+Attaching package: ‘randomForest’
+
+The following object is masked from ‘package:dplyr’:
+
+    combine
+
+The following object is masked from ‘package:ggplot2’:
+
+    margin
+
+Thank you for using fastDummies!
+To acknowledge our work, please cite the package:
+Kaplan, J. & Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) Columns and Rows from Categorical Variables. Version 1.7.1. URL: https://github.com/jacobkap/fastDummies, https://jacobkap.github.io/fastDummies/.
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+[1] "iteration: 68, num parameters included: 1"
+[1] 65569933
+[1] "iteration: 68, num parameters included: 2"
+[1] 64730480
+[1] "iteration: 68, num parameters included: 3"
+[1] 64418798
+[1] "iteration: 68, num parameters included: 4"
+[1] 64275272
+[1] "iteration: 68, num parameters included: 5"
+[1] 64218508
+[1] "iteration: 68, num parameters included: 6"
+[1] 64122735
+[1] "iteration: 68, num parameters included: 7"
+[1] 64106733
+[1] "iteration: 68, num parameters included: 8"
+[1] 64103009
+[1] "iteration: 68, num parameters included: 9"
+[1] 64100822
+Loading required package: iterators
+Loading required package: parallel
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.1     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ lubridate 1.9.2     ✔ tibble    3.2.1
+✔ purrr     1.0.1     ✔ tidyr     1.3.0
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ purrr::accumulate() masks foreach::accumulate()
+✖ dplyr::filter()     masks stats::filter()
+✖ dplyr::lag()        masks stats::lag()
+✖ purrr::when()       masks foreach::when()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Loading required package: nlme
+
+Attaching package: ‘nlme’
+
+The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+This is mgcv 1.9-0. For overview type 'help("mgcv-package")'.
+randomForest 4.7-1.1
+Type rfNews() to see new features/changes/bug fixes.
+
+Attaching package: ‘randomForest’
+
+The following object is masked from ‘package:dplyr’:
+
+    combine
+
+The following object is masked from ‘package:ggplot2’:
+
+    margin
+
+Thank you for using fastDummies!
+To acknowledge our work, please cite the package:
+Kaplan, J. & Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) Columns and Rows from Categorical Variables. Version 1.7.1. URL: https://github.com/jacobkap/fastDummies, https://jacobkap.github.io/fastDummies/.
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+[1] "Imported!"
+[1] "iteration: 1, num parameters included: 1"
+[1] 62462162
+[1] "iteration: 2, num parameters included: 1"
+[1] 64964184
+[1] "iteration: 3, num parameters included: 1"
+[1] 67772284
+[1] "iteration: 4, num parameters included: 1"
+[1] 66219949
+[1] "iteration: 5, num parameters included: 1"
+[1] 62462162
+[1] "iteration: 5, num parameters included: 2"
+[1] 62386532
+[1] "iteration: 5, num parameters included: 3"
+[1] 62386257
+[1] "iteration: 6, num parameters included: 1"
+[1] 64964184
+[1] "iteration: 6, num parameters included: 2"
+[1] 64875046
+[1] "iteration: 6, num parameters included: 3"
+[1] 64859618
+[1] "iteration: 7, num parameters included: 1"
+[1] 67772284
+[1] "iteration: 7, num parameters included: 2"
+[1] 67628877
+[1] "iteration: 7, num parameters included: 3"
+[1] 67116840
+[1] "iteration: 8, num parameters included: 1"
+[1] 66219949
+[1] "iteration: 8, num parameters included: 2"
+[1] 66180786
+[1] "iteration: 8, num parameters included: 3"
+[1] 66171213
+[1] "iteration: 9, num parameters included: 1"
+[1] 60722506
+[1] "iteration: 9, num parameters included: 2"
+[1] 60447196
+[1] "iteration: 9, num parameters included: 3"
+[1] 60373937
+[1] "iteration: 9, num parameters included: 4"
+[1] 60323915
+[1] "iteration: 9, num parameters included: 5"
+[1] 60321914
+[1] "iteration: 9, num parameters included: 6"
+[1] 60319805
+[1] "iteration: 9, num parameters included: 7"
+[1] 60317459
+[1] "iteration: 9, num parameters included: 8"
+[1] 60316232
+[1] "iteration: 9, num parameters included: 9"
+[1] 60314541
+[1] "iteration: 9, num parameters included: 10"
+[1] 60312775
+[1] "iteration: 9, num parameters included: 11"
+[1] 60312002
+[1] "iteration: 9, num parameters included: 12"
+[1] 60310840
+[1] "iteration: 9, num parameters included: 13"
+[1] 60309650
+[1] "iteration: 9, num parameters included: 14"
+[1] 60308435
+[1] "iteration: 9, num parameters included: 15"
+[1] 60307969
+[1] "iteration: 9, num parameters included: 16"
+[1] 60307872
+[1] "iteration: 9, num parameters included: 17"
+[1] 60307874
+[1] "No improvement. Exiting loop."
+[1] "iteration: 10, num parameters included: 1"
+[1] 63402628
+[1] "iteration: 10, num parameters included: 2"
+[1] 63076519
+[1] "iteration: 10, num parameters included: 3"
+[1] 63006885
+[1] "iteration: 10, num parameters included: 4"
+[1] 62894412
+[1] "iteration: 10, num parameters included: 5"
+[1] 62808127
+[1] "iteration: 10, num parameters included: 6"
+[1] 62786392
+[1] "iteration: 10, num parameters included: 7"
+[1] 62734912
+[1] "iteration: 10, num parameters included: 8"
+[1] 62695453
+[1] "iteration: 10, num parameters included: 9"
+[1] 62677711
+[1] "iteration: 10, num parameters included: 10"
+[1] 62675363
+[1] "iteration: 10, num parameters included: 11"
+[1] 62673188
+[1] "iteration: 10, num parameters included: 12"
+[1] 62672332
+[1] "iteration: 10, num parameters included: 13"
+[1] 62670832
+[1] "iteration: 10, num parameters included: 14"
+[1] 62669660
+[1] "iteration: 10, num parameters included: 15"
+[1] 62668987
+[1] "iteration: 10, num parameters included: 16"
+[1] 62668205
+[1] "iteration: 10, num parameters included: 17"
+[1] 62668140
+[1] "iteration: 10, num parameters included: 18"
+[1] 62666791
+[1] "iteration: 10, num parameters included: 19"
+[1] 62666793
+[1] "No improvement. Exiting loop."
+[1] "iteration: 11, num parameters included: 1"
+[1] 66211688
+[1] "iteration: 11, num parameters included: 2"
+[1] 65895829
+[1] "iteration: 11, num parameters included: 3"
+[1] 65721620
+[1] "iteration: 11, num parameters included: 4"
+[1] 65488202
+[1] "iteration: 11, num parameters included: 5"
+[1] 65287810
+[1] "iteration: 11, num parameters included: 6"
+[1] 65128227
+[1] "iteration: 11, num parameters included: 7"
+[1] 64986424
+[1] "iteration: 11, num parameters included: 8"
+[1] 64930722
+[1] "iteration: 11, num parameters included: 9"
+[1] 64874282
+[1] "iteration: 11, num parameters included: 10"
+[1] 64831565
+[1] "iteration: 11, num parameters included: 11"
+[1] 64827402
+[1] "iteration: 11, num parameters included: 12"
+[1] 64822972
+[1] "iteration: 11, num parameters included: 13"
+[1] 64822526
+[1] "iteration: 11, num parameters included: 14"
+[1] 64821822
+[1] "iteration: 11, num parameters included: 15"
+[1] 64821211
+[1] "iteration: 11, num parameters included: 16"
+[1] 64821026
+[1] "iteration: 11, num parameters included: 17"
+[1] 64820387
+[1] "iteration: 11, num parameters included: 18"
+[1] 64820277
+[1] "iteration: 11, num parameters included: 19"
+[1] 64820139
+[1] "iteration: 11, num parameters included: 20"
+[1] 64820141
+[1] "No improvement. Exiting loop."
+[1] "iteration: 12, num parameters included: 1"
+[1] 65289640
+[1] "iteration: 12, num parameters included: 2"
+[1] 65059204
+[1] "iteration: 12, num parameters included: 3"
+[1] 64726687
+[1] "iteration: 12, num parameters included: 4"
+[1] 64432171
+[1] "iteration: 12, num parameters included: 5"
+[1] 64362763
+[1] "iteration: 12, num parameters included: 6"
+[1] 64326769
+[1] "iteration: 12, num parameters included: 7"
+[1] 64317247
+[1] "iteration: 12, num parameters included: 8"
+[1] 64300008
+[1] "iteration: 12, num parameters included: 9"
+[1] 64283987
+[1] "iteration: 12, num parameters included: 10"
+[1] 64270275
+[1] "iteration: 12, num parameters included: 11"
+[1] 64264991
+[1] "iteration: 12, num parameters included: 12"
+[1] 64259747
+[1] "iteration: 12, num parameters included: 13"
+[1] 64257434
+[1] "iteration: 12, num parameters included: 14"
+[1] 64257292
+[1] "iteration: 12, num parameters included: 15"
+[1] 64256625
+[1] "iteration: 12, num parameters included: 16"
+[1] 64256106
+[1] "iteration: 12, num parameters included: 17"
+[1] 64255703
+[1] "iteration: 12, num parameters included: 18"
+[1] 64255705
+[1] "No improvement. Exiting loop."
+[1] "iteration: 13, num parameters included: 1"
+[1] 60722506
+[1] "iteration: 13, num parameters included: 2"
+[1] 59952373
+[1] "iteration: 13, num parameters included: 3"
+[1] 59702108
+[1] "iteration: 13, num parameters included: 4"
+[1] 59562102
+[1] "iteration: 13, num parameters included: 5"
+[1] 59463951
+[1] "iteration: 13, num parameters included: 6"
+[1] 59386753
+[1] "iteration: 13, num parameters included: 7"
+[1] 59322184
+[1] "iteration: 13, num parameters included: 8"
+[1] 59277626
+[1] "iteration: 13, num parameters included: 9"
+[1] 59233137
+[1] "iteration: 13, num parameters included: 10"
+[1] 59196865
+[1] "iteration: 13, num parameters included: 11"
+[1] 59196867
+[1] "No improvement. Exiting loop."
+[1] "iteration: 14, num parameters included: 1"
+[1] 63402628
+[1] "iteration: 14, num parameters included: 2"
+[1] 62831394
+[1] "iteration: 14, num parameters included: 3"
+[1] 62582625
+[1] "iteration: 14, num parameters included: 4"
+[1] 62379016
+[1] "iteration: 14, num parameters included: 5"
+[1] 62226137
+[1] "iteration: 14, num parameters included: 6"
+[1] 62138554
+[1] "iteration: 14, num parameters included: 7"
+[1] 62084403
+[1] "iteration: 14, num parameters included: 8"
+[1] 62042730
+[1] "iteration: 14, num parameters included: 9"
+[1] 62008252
+[1] "iteration: 14, num parameters included: 10"
+[1] 61989338
+[1] "iteration: 14, num parameters included: 11"
+[1] 61975846
+[1] "iteration: 14, num parameters included: 12"
+[1] 61975848
+[1] "No improvement. Exiting loop."
+[1] "iteration: 15, num parameters included: 1"
+[1] 66211688
+[1] "iteration: 15, num parameters included: 2"
+[1] 65081861
+[1] "iteration: 15, num parameters included: 3"
+[1] 64834811
+[1] "iteration: 15, num parameters included: 4"
+[1] 64640995
+[1] "iteration: 15, num parameters included: 5"
+[1] 64549241
+[1] "iteration: 15, num parameters included: 6"
+[1] 64480616
+[1] "iteration: 15, num parameters included: 7"
+[1] 64435320
+[1] "iteration: 15, num parameters included: 8"
+[1] 64399271
+[1] "iteration: 15, num parameters included: 9"
+[1] 64370395
+[1] "iteration: 15, num parameters included: 10"
+[1] 64347420
+[1] "iteration: 15, num parameters included: 11"
+[1] 64347422
+[1] "No improvement. Exiting loop."
+[1] "iteration: 16, num parameters included: 1"
+[1] 65289640
+[1] "iteration: 16, num parameters included: 2"
+[1] 64464625
+[1] "iteration: 16, num parameters included: 3"
+[1] 64329210
+[1] "iteration: 16, num parameters included: 4"
+[1] 64176253
+[1] "iteration: 16, num parameters included: 5"
+[1] 64093183
+[1] "iteration: 16, num parameters included: 6"
+[1] 64033968
+[1] "iteration: 16, num parameters included: 7"
+[1] 64002213
+[1] "iteration: 16, num parameters included: 8"
+[1] 63980833
+[1] "iteration: 16, num parameters included: 9"
+[1] 63963429
+[1] "iteration: 16, num parameters included: 10"
+[1] 63916502
+[1] "iteration: 16, num parameters included: 11"
+[1] 63909941
+[1] "iteration: 16, num parameters included: 12"
+[1] 63909943
+[1] "No improvement. Exiting loop."
+[1] "iteration: 17, num parameters included: 1"
+[1] 60722506
+[1] "iteration: 17, num parameters included: 2"
+[1] 59952373
+[1] "iteration: 17, num parameters included: 3"
+[1] 59702108
+[1] "iteration: 17, num parameters included: 4"
+[1] 59562102
+[1] "iteration: 17, num parameters included: 5"
+[1] 59463951
+[1] "iteration: 17, num parameters included: 6"
+[1] 59386753
+[1] "iteration: 17, num parameters included: 7"
+[1] 59322184
+[1] "iteration: 17, num parameters included: 8"
+[1] 59276568
+[1] "iteration: 17, num parameters included: 9"
+[1] 59234167
+[1] "iteration: 17, num parameters included: 10"
+[1] 59190523
+[1] "iteration: 17, num parameters included: 11"
+[1] 59173112
+[1] "iteration: 17, num parameters included: 12"
+[1] 59159735
+[1] "iteration: 17, num parameters included: 13"
+[1] 59159299
+[1] "iteration: 17, num parameters included: 14"
+[1] 59159301
+[1] "No improvement. Exiting loop."
+[1] "iteration: 18, num parameters included: 1"
+[1] 63402628
+[1] "iteration: 18, num parameters included: 2"
+[1] 62831394
+[1] "iteration: 18, num parameters included: 3"
+[1] 62582625
+[1] "iteration: 18, num parameters included: 4"
+[1] 62379016
+[1] "iteration: 18, num parameters included: 5"
+[1] 62226137
+[1] "iteration: 18, num parameters included: 6"
+[1] 62138554
+[1] "iteration: 18, num parameters included: 7"
+[1] 62084403
+[1] "iteration: 18, num parameters included: 8"
+[1] 62042730
+[1] "iteration: 18, num parameters included: 9"
+[1] 62008252
+[1] "iteration: 18, num parameters included: 10"
+[1] 61989338
+[1] "iteration: 18, num parameters included: 11"
+[1] 61975846
+[1] "iteration: 18, num parameters included: 12"
+[1] 61975848
+[1] "No improvement. Exiting loop."
+[1] "iteration: 19, num parameters included: 1"
+[1] 66211688
+[1] "iteration: 19, num parameters included: 2"
+[1] 65081861
+[1] "iteration: 19, num parameters included: 3"
+[1] 64834811
+[1] "iteration: 19, num parameters included: 4"
+[1] 64640995
+[1] "iteration: 19, num parameters included: 5"
+[1] 64549241
+[1] "iteration: 19, num parameters included: 6"
+[1] 64480616
+[1] "iteration: 19, num parameters included: 7"
+[1] 64435320
+[1] "iteration: 19, num parameters included: 8"
+[1] 64399271
+[1] "iteration: 19, num parameters included: 9"
+[1] 64370395
+[1] "iteration: 19, num parameters included: 10"
+[1] 64347420
+[1] "iteration: 19, num parameters included: 11"
+[1] 64347422
+[1] "No improvement. Exiting loop."
+[1] "iteration: 20, num parameters included: 1"
+[1] 65289640
+[1] "iteration: 20, num parameters included: 2"
+[1] 64464625
+[1] "iteration: 20, num parameters included: 3"
+[1] 64329210
+[1] "iteration: 20, num parameters included: 4"
+[1] 64176253
+[1] "iteration: 20, num parameters included: 5"
+[1] 64093183
+[1] "iteration: 20, num parameters included: 6"
+[1] 64033968
+[1] "iteration: 20, num parameters included: 7"
+[1] 64002213
+[1] "iteration: 20, num parameters included: 8"
+[1] 63980833
+[1] "iteration: 20, num parameters included: 9"
+[1] 63963415
+[1] "iteration: 20, num parameters included: 10"
+[1] 63948616
+[1] "iteration: 20, num parameters included: 11"
+[1] 63942337
+[1] "iteration: 20, num parameters included: 12"
+[1] 63942339
+[1] "No improvement. Exiting loop."
+[1] "iteration: 21, num parameters included: 1"
+[1] 62673687
+[1] "iteration: 22, num parameters included: 1"
+[1] 65174839
+[1] "iteration: 23, num parameters included: 1"
+[1] 67789943
+[1] "iteration: 24, num parameters included: 1"
+[1] 66236210
+[1] "iteration: 25, num parameters included: 1"
+[1] 62617278
+[1] "iteration: 25, num parameters included: 2"
+[1] 62348534
+[1] "iteration: 25, num parameters included: 3"
+[1] 62305460
+[1] "iteration: 26, num parameters included: 1"
+[1] 65174839
+[1] "iteration: 26, num parameters included: 2"
+[1] 64211449
+[1] "iteration: 26, num parameters included: 3"
+[1] 63979102
+[1] "iteration: 27, num parameters included: 1"
+[1] 67633811
+[1] "iteration: 27, num parameters included: 2"
+[1] 66927636
+[1] "iteration: 27, num parameters included: 3"
+[1] 66911859
+[1] "iteration: 28, num parameters included: 1"
+[1] 66236210
+[1] "iteration: 28, num parameters included: 2"
+[1] 66180318
+[1] "iteration: 28, num parameters included: 3"
+[1] 66034126
+[1] "iteration: 29, num parameters included: 1"
+[1] 60753305
+[1] "iteration: 29, num parameters included: 2"
+[1] 59564781
+[1] "iteration: 29, num parameters included: 3"
+[1] 59385768
+[1] "iteration: 29, num parameters included: 4"
+[1] 59318645
+[1] "iteration: 29, num parameters included: 5"
+[1] 59279705
+[1] "iteration: 29, num parameters included: 6"
+[1] 59214424
+[1] "iteration: 29, num parameters included: 7"
+[1] 59178944
+[1] "iteration: 29, num parameters included: 8"
+[1] 59169639
+[1] "iteration: 29, num parameters included: 9"
+[1] 59166613
+[1] "iteration: 29, num parameters included: 10"
+[1] 59164022
+[1] "iteration: 29, num parameters included: 11"
+[1] 59160007
+[1] "iteration: 29, num parameters included: 12"
+[1] 59158677
+[1] "iteration: 29, num parameters included: 13"
+[1] 59157502
+[1] "iteration: 29, num parameters included: 14"
+[1] 59156263
+[1] "iteration: 29, num parameters included: 15"
+[1] 59155688
+[1] "iteration: 29, num parameters included: 16"
+[1] 59155300
+[1] "iteration: 29, num parameters included: 17"
+[1] 59154996
+[1] "iteration: 29, num parameters included: 18"
+[1] 59154829
+[1] "iteration: 29, num parameters included: 19"
+[1] 59154416
+[1] "iteration: 29, num parameters included: 20"
+[1] 59154233
+[1] "iteration: 30, num parameters included: 1"
+[1] 63913720
+[1] "iteration: 30, num parameters included: 2"
+[1] 62622901
+[1] "iteration: 30, num parameters included: 3"
+[1] 62481545
+[1] "iteration: 30, num parameters included: 4"
+[1] 62349992
+[1] "iteration: 30, num parameters included: 5"
+[1] 62301397
+[1] "iteration: 30, num parameters included: 6"
+[1] 62263379
+[1] "iteration: 30, num parameters included: 7"
+[1] 62246536
+[1] "iteration: 30, num parameters included: 8"
+[1] 62232012
+[1] "iteration: 30, num parameters included: 9"
+[1] 62222685
+[1] "iteration: 30, num parameters included: 10"
+[1] 62213329
+[1] "iteration: 30, num parameters included: 11"
+[1] 62202926
+[1] "iteration: 30, num parameters included: 12"
+[1] 62195459
+[1] "iteration: 30, num parameters included: 13"
+[1] 62191093
+[1] "iteration: 30, num parameters included: 14"
+[1] 62189233
+[1] "iteration: 30, num parameters included: 15"
+[1] 62188457
+[1] "iteration: 30, num parameters included: 16"
+[1] 62188248
+[1] "iteration: 30, num parameters included: 17"
+[1] 62188098
+[1] "iteration: 30, num parameters included: 18"
+[1] 62188050
+[1] "iteration: 30, num parameters included: 19"
+[1] 62188005
+[1] "iteration: 30, num parameters included: 20"
+[1] 62187985
+[1] "iteration: 31, num parameters included: 1"
+[1] 66196846
+[1] "iteration: 31, num parameters included: 2"
+[1] 65297835
+[1] "iteration: 31, num parameters included: 3"
+[1] 64985875
+[1] "iteration: 31, num parameters included: 4"
+[1] 64832090
+[1] "iteration: 31, num parameters included: 5"
+[1] 64779497
+[1] "iteration: 31, num parameters included: 6"
+[1] 64733303
+[1] "iteration: 31, num parameters included: 7"
+[1] 64702705
+[1] "iteration: 31, num parameters included: 8"
+[1] 64684701
+[1] "iteration: 31, num parameters included: 9"
+[1] 64669196
+[1] "iteration: 31, num parameters included: 10"
+[1] 64652855
+[1] "iteration: 31, num parameters included: 11"
+[1] 64643657
+[1] "iteration: 31, num parameters included: 12"
+[1] 64633340
+[1] "iteration: 31, num parameters included: 13"
+[1] 64629136
+[1] "iteration: 31, num parameters included: 14"
+[1] 64628046
+[1] "iteration: 31, num parameters included: 15"
+[1] 64627399
+[1] "iteration: 31, num parameters included: 16"
+[1] 64627014
+[1] "iteration: 31, num parameters included: 17"
+[1] 64626936
+[1] "iteration: 31, num parameters included: 18"
+[1] 64626642
+[1] "iteration: 31, num parameters included: 19"
+[1] 64626644
+[1] "No improvement. Exiting loop."
+[1] "iteration: 32, num parameters included: 1"
+[1] 65606269
+[1] "iteration: 32, num parameters included: 2"
+[1] 64880605
+[1] "iteration: 32, num parameters included: 3"
+[1] 64553051
+[1] "iteration: 32, num parameters included: 4"
+[1] 64329001
+[1] "iteration: 32, num parameters included: 5"
+[1] 64202581
+[1] "iteration: 32, num parameters included: 6"
+[1] 64086332
+[1] "iteration: 32, num parameters included: 7"
+[1] 64046289
+[1] "iteration: 32, num parameters included: 8"
+[1] 64014329
+[1] "iteration: 32, num parameters included: 9"
+[1] 64009009
+[1] "iteration: 32, num parameters included: 10"
+[1] 64004642
+[1] "iteration: 32, num parameters included: 11"
+[1] 64001230
+[1] "iteration: 32, num parameters included: 12"
+[1] 64000095
+[1] "iteration: 32, num parameters included: 13"
+[1] 63999551
+[1] "iteration: 32, num parameters included: 14"
+[1] 63999369
+[1] "iteration: 32, num parameters included: 15"
+[1] 63999229
+[1] "iteration: 32, num parameters included: 16"
+[1] 63999030
+[1] "iteration: 32, num parameters included: 17"
+[1] 63998889
+[1] "iteration: 32, num parameters included: 18"
+[1] 63998767
+[1] "iteration: 32, num parameters included: 19"
+[1] 63998726
+[1] "iteration: 32, num parameters included: 20"
+[1] 63998728
+[1] "No improvement. Exiting loop."
+[1] "iteration: 33, num parameters included: 1"
+[1] 60753305
+[1] "iteration: 33, num parameters included: 2"
+[1] 59223582
+[1] "iteration: 33, num parameters included: 3"
+[1] 58540577
+[1] "iteration: 33, num parameters included: 4"
+[1] 58329674
+[1] "iteration: 33, num parameters included: 5"
+[1] 58183843
+[1] "iteration: 33, num parameters included: 6"
+[1] 58077797
+[1] "iteration: 33, num parameters included: 7"
+[1] 57987258
+[1] "iteration: 33, num parameters included: 8"
+[1] 57925539
+[1] "iteration: 33, num parameters included: 9"
+[1] 57879703
+[1] "iteration: 33, num parameters included: 10"
+[1] 57873653
+[1] "iteration: 33, num parameters included: 11"
+[1] 57873655
+[1] "No improvement. Exiting loop."
+[1] "iteration: 34, num parameters included: 1"
+[1] 63913720
+[1] "iteration: 34, num parameters included: 2"
+[1] 61942108
+[1] "iteration: 34, num parameters included: 3"
+[1] 61378167
+[1] "iteration: 34, num parameters included: 4"
+[1] 61165603
+[1] "iteration: 34, num parameters included: 5"
+[1] 60872930
+[1] "iteration: 34, num parameters included: 6"
+[1] 60674182
+[1] "iteration: 34, num parameters included: 7"
+[1] 60534148
+[1] "iteration: 34, num parameters included: 8"
+[1] 60447222
+[1] "iteration: 34, num parameters included: 9"
+[1] 60368502
+[1] "iteration: 34, num parameters included: 10"
+[1] 60325535
+[1] "iteration: 34, num parameters included: 11"
+[1] 60292393
+[1] "iteration: 34, num parameters included: 12"
+[1] 60231049
+[1] "iteration: 34, num parameters included: 13"
+[1] 60188020
+[1] "iteration: 34, num parameters included: 14"
+[1] 60169326
+[1] "iteration: 34, num parameters included: 15"
+[1] 60154836
+[1] "iteration: 34, num parameters included: 16"
+[1] 60154838
+[1] "No improvement. Exiting loop."
+[1] "iteration: 35, num parameters included: 1"
+[1] 66196846
+[1] "iteration: 35, num parameters included: 2"
+[1] 63734980
+[1] "iteration: 35, num parameters included: 3"
+[1] 63160933
+[1] "iteration: 35, num parameters included: 4"
+[1] 62950912
+[1] "iteration: 35, num parameters included: 5"
+[1] 62754841
+[1] "iteration: 35, num parameters included: 6"
+[1] 62617830
+[1] "iteration: 35, num parameters included: 7"
+[1] 62513207
+[1] "iteration: 35, num parameters included: 8"
+[1] 62460563
+[1] "iteration: 35, num parameters included: 9"
+[1] 62439828
+[1] "iteration: 35, num parameters included: 10"
+[1] 62438553
+[1] "iteration: 35, num parameters included: 11"
+[1] 62397697
+[1] "iteration: 35, num parameters included: 12"
+[1] 62397699
+[1] "No improvement. Exiting loop."
+[1] "iteration: 36, num parameters included: 1"
+[1] 65606269
+[1] "iteration: 36, num parameters included: 2"
+[1] 63214260
+[1] "iteration: 36, num parameters included: 3"
+[1] 62924525
+[1] "iteration: 36, num parameters included: 4"
+[1] 62663281
+[1] "iteration: 36, num parameters included: 5"
+[1] 62470652
+[1] "iteration: 36, num parameters included: 6"
+[1] 62336603
+[1] "iteration: 36, num parameters included: 7"
+[1] 62264859
+[1] "iteration: 36, num parameters included: 8"
+[1] 62220667
+[1] "iteration: 36, num parameters included: 9"
+[1] 62175838
+[1] "iteration: 36, num parameters included: 10"
+[1] 62156535
+[1] "iteration: 36, num parameters included: 11"
+[1] 62138389
+[1] "iteration: 36, num parameters included: 12"
+[1] 62111124
+[1] "iteration: 36, num parameters included: 13"
+[1] 62102413
+[1] "iteration: 36, num parameters included: 14"
+[1] 62102415
+[1] "No improvement. Exiting loop."
+[1] "iteration: 37, num parameters included: 1"
+[1] 60753305
+[1] "iteration: 37, num parameters included: 2"
+[1] 59223582
+[1] "iteration: 37, num parameters included: 3"
+[1] 58540577
+[1] "iteration: 37, num parameters included: 4"
+[1] 58329674
+[1] "iteration: 37, num parameters included: 5"
+[1] 58183843
+[1] "iteration: 37, num parameters included: 6"
+[1] 58077797
+[1] "iteration: 37, num parameters included: 7"
+[1] 57987258
+[1] "iteration: 37, num parameters included: 8"
+[1] 57925539
+[1] "iteration: 37, num parameters included: 9"
+[1] 57879703
+[1] "iteration: 37, num parameters included: 10"
+[1] 57873653
+[1] "iteration: 37, num parameters included: 11"
+[1] 57873655
+[1] "No improvement. Exiting loop."
+[1] "iteration: 38, num parameters included: 1"
+[1] 63913720
+[1] "iteration: 38, num parameters included: 2"
+[1] 61942108
+[1] "iteration: 38, num parameters included: 3"
+[1] 61378167
+[1] "iteration: 38, num parameters included: 4"
+[1] 61165603
+[1] "iteration: 38, num parameters included: 5"
+[1] 60872930
+[1] "iteration: 38, num parameters included: 6"
+[1] 60674182
+[1] "iteration: 38, num parameters included: 7"
+[1] 60534148
+[1] "iteration: 38, num parameters included: 8"
+[1] 60447222
+[1] "iteration: 38, num parameters included: 9"
+[1] 60368502
+[1] "iteration: 38, num parameters included: 10"
+[1] 60325535
+[1] "iteration: 38, num parameters included: 11"
+[1] 60292393
+[1] "iteration: 38, num parameters included: 12"
+[1] 60231049
+[1] "iteration: 38, num parameters included: 13"
+[1] 60188020
+[1] "iteration: 38, num parameters included: 14"
+[1] 60169326
+[1] "iteration: 38, num parameters included: 15"
+[1] 60154836
+[1] "iteration: 38, num parameters included: 16"
+[1] 60154838
+[1] "No improvement. Exiting loop."
+[1] "iteration: 39, num parameters included: 1"
+[1] 66196846
+[1] "iteration: 39, num parameters included: 2"
+[1] 63734980
+[1] "iteration: 39, num parameters included: 3"
+[1] 63160933
+[1] "iteration: 39, num parameters included: 4"
+[1] 62937033
+[1] "iteration: 39, num parameters included: 5"
+[1] 62779911
+[1] "iteration: 39, num parameters included: 6"
+[1] 62676003
+[1] "iteration: 39, num parameters included: 7"
+[1] 62586422
+[1] "iteration: 39, num parameters included: 8"
+[1] 62509393
+[1] "iteration: 39, num parameters included: 9"
+[1] 62476398
+[1] "iteration: 39, num parameters included: 10"
+[1] 62419972
+[1] "iteration: 39, num parameters included: 11"
+[1] 62412503
+[1] "iteration: 39, num parameters included: 12"
+[1] 62412505
+[1] "No improvement. Exiting loop."
+[1] "iteration: 40, num parameters included: 1"
+[1] 65606269
+[1] "iteration: 40, num parameters included: 2"
+[1] 63214260
+[1] "iteration: 40, num parameters included: 3"
+[1] 62924525
+[1] "iteration: 40, num parameters included: 4"
+[1] 62663281
+[1] "iteration: 40, num parameters included: 5"
+[1] 62465117
+[1] "iteration: 40, num parameters included: 6"
+[1] 62324618
+[1] "iteration: 40, num parameters included: 7"
+[1] 62214219
+[1] "iteration: 40, num parameters included: 8"
+[1] 62214221
+[1] "No improvement. Exiting loop."
+[1] "iteration: 41, num parameters included: 1"
+[1] 66013456
+[1] "iteration: 42, num parameters included: 1"
+[1] 67707973
+[1] "iteration: 43, num parameters included: 1"
+[1] 68977544
+[1] "iteration: 44, num parameters included: 1"
+[1] 66744796
+[1] "iteration: 45, num parameters included: 1"
+[1] 63609469
+[1] "iteration: 45, num parameters included: 2"
+[1] 63181446
+[1] "iteration: 45, num parameters included: 3"
+[1] 63045077
+[1] "iteration: 46, num parameters included: 1"
+[1] 66040789
+[1] "iteration: 46, num parameters included: 2"
+[1] 65301462
+[1] "iteration: 46, num parameters included: 3"
+[1] 65285393
+[1] "iteration: 47, num parameters included: 1"
+[1] 68928420
+[1] "iteration: 47, num parameters included: 2"
+[1] 68519462
+[1] "iteration: 47, num parameters included: 3"
+[1] 68262532
+[1] "iteration: 48, num parameters included: 1"
+[1] 66627035
+[1] "iteration: 48, num parameters included: 2"
+[1] 66184249
+[1] "iteration: 48, num parameters included: 3"
+[1] 66160967
+[1] "iteration: 49, num parameters included: 1"
+[1] 62680222
+[1] "iteration: 49, num parameters included: 2"
+[1] 62539849
+[1] "iteration: 49, num parameters included: 3"
+[1] 62537710
+[1] "iteration: 50, num parameters included: 1"
+[1] 65169698
+[1] "iteration: 50, num parameters included: 2"
+[1] 64959376
+[1] "iteration: 50, num parameters included: 3"
+[1] 64940754
+[1] "iteration: 51, num parameters included: 1"
+[1] 68141969
+[1] "iteration: 51, num parameters included: 2"
+[1] 67899754
+[1] "iteration: 51, num parameters included: 3"
+[1] 67891130
+[1] "iteration: 52, num parameters included: 1"
+[1] 66323733
+[1] "iteration: 52, num parameters included: 2"
+[1] 66266222
+[1] "iteration: 52, num parameters included: 3"
+[1] 66240006
+[1] "iteration: 53, num parameters included: 1"
+[1] 61739222
+[1] "iteration: 53, num parameters included: 2"
+[1] 61649349
+[1] "iteration: 53, num parameters included: 3"
+[1] 61613862
+[1] "iteration: 53, num parameters included: 4"
+[1] 61580050
+[1] "iteration: 53, num parameters included: 5"
+[1] 61573817
+[1] "iteration: 53, num parameters included: 6"
+[1] 61571744
+[1] "iteration: 53, num parameters included: 7"
+[1] 61571560
+[1] "iteration: 53, num parameters included: 8"
+[1] 61571562
+[1] "No improvement. Exiting loop."
+[1] "iteration: 54, num parameters included: 1"
+[1] 64374374
+[1] "iteration: 54, num parameters included: 2"
+[1] 64220398
+[1] "iteration: 54, num parameters included: 3"
+[1] 64181652
+[1] "iteration: 54, num parameters included: 4"
+[1] 64129726
+[1] "iteration: 54, num parameters included: 5"
+[1] 64105629
+[1] "iteration: 54, num parameters included: 6"
+[1] 64102427
+[1] "iteration: 54, num parameters included: 7"
+[1] 64100538
+[1] "iteration: 54, num parameters included: 8"
+[1] 64097001
+[1] "iteration: 54, num parameters included: 9"
+[1] 64095488
+[1] "iteration: 54, num parameters included: 10"
+[1] 64094533
+[1] "iteration: 54, num parameters included: 11"
+[1] 64094362
+[1] "iteration: 54, num parameters included: 12"
+[1] 64094364
+[1] "No improvement. Exiting loop."
+[1] "iteration: 55, num parameters included: 1"
+[1] 67323436
+[1] "iteration: 55, num parameters included: 2"
+[1] 67196009
+[1] "iteration: 55, num parameters included: 3"
+[1] 67102272
+[1] "iteration: 55, num parameters included: 4"
+[1] 67074056
+[1] "iteration: 55, num parameters included: 5"
+[1] 67020828
+[1] "iteration: 55, num parameters included: 6"
+[1] 67010842
+[1] "iteration: 55, num parameters included: 7"
+[1] 67007843
+[1] "iteration: 55, num parameters included: 8"
+[1] 67007257
+[1] "iteration: 55, num parameters included: 9"
+[1] 67002875
+[1] "iteration: 55, num parameters included: 10"
+[1] 67002561
+[1] "iteration: 55, num parameters included: 11"
+[1] 67001737
+[1] "iteration: 55, num parameters included: 12"
+[1] 67001739
+[1] "No improvement. Exiting loop."
+[1] "iteration: 56, num parameters included: 1"
+[1] 65569933
+[1] "iteration: 56, num parameters included: 2"
+[1] 65202279
+[1] "iteration: 56, num parameters included: 3"
+[1] 65114008
+[1] "iteration: 56, num parameters included: 4"
+[1] 65060153
+[1] "iteration: 56, num parameters included: 5"
+[1] 65033182
+[1] "iteration: 56, num parameters included: 6"
+[1] 65028106
+[1] "iteration: 56, num parameters included: 7"
+[1] 65027030
+[1] "iteration: 56, num parameters included: 8"
+[1] 65026677
+[1] "iteration: 56, num parameters included: 9"
+[1] 65026207
+[1] "iteration: 56, num parameters included: 10"
+[1] 65026209
+[1] "No improvement. Exiting loop."
+[1] "iteration: 57, num parameters included: 1"
+[1] 61739222
+[1] "iteration: 57, num parameters included: 2"
+[1] 61248607
+[1] "iteration: 57, num parameters included: 3"
+[1] 61071885
+[1] "iteration: 57, num parameters included: 4"
+[1] 60996104
+[1] "iteration: 57, num parameters included: 5"
+[1] 60940025
+[1] "iteration: 57, num parameters included: 6"
+[1] 60940027
+[1] "No improvement. Exiting loop."
+[1] "iteration: 58, num parameters included: 1"
+[1] 64374374
+[1] "iteration: 58, num parameters included: 2"
+[1] 63879148
+[1] "iteration: 58, num parameters included: 3"
+[1] 63747115
+[1] "iteration: 58, num parameters included: 4"
+[1] 63611339
+[1] "iteration: 58, num parameters included: 5"
+[1] 63500263
+[1] "iteration: 58, num parameters included: 6"
+[1] 63499979
+[1] "iteration: 58, num parameters included: 7"
+[1] 63499981
+[1] "No improvement. Exiting loop."
+[1] "iteration: 59, num parameters included: 1"
+[1] 67323436
+[1] "iteration: 59, num parameters included: 2"
+[1] 66365889
+[1] "iteration: 59, num parameters included: 3"
+[1] 66224096
+[1] "iteration: 59, num parameters included: 4"
+[1] 66133966
+[1] "iteration: 59, num parameters included: 5"
+[1] 66132662
+[1] "iteration: 59, num parameters included: 6"
+[1] 66132664
+[1] "No improvement. Exiting loop."
+[1] "iteration: 60, num parameters included: 1"
+[1] 65569933
+[1] "iteration: 60, num parameters included: 2"
+[1] 64730480
+[1] "iteration: 60, num parameters included: 3"
+[1] 64535455
+[1] "iteration: 60, num parameters included: 4"
+[1] 64481020
+[1] "iteration: 60, num parameters included: 5"
+[1] 64473417
+[1] "iteration: 60, num parameters included: 6"
+[1] 64469584
+[1] "iteration: 60, num parameters included: 7"
+[1] 64466704
+[1] "iteration: 60, num parameters included: 8"
+[1] 64464983
+[1] "iteration: 60, num parameters included: 9"
+[1] 64463902
+[1] "iteration: 60, num parameters included: 10"
+[1] 64463212
+[1] "iteration: 60, num parameters included: 11"
+[1] 64462772
