@@ -2514,3 +2514,38 @@ Kaplan, J. & Schlegel, B. (2023). fastDummies: Fast Creation of Dummy (Binary) C
 [1] 61248607
 [1] "iteration: 61, num parameters included: 3"
 [1] 61071885
+[1] "iteration: 61, num parameters included: 4"
+[1] 60996104
+[1] "iteration: 61, num parameters included: 5"
+[1] 60940025
+[1] "iteration: 61, num parameters included: 6"
+[1] 60940027
+[1] "No improvement. Exiting loop."
+[1] "iteration: 62, num parameters included: 1"
+[1] 64374374
+[1] "iteration: 62, num parameters included: 2"
+[1] 63879148
+[1] "iteration: 62, num parameters included: 3"
+[1] 63747115
+[1] "iteration: 62, num parameters included: 4"
+[1] 63611339
+[1] "iteration: 62, num parameters included: 5"
+[1] 63500263
+[1] "iteration: 62, num parameters included: 6"
+[1] 63499979
+[1] "iteration: 62, num parameters included: 7"
+[1] 63499981
+[1] "No improvement. Exiting loop."
+[1] "iteration: 63, num parameters included: 1"
+[1] 67323436
+[1] "iteration: 63, num parameters included: 2"
+[1] 66365889
+[1] "iteration: 63, num parameters included: 3"
+[1] 66224096
+[1] "iteration: 63, num parameters included: 4"
+[1] 66133966
+[1] "iteration: 63, num parameters included: 5"
+[1] 66132662
+[1] "iteration: 63, num parameters included: 6"
+[1] 66132664
+[1] "No improvement. Exiting loop."
