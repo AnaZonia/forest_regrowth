@@ -98,24 +98,24 @@ dataframes <- lapply(dataframes, function(list_of_dfs) {
     })
 })
 
-# Loop through the lists and dataframes to write CSV files
-for (i in seq_along(dataframes)) {
-    list_name <- intervals[i]
-    list_of_dfs <- dataframes[[i]]
+# # Loop through the lists and dataframes to write CSV files
+# for (i in seq_along(dataframes)) {
+#     list_name <- intervals[i]
+#     list_of_dfs <- dataframes[[i]]
 
-    for (j in seq_along(list_of_dfs)) {
-        df_name <- biomes[j]
-        df <- list_of_dfs[[j]]
+#     for (j in seq_along(list_of_dfs)) {
+#         df_name <- biomes[j]
+#         df <- list_of_dfs[[j]]
 
-        # Create the filename
-        filename <- paste0(list_name, "_", df_name, ".csv")
+#         # Create the filename
+#         filename <- paste0(list_name, "_", df_name, ".csv")
 
-        # Write the CSV file
-        write.csv(df, filename, row.names = FALSE)
+#         # Write the CSV file
+#         write.csv(df, filename, row.names = FALSE)
 
-        cat("Wrote file:", filename, "\n")
-    }
-}
+#         cat("Wrote file:", filename, "\n")
+#     }
+# }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Define Parameters -----------------------------------#
@@ -240,36 +240,52 @@ if (find_ideal_combination_pars) {
 # ------------------------------------- Test Area ---------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-# datafiles <- paste0("./data/amaz_", intervals, ".csv")
-# dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
+datafiles <- paste0("./data/amaz_", intervals, ".csv")
+dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 
 
-# pars_fit <- readRDS("./data/amaz_ideal_par_combination.rds")
+pars_fit <- readRDS("./data/amaz_ideal_par_combination.rds")
 
-# data <- dataframes[[1]]
-# lu_pars <- pars_fit[[81]][!names(pars_fit[[81]]) %in% c("theta", "B0_exp", "k0")]
-# pars <- c(B0 = mean(dataframes[[1]][["agbd"]]), theta = 1, lu_pars) # age = 0, cwd = 0)
+data <- dataframes[[1]]
+data <- data %>% rename(nearest_mature = mature_biomass)
 
-# r_squared_values_opt <- c()
-# r_squared_values_lm <- c()
+for(i in seq_along(pars_fit)){
+    lu_pars <- pars_fit[[i]][!names(pars_fit[[i]]) %in% non_data_pars]
 
-# indices <- sample(c(1:5), nrow(data), replace = TRUE)
+    # pars <- c(theta = 1, lu_pars)
+    # if ('B0' %in% names(pars_fit[[i]])){
+    #     pars <- append(pars, B0 = mean(dataframes[[1]][["agbd"]]))
+    # }
+    # if ('B0' %in% names(pars_fit[[i]])){
 
-# for (i in 1:5) {
+    r_squared_values_opt <- c()
+    r_squared_values_lm <- c()
 
-#     print(i)
-#     # Define the test and train sets
-#     test_data <- data[indices == i, ]
-#     train_data <- data[!indices == i, ]
+    indices <- sample(c(1:5), nrow(data), replace = TRUE)
 
-#     modellm <- run_lm(train_data, test_data, names(lu_pars))
-#     print(modellm$rsq)
-#     print(modellm$model_par)
+    for (i in 1:5) {
+        print(i)
+        # Define the test and train sets
+        test_data <- data[indices == i, ]
+        train_data <- data[!indices == i, ]
 
-#     modelopt <- run_optim(train_data, pars, conditions, test_data)
-#     print(modelopt$rsq)
-#     print(modelopt$model_par)
+        modellm <- run_lm(train_data, names(lu_pars), test_data)
+        print(modellm$rsq)
+        print(modellm$model_par)
+        r_squared_values_lm <- append(r_squared_values_lm, modellm$rsq)
+        process_row(modellm)
 
-# }
- 
+        modelopt <- run_optim(train_data, pars_fit[[i]], test_data, conditions)
+        print(modelopt$rsq)
+        print(modelopt$model_par)
+        r_squared_values_opt <- append(r_squared_values_opt, modelopt$rsq)
+    }
 
+}
+
+
+
+pars <- pars_fit[[1]]
+data = train_data
+growth_curve(pars, data)
+head(pars[["B0"]] + (data[["nearest_mature"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])

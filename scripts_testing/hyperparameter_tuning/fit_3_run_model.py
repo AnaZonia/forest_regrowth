@@ -28,7 +28,7 @@ from sklearn.model_selection import train_test_split# Split the data into traini
 # # Define land-use history intervals to import four dataframes
 # intervals = ["5yr", "10yr", "15yr", "all"]
 
-datafile = pd.read_csv("./data/5yr_amaz.csv")
+datafile = pd.read_csv("./data/15yr_amaz.csv")
 
 for col in datafile.columns:
     print(col)

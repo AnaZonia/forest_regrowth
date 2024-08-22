@@ -351,3 +351,153 @@ find_combination_pars <- function(iterations) {
 
     return(ideal_par_combination)
 }
+
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#--------------------- Prepare iteration results as dataframe row -----------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+# Intakes:
+#   output <- the output of the model as a matrix (coefficients or rf importance)
+#   data_name <- "5y", "10y", "15y", or "all"
+#   model_type <- "optim", "lm", "rf", or "gam"
+#   rsq <- the calculated r squared for each iteration of the model
+
+# Define helper functions
+process_row <- function(
+    cv_output, model_type, data_name, data_pars_names, basic_pars_names = NULL,
+    biome_name = NULL) {
+    row <- as.data.frame(cv_output$pars)
+    # Set up columns of parameters that are not included in this iteration as NA
+    missing_cols <- setdiff(unique(unlist(c(data_pars_lm, non_data_pars, data_pars))), names(row))
+    row[missing_cols] <- NA
+    row <- row[, unique(unlist(c(data_pars_lm, non_data_pars, data_pars)))]
+
+    row$data_name <- data_name
+    row$model_type <- model_type
+    row$data_pars <- data_pars_names
+    row$rsq <- cv_output$rsq
+    row$rsq_sd <- cv_output$rsq_sd
+
+    if (model_type == "optim") {
+        row$basic_pars <- basic_pars_names
+    } else {
+        row$basic_pars <- NA
+    }
+
+    # Define the desired order of columns
+    desired_column_order <- c(
+        "data_name", "data_pars", "basic_pars", "model_type",
+        "rsq", "rsq_sd", "mature_biomass", "age"
+    )
+
+    if (!is.null(biome_name)) {
+        row <- row %>%
+            mutate(biome = biome_name) %>%
+            select(biome, all_of(desired_column_order), all_of(non_data_pars), everything())
+    } else {
+        row <- row %>%
+            select(all_of(desired_column_order), all_of(non_data_pars), everything())
+    }
+
+    return(row)
+}
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ----------------------------- K-fold cross-validation ---------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
+    r_squared_values <- c()
+
+    indices <- sample(c(1:5), nrow(data), replace = TRUE)
+
+    for (i in 1:5) {
+        # print(i)
+        # Define the test and train sets
+        test_data <- data[indices == i, ]
+        train_data <- data[!indices == i, ]
+
+        model_output <- run_function(train_data, pars_iter, test_data, conditions)
+    }
+
+    mean_r_squared <- mean(r_squared_values)
+    sd_r_squared <- sd(r_squared_values)
+    # return parameters of last fit
+    return(list(rsq = mean_r_squared, rsq_sd = sd_r_squared, pars = model_output$pars))
+}
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------------------------- Apply all models to the data ------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# Define a function to run foreach for different models
+run_foreach <- function(iterations, model_type, run_function, conditions = NULL) {
+    results <- foreach(
+        iter = if (test_switch) test_rows else 1:nrow(iterations),
+        .combine = "bind_rows", .packages = c("dplyr", "randomForest")
+    ) %dopar% {
+        # iter = 1
+        # iterations <- iterations_optim
+        # print(iter)
+        # run_function <- run_optim
+
+
+        i <- iterations$interval[iter]
+        j <- iterations$data_par[iter]
+        h <- iterations$biome[iter]
+        biome_name <- biomes[[h]]
+        data <- dataframes[[i]][[h]]
+
+
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
+
+        if (model_type == "optim") {
+            pars_iter <- initial_pars[[iter]] # after definition
+            pars_names <- data_pars_names[[j]]
+
+            k <- iterations$basic_par[iter]
+            basic_pars_names <- basic_pars_names[[k]]
+        } else {
+            pars_iter <- data_pars_lm[[j]]
+            pars_names <- data_pars_lm_names[[j]]
+
+            basic_pars_iter <- NULL
+            basic_pars_names <- NULL
+        }
+
+        cross_valid_output <- cross_valid(data, run_function, pars_iter, conditions)
+
+        # Organize result
+        row <- process_row(cross_valid_output, model_type, intervals[[i]], pars_names,
+            basic_pars_names = basic_pars_names, biome_name = biome_name
+        )
+
+        print(paste("Time so far: ", as.numeric(difftime(
+            Sys.time(), start_time,
+            units = "mins"
+        )), " minutes"))
+        print(row)
+
+        row
+    }
+
+    # Calculate and print the total time taken
+    print(paste(
+        model_type, "finished! Time for the whole operation: ",
+        as.numeric(difftime(Sys.time(), start_time, units = "hours")), " hours"
+    ))
+
+    # Combine all results into a single dataframe
+    df <- as.data.frame(results)
+
+    # Write the dataframe to a CSV file
+    if (export_intermediaries) {
+        write.csv(df, paste0("./data/", name, "_results_", model_type, ".csv"), row.names = FALSE)
+    }
+
+    return(df)
+}
