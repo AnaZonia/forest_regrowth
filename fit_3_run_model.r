@@ -37,7 +37,6 @@ split_biome <- FALSE # FALSE to execute for the whole country, TRUE to split dat
 fit_logistic <- TRUE
 
 run_initial_fit_by_order <- TRUE
-export_intermediaries <- TRUE
 
 optim_switch <- TRUE
 lm_switch <- FALSE
@@ -59,15 +58,14 @@ name <- region
 if (split_biome) {
   name <- paste0(name, "_split_biome")
 }
-if (fit_logistic) {
-  name <- paste0(name, "_logistic")
-}
+
 
 # Define climatic parameters that change yearly
 climatic_pars <- c("prec", "si")
 
 # Define parameters that do not correspond to data, used for functional form
 if (fit_logistic) {
+  name <- paste0(name, "_logistic")
   conditions <- list()
   non_data_pars <- c("k0", "B0")
 } else {
@@ -86,8 +84,6 @@ intervals <- list("5yr", "10yr", "15yr", "all")
 datafiles <- paste0("./data/", region, "_", intervals, ".csv")
 dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Function to create training and testing samples
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Preparing dataframes whether or not there is a split between biomes
