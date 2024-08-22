@@ -118,36 +118,6 @@ likelihood <- function(fun, pars, data, conditions) {
   }
 }
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#----------------- Ensuring testing data is within testing data range -------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-rsq_filtered_data <- function(train_data, test_data, model, model_type) {
-  # Calculate min and max for each column in train_data
-  train_min <- sapply(train_data, min)
-  train_max <- sapply(train_data, max)
-
-  # Function to check if a row is within the range
-  is_within_range <- function(row) {
-    all(row >= train_min & row <= train_max)
-  }
-
-  # Apply the function to each row of test_data
-  filtered_test_data <- test_data[apply(test_data, 1, is_within_range), ]
-
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # Output R-squared value and model results
-  if (model_type == "optim"){
-    pred <- growth_curve(model$par, filtered_test_data)
-  } else {
-    pred <- predict(model, newdata = filtered_test_data)
-  }
-
-  rsq <- cor(filtered_test_data$agbd, pred)^2
-  print(paste("R-squared:", rsq))
-
-  return(rsq)
-}
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

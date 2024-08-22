@@ -1,115 +1,175 @@
+
 library(ggplot2)
 library(foreach)
 library(doParallel)
 library(tidyverse)
+library(mgcv)
+library(randomForest)
+
 
 # Source external R scripts for data import and function definitions
 source("fit_1_import_data.r")
-source("fit_2_functions.r")
+source("2_functions.r")
 
 set.seed(1)
+ncores <- 30
+registerDoParallel(cores = ncores)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# -------------------------------------- Switches ---------------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+fit_logistic <- FALSE
+
+run_find_combination_pars <- TRUE
+
+optim_switch <- TRUE
+lm_switch <- FALSE
+rf_switch <- FALSE
+all_switch <- FALSE
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------------------------------- Global Variables ------------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# number of rows to be included in analysis
+n_samples <- 10000
+
+
+non_data_pars <- c("k0", "B0_exp", "B0", "theta")
+
+# Define climatic parameters that change yearly
+climatic_pars <- c("prec", "si")
+
+# Define parameters that do not correspond to data, used for functional form
+if (fit_logistic) {
+    name <- paste0(name, "_logistic")
+    conditions <- list()
+    non_data_pars <- c("k0", "B0")
+} else {
+    # Define conditions for parameter constraints
+    conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0')
+    non_data_pars <- c("k0", "B0_exp", "B0", "theta")
+}
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ---------------------------------- Import Data ----------------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Define land-use history intervals to import four dataframes
 intervals <- list("5yr", "10yr", "15yr", "all")
-datafiles_amaz <- paste0("./data/amaz_", intervals, ".csv")
-dataframes_amaz <- lapply(datafiles_amaz, import_climatic_data, normalize = TRUE)
-datafiles_countrywide <- paste0("./data/countrywide_", intervals, ".csv")
-dataframes_countrywide <- lapply(datafiles_countrywide, import_climatic_data, normalize = TRUE)
+lulc_categories <- list("aggregated", "non_aggregated")
+combinations <- expand.grid(intervals, lulc_categories)
+names <- apply(combinations, 1, paste, collapse = "_")
 
-run_growth_model <- function(data, test_data, pars) {
+datafiles <- paste0("./data/", names, ".csv")
+dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
 
-    conditions <- list(
-        'pars["theta"] > 10'
-        ,'pars["theta"] < 0'
-        ,'pars["B0"] < 0'
-        # ,'pars["age"] < 0'
-        # ,'pars["age"] > 5'
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Preparing dataframes whether or not there is a split between biomes
+
+# 1 = Amazonia
+# 2 = Caatinga
+# 3 = Cerrado
+# 4 = Mata Atlantica
+# 5 = Pampa
+# 6 = Pantanal
+regions <- c("amaz", "atla", "both")
+
+dataframes <- lapply(dataframes, function(df) {
+    df[df$biome %in% c(1, 4), ]
+})
+
+# Split each dataframe by biome and store in a nested list
+dataframes <- lapply(dataframes, function(df) {
+    split(df, df$biome)
+})
+
+dataframes <- lapply(dataframes, function(list_of_dfs) {
+    lapply(list_of_dfs, function(df) {
+        df_sampled <- df[sample(nrow(df), n_samples, replace = FALSE), ]
+        return(df_sampled)
+    })
+})
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------------------------------- Define Parameters -----------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# Identify common columns across all dataframes
+# (avoids errors for parameters like last_LU, that not all dataframes may contain depending on how many rows were sampled)
+# and filter out non-predictors
+
+colnames_lists <- lapply(dataframes, function(df_list) {
+    lapply(df_list, function(df) colnames(df))
+})
+
+colnames_lists <- lapply(colnames_lists, unlist)
+
+# Step 2: Find the intersection of all column names
+colnames_intersect <- Reduce(intersect, colnames_lists)
+
+
+colnames_filtered <- colnames_intersect[!grepl(
+    "age|agbd|latitude|longitude|prec|si|mature_biomass|distance|biome|cwd",
+    colnames_intersect
+)]
+
+# Define different sets of data parameters for modeling
+data_pars <- list(
+    c("cwd"),
+    c("cwd", "mean_prec", "mean_si"),
+    c("cwd", climatic_pars),
+    colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)], # land use only
+    colnames_filtered,
+    c(colnames_filtered, "cwd", "mean_prec", "mean_si"),
+    c(colnames_filtered, "cwd", climatic_pars)
+)
+
+data_pars_names <- c(
+    "cwd", "meanclim", "yearlyclim", "LU", "LU_soil_ecor",
+    "LU_soil_ecor_meanclim", "LU_soil_ecor_yearlyclim"
+)
+
+# Define basic parameter sets for modeling
+basic_pars <- list(
+    c("age", "B0"),
+    c("age", "k0", "B0"),
+    c("k0", "B0"), # age is implicit
+    c("k0", "B0_exp") # age is implicit
+)
+
+if (fit_logistic) {
+    basic_pars <- basic_pars[1:3]
+}
+
+basic_pars_names <- as.list(sapply(basic_pars, function(par_set) paste(par_set, collapse = "_")))
+
+# for linear model and random forest
+# - remove climatic_pars (since they are only used in optim for yearly change)
+# - add mature_biomass (nearest neighbor) to each parameter set
+# - add new parameter sets
+data_pars_lm <- c(
+    lapply(
+        Filter(function(x) !any(climatic_pars %in% x), data_pars), # remove climatic_pars
+        function(x) c(x, "mature_biomass") # , "age")
+    ),
+    list(
+        c("age"), c("mature_biomass"), c("age", "mature_biomass")
     )
+)
 
-    growth_curve <- function(pars, data) {
-        # k <- c(pars[["age"]] * data[["age"]] + pars[["cwd"]] * data[["cwd"]])
-        k <- rowSums(sapply(lu_pars, function(par) pars[[par]] * data[[par]] * data[["age"]]))
+filtered_data_pars_names <- data_pars_names[!sapply(data_pars, function(x) any(climatic_pars %in% x))]
+data_pars_lm_names <- c(filtered_data_pars_names, "age", "mat_biomass", "age_mat_biomass")
 
-        pars[["B0"]] + (data[["mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]]
-    }
 
-# head(growth_curve(pars, data))
-    likelihood <- function(pars, data, conditions) {
-        result <- sum((growth_curve(pars, data) - data$agbd)^2)
-
-        if (any(sapply(conditions, function(cond) eval(parse(text = cond))))) {
-            return(Inf)
-        } else if (is.na(result) || result == 0) {
-            return(Inf)
-        } else {
-            return(result)
-        }
-    }
-
-    o <- optim(pars, likelihood, data = data, conditions = conditions)
-
-    pred <- growth_curve(o$par, test_data)
-    # rsq <- cor(data$agbd, pred)^2 #rsq is NA when pred is all the same value
-
-    Model <- lm(test_data$agbd ~ pred)
-    Residuals <- summary(Model)$residuals
-    SumResSquared <- sum(Residuals^2)
-    TotalSumSquares <- sum((test_data$agbd - mean(test_data$agbd))^2)
-    rsq <- 1 - (SumResSquared / TotalSumSquares)
-    rsq
-
-    return(list(
-        optimized_parameters = o$par,
-        rsq = rsq,
-        predictions = pred,
-        optimization_result = o
-    ))
-}
-
-run_lm <- function(train_data, test_data, pars) {
-    lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
-
-    model <- lm(lm_formula, data = train_data)
-
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Check for rank deficiency, and remove variables if necessary
-    # (usually ones with too few unique values)
-    aliased_vars <- summary(model)$aliased
-
-    if (any(aliased_vars)) {
-        problematic_vars <- names(aliased_vars)[aliased_vars]
-        print(paste("Removing rank-deficient variables:", paste(problematic_vars, collapse = ", ")))
-
-        # Remove problematic variables from the formula
-        pars <- pars[!pars %in% problematic_vars]
-        lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
-        model <- lm(lm_formula, data = train_data)
-    }
-
-    Model <- lm(test_data$agbd ~ predict(model, newdata = test_data))
-    Residuals <- summary(Model)$residuals
-    SumResSquared <- sum(Residuals^2)
-    TotalSumSquares <- sum((test_data$agbd - mean(test_data$agbd))^2)
-    rsq <- 1 - (SumResSquared / TotalSumSquares)
-
-    return(list(
-        pars = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
-        rsq = rsq
-    ))
-}
 
 pars_fit <- readRDS("./data/amaz_ideal_par_combination.rds")
 
-lu_pars <- names(pars_fit[[81]])[!names(pars_fit[[81]]) %in% c("theta", "B0_exp", "k0")]
 
-# pars <- c(setNames(
-#     rep(0, length(lu_pars)),
-#     c(lu_pars)
-# ))
-# pars <- c(B0 = mean(dataframes_amaz[[i]][["agbd"]]), theta = 1, pars) # age = 0, cwd = 0)
-
-data <- dataframes_amaz[[1]]
-pars <- pars_fit[[81]]
+data <- dataframes[[1]]
+lu_pars <- pars_fit[[81]][!names(pars_fit[[81]]) %in% c("theta", "B0_exp", "k0")]
+pars <- c(B0 = mean(dataframes[[1]][["agbd"]]), theta = 1, lu_pars) # age = 0, cwd = 0)
 
 r_squared_values_opt <- c()
 r_squared_values_lm <- c()
@@ -117,34 +177,20 @@ r_squared_values_lm <- c()
 indices <- sample(c(1:5), nrow(data), replace = TRUE)
 
 for (i in 1:5) {
+
     print(i)
     # Define the test and train sets
     test_data <- data[indices == i, ]
     train_data <- data[!indices == i, ]
 
-    modellm <- run_lm(train_data, test_data, lu_pars)
+    modellm <- run_lm(train_data, test_data, names(lu_pars))
     print(modellm$rsq)
-    print(modellm$pars)
+    print(modellm$model_par)
 
-    modelopt <- run_growth_model(train_data, test_data, pars)
+    modelopt <- run_optim(train_data, test_data, pars, conditions)
     print(modelopt$rsq)
-    print(modelopt$optimized_parameters)
+    print(modelopt$model_par)
 
 }
+ 
 
-
-mean_r_squared <- mean(r_squared_values)
-sd_r_squared <- sd(r_squared_values)
-
-# for (i in seq_along(dataframes_amaz)) {
-#   print("----------------------------------------------------")
-#   print(i)
-
-#   # Without asymptote (using mature_biomass)
-#   result1 <- run_growth_model(dataframes_amaz[[i]], c(B0 = mean(dataframes_amaz[[i]][["agbd"]]), theta = 1, age = 0, cwd = 0))
-#   print(paste("R-squared amaz:", result1$r_squared))
-
-#   # # With asymptote
-#   result2 <- run_growth_model(dataframes_countrywide[[i]], c(B0 = 40, theta = 5, age = 0, cwd = 0))
-#   print(paste("R-squared countrywide_amaz_subset:", result2$r_squared))
-# }
