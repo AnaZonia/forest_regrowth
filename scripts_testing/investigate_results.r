@@ -108,11 +108,6 @@ mean_rsq_per_data_name <- tst %>%
 
 data <- read.csv("./data/amaz_results_optim.csv")
 
-best_rsq_df <- data %>%
-    group_by(data_name, data_pars) %>%
-    slice_max(rsq, with_ties = FALSE) %>%
-    arrange(data_pars, data_name)
-best_rsq_df[, c(1:5)]
 
 
 # Function to count occurrences of a substring in a file
@@ -135,7 +130,17 @@ print(paste("Total occurrences of string:", total_string_count))
 
 
 
-amazon <- read.csv("./data/amaz_5yr.csv")
+optim_fit <- read.csv("./data/non_aggregated_results.csv")
+lm_fit <- read.csv("tst.csv")
+
+best_rsq_df <- optim_fit %>%
+    # group_by(biome, data_name, data_pars) %>%
+    slice_max(rsq, with_ties = FALSE)# %>%
+    # arrange(biome, data_pars, data_name)
+best_rsq_df[, c(1:8)]
+best_rsq_df
+
+
 
 amazon_subset <- read.csv("./data/countrywide_5yr.csv")
 amazon_subset <- subset(amazon_subset, biome == 1)
@@ -149,12 +154,3 @@ summary(lm(agbd ~ mature_biomass, amazon))
 summary(lm(agbd ~ mature_biomass, amazon_subset))
 
 
-
-A <- runif(35, 120, 199)
-theta <- 7
-B0 <- 40
-k <- 0.2
-
-curve(B0 + (A - B0) * (1 - exp(-k * x))^theta, from = 1, to = 35, n = 35)
-
-curve((B0 * A * exp(k * x)) / ((A - B0) + B0 * exp(k * x)), from = 1, to = 35, n = 35)
