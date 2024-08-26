@@ -23,11 +23,6 @@ fit_logistic <- FALSE
 
 find_ideal_combination_pars <- TRUE
 
-optim_switch <- FALSE
-lm_switch <- FALSE
-rf_switch <- FALSE
-all_switch <- FALSE
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Global Variables ------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -194,8 +189,8 @@ data_pars_lm_names <- c(filtered_data_pars_names, "age", "mat_biomass", "age_mat
 iterations_optim <- expand.grid(
     interval = seq_along(intervals),
     data_par = seq_along(data_pars),
-    basic_par = seq_along(basic_pars),
-    biome = seq_along(biomes)
+    biome = seq_along(biomes),
+    basic_par = seq_along(basic_pars)
 )
 
 basic_pars_with_age <- which(sapply(basic_pars, function(x) "age" %in% x))
@@ -206,9 +201,11 @@ iterations_optim <- iterations_optim %>% filter(!(basic_par %in% basic_pars_with
 # Linear Model
 iterations_lm <- expand.grid(
     interval = seq_along(intervals),
-    data_par = seq_along(data_pars_lm)
+    data_par = seq_along(data_pars_lm),
+    biome = seq_along(biomes)
 )
 
+iterations_lm
 
 # Random Forest
 # Filter out single-predictor cases
@@ -232,60 +229,38 @@ if (find_ideal_combination_pars) {
 # ------------------------------------- Run Model ---------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+# datafiles <- paste0("./data/non_aggregated_", intervals, ".csv")
+# dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
+# pars_fit <- readRDS("./data/amaz_ideal_par_combination.rds")
+
+initial_pars <- readRDS("./data/non_aggregated_ideal_par_combination.rds")
+
+data <- dataframes[[1]][[1]]
+# data <- data %>% rename(nearest_mature = mature_biomass)
+source("fit_2_functions.r")
+
+results_lm <- run_foreach(iterations_lm, run_lm)
+results_optim <- run_foreach(iterations_optim, run_optim, conditions)
+
+results_all <- merge(results_lm, results_optim) %>% arrange(data_pars, basic_pars, data_name) # sort rows by parameter
+
+write.csv(results_optim, paste0("./data/", name, "_results.csv"), row.names = FALSE)
+head(tst)
 
 
 
+iter = 10
+lu_pars <- pars_fit[[iter]][!names(pars_fit[[iter]]) %in% non_data_pars]
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ------------------------------------- Test Area ---------------------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+modellm <- cross_valid(data, run_lm, names(lu_pars))
+modelopt <- cross_valid(data, run_optim, pars_fit[[iter]], conditions)
 
-datafiles <- paste0("./data/amaz_", intervals, ".csv")
-dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
+modellm$rsq
+modelopt$rsq
 
+modelopt$pars
 
-pars_fit <- readRDS("./data/amaz_ideal_par_combination.rds")
-
-data <- dataframes[[1]]
-data <- data %>% rename(nearest_mature = mature_biomass)
-
-for(i in seq_along(pars_fit)){
-    lu_pars <- pars_fit[[i]][!names(pars_fit[[i]]) %in% non_data_pars]
-
-    # pars <- c(theta = 1, lu_pars)
-    # if ('B0' %in% names(pars_fit[[i]])){
-    #     pars <- append(pars, B0 = mean(dataframes[[1]][["agbd"]]))
-    # }
-    # if ('B0' %in% names(pars_fit[[i]])){
-
-    r_squared_values_opt <- c()
-    r_squared_values_lm <- c()
-
-    indices <- sample(c(1:5), nrow(data), replace = TRUE)
-
-    for (i in 1:5) {
-        print(i)
-        # Define the test and train sets
-        test_data <- data[indices == i, ]
-        train_data <- data[!indices == i, ]
-
-        modellm <- run_lm(train_data, names(lu_pars), test_data)
-        print(modellm$rsq)
-        print(modellm$model_par)
-        r_squared_values_lm <- append(r_squared_values_lm, modellm$rsq)
-        process_row(modellm)
-
-        modelopt <- run_optim(train_data, pars_fit[[i]], test_data, conditions)
-        print(modelopt$rsq)
-        print(modelopt$model_par)
-        r_squared_values_opt <- append(r_squared_values_opt, modelopt$rsq)
-    }
-
-}
-
-
-
-pars <- pars_fit[[1]]
-data = train_data
-growth_curve(pars, data)
-head(pars[["B0"]] + (data[["nearest_mature"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
+# pars <- pars_fit[[1]]
+# data = train_data
+# growth_curve(pars, data)
+# head(pars[["B0"]] + (data[["nearest_mature"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
