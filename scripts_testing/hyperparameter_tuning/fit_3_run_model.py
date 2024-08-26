@@ -9,32 +9,48 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 from scipy.stats import norm
 from ray import tune
 # from ray.tune.suggest.bayesopt import BayesOptSearch
+from sklearn.model_selection import train_test_split# Split the data into training and testing sets
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, r2_score
 
+# def main():
 
-def main():
-    region = "countrywide"
-    
-    # Define climatic parameters that change yearly
-    climatic_pars = ["prec", "si"]
+# # Define climatic parameters that change yearly
+# biomes = ["amaz", "atla", "both"]
 
-    # Define parameters that do not correspond to data, used for functional form
-    non_data_pars = ["k0", "B0_exp", "B0", "theta"]
-    
-    # Define land-use history intervals to import four dataframes
-    intervals = ["5yr", "10yr", "15yr", "all"]
+# # Define land-use history intervals to import four dataframes
+# intervals = ["5yr", "10yr", "15yr", "all"]
 
-    datafiles = [f"./data/{region}_{interval}.csv" for interval in intervals]
-    dataframes = [import_climatic_data(file) for file in datafiles]
+df = pd.read_csv("data/all_amaz.csv")
 
+df = df.drop(columns=[col for col in df.columns if col.startswith('prec_') or col.startswith('si_')])
+# for col in df.columns:
+#     print(col)
+print(df.shape)
 
-if __name__ == "__main__":
+# Separate the response variable (agbd) and predictors
+X = df.drop(columns=['agbd', 'distance', 'last_LU_48'])  # Predictors (all columns except 'agbd')
+y = df['agbd']                 # Response variable
 
+# Split the data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    main()
+# Fit the Random Forest Regressor
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# Predict on the test set
+y_pred = model.predict(X_test)
+
+# Evaluate the model
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+
+print(f"Mean Squared Error: {mse}")
+print(f"R-squared: {r2}")
