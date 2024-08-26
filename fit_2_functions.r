@@ -22,20 +22,27 @@
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ------------------------------------ Growth Curve -------------------------------------#
+# ---------------------------- Chapman-Richards Growth Curve ----------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-#     This function calculates the Chapman-Richards growth curve based on the provided
-#     parameters and data. It can incorporate:
-#     - Yearly-changing climatic parameters (prec and si)
-#     - The intercept term defined either as B0 or B0_exp (out or in of the exponential)
-#     - A growth rate intercept term k0
-#     - Ages of secondary forests as an explicit parameter (part of "pars")
-#       or as an implicit parameter (multiplying all non-yearly predictors by age)
 #
-# Intakes:
-#   pars <- a vector with the named parameters to be included
-#   data <- the chosen training dataframe
+# Function Description:
+#   Calculates the Chapman-Richards growth curve based on provided parameters and data.
+#   Incorporates yearly-changing climatic parameters, intercept terms, and forest age.
+#
+# Arguments:
+#   pars : Named vector of parameters for the growth curve.
+#   data : Dataframe containing predictor variables and forest attributes
+#
+# Returns:
+#   Vector of predicted aboveground biomass density (AGBD) values.
+#
+# Notes:
+#   - Supports both logistic and exponential growth models.
+#   - Handles forest age as either an explicit parameter (part of "pars")
+#       or as an implicit parameter (multiplying all non-yearly predictors by age)
+#   - The intercept term can be defined either as B0 or B0_exp (out or in of the exponential)
+#   - Incorporates growth rate intercept term k0 if provided
+#   - Incorporates yearly-changing climatic parameters if provided.
 
 
 growth_curve <- function(pars, data) {
@@ -76,15 +83,24 @@ growth_curve <- function(pars, data) {
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#--------------------------------------- Likelihood -------------------------------------#
+# ------------------------ Likelihood Function for Optimization -------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-# Intakes:
-#   fun <- the function to be used, either "nls" (Nonlinear Least Squares)
-#          or "nll" (Negative Log Likelihood)
-#   pars <- a vector with the named parameters to be included
-#   data <- the chosen training dataframe
-#   conditions <- ranges of parameters to be restricted to
+# Function Description:
+#   Calculates the likelihood (or sum of squared errors) for the growth curve model,
+#   incorporating parameter constraints.
+#
+# Arguments:
+#   pars       : Named vector of parameter values to be evaluated.
+#   data       : Dataframe containing predictor variables and forest attributes
+#   conditions : List of parameter constraints expressed as character strings.
+#
+# Returns:
+#   Numeric value representing the likelihood or sum of squared errors.
+#   Returns -Inf if constraints are violated or if the result is invalid.
+#
+# External Functions:
+#   growth_curve()
 
 likelihood <- function(pars, data, conditions) {
     result <- sum((growth_curve(pars, data) - data$agbd)^2)
@@ -99,32 +115,37 @@ likelihood <- function(pars, data, conditions) {
     }
 }
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# -------------------------- Optimization for Forest Regrowth ---------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+# Function Description:
+#   Prepares and executes the optimization process for the forest regrowth model.
+#   It applies constraints, performs optimization, and optionally calculates R-squared.
+#
+# Arguments:
+#   train_data : Data frame containing the training dataset.
+#   pars       : Named vector of initial parameter values for optimization.
+#   conditions : List of parameter constraints expressed as character strings.
+#   test_data  : Optional. Data frame containing the test dataset for R-squared calculation.
+#
+# Returns:
+#   If test_data is NULL:
+#     Returns the full optimization result from optim().
+#   If test_data is provided:
+#     Returns a list containing:
+#       model_par : Optimized parameter values.
+#       rsq       : R-squared value of model predictions on filtered test data.
+#
+# External Functions:
+#   likelihood()
+#   growth_curve()
+#   calc_rsq()
+#   filtered_data()
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ---------------------------------- Optimization ---------------------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
-#     This function prepares the optimization process for the forest regrowth model.
-#     It runs the optimization process iteratively, incorporating one parameter of the
-#     chosen set at a time.
-#
-#     It also determines:
-#     - A new "sd" parameter if the function is set to "nll" (Negative Log Likelihood)
-#     - The theta ("shape") parameter of the Chapman-Richards growth curve
-#     - The values of the initial parameters (0.1 for all except for theta and B0)
-#
-# Intakes:
-#   fun <- the function to be used, either "nls" (Nonlinear Least Squares)
-#          or "nll" (Negative Log Likelihood)
-#   basic_pars_iter <- a vector with the named parameters that do not correspond to data,
-#                 but are to be included as part of the functional form
-#   data_pars_iter <- a vector with the chosen parameter set to be included
-#                  (corresponding to columns in dataframe)
-#   train_data <- the chosen training dataframe
-#   test_data <- the chosen testing dataframe (for rsq calculation)
-#   conditions <- ranges of parameters to be restricted to
 
 run_optim <- function(train_data, pars, conditions, test_data = NULL) {
+
     if ("age" %in% names(pars)) {
         conditions <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
     }
@@ -144,15 +165,35 @@ run_optim <- function(train_data, pars, conditions, test_data = NULL) {
         print(paste("R-squared:", rsq))
 
         return(list(
-            model_par = model$par,
+            model_par = t(model$par),
             rsq = rsq
         ))
     }
 }
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ---------------------------- Run Linear Model and Evaluate ----------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+# Function Description:
+#   Fits a linear model using the specified parameters, handles rank deficiency,
+#   predicts on filtered test data, and calculates R-squared.
+#
+# Arguments:
+#   train_data : Data frame containing the training dataset.
+#   pars       : Vector of parameter names to be used in the model.
+#   conditions : Placeholder - not used here, but used to prevent loops in cross_valid and run_foreach
+#   test_data  : Data frame containing the test dataset.
+#
+# Returns:
+#   list containing:
+#     model_par : Named matrix / array of model coefficients (excluding intercept).
+#     rsq       : R-squared value of the model predictions on filtered test data.
+# External Functions:
+#   filtered_data()
+#   calc_rsq()
 
-
-run_lm <- function(train_data, test_data, pars) {
+run_lm <- function(train_data, pars, conditions = NULL, test_data) {
     lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
 
     model <- lm(lm_formula, data = train_data)
@@ -176,7 +217,7 @@ run_lm <- function(train_data, test_data, pars) {
     pred <- predict(model, newdata = filtered_test_data)
     rsq <- calc_rsq(filtered_test_data, pred)
     print(paste("R-squared:", rsq))
-
+    
     return(list(
         model_par = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
         rsq = rsq
@@ -184,10 +225,21 @@ run_lm <- function(train_data, test_data, pars) {
 }
 
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#----------------- Ensuring testing data is within testing data range -------------------#
+# --------------------- Filter Test Data to Match Training Data Range -------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+# Function Description:
+#   Filters the test dataset to ensure that all rows are within the min-max range of
+#   the training dataset for each variable.
+#
+# Arguments:
+#   train_data : The training dataset used to determine valid ranges.
+#   test_data  : The test dataset to be filtered.
+#
+# Returns:
+#   filtered_test_data : The subset of test_data where all values are within
+#                        the training data's min-max range.
 
 filtered_data <- function(train_data, test_data) {
     # Calculate min and max for each column in train_data
@@ -207,8 +259,18 @@ filtered_data <- function(train_data, test_data) {
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#----------------- Calculating R squared -------------------#
+# ------------------------------- Calculate R-squared -----------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+# Function Description:
+#   Calculates the R-squared value.
+#
+# Arguments:
+#   data : A dataframe containing the observed values.
+#   pred : A vector of predicted values from the model.
+#
+# Returns:
+#   rsq  : The R-squared value indicating the goodness of fit.
 
 calc_rsq <- function(data, pred) {
     obs_pred <- lm(data$agbd ~ pred)
@@ -222,37 +284,45 @@ calc_rsq <- function(data, pred) {
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# --------------------------- Apply all models to the data ------------------------------#
+# --------------------------- Identify Optimal Parameter Combination -------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-# Intake:
-#   train_data <- the chosen training dataframe
-#   test_data <- the chosen testing dataframe (for rsq calculation)
-#   data_pars_iter <- a vector with the chosen parameter set to be included
-#                  (corresponding to columns in dataframe)
-
+# Function Description:
+#   This function identifies the optimal combination of parameters for a given dataset
+#   by iteratively fitting parameter combinations with run_optim and selecting the one that minimizes
+#   the Akaike Information Criterion (AIC).
+#
+# Arguments:
+#   iterations       : A dataframe where each row contains the information needed to perform
+#                      one iteration of the parameter selection process, including the land use history
+#                      interval, data parameter set, basic parameter set, and biome.
+#
+# Returns:
+#   ideal_par_combination : A list where each element contains the best parameter combination
+#                           identified for each iteration in the `iterations` dataframe.
+#
+# Notes:
+#   - Categorical variables are handled by grouping their dummy variables together during optimization.
+#   - The function writes the results of each iteration to an RDS file for future use.
+# External Functions:
+#   run_optim()
 
 find_combination_pars <- function(iterations) {
     ideal_par_combination <- list()
 
     for (iter in 1:nrow(iterations)) {
-        # iterations = iterations_optim
-        # iter = 68
+        # Extract iteration-specific parameters
         i <- iterations$interval[iter]
         j <- iterations$data_par[iter]
-        k <- iterations$basic_par[iter]
-        h <- iterations$biome[iter]
+        k <- iterations$biome[iter]
+        l <- iterations$basic_par[iter]
 
         data_pars_iter <- data_pars[[j]]
-        basic_pars_iter <- basic_pars[[k]]
+        basic_pars_iter <- basic_pars[[l]]
 
-        # if (split_biome) {
-        data <- dataframes[[i]][[h]]
-        # } else {
-        #     data <- dataframes[[i]]
-        # }
+        data <- dataframes[[i]][[k]]
 
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
+        # Initialize parameter vector with basic parameters and theta
         all_pars_iter <- c(setNames(
             rep(0, length(data_pars_iter)),
             c(data_pars_iter)
@@ -260,6 +330,7 @@ find_combination_pars <- function(iterations) {
 
         if (!fit_logistic) {
             all_pars_iter[["theta"]] <- 1
+            basic_pars_iter <- c(basic_pars_iter, "theta")
         }
 
         if ("B0" %in% basic_pars_iter) {
@@ -278,10 +349,8 @@ find_combination_pars <- function(iterations) {
             all_pars_iter["k0"] <- 0
         }
 
-
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Account for dummy variables
-        # after find each one, remove from remaining list
+        # Handle categorical variables by grouping dummy variables together
 
         categorical <- c("ecoreg", "soil", "last_LU")
 
@@ -293,19 +362,16 @@ find_combination_pars <- function(iterations) {
         }
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+        # Initialize the best model with basic parameters
         remaining <- 1:length(data_pars_iter)
-        best <- list()
-        best$AIC <- 0
-        # initial vector is theta + all basic parameters
-        best$par <- all_pars_iter[names(all_pars_iter) %in% c(basic_pars_iter, "theta")]
+        best <- list(AIC = 0, par = all_pars_iter[names(all_pars_iter) %in% basic_pars_iter])
         taken <- length(remaining) + 1 # out of the range of values such that remaining[-taken] = remaining for the first iteration
 
         base_row <- all_pars_iter
         base_row[names(all_pars_iter)] <- NA
         base_row <- c(likelihood = 0, base_row)
 
-        # iterate through # variables - keep best one, and go to next
+        # Iteratively add parameters and evaluate the model. Keep only AIC improvements.
         for (i in 1:length(data_pars_iter)) {
             optim_remaining_pars <- foreach(j = remaining[-taken]) %dopar% {
                 # check for categorical variables (to be included as a group)
@@ -313,7 +379,8 @@ find_combination_pars <- function(iterations) {
                     all_pars_iter_var <- all_pars_iter[grep(data_pars_iter[j], names(all_pars_iter))]
                     inipar <- c(best$par, all_pars_iter_var)
                 } else {
-                    inipar <- c(best$par, all_pars_iter[data_pars_iter[j]]) # as starting point, taking the best values from last time
+                    # as starting point, take the best values from last time
+                    inipar <- c(best$par, all_pars_iter[data_pars_iter[j]])
                 }
 
                 model <- run_optim(data, inipar, conditions)
@@ -331,50 +398,180 @@ find_combination_pars <- function(iterations) {
             print(paste0("iteration: ", iter, ", num parameters included: ", i))
             print(best_model_AIC)
 
-            if (best$AIC == 0 | best_model_AIC < best$AIC) # keep the parameter values
-                {
-                    best$AIC <- best_model_AIC
-                    best$par <- iter_df[best_model, names(all_pars_iter)]
-                    best$par <- Filter(function(x) !is.na(x), best$par)
-
-                    taken <- which(sapply(data_pars_iter, function(x) any(grepl(x, names(best$par)))))
-                } else {
+            if (best$AIC == 0 | best_model_AIC < best$AIC) {
+                best$AIC <- best_model_AIC
+                best$par <- iter_df[best_model, names(all_pars_iter)]
+                best$par <- Filter(function(x) !is.na(x), best$par)
+                taken <- which(sapply(data_pars_iter, function(x) any(grepl(x, names(best$par)))))
+            } else {
                 print("No improvement. Exiting loop.")
                 break
             }
-        } # end for i in 1:length(data_pars_iter)
-
+        }
+        
         ideal_par_combination <- append(ideal_par_combination, list(best$par))
-
         write_rds(ideal_par_combination, paste0("./data/", name, "_ideal_par_combination.rds"))
-    } # end for iter in 1:nrow(iterations)
+    }
 
     return(ideal_par_combination)
 }
 
 
-
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#--------------------- Prepare iteration results as dataframe row -----------------------#
+# ----------------------------- K-Fold Cross-Validation ---------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-# Intakes:
-#   output <- the output of the model as a matrix (coefficients or rf importance)
-#   data_name <- "5y", "10y", "15y", or "all"
-#   model_type <- "optim", "lm", "rf", or "gam"
-#   rsq <- the calculated r squared for each iteration of the model
+# Function Description:
+#   This function performs k-fold cross-validation (with k=5) on the provided data.
+#   It splits the data into five folds, uses each fold as a test set once while training
+#   on the remaining folds, and then applies the specified `run_function` to train the model
+#   and calculate the R-squared values for each fold.
+#
+# Arguments:
+#   data        : The full dataset to be split into training and test sets for cross-validation.
+#   run_function: The function used to train the model and generate predictions (either "run_optim", "run_lm")
+#   pars_iter   : The parameters to be passed to `run_function` for model training.
+#   conditions  : Additional conditions or constraints to be passed to `run_function`
+#                 (optional, default is NULL).
+#
+# Returns:
+#   A list with the following elements:
+#     - `rsq`     : The mean R-squared value across all folds.
+#     - `rsq_sd`  : The standard deviation of the R-squared values across all folds.
+#     - `pars`    : The model parameters corresponding to the fold with the highest R-squared value.
+#
+# Notes:
+#   - The function uses random sampling to assign data points to each of the five folds.
+#   - The function assumes that `run_function` takes as input the training data, parameters,
+#     conditions, and test data, and returns the model output.
+#   - The R-squared values from each fold are stored in `r_squared_fit`, and the best model
+#
+
+cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
+    r_squared_fit <- c()
+    pars_fit <- list()
+    indices <- sample(c(1:5), nrow(data), replace = TRUE)
+
+    for (index in 1:5) {
+        # Define the test and train sets
+        test_data <- data[indices == index, ]
+        train_data <- data[!indices == index, ]
+        
+        # Run the model function on the training set and evaluate on the test set
+        model_output <- run_function(train_data, pars_iter, conditions, test_data)
+        
+        # Collect R-squared values and model parameters
+        r_squared_fit <- append(r_squared_fit, model_output$rsq)
+        pars_fit[[index]] <- model_output$model_par
+    }
+
+    # Calculate mean and standard deviation of R-squared across folds
+    mean_r_squared <- mean(r_squared_fit)
+    sd_r_squared <- sd(r_squared_fit)
+    best_par <- pars_fit[[which.max(r_squared_fit)]]
+
+    return(list(rsq = mean_r_squared, rsq_sd = sd_r_squared, pars = best_par))
+}
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ----------------------------- Apply Models to Data with foreach -----------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#   This function applies a specified model function (`run_function`) to different subsets
+#   of data using parallel processing via the `foreach` package. It iterates over the
+#   rows of the `iterations` data frame, which contains information about the data subsets,
+#   parameters, and biomes for each iteration.
+#
+# Arguments:
+#   iterations  : Data frame containing iteration-specific parameters, such as the land use history subset
+#                 interval, data parameters, and biome indices.
+#   run_function: Function to be applied to the data (e.g., `run_lm` or `run_optim`).
+#   conditions  : Additional conditions or constraints to be passed to `run_function`
+#                 (only needed for optim - otherwise, default is NULL).
+#
+# Returns:
+#   A data frame containing the results of applying the model to each subset of the data.
+#   Each row corresponds to an iteration, and the results are combined using `bind_rows`.
+#
+# Notes:
+#   - The `process_row` function is used to organize and structure the output of each iteration
+#     before it is returned.
+
+
+
+# Define a function to run foreach for different models
+run_foreach <- function(iterations, run_function, conditions = NULL) {
+    results <- foreach(iter = 1:nrow(iterations),
+        .combine = "bind_rows", .packages = c("dplyr", "randomForest")
+    ) %dopar% {
+        # Extract iteration-specific parameters
+        i <- iterations$interval[iter]
+        j <- iterations$data_par[iter]
+        k <- iterations$biome[iter]
+        biome_name <- biomes[[k]]
+        data <- dataframes[[i]][[k]]
+
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
+        # Determine the model type and parameters based on the function used
+        if (identical(run_function, run_optim)) {
+            pars_iter <- initial_pars[[iter]] # Parameters obtained from "find combination pars"
+            pars_names <- data_pars_names[[j]]
+            l <- iterations$basic_par[iter]
+            basic_pars_names <- basic_pars_names[[l]]
+            model_type = "optim"
+        } else {
+            pars_iter <- data_pars_lm[[j]]
+            pars_names <- data_pars_lm_names[[j]]
+            basic_pars_iter <- NULL
+            basic_pars_names <- NULL
+            model_type = "lm"
+        }
+        
+        # Perform cross-validation and process results
+        cross_valid_output <- cross_valid(data, run_function, pars_iter, conditions)
+        row <- process_row(cross_valid_output, model_type, intervals[[i]], pars_names, biome_name,
+            basic_pars_names = basic_pars_names
+        )
+        print(row)
+        row
+    }
+}
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#------------------------ Process Model Output into DataFrame Row --------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#   This function processes the output from cross-validation or model fitting into a
+#   structured data frame row. It organizes the model parameters, R-squared values, and
+#   other relevant information, ensuring missing parameters are filled with NA, and columns
+#   are ordered according to the specified structure.
+#
+# Arguments:
+#   cv_output        : List containing cross-validation output, including coefficients and R-squared values.
+#   model_type       : Type of model ("optim", "lm", "rf", "gam").
+#   data_name        : Name representing the intervals of land use history included (e.g., "5y", "10y", "15y", "all").
+#   data_pars_names  : Names of the fit parameters corresponding to data
+#   basic_pars_names : Names of the basic parameters used in the model (only for "optim" models)
+#   biome_name       : Name of the biome ("amaz", "atla", or "both")
+#
+# Returns:
+#   A single-row data frame containing the organized model output.
+
 
 # Define helper functions
 process_row <- function(
-    cv_output, model_type, data_name, data_pars_names, basic_pars_names = NULL,
-    biome_name = NULL) {
+    cv_output, model_type, data_name, data_pars_names, biome_name, basic_pars_names = NULL) {
+    
+    # Initialize a data frame with model parameters (coefficients or variable importance)
     row <- as.data.frame(cv_output$pars)
-    # Set up columns of parameters that are not included in this iteration as NA
-    missing_cols <- setdiff(unique(unlist(c(data_pars_lm, non_data_pars, data_pars))), names(row))
+    # Identify parameters missing from this iteration and add them as NA columns    
+    all_possible_pars <- unique(unlist(c(data_pars_lm, non_data_pars, data_pars)))
+    missing_cols <- setdiff(all_possible_pars, names(row))
     row[missing_cols] <- NA
-    row <- row[, unique(unlist(c(data_pars_lm, non_data_pars, data_pars)))]
 
+    # Reorder the columns to ensure consistent output structure
+    row <- row[, all_possible_pars]
+    
+    row$biome_name <- biome_name
     row$data_name <- data_name
     row$model_type <- model_type
     row$data_pars <- data_pars_names
@@ -390,114 +587,11 @@ process_row <- function(
     # Define the desired order of columns
     desired_column_order <- c(
         "data_name", "data_pars", "basic_pars", "model_type",
-        "rsq", "rsq_sd", "mature_biomass", "age"
+        "rsq", "rsq_sd", "nearest_mature", "age"
     )
 
-    if (!is.null(biome_name)) {
-        row <- row %>%
-            mutate(biome = biome_name) %>%
-            select(biome, all_of(desired_column_order), all_of(non_data_pars), everything())
-    } else {
-        row <- row %>%
-            select(all_of(desired_column_order), all_of(non_data_pars), everything())
-    }
+    row <- row %>%
+        select(all_of(desired_column_order), all_of(non_data_pars), everything())
 
     return(row)
-}
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ----------------------------- K-fold cross-validation ---------------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
-    r_squared_values <- c()
-
-    indices <- sample(c(1:5), nrow(data), replace = TRUE)
-
-    for (i in 1:5) {
-        # print(i)
-        # Define the test and train sets
-        test_data <- data[indices == i, ]
-        train_data <- data[!indices == i, ]
-
-        model_output <- run_function(train_data, pars_iter, test_data, conditions)
-    }
-
-    mean_r_squared <- mean(r_squared_values)
-    sd_r_squared <- sd(r_squared_values)
-    # return parameters of last fit
-    return(list(rsq = mean_r_squared, rsq_sd = sd_r_squared, pars = model_output$pars))
-}
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# --------------------------- Apply all models to the data ------------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-# Define a function to run foreach for different models
-run_foreach <- function(iterations, model_type, run_function, conditions = NULL) {
-    results <- foreach(
-        iter = if (test_switch) test_rows else 1:nrow(iterations),
-        .combine = "bind_rows", .packages = c("dplyr", "randomForest")
-    ) %dopar% {
-        # iter = 1
-        # iterations <- iterations_optim
-        # print(iter)
-        # run_function <- run_optim
-
-
-        i <- iterations$interval[iter]
-        j <- iterations$data_par[iter]
-        h <- iterations$biome[iter]
-        biome_name <- biomes[[h]]
-        data <- dataframes[[i]][[h]]
-
-
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
-
-        if (model_type == "optim") {
-            pars_iter <- initial_pars[[iter]] # after definition
-            pars_names <- data_pars_names[[j]]
-
-            k <- iterations$basic_par[iter]
-            basic_pars_names <- basic_pars_names[[k]]
-        } else {
-            pars_iter <- data_pars_lm[[j]]
-            pars_names <- data_pars_lm_names[[j]]
-
-            basic_pars_iter <- NULL
-            basic_pars_names <- NULL
-        }
-
-        cross_valid_output <- cross_valid(data, run_function, pars_iter, conditions)
-
-        # Organize result
-        row <- process_row(cross_valid_output, model_type, intervals[[i]], pars_names,
-            basic_pars_names = basic_pars_names, biome_name = biome_name
-        )
-
-        print(paste("Time so far: ", as.numeric(difftime(
-            Sys.time(), start_time,
-            units = "mins"
-        )), " minutes"))
-        print(row)
-
-        row
-    }
-
-    # Calculate and print the total time taken
-    print(paste(
-        model_type, "finished! Time for the whole operation: ",
-        as.numeric(difftime(Sys.time(), start_time, units = "hours")), " hours"
-    ))
-
-    # Combine all results into a single dataframe
-    df <- as.data.frame(results)
-
-    # Write the dataframe to a CSV file
-    if (export_intermediaries) {
-        write.csv(df, paste0("./data/", name, "_results_", model_type, ".csv"), row.names = FALSE)
-    }
-
-    return(df)
 }
