@@ -46,6 +46,13 @@
 
 
 growth_curve <- function(pars, data) {
+
+    if (fit_asymptote) {
+        asymptote <- pars[["A"]]
+    } else {
+        asymptote <- data[["nearest_mature"]]
+    }
+
     # Define parameters that are not expected to change yearly (not prec or si)
     non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
 
@@ -72,12 +79,12 @@ growth_curve <- function(pars, data) {
 
     if (fit_logistic) {
         # return(data[["nearest_mature"]] * (1 / (1 + exp(k))))
-        return(pars[["B0"]] * data[["nearest_mature"]] * exp(k)) / ((data[["nearest_mature"]] - B0) + B0 * exp(k))
+        return(pars[["B0"]] * asymptote * exp(k)) / ((data[["nearest_mature"]] - B0) + B0 * exp(k))
     } else {
         if ("B0" %in% names(pars)) {
-            return(pars[["B0"]] + (data[["nearest_mature"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
+            return(pars[["B0"]] + (asymptote - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
         } else {
-            return(data[["nearest_mature"]] * (1 - exp(-(pars[["B0_exp"]] + k)))^pars[["theta"]])
+            return(asymptote * (1 - exp(-(pars[["B0_exp"]] + k)))^pars[["theta"]])
         }
     }
 }
@@ -151,10 +158,12 @@ run_optim <- function(train_data, pars, conditions, test_data = NULL) {
     }
     if ("B0" %in% names(pars)) {
         conditions <- c(conditions, list('pars["B0"] < 0'))
+        if ("A" %in% names(pars)) {
+            conditions <- c(conditions, list('pars["A"] < pars["B0"]'))
+        }
     }
 
     model <- optim(pars, likelihood, data = train_data, conditions = conditions)
-
 
     if (is.null(test_data)) {
         return(model)
@@ -220,6 +229,67 @@ run_lm <- function(train_data, pars, conditions = NULL, test_data) {
     
     return(list(
         model_par = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
+        rsq = rsq
+    ))
+}
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# GAM
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+run_gam <- function(train_data, pars, conditions = NULL, test_data) {
+    # Define categorical parameters
+    pars_categ <- c("indig", "protec", names(train_data)[str_detect(names(train_data), "LU|ecoreg|soil")])
+
+    # Separate data_pars_iter into continuous and categorical variables
+    continuous <- c(pars[!pars %in% pars_categ])
+    categorical <- pars[pars %in% pars_categ]
+
+    formula <- as.formula(paste(
+        "agbd ~",
+        paste(sapply(continuous, function(x) paste0("s(", x, ")")), collapse = " + "),
+        "+",
+        paste(categorical, collapse = " + ")
+    ))
+
+    model <- gam(formula, data = train_data)
+
+    print(model)
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Output R-squared value and model results
+    filtered_test_data <- filter_test_data(train_data, test_data)
+    pred <- predict(model, newdata = filtered_test_data)
+    rsq <- cor(filtered_test_data$agbd, pred)^2
+    print(paste("R-squared:", rsq))
+
+    # return(list(
+    #     rsq = rsq
+    # ))
+}
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Random Forest
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+run_rf <- function(train_data, pars, test_data) {
+    rf_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
+
+    model <- randomForest(rf_formula,
+        data = train_data,
+        ntree = 100, mtry = 2, importance = TRUE,
+        keep.forest = TRUE, oob.score = TRUE, do.trace = 10, parallel = TRUE
+    )
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Output R-squared value and model results
+    filtered_test_data <- filter_test_data(train_data, test_data)
+    pred <- predict(model, newdata = filtered_test_data)
+    rsq <- cor(filtered_test_data$agbd, pred)^2
+    print(paste("R-squared:", rsq))
+
+    return(list(
+        pars = t(importance(model)[, 1]),
         rsq = rsq
     ))
 }
@@ -317,10 +387,9 @@ find_combination_pars <- function(iterations) {
         k <- iterations$biome[iter]
         l <- iterations$basic_par[iter]
 
+        data <- dataframes[[i]][[k]]
         data_pars_iter <- data_pars[[j]]
         basic_pars_iter <- basic_pars[[l]]
-
-        data <- dataframes[[i]][[k]]
 
         # Initialize parameter vector with basic parameters and theta
         all_pars_iter <- c(setNames(
@@ -335,6 +404,10 @@ find_combination_pars <- function(iterations) {
 
         if ("B0" %in% basic_pars_iter) {
             all_pars_iter["B0"] <- mean(data[["agbd"]])
+        }
+
+        if ("A" %in% basic_pars_iter) {
+            all_pars_iter["A"] <- mean(data[["nearest_mature"]])
         }
 
         if ("age" %in% basic_pars_iter) {
@@ -473,73 +546,6 @@ cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
     return(list(rsq = mean_r_squared, rsq_sd = sd_r_squared, pars = best_par))
 }
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ----------------------------- Apply Models to Data with foreach -----------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#   This function applies a specified model function (`run_function`) to different subsets
-#   of data using parallel processing via the `foreach` package. It iterates over the
-#   rows of the `iterations` data frame, which contains information about the data subsets,
-#   parameters, and biomes for each iteration.
-#
-# Arguments:
-#   iterations  : Data frame containing iteration-specific parameters, such as the land use history subset
-#                 interval, data parameters, and biome indices.
-#   run_function: Function to be applied to the data (e.g., `run_lm` or `run_optim`).
-#   conditions  : Additional conditions or constraints to be passed to `run_function`
-#                 (only needed for optim - otherwise, default is NULL).
-#
-# Returns:
-#   A data frame containing the results of applying the model to each subset of the data.
-#   Each row corresponds to an iteration, and the results are combined using `bind_rows`.
-#
-# Notes:
-#   - The `process_row` function is used to organize and structure the output of each iteration
-#     before it is returned.
-
-
-
-# Define a function to run foreach for different models
-run_foreach <- function(iterations, run_function, conditions = NULL) {
-    results <- foreach(iter = 1:nrow(iterations),
-        .combine = "bind_rows", .packages = c("dplyr", "randomForest")
-    ) %dopar% {
-        # Extract iteration-specific parameters
-        i <- iterations$interval[iter]
-        j <- iterations$data_par[iter]
-        k <- iterations$biome[iter]
-        biome_name <- biomes[[k]]
-        data <- dataframes[[i]][[k]]
-
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
-        # Determine the model type and parameters based on the function used
-        if (identical(run_function, run_optim)) {
-            pars_iter <- initial_pars[[iter]] # Parameters obtained from "find combination pars"
-            pars_names <- data_pars_names[[j]]
-            l <- iterations$basic_par[iter]
-            basic_pars_names <- basic_pars_names[[l]]
-            model_type = "optim"
-        } else {
-            pars_iter <- data_pars_lm[[j]]
-            pars_names <- data_pars_lm_names[[j]]
-            basic_pars_iter <- NULL
-            basic_pars_names <- NULL
-            model_type = "lm"
-        }
-        
-        # Perform cross-validation and process results
-        cross_valid_output <- cross_valid(data, run_function, pars_iter, conditions)
-        row_optim <- process_row(cross_valid_output, model_type, intervals[[i]], pars_names, biome_name,
-            basic_pars_names = basic_pars_names
-        )
-
-        
-
-        print(row)
-        row
-    }
-}
-
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #------------------------ Process Model Output into DataFrame Row --------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -563,10 +569,9 @@ run_foreach <- function(iterations, run_function, conditions = NULL) {
 # Define helper functions
 process_row <- function(
     cv_output, model_type, data_name, data_pars_names, biome_name, basic_pars_names = NULL) {
-    
     # Initialize a data frame with model parameters (coefficients or variable importance)
     row <- as.data.frame(cv_output$pars)
-    # Identify parameters missing from this iteration and add them as NA columns    
+    # Identify parameters missing from this iteration and add them as NA columns
     all_possible_pars <- unique(unlist(c(data_pars_lm, non_data_pars, data_pars)))
     missing_cols <- setdiff(all_possible_pars, names(row))
     row[missing_cols] <- NA
@@ -589,7 +594,7 @@ process_row <- function(
 
     # Define the desired order of columns
     desired_column_order <- c(
-        "data_name", "data_pars", "basic_pars", "model_type",
+        "biome_name", "data_name", "data_pars", "basic_pars", "model_type",
         "rsq", "rsq_sd", "nearest_mature", "age"
     )
 

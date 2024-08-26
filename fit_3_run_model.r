@@ -20,7 +20,7 @@ registerDoParallel(cores = ncores)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 fit_logistic <- FALSE
-
+fit_asymptote <- TRUE
 find_ideal_combination_pars <- TRUE
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -46,6 +46,10 @@ if (fit_logistic) {
     non_data_pars <- c("k0", "B0_exp", "B0", "theta")
 }
 
+if (fit_asymptote) {
+    non_data_pars <- c(non_data_pars, "A")
+}
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------------------------- Import Data ----------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -58,8 +62,6 @@ intervals <- list("5yr", "10yr", "15yr", "all")
 
 datafiles <- paste0("./data/", name, "_", intervals, ".csv")
 dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
-
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Preparing dataframes whether or not there is a split between biomes
@@ -92,25 +94,6 @@ dataframes <- lapply(dataframes, function(list_of_dfs) {
         return(df_sampled)
     })
 })
-
-# # Loop through the lists and dataframes to write CSV files
-# for (i in seq_along(dataframes)) {
-#     list_name <- intervals[i]
-#     list_of_dfs <- dataframes[[i]]
-
-#     for (j in seq_along(list_of_dfs)) {
-#         df_name <- biomes[j]
-#         df <- list_of_dfs[[j]]
-
-#         # Create the filename
-#         filename <- paste0(list_name, "_", df_name, ".csv")
-
-#         # Write the CSV file
-#         write.csv(df, filename, row.names = FALSE)
-
-#         cat("Wrote file:", filename, "\n")
-#     }
-# }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Define Parameters -----------------------------------#
@@ -158,29 +141,16 @@ basic_pars <- list(
     c("k0", "B0"), # age is implicit
     c("k0", "B0_exp") # age is implicit
 )
+basic_pars_names <- as.list(sapply(basic_pars, function(par_set) paste(par_set, collapse = "_")))
 
 if (fit_logistic) {
     basic_pars <- basic_pars[1:3]
 }
 
-basic_pars_names <- as.list(sapply(basic_pars, function(par_set) paste(par_set, collapse = "_")))
-
-# for linear model and random forest
-# - remove climatic_pars (since they are only used in optim for yearly change)
-# - add nearest_mature (nearest neighbor) to each parameter set
-# - add new parameter sets
-data_pars_lm <- c(
-    lapply(
-        Filter(function(x) !any(climatic_pars %in% x), data_pars), # remove climatic_pars
-        function(x) c(x, "nearest_mature") # , "age")
-    ),
-    list(
-        c("age"), c("nearest_mature"), c("age", "nearest_mature")
-    )
-)
-
-filtered_data_pars_names <- data_pars_names[!sapply(data_pars, function(x) any(climatic_pars %in% x))]
-data_pars_lm_names <- c(filtered_data_pars_names, "age", "mat_biomass", "age_mat_biomass")
+if (fit_asymptote) {
+    data_pars <- lapply(data_pars, function(l) l <- c(l, "nearest_mature"))
+    basic_pars <- lapply(basic_pars, function(l) l <- c(l, "A"))
+}
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Create grids of different combinations of model inputs
@@ -198,22 +168,6 @@ data_pars_with_climatic <- which(sapply(data_pars, function(x) any(climatic_pars
 # Remove rows where both conditions are met
 iterations_optim <- iterations_optim %>% filter(!(basic_par %in% basic_pars_with_age & data_par %in% data_pars_with_climatic))
 
-# Linear Model
-iterations_lm <- expand.grid(
-    interval = seq_along(intervals),
-    data_par = seq_along(data_pars_lm),
-    biome = seq_along(biomes)
-)
-
-iterations_lm
-
-# Random Forest
-# Filter out single-predictor cases
-rows_to_remove <- sapply(iterations_lm$data_par, function(i) {
-    length(data_pars_lm[[i]]) == 1
-})
-iterations_rf <- iterations_lm[!rows_to_remove, ]
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ----------------------------- Find ideal parameters -----------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -229,38 +183,55 @@ if (find_ideal_combination_pars) {
 # ------------------------------------- Run Model ---------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-# datafiles <- paste0("./data/non_aggregated_", intervals, ".csv")
-# dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE)
-# pars_fit <- readRDS("./data/amaz_ideal_par_combination.rds")
+results <- foreach(
+    iter = 1:nrow(iterations_optim),
+    .combine = "bind_rows", .packages = c("dplyr", "randomForest")
+    ) %dopar% {
+    # Extract iteration-specific parameters
+    i <- iterations_optim$interval[iter]
+    j <- iterations_optim$data_par[iter]
+    k <- iterations_optim$biome[iter]
+    l <- iterations_optim$basic_par[iter]
+    
+    data <- dataframes[[i]][[k]]
+    pars_names <- data_pars_names[[j]]
+    biome_name <- biomes[[k]]
+    basic_pars_names <- basic_pars_names[[l]]
+    pars_iter <- initial_pars[[iter]] # Parameters obtained from "find combination pars"
 
-initial_pars <- readRDS("./data/non_aggregated_ideal_par_combination.rds")
+    # Perform cross-validation and process results
+    cross_valid_optim <- cross_valid(data, run_optim, pars_iter, conditions)
+    row <- process_row(cross_valid_optim, "optim", intervals[[i]], pars_names, biome_name,
+        basic_pars_names = basic_pars_names
+    )
 
-data <- dataframes[[1]][[1]]
-# data <- data %>% rename(nearest_mature = mature_biomass)
+    if (!any(climatic_pars %in% names(pars_iter))) {
+        lu_pars <- names(pars_iter[!names(pars_iter) %in% non_data_pars])
+
+        # Perform cross-validation and process results
+        cross_valid_lm <- cross_valid(data, run_lm, unique(c(lu_pars, "nearest_mature")))
+        row_lm <- process_row(cross_valid_lm, "lm", intervals[[i]], pars_names, biome_name)
+        row <- rbind(row, row_lm)
+
+        if (length(lu_pars) > 1) {
+            # Perform cross-validation and process results
+            cross_valid_rf <- cross_valid(data, run_rf, unique(c(lu_pars, "nearest_mature")))
+            run_rf <- process_row(cross_valid_rf, "rf", intervals[[i]], pars_names, biome_name)
+            row <- rbind(row, run_rf)
+        }
+    }
+
+    print(row)
+    row
+}
+
+write.csv(results, "lm_optim_results.csv", row.names = FALSE)
+
+
 source("fit_2_functions.r")
 
-results_lm <- run_foreach(iterations_lm, run_lm)
-results_optim <- run_foreach(iterations_optim, run_optim, conditions)
+pars_iter <- initial_pars[[10]]
+lu_pars <- names(pars_iter[!names(pars_iter) %in% non_data_pars])
 
-results_all <- merge(results_lm, results_optim) %>% arrange(data_pars, basic_pars, data_name) # sort rows by parameter
-
-write.csv(results_optim, paste0("./data/", name, "_results.csv"), row.names = FALSE)
-head(tst)
-
-
-
-iter = 10
-lu_pars <- pars_fit[[iter]][!names(pars_fit[[iter]]) %in% non_data_pars]
-
-modellm <- cross_valid(data, run_lm, names(lu_pars))
-modelopt <- cross_valid(data, run_optim, pars_fit[[iter]], conditions)
-
-modellm$rsq
-modelopt$rsq
-
-modelopt$pars
-
-# pars <- pars_fit[[1]]
-# data = train_data
-# growth_curve(pars, data)
-# head(pars[["B0"]] + (data[["nearest_mature"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
+data <- dataframes[[1]][[1]]
+cv <- cross_valid(data, run_gam, unique(c(lu_pars, "nearest_mature")))

@@ -130,10 +130,9 @@ print(paste("Total occurrences of string:", total_string_count))
 
 
 
-optim_fit <- read.csv("./data/non_aggregated_results.csv")
-lm_fit <- read.csv("tst.csv")
+lm_fit <- read.csv("lm_optim_results.csv")
 
-best_rsq_df <- optim_fit %>%
+best_rsq_df <- lm_fit %>%
     # group_by(biome, data_name, data_pars) %>%
     slice_max(rsq, with_ties = FALSE)# %>%
     # arrange(biome, data_pars, data_name)
