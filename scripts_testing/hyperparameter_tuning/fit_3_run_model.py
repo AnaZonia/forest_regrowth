@@ -9,7 +9,6 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
@@ -17,10 +16,10 @@ from scipy.stats import norm
 from ray import tune
 # from ray.tune.suggest.bayesopt import BayesOptSearch
 from sklearn.model_selection import train_test_split# Split the data into training and testing sets
-
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, r2_score
 
 # def main():
-
 
 # # Define climatic parameters that change yearly
 # biomes = ["amaz", "atla", "both"]
@@ -28,17 +27,30 @@ from sklearn.model_selection import train_test_split# Split the data into traini
 # # Define land-use history intervals to import four dataframes
 # intervals = ["5yr", "10yr", "15yr", "all"]
 
-datafile = pd.read_csv("./data/5yr_amaz.csv")
+df = pd.read_csv("data/all_amaz.csv")
 
-for col in datafile.columns:
-    print(col)
-    
-    
-# Using Skicit-learn to split data into training and testing sets
-train_features, test_features, train_labels, test_labels = train_test_split(features, labels, test_size = 0.25, random_state = 42)
+df = df.drop(columns=[col for col in df.columns if col.startswith('prec_') or col.startswith('si_')])
+# for col in df.columns:
+#     print(col)
+print(df.shape)
 
+# Separate the response variable (agbd) and predictors
+X = df.drop(columns=['agbd', 'distance', 'last_LU_48'])  # Predictors (all columns except 'agbd')
+y = df['agbd']                 # Response variable
 
-# if __name__ == "__main__":
+# Split the data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+# Fit the Random Forest Regressor
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
 
-#     main()
+# Predict on the test set
+y_pred = model.predict(X_test)
+
+# Evaluate the model
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+
+print(f"Mean Squared Error: {mse}")
+print(f"R-squared: {r2}")
