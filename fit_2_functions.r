@@ -528,9 +528,12 @@ run_foreach <- function(iterations, run_function, conditions = NULL) {
         
         # Perform cross-validation and process results
         cross_valid_output <- cross_valid(data, run_function, pars_iter, conditions)
-        row <- process_row(cross_valid_output, model_type, intervals[[i]], pars_names, biome_name,
+        row_optim <- process_row(cross_valid_output, model_type, intervals[[i]], pars_names, biome_name,
             basic_pars_names = basic_pars_names
         )
+
+        
+
         print(row)
         row
     }
@@ -570,7 +573,7 @@ process_row <- function(
 
     # Reorder the columns to ensure consistent output structure
     row <- row[, all_possible_pars]
-    
+
     row$biome_name <- biome_name
     row$data_name <- data_name
     row$model_type <- model_type
