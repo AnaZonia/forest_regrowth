@@ -20,8 +20,7 @@ registerDoParallel(cores = ncores)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 fit_logistic <- FALSE
-fit_asymptote <- TRUE
-find_ideal_combination_pars <- TRUE
+find_ideal_combination_pars <- FALSE
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Global Variables ------------------------------------#
@@ -44,10 +43,6 @@ if (fit_logistic) {
     # Define conditions for parameter constraints
     conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0')
     non_data_pars <- c("k0", "B0_exp", "B0", "theta")
-}
-
-if (fit_asymptote) {
-    non_data_pars <- c(non_data_pars, "A")
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -147,11 +142,6 @@ if (fit_logistic) {
     basic_pars <- basic_pars[1:3]
 }
 
-if (fit_asymptote) {
-    data_pars <- lapply(data_pars, function(l) l <- c(l, "nearest_mature"))
-    basic_pars <- lapply(basic_pars, function(l) l <- c(l, "A"))
-}
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Create grids of different combinations of model inputs
 
@@ -200,38 +190,34 @@ results <- foreach(
     pars_iter <- initial_pars[[iter]] # Parameters obtained from "find combination pars"
 
     # Perform cross-validation and process results
-    cross_valid_optim <- cross_valid(data, run_optim, pars_iter, conditions)
-    row <- process_row(cross_valid_optim, "optim", intervals[[i]], pars_names, biome_name,
+    cross_valid <- cross_valid(data, pars_iter, conditions)
+    row <- process_row(cross_valid[[1]], "optim", intervals[[i]], pars_names, biome_name,
         basic_pars_names = basic_pars_names
     )
 
     if (!any(climatic_pars %in% names(pars_iter))) {
-        lu_pars <- names(pars_iter[!names(pars_iter) %in% non_data_pars])
 
-        # Perform cross-validation and process results
-        cross_valid_lm <- cross_valid(data, run_lm, unique(c(lu_pars, "nearest_mature")))
-        row_lm <- process_row(cross_valid_lm, "lm", intervals[[i]], pars_names, biome_name)
+        row_lm <- process_row(cross_valid[[2]], "lm", intervals[[i]], pars_names, biome_name)
         row <- rbind(row, row_lm)
 
-        if (length(lu_pars) > 1) {
-            # Perform cross-validation and process results
-            cross_valid_rf <- cross_valid(data, run_rf, unique(c(lu_pars, "nearest_mature")))
-            run_rf <- process_row(cross_valid_rf, "rf", intervals[[i]], pars_names, biome_name)
-            row <- rbind(row, run_rf)
-        }
+    #     if (length(lu_pars) > 1) {
+    #         # Perform cross-validation and process results
+    #         cross_valid_rf <- cross_valid(data, run_rf, unique(c(lu_pars, "nearest_mature")))
+    #         run_rf <- process_row(cross_valid_rf, "rf", intervals[[i]], pars_names, biome_name)
+    #         row <- rbind(row, run_rf)
+    #     }
     }
 
     print(row)
     row
 }
 
-write.csv(results, "lm_optim_results.csv", row.names = FALSE)
+# write.csv(results, "lm_optim_results.csv", row.names = FALSE)
 
 
 source("fit_2_functions.r")
-
-pars_iter <- initial_pars[[10]]
-lu_pars <- names(pars_iter[!names(pars_iter) %in% non_data_pars])
-
 data <- dataframes[[1]][[1]]
-cv <- cross_valid(data, run_gam, unique(c(lu_pars, "nearest_mature")))
+pars_iter <- initial_pars[[10]]
+
+cross_valid1 <- cross_valid(data, pars_iter, conditions)
+cross_valid1[[1]]
