@@ -9,7 +9,7 @@ library(randomForest)
 
 # Source external R scripts for data import and function definitions
 source("fit_1_import_data.r")
-source("fit_2_functions.r")
+source("fit_2_functions_2.r")
 
 set.seed(1)
 ncores <- 20
@@ -142,6 +142,17 @@ if (fit_logistic) {
     basic_pars <- basic_pars[1:3]
 }
 
+data_pars_lm <- c(
+    lapply(
+        Filter(function(x) !any(climatic_pars %in% x), data_pars), # remove climatic_pars
+        function(x) c(x, "nearest_mature") # , "age")
+    ),
+    list(
+        c("age"), c("nearest_mature"), c("age", "nearest_mature")
+    )
+)
+
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Create grids of different combinations of model inputs
 
@@ -190,14 +201,14 @@ results <- foreach(
     pars_iter <- initial_pars[[iter]] # Parameters obtained from "find combination pars"
 
     # Perform cross-validation and process results
-    cross_valid <- cross_valid(data, pars_iter, conditions)
-    row <- process_row(cross_valid[[1]], "optim", intervals[[i]], pars_names, biome_name,
+    cv_output <- cross_valid(data, pars_iter, conditions)
+    row <- process_row(cv_output[[1]], "optim", intervals[[i]], pars_names, biome_name,
         basic_pars_names = basic_pars_names
     )
 
     if (!any(climatic_pars %in% names(pars_iter))) {
 
-        row_lm <- process_row(cross_valid[[2]], "lm", intervals[[i]], pars_names, biome_name)
+        row_lm <- process_row(cv_output[[2]], "lm", intervals[[i]], pars_names, biome_name)
         row <- rbind(row, row_lm)
 
     #     if (length(lu_pars) > 1) {
@@ -209,15 +220,16 @@ results <- foreach(
     }
 
     print(row)
+    # results <- rbind(results, row)
     row
 }
 
-# write.csv(results, "lm_optim_results.csv", row.names = FALSE)
+write.csv(results, "lm_optim_results.csv", row.names = FALSE)
 
 
-source("fit_2_functions.r")
-data <- dataframes[[1]][[1]]
-pars_iter <- initial_pars[[10]]
+# source("fit_2_functions.r")
+# data <- dataframes[[1]][[1]]
+# pars_iter <- initial_pars[[10]]
 
-cross_valid1 <- cross_valid(data, pars_iter, conditions)
-cross_valid1[[1]]
+# cross_valid1 <- cross_valid(data, pars_iter, conditions)
+# cross_valid1[[1]]
