@@ -7,18 +7,35 @@
 library(corrplot)
 library(tidyverse)
 
-source("fit_1_import_data.r")
 source("fit_3_run_model.r")
 source("fit_2_functions.r")
-find_combination_pars(iterations_optim)
-data <- dataframes[[2]][[3]]
+lm_cv_output <- cross_valid(data_lm, run_lm, c("ecoreg"))
 
-dataframes_lm <- lapply(datafiles, import_climatic_data, normalize = TRUE, convert_to_dummy = TRUE)
-dataframes_lm <- prepare_dataframes(dataframes_lm, c(1, 4))
-data_lm <- dataframes_lm[[2]][[3]]
+find_combination_pars(iterations_optim)
+
+data <- dataframes_lm[[2]][[3]]
 colnames(data_lm)
 
-lm_cv_output <- cross_valid(data_lm, run_lm, c("cwd", "mean_prec", "mean_si"))
+lm_cv_output <- cross_valid(data_lm, run_lm, c("ecoreg"))
+
+indices <- sample(c(1:5), nrow(data), replace = TRUE)
+test <- data[indices == 1, ]
+train_data <- data[!indices == 1, ]
+for (col in names(train_data)) {
+    if (is.factor(train_data[[col]])) {
+        levels_train <- levels(train_data[[col]])
+        print(levels_train)
+        test <- test[test[[col]] %in% levels_train, ]
+        levels_test <- levels(test[[col]])
+        print(levels_test)
+    }
+}
+
+
+source("fit_1_import_data.r")
+
+
+
 
 pars_iter <- data_pars[[4]]
 pars_iter
@@ -29,6 +46,11 @@ numeric_cols
 lm_cv_output <- cross_valid(data_lm, run_lm, tst)
 
 optim_cv_output <- cross_valid(data, run_optim, pars_iter, conditions)
+
+
+
+
+
 
 # Remove non-numeric columns
 numeric_df <- data_lm %>% select_if(is.numeric)

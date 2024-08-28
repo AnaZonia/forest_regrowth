@@ -153,7 +153,7 @@ prepare_dataframes <- function(df_list, filter_biomes) {
     sampled_dfs <- lapply(split_dfs, function(list_of_dfs) {
         lapply(list_of_dfs, function(df) {
             df_sampled <- df[sample(nrow(df), n_samples, replace = FALSE), ]
-            df_sampled[, colSums(df_sampled != 0) > 0]
+            # df_sampled[, colSums(df_sampled != 0) > 0]
             return(df_sampled)
         })
     })
