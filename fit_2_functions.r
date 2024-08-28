@@ -70,13 +70,14 @@ growth_curve <- function(pars, data) {
     }
 
     # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
-    k[which(k > 7)] <- 7 
-    # Constrains k to avoid negative values
-    if ("k0" %in% names(pars)) {
-        k[which(k < 0)] <- -log(1 - mean(data[["agbd"]]) / mean(data[["nearest_mature"]]))
-    } else {
-        k[which(k < 0)] <- 0
-    }
+    k[which(k > 7)] <- 7
+
+    # # Constrains k to avoid negative values
+    # if ("k0" %in% names(pars)) {
+    #     k[which(k < 0)] <- -log(1 - mean(data[["agbd"]]) / mean(data[["nearest_mature"]]))
+    # } else {
+    #     k[which(k < 0)] <- 0
+    # }
 
     if (fit_logistic) {
         return(data[["nearest_mature"]] * (1 / (1 + exp(k))))
@@ -167,7 +168,7 @@ run_optim <- function(train_data, pars, conditions, test_data = NULL) {
         filtered_test_data <- filter_test_data(train_data, test_data)
         pred <- growth_curve(model$par, filtered_test_data)
         rsq <- calc_rsq(filtered_test_data, pred)
-        print(paste("R-squared:", rsq))
+        # print(paste("R-squared:", rsq))
 
         return(list(
             model_par = t(model$par),
@@ -199,6 +200,7 @@ run_optim <- function(train_data, pars, conditions, test_data = NULL) {
 #   calc_rsq()
 
 run_lm <- function(train_data, pars, test_data) {
+
     lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
 
     model <- lm(lm_formula, data = train_data)
@@ -210,9 +212,25 @@ run_lm <- function(train_data, pars, test_data) {
     if (any(aliased_vars)) {
         problematic_vars <- names(aliased_vars)[aliased_vars]
         print(paste("Rank-deficient variables:", paste(problematic_vars, collapse = ", ")))
+        for (var in problematic_vars) {
+            print(table(train_data[[var]]))
+        }
     }
 
     filtered_test_data <- filter_test_data(train_data, test_data)
+
+    # remove_new_levels <- function(train, test) {
+    #     for (col in names(train)) {
+    #         if (is.factor(train[[col]])) {
+    #             levels_train <- levels(train[[col]])
+    #             test <- test[test[[col]] %in% levels_train, ]
+    #         }
+    #     }
+    #     return(test)
+    # }
+    
+    # filtered_test_data <- remove_new_levels(train_data, filtered_test_data)
+
     pred <- predict(model, newdata = filtered_test_data)
     rsq <- calc_rsq(filtered_test_data, pred)
     print(paste("R-squared:", rsq))
@@ -462,6 +480,10 @@ find_combination_pars <- function(iterations) {
 
     for (iter in 1:nrow(iterations)) {
         # Extract iteration-specific parameters
+        # i <- 2
+        # j <- 4
+        # k <- 1
+        # l <- 3
         i <- iterations$interval[iter]
         j <- iterations$data_par[iter]
         k <- iterations$biome[iter]
@@ -497,7 +519,6 @@ find_combination_pars <- function(iterations) {
                 all_pars_iter["B0_exp"] <- -log(1 - mean(data[["agbd"]]) / mean(data[["nearest_mature"]]))
                 all_pars_iter["k0"] <- 0
             }
-
         }
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -517,7 +538,7 @@ find_combination_pars <- function(iterations) {
         remaining <- 1:length(data_pars_iter)
         best <- list(AIC = 0)
         val <- 0
-        if (!fit_logistic){
+        if (!fit_logistic) {
             best[["par"]] <- all_pars_iter[names(all_pars_iter) %in% basic_pars_iter]
             val <- length(basic_pars)
         }
@@ -540,7 +561,6 @@ find_combination_pars <- function(iterations) {
                 }
 
                 model <- run_optim(data, inipar, conditions)
-
                 iter_row <- base_row
                 iter_row[names(inipar)] <- model$par
                 iter_row["likelihood"] <- model$value
@@ -559,14 +579,17 @@ find_combination_pars <- function(iterations) {
                 best$par <- iter_df[best_model, names(all_pars_iter)]
                 best$par <- Filter(function(x) !is.na(x), best$par)
                 taken <- which(sapply(data_pars_iter, function(x) any(grepl(x, names(best$par)))))
+                df_list <- setNames(as.list(best$par[1, ]), colnames(best$par))
+                # optim_cv_output <- cross_valid(data, run_optim, df_list, conditions)
+                # print(paste("R-squared:", optim_cv_output$rsq))
             } else {
                 print("No improvement. Exiting loop.")
                 break
             }
-        }
 
-        ideal_par_combination <- append(ideal_par_combination, list(best$par))
-        write_rds(ideal_par_combination, paste0("./data/", name_export, "_ideal_par_combination.rds"))
+            ideal_par_combination <- append(ideal_par_combination, list(best$par))
+            write_rds(ideal_par_combination, paste0("./data/", name_export, "_ideal_par_combination.rds"))
+        }
     }
 
     return(ideal_par_combination)

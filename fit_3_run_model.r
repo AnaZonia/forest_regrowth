@@ -20,7 +20,7 @@ registerDoParallel(cores = ncores)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 fit_logistic <- FALSE
-find_ideal_combination_pars <- FALSE
+find_ideal_combination_pars <- TRUE
 export_results <- FALSE
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -79,7 +79,6 @@ colnames_lists <- lapply(colnames_lists, unlist)
 # Step 2: Find the intersection of all column names
 colnames_intersect <- Reduce(intersect, colnames_lists)
 
-
 colnames_filtered <- colnames_intersect[!grepl(
     "age|agbd|latitude|longitude|prec|si|nearest_mature|distance|biome|cwd",
     colnames_intersect
@@ -90,15 +89,15 @@ data_pars <- list(
     c("cwd"),
     c("cwd", "mean_prec", "mean_si"),
     c("cwd", climatic_pars),
-    colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)], # land use only
-    colnames_filtered,
+    c(colnames_filtered[!grepl("ecoreg|soil|last_LU", colnames_filtered)], "cwd", "mean_prec", "mean_si"), # land use only
     c(colnames_filtered, "cwd", "mean_prec", "mean_si"),
+    c(colnames_filtered[!grepl("ecoreg|soil|last_LU", colnames_filtered)], "cwd", climatic_pars), # land use only
     c(colnames_filtered, "cwd", climatic_pars)
 )
 
 data_pars_names <- c(
-    "cwd", "meanclim", "yearlyclim", "LU", "LU_soil_ecor",
-    "LU_soil_ecor_meanclim", "LU_soil_ecor_yearlyclim"
+    "cwd", "mean_clim", "yearly_clim", "all_continuous_mean_clim", "all_mean_clim",
+    "all_continuous_yearly_clim", "all_yearly_clim"
 )
 
 if (!fit_logistic) {
