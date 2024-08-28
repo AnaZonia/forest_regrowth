@@ -22,17 +22,20 @@ climatic_pars <- c("prec", "si")
 #   data             : A dataframe ready for analysis with or without dummy variables.
 
 import_data <- function(path, convert_to_dummy) {
-
-    data <- read_csv(path, show_col_types = FALSE) %>% #show_col_types = FALSE quiets a large message during import
-        select(-c(.geo, latitude, longitude)) %>%
-        select(-starts_with("system"))
-
-    # Convert specified variables to factors
     categorical <- c("ecoreg", "soil", "last_LU")
-    # Convert categorical variables to factors
-    data <- data %>%
-        mutate(across(all_of(categorical), as.factor))
+    columns_to_remove <- c(
+        ".geo", "latitude", "longitude", "mature_forest_years", "fallow",
+        "num_fires_before_first_anthro", "num_fires_after_first_anthro", "num_fires_during_anthro"
+    )
 
+    data <- read_csv(path, show_col_types = FALSE) %>% # show_col_types = FALSE quiets a large message during import
+        {
+            cols_present <- columns_to_remove[columns_to_remove %in% names(.)]
+            if (length(cols_present) > 0) select(., -all_of(cols_present)) else .
+        } %>%
+        select(-starts_with("system")) %>%
+        mutate(across(all_of(categorical), as.factor))
+    
     # Create dummy variables
     if (convert_to_dummy) {
         data <- dummy_cols(data, select_columns = categorical, remove_selected_columns = TRUE)
@@ -41,8 +44,6 @@ import_data <- function(path, convert_to_dummy) {
     print("Imported!")
     return(data)
 }
-
-
 
 # Function to import and process climatic data, normalize it, and optionally convert categorical variables to dummy variables.
 # Arguments:
@@ -54,6 +55,7 @@ import_data <- function(path, convert_to_dummy) {
 #   df_climatic_hist : A processed dataframe with historical climatic data.
 
 import_climatic_data <- function(path, normalize, convert_to_dummy) {
+
     data <- import_data(path, convert_to_dummy)
 
     # Calculate the mean of specified climatic variables across years
@@ -62,26 +64,32 @@ import_climatic_data <- function(path, normalize, convert_to_dummy) {
             na.rm = TRUE
         )
     })
-
     # Append mean climatic variables as new columns to the data
     colnames(means) <- paste0("mean_", climatic_pars)
     data <- cbind(data, means)
 
-    # Process data for each age group
+    # Process climatic data for each age group
     df_climatic_hist <- tibble()
-    for (age in 1:max(data$age)) {
-        age_data <- data %>% filter(age == .env$age)
-        years <- seq(2019, 2019 - age + 1, by = -1)
-        # Identify all columns including the variables in climatic_pars
-        clim_columns <- expand.grid(climatic_pars, years) %>%
+
+
+    for (yrs in 1:max(data$age)) {
+        age_data <- data %>% filter(age == yrs)
+
+        # Generate a sequence of years for the current age group
+        # Starting from 2019 and going back 'yrs' number of years
+        year_seq <- seq(2019, 2019 - yrs + 1, by = -1)
+
+        # Create column names for climatic parameters for each year
+        clim_columns <- expand.grid(climatic_pars, year_seq) %>%
             unite(col = "col", sep = "_") %>%
             pull(col)
 
-        # subsect the dataframe to only include the climatic columns of the desired years
+        # Subset the dataframe to only include the climatic columns of the desired years
         all_clim_columns <- names(data)[str_detect(names(data), paste(climatic_pars, "_", collapse = "|"))]
 
-        # Set values in columns of years not included to 0
+        # Identify climatic columns not relevant for the current age group
         clim_columns_not_included <- setdiff(all_clim_columns, clim_columns)
+        # Set values in non-relevant columns to 0
         age_data[clim_columns_not_included] <- 0
 
         df_climatic_hist <- bind_rows(df_climatic_hist, age_data)
@@ -92,8 +100,10 @@ import_climatic_data <- function(path, normalize, convert_to_dummy) {
             mutate(across(
                 where(is.numeric) &
                     !matches("soil|biome|ecoreg|last_LU|protec|indig|agbd|nearest_mature|fallow"),
+                # Normalization formula: (x - min(x)) / (max(x) - min(x))
                 ~ (. - min(., na.rm = TRUE)) / (max(., na.rm = TRUE) - min(., na.rm = TRUE))
             )) %>%
+            # Remove columns that are entirely NA
             select(where(~ sum(is.na(.)) < nrow(df_climatic_hist)))
     }
 
@@ -118,10 +128,7 @@ import_climatic_data <- function(path, normalize, convert_to_dummy) {
 
 # Arguments:
 #   df_list   : A list of dataframes to process.
-#   biomes    : A vector of biome names corresponding to the processed splits.
-#               (Default: c("amaz", "atla", "both"))
 #   filter_biomes : A vector of biome codes to filter on (e.g., c(1, 4) for Amazonia and Mata Atlantica).
-#   n_samples : The number of samples to take from each split dataframe.
 #
 # Returns:
 #   A nested list of dataframes, split and sampled according to the specified biomes.
@@ -146,12 +153,10 @@ prepare_dataframes <- function(df_list, filter_biomes) {
     sampled_dfs <- lapply(split_dfs, function(list_of_dfs) {
         lapply(list_of_dfs, function(df) {
             df_sampled <- df[sample(nrow(df), n_samples, replace = FALSE), ]
+            df_sampled[, colSums(df_sampled != 0) > 0]
             return(df_sampled)
         })
     })
 
     return(sampled_dfs)
 }
-
-# Example usage:
-# result <- prepare_dataframes(dataframes, biomes = c("amaz", "atla", "both"), filter_biomes = c(1, 4), n_samples = 100)

@@ -8,25 +8,27 @@ library(corrplot)
 library(tidyverse)
 
 source("fit_1_import_data.r")
-source("fit_2_functions.r")
 source("fit_3_run_model.r")
+source("fit_2_functions.r")
+find_combination_pars(iterations_optim)
+data <- dataframes[[2]][[3]]
 
-dataframes_lm <- lapply(datafiles, import_climatic_data, normalize = TRUE, convert_to_dummy = FALSE)
+dataframes_lm <- lapply(datafiles, import_climatic_data, normalize = TRUE, convert_to_dummy = TRUE)
 dataframes_lm <- prepare_dataframes(dataframes_lm, c(1, 4))
+data_lm <- dataframes_lm[[2]][[3]]
+colnames(data_lm)
 
-# data_opt <- dataframes[[1]][[1]]
-data_lm <- dataframes_lm[[1]][[3]]
-pars_iter <- initial_pars[[100]]
-numeric_cols <- colnames(data_lm)[!grepl("prec|si|agbd|biome|distance", colnames(data_lm))]
+lm_cv_output <- cross_valid(data_lm, run_lm, c("cwd", "mean_prec", "mean_si"))
 
-# source("fit_2_functions.r")
-lm_cv_output <- cross_valid(data_lm, run_lm, numeric_cols)
+pars_iter <- data_pars[[4]]
+pars_iter
+numeric_cols <- pars_iter[!grepl("prec|si|agbd|biome|distance|soil|ecoreg|LU|B0|k0|theta", pars_iter)]
+numeric_cols
+tst <- c(numeric_cols, "nearest_mature")
+numeric_cols
+lm_cv_output <- cross_valid(data_lm, run_lm, tst)
 
-# optim_cv_output <- cross_valid(data, run_optim, pars_iter, conditions)
-# rf_cv_output <- cross_valid(data_lm, run_rf, data_pars)
-# lm_cv_output$rsq
-# optim_cv_output$rsq
-# rf_cv_output$rsq
+optim_cv_output <- cross_valid(data, run_optim, pars_iter, conditions)
 
 # Remove non-numeric columns
 numeric_df <- data_lm %>% select_if(is.numeric)
