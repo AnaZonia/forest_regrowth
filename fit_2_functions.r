@@ -201,9 +201,15 @@ run_optim <- function(train_data, pars, conditions, test_data = NULL) {
 
 run_lm <- function(train_data, pars, test_data) {
 
+    # print(levels(train_data[["ecoreg"]]))
+    # print(length(levels(train_data[["ecoreg"]])))
+    print(table(train_data[["ecoreg"]]))
+
     lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
 
     model <- lm(lm_formula, data = train_data)
+    # print(summary(model)$coefficients)
+    # print(length(summary(model)$coefficients))
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Check for rank deficiency
@@ -219,51 +225,12 @@ run_lm <- function(train_data, pars, test_data) {
 
     filtered_test_data <- filter_test_data(train_data, test_data)
 
-    # remove_new_levels <- function(train, test) {
-    #     for (col in names(train)) {
-    #         if (is.factor(train[[col]])) {
-    #             levels_train <- levels(train[[col]])
-    #             test <- test[test[[col]] %in% levels_train, ]
-    #         }
-    #     }
-    #     return(test)
-    # }
-    
-    # filtered_test_data <- remove_new_levels(train_data, filtered_test_data)
-
     pred <- predict(model, newdata = filtered_test_data)
     rsq <- calc_rsq(filtered_test_data, pred)
     print(paste("R-squared:", rsq))
 
     return(list(
         model_par = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
-        rsq = rsq
-    ))
-}
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Random Forest
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-run_rf <- function(train_data, pars, test_data) {
-    rf_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
-
-    model <- randomForest(rf_formula,
-        data = train_data,
-        ntree = 100, mtry = 2, importance = TRUE,
-        keep.forest = TRUE, oob.score = TRUE, do.trace = 10, parallel = TRUE
-    )
-
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Output R-squared value and model results
-    filtered_test_data <- filter_test_data(train_data, test_data)
-    pred <- predict(model, newdata = filtered_test_data)
-    rsq <- cor(filtered_test_data$agbd, pred)^2
-    print(paste("R-squared:", rsq))
-
-    return(list(
-        model_par = t(importance(model)[, 1]),
         rsq = rsq
     ))
 }
