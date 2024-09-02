@@ -7,49 +7,39 @@
 library(corrplot)
 library(tidyverse)
 
-source("fit_3_run_model.r")
-source("fit_2_functions.r")
-lm_cv_output <- cross_valid(data_lm, run_lm, c("ecoreg"))
-
-find_combination_pars(iterations_optim)
-
-data <- dataframes_lm[[2]][[3]]
-colnames(data_lm)
-
-lm_cv_output <- cross_valid(data_lm, run_lm, c("ecoreg"))
-
-indices <- sample(c(1:5), nrow(data), replace = TRUE)
-test <- data[indices == 1, ]
-train_data <- data[!indices == 1, ]
-for (col in names(train_data)) {
-    if (is.factor(train_data[[col]])) {
-        levels_train <- levels(train_data[[col]])
-        print(levels_train)
-        test <- test[test[[col]] %in% levels_train, ]
-        levels_test <- levels(test[[col]])
-        print(levels_test)
-    }
-}
-
 
 source("fit_1_import_data.r")
+source("fit_3_run_model.r")
+source("fit_2_functions.r")
 
+iterations_optim[,]
 
-
-
-pars_iter <- data_pars[[4]]
 pars_iter
-numeric_cols <- pars_iter[!grepl("prec|si|agbd|biome|distance|soil|ecoreg|LU|B0|k0|theta", pars_iter)]
+pars_iter <- readRDS("./data/non_aggregated_ideal_par_combination.rds")[[7]]
+data_lm <- dataframes_lm[[4]][[1]]
+data_opt <- dataframes[[4]][[1]]
+
+numeric_cols <- names(pars_iter)[!grepl("agbd|biome|distance|soil|ecoreg|LU|B0|k0|theta", names(pars_iter))]
 numeric_cols
 tst <- c(numeric_cols, "nearest_mature")
-numeric_cols
+
 lm_cv_output <- cross_valid(data_lm, run_lm, tst)
+optim_cv_output <- cross_valid(data_opt, run_optim, pars_iter, conditions)
+optim_cv_output$rsq
+lm_cv_output$rsq
 
-optim_cv_output <- cross_valid(data, run_optim, pars_iter, conditions)
+run_optim(data, pars_iter, conditions)
+which(is.na(growth_curve(pars_iter, data)))
 
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ------------------------------------- Correlations ---------------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
+# very strong correlation - removing last_LU
+anova_result <- aov(lulc_sum_15 ~ last_LU, data = data)
+summary(anova_result)
 
 
 # Remove non-numeric columns
@@ -75,6 +65,8 @@ corrplot(cor_matrix,
     tl.col = "black", tl.srt = 45, addCoef.col = "black",
     number.cex = 0.7, cl.pos = "n"
 )
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Results ---------------------------------------#

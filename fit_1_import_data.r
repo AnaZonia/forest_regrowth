@@ -1,62 +1,38 @@
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+#                 Forest Regrowth Model Data Processing Functions
+#
+#                            Ana Avila - August 2024
+#
+#     This script defines the core functions used in the data processing and
+#     preparation stages of the forest regrowth modeling process.
+#
+#     Functions included:
+#     - process_climatic
+#     - normalize
+#     - import_data
+#
+#     These functions handle data import, climatic variable processing,
+#     normalization, and optional conversion of categorical variables to
+#     dummy variables.
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 library(tidyverse)
 library(fastDummies)
 
-# - Imports the dataframe
-# - Removes unnecessary columns that will not be used in analysis
-# - Converts categorical data to dummy variables
-
-#------------------ Global Variables ------------------#
-# List of climatic parameters that change yearly
-climatic_pars <- c("prec", "si")
-
-#------------------- Main Functions -------------------#
-
-
-# Function to import data, remove unnecessary columns, and optionally convert categorical columns to dummy variables.
-# Arguments:
-#   path             : The path to the CSV file.
-#   convert_to_dummy : Logical switch to decide if categorical variables should be converted to dummy variables.
-#                      If TRUE, categorical variables will be split into dummy variables.
-#                      If FALSE, categorical variables will remain as factors.
-# Returns:
-#   data             : A dataframe ready for analysis with or without dummy variables.
-
-import_data <- function(path, convert_to_dummy) {
-    categorical <- c("ecoreg", "soil", "last_LU")
-    columns_to_remove <- c(
-        ".geo", "latitude", "longitude", "mature_forest_years", "fallow",
-        "num_fires_before_first_anthro", "num_fires_after_first_anthro", "num_fires_during_anthro"
-    )
-
-    data <- read_csv(path, show_col_types = FALSE) %>% # show_col_types = FALSE quiets a large message during import
-        {
-            cols_present <- columns_to_remove[columns_to_remove %in% names(.)]
-            if (length(cols_present) > 0) select(., -all_of(cols_present)) else .
-        } %>%
-        select(-starts_with("system")) %>%
-        mutate(across(all_of(categorical), as.factor))
-    
-    # Create dummy variables
-    if (convert_to_dummy) {
-        data <- dummy_cols(data, select_columns = categorical, remove_selected_columns = TRUE)
-    }
-
-    print("Imported!")
-    return(data)
-}
-
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# -------------------------- Process Climatic Variables ---------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
 # Function to import and process climatic data, normalize it, and optionally convert categorical variables to dummy variables.
+#
 # Arguments:
-#   path       : The path to the CSV file.
-#   normalize  : Logical switch to decide if the data should be normalized.
-#                If TRUE, numeric columns will be normalized.
-#   convert_to_dummy : Logical switch passed to import_data function to handle categorical variables.
+#   data   : A list of dataframes to process.
 # Returns:
 #   df_climatic_hist : A processed dataframe with historical climatic data.
 
-import_climatic_data <- function(path, normalize, convert_to_dummy) {
-
-    data <- import_data(path, convert_to_dummy)
+process_climatic <- function(data) {
 
     # Calculate the mean of specified climatic variables across years
     means <- sapply(climatic_pars, function(var) {
@@ -95,68 +71,96 @@ import_climatic_data <- function(path, normalize, convert_to_dummy) {
         df_climatic_hist <- bind_rows(df_climatic_hist, age_data)
     }
 
-    if (normalize) {
-        df_climatic_hist <- df_climatic_hist %>%
-            mutate(across(
-                where(is.numeric) &
-                    !matches("soil|biome|ecoreg|last_LU|protec|indig|agbd|nearest_mature|fallow"),
-                # Normalization formula: (x - min(x)) / (max(x) - min(x))
-                ~ (. - min(., na.rm = TRUE)) / (max(., na.rm = TRUE) - min(., na.rm = TRUE))
-            )) %>%
-            # Remove columns that are entirely NA
-            select(where(~ sum(is.na(.)) < nrow(df_climatic_hist)))
-    }
-
     return(df_climatic_hist)
 }
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# -------------------------- Prepare Dataframes Function --------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Function used in import_data to normalize numeric columns in dataframes.
+# Arguments:
+#   data             : The dataframe to be used for analysis
+# Returns:
+#   data             : A dataframe with normalized numerical values
 
 
-# ------------------- Prepare Dataframes Function -------------------#
+normalize <- function(data) {
+    data <- data %>%
+        mutate(across(
+            where(is.numeric) &
+                !matches("soil|biome|ecoreg|last_LU|protec|indig|agbd|nearest_mature|fallow"),
+            # Normalization formula: (x - min(x)) / (max(x) - min(x))
+            ~ (. - min(., na.rm = TRUE)) / (max(., na.rm = TRUE) - min(., na.rm = TRUE))
+        )) %>%
+        # Remove columns that are entirely NA
+        select(where(~ sum(is.na(.)) < nrow(data)))
+
+    return(data)
+}
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# -------------------------- Prepare Dataframes Function --------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# Function to import data, remove unnecessary columns, and optionally convert categorical columns to dummy variables.
 # This function prepares a list of dataframes by:
 # 1. Filtering for specific biomes.
 # 2. Splitting the dataframes by biome.
 # 3. Sampling a specified number of rows from each split dataframe.
 #
-
+# Arguments:
+#   path             : The path to the CSV file.
+#   convert_to_dummy : Logical switch to decide if categorical variables should be converted to dummy variables.
+#                      If TRUE, categorical variables will be split into dummy variables.
+#                      If FALSE, categorical variables will remain as factors.
 # 1 = Amazonia
 # 2 = Caatinga
 # 3 = Cerrado
 # 4 = Mata Atlantica
 # 5 = Pampa
 # 6 = Pantanal
-
-# Arguments:
-#   df_list   : A list of dataframes to process.
-#   filter_biomes : A vector of biome codes to filter on (e.g., c(1, 4) for Amazonia and Mata Atlantica).
 #
 # Returns:
-#   A nested list of dataframes, split and sampled according to the specified biomes.
+#   list_of_dfs             : A list with three dataframes, one per ecoregion, ready for analysis with or without dummy variables.
 
-prepare_dataframes <- function(df_list, filter_biomes) {
-    # Filter dataframes to include only rows matching the specified biomes
-    filtered_dfs <- lapply(df_list, function(df) {
-        df[df$biome %in% filter_biomes, ]
+import_data <- function(path, convert_to_dummy) {
+    
+    columns_to_remove <- c(
+        ".geo", "latitude", "longitude", "mature_forest_years", "last_LU",
+        "num_fires_before_first_anthro", "num_fires_after_first_anthro", "num_fires_during_anthro"
+    )
+
+    data <- read_csv(path, show_col_types = FALSE) %>% # show_col_types = FALSE quiets a large message during import
+        select(-any_of(columns_to_remove)) %>%
+        select(-starts_with("system")) %>%
+        mutate(across(all_of(categorical), as.factor))
+
+    data <- data[data$biome %in% c(1, 4), ]
+
+    list_of_dfs <- split(data, data$biome)
+ 
+    list_of_dfs <- list(
+        list_of_dfs[[1]], # First split result (e.g., biome 1)
+        list_of_dfs[[2]], # Second split result (e.g., biome 4)
+        data # Original dataframe without split
+    )
+
+    list_of_dfs <- lapply(list_of_dfs, function(df) {
+        df_sampled <- df[sample(nrow(df), n_samples, replace = FALSE), ]
+        df_sampled <- process_climatic(df_sampled)
+        df_sampled <- normalize(df_sampled)
+        df_sampled <- df_sampled %>%
+            group_by(across(all_of(categorical))) %>% # Group by the categorical columns
+            filter(n() >= 50) %>% # Keep groups with 50 or more occurrences
+            ungroup() %>% # Ungroup to return to a normal dataframe
+            mutate(across(all_of(categorical), droplevels))
+        # Create dummy variables
+        if (convert_to_dummy) {
+            df_sampled <- dummy_cols(df_sampled, select_columns = categorical, remove_selected_columns = TRUE)
+        }
+        return(df_sampled)
     })
 
-    # Split each filtered dataframe by biome and store in a nested list
-    split_dfs <- lapply(filtered_dfs, function(df) {
-        split_result <- split(df, df$biome)
-        list(
-            split_result[[1]], # First split result (e.g., biome 1)
-            split_result[[2]], # Second split result (e.g., biome 4)
-            df # Original dataframe without split
-        )
-    })
-
-    # Sample n_samples rows from each split dataframe
-    sampled_dfs <- lapply(split_dfs, function(list_of_dfs) {
-        lapply(list_of_dfs, function(df) {
-            df_sampled <- df[sample(nrow(df), n_samples, replace = FALSE), ]
-            # df_sampled[, colSums(df_sampled != 0) > 0]
-            return(df_sampled)
-        })
-    })
-
-    return(sampled_dfs)
+    print("Imported!")
+    return(list_of_dfs)
 }
