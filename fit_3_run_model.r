@@ -11,7 +11,7 @@ source("fit_1_import_data.r")
 source("fit_2_functions.r")
 
 set.seed(1)
-ncores <- 40
+ncores <- 50
 registerDoParallel(cores = ncores)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -20,7 +20,7 @@ registerDoParallel(cores = ncores)
 
 fit_logistic <- FALSE
 find_ideal_combination_pars <- TRUE
-export_results <- FALSE
+export_results <- TRUE
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Global Variables ------------------------------------#
@@ -187,6 +187,10 @@ if (export_results){
             data <- dataframes_lm[[i]][[k]]
 
             lu_pars <- names(pars_iter[!names(pars_iter) %in% non_data_pars])
+            # Replace "ecoreg" and "soil" in the names
+            lu_pars <- sub("ecoreg_.*", "ecoreg", lu_pars)
+            lu_pars <- sub("soil_.*", "soil", lu_pars)
+
             lm_cv_output <- cross_valid(data, run_lm, unique(c(lu_pars, "nearest_mature")))
 
             row_lm <- process_row(lm_cv_output, "lm", intervals[[i]], pars_names, biome_name)
