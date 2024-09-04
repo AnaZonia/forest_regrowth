@@ -1,6 +1,36 @@
 ## Project Overview
 CapoERA (Computational Algorithm for Post-agricultural Ecosystem Regrowth Analysis) is a model that predicts the age of secondary forests in Brazil based on satellite data. This script imports and processes remote sensing data from Google Earth Engine, and compares different models to predict the biomass of secondary forests based on climate and previous land use.
 
+your_project/
+│
+├── data/
+│   ├── raw/
+│   └── processed/
+│
+├── src/
+│   ├── __init__.py
+│   ├── data_processing.py
+│   ├── nelder_mead_model.py
+│   ├── random_forest_model.py
+│   ├── hyperparameter_tuning.py
+│   └── utils.py
+│
+├── notebooks/
+│   ├── exploratory_data_analysis.ipynb
+│   └── model_comparison.ipynb
+│
+├── tests/
+│   ├── __init__.py
+│   ├── test_data_processing.py
+│   ├── test_nelder_mead_model.py
+│   └── test_random_forest_model.py
+│
+├── main.py
+├── requirements.txt
+└── README.md
+
+
+
 ### Google Earth Engine Data Processing
 - GEE_1_satellite.ipynb - Processes satellite data from MAPBIOMAS and ESA CCI Biomass
 	- Fire
