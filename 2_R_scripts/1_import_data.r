@@ -134,7 +134,7 @@ import_data <- function(path, convert_to_dummy) {
         select(-any_of(columns_to_remove)) %>%
         select(-starts_with("system")) %>%
         mutate(across(all_of(categorical), as.factor))
-    print(nrow(data))
+
     data <- data[data$biome %in% c(1, 4), ]
 
     list_of_dfs <- split(data, data$biome)
@@ -151,7 +151,7 @@ import_data <- function(path, convert_to_dummy) {
         df_sampled <- normalize(df_sampled)
         df_sampled <- df_sampled %>%
             group_by(across(all_of(categorical))) %>% # Group by the categorical columns
-            filter(n() >= 50) %>% # Keep groups with 50 or more occurrences
+            filter(n() >= 200) %>% # Keep groups with 50 or more occurrences
             ungroup() %>% # Ungroup to return to a normal dataframe
             mutate(across(all_of(categorical), droplevels))
         # Create dummy variables

@@ -228,34 +228,6 @@ run_lm <- function(train_data, pars, test_data) {
     ))
 }
 
-run_rf <- function(train_data, pars, test_data) {
-    lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
-
-    model <- randomForest(lm_formula, data = train_data)
-
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Check for rank deficiency
-    aliased_vars <- summary(model)$aliased
-
-    if (any(aliased_vars)) {
-        problematic_vars <- names(aliased_vars)[aliased_vars]
-        print(paste("Rank-deficient variables:", paste(problematic_vars, collapse = ", ")))
-        for (var in problematic_vars) {
-            print(table(train_data[[var]]))
-        }
-    }
-
-    filtered_test_data <- filter_test_data(train_data, test_data)
-
-    pred <- predict(model, newdata = filtered_test_data)
-    rsq <- calc_rsq(filtered_test_data, pred)
-    print(paste("R-squared:", rsq))
-
-    return(list(
-        model_par = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
-        rsq = rsq
-    ))
-}
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

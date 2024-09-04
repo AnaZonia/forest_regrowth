@@ -13,14 +13,27 @@ source("fit_2_functions.r")
 
 
 length(pars_iter)
+pars_iter
 pars_iter <- readRDS("./data/non_aggregated_ideal_par_combination.rds")
-data_lm <- dataframes_lm[[4]][[1]]
-data_opt <- dataframes[[4]][[1]]
+pars_iter <- readRDS("./data/non_aggregated_ideal_par_combination.rds")[[63]]
+data_lm <- dataframes_lm[[1]][[1]]
+data_opt <- dataframes[[1]][[1]]
 
-numeric_cols <- names(pars_iter)[!grepl("agbd|biome|distance|soil|ecoreg|LU|B0|k0|theta", names(pars_iter))]
+result <- subset(iterations_optim, interval == 3 & data_par == 1 & biome == 1)
+result <- Filter(function(x) "ecoreg_476" %in% names(x), pars_iter)
+indices <- which(sapply(pars_iter, function(x) "ecoreg_476" %in% names(x)))
+indices
+pars_iter <- pars_iter[[17]]
+
+numeric_cols <- names(pars_iter)[!grepl("agbd|biome|distance|LU|B0|k0|theta", names(pars_iter))]
 numeric_cols
-tst <- c(numeric_cols, "nearest_mature")
+# Replace "ecoreg" in the names
+numeric_cols <- sub("ecoreg_.*", "ecoreg", numeric_cols)
 
+# Replace "soil" in the names
+numeric_cols <- sub("soil_.*", "soil", numeric_cols)
+tst <- unique(c(numeric_cols, "nearest_mature"))
+tst
 lm_cv_output <- cross_valid(data_lm, run_lm, tst)
 optim_cv_output <- cross_valid(data_opt, run_optim, pars_iter, conditions)
 optim_cv_output$rsq
@@ -29,24 +42,7 @@ lm_cv_output$rsq
 run_optim(data, pars_iter, conditions)
 which(is.na(growth_curve(pars_iter, data)))
 
-run_rf <- function(train_data, pars, test_data) {
-    lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
-
-    model <- randomForest(lm_formula, data = train_data, ntree = 100)
-
-    filtered_test_data <- filter_test_data(train_data, test_data)
-
-    pred <- predict(model, newdata = filtered_test_data)
-    rsq <- calc_rsq(filtered_test_data, pred)
-    print(paste("R-squared:", rsq))
-
-    return(list(
-        model_par = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
-        rsq = rsq
-    ))
-}
-
-
+iterations_optim[17,]
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Correlations ---------------------------------------#
