@@ -1,5 +1,4 @@
 
-library(ggplot2)
 library(foreach)
 library(doParallel)
 library(tidyverse)
@@ -12,7 +11,7 @@ source("fit_1_import_data.r")
 source("fit_2_functions.r")
 
 set.seed(1)
-ncores <- 20
+ncores <- 40
 registerDoParallel(cores = ncores)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -20,7 +19,7 @@ registerDoParallel(cores = ncores)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 fit_logistic <- FALSE
-find_ideal_combination_pars <- FALSE
+find_ideal_combination_pars <- TRUE
 export_results <- FALSE
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -33,8 +32,9 @@ name_export <- name_import
 # number of rows to be included in analysis
 n_samples <- 10000
 
-# Define climatic parameters that change yearly
+# List of climatic parameters that change yearly
 climatic_pars <- c("prec", "si")
+categorical <- c("ecoreg", "soil")
 
 # Define parameters that do not correspond to data, used for functional form
 if (fit_logistic) {
@@ -47,6 +47,7 @@ if (fit_logistic) {
     non_data_pars <- c("k0", "B0_exp", "B0", "theta")
 }
 
+# biomes <- c("amaz", "atla", "pant", "all")
 biomes <- c("amaz", "atla", "both")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -59,46 +60,52 @@ intervals <- list("5yr", "10yr", "15yr", "all")
 # names <- apply(combinations, 1, paste, collapse = "_")
 
 datafiles <- paste0("./data/", name_import, "_", intervals, ".csv")
-dataframes <- lapply(datafiles, import_climatic_data, normalize = TRUE, convert_to_dummy = TRUE)
-dataframes <- prepare_dataframes(dataframes, c(1, 4))
-dataframes_lm <- lapply(datafiles, import_climatic_data, normalize = TRUE, convert_to_dummy = FALSE)
-dataframes_lm <- prepare_dataframes(dataframes_lm, c(1, 4))
+dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE)
+dataframes_lm <- lapply(datafiles, import_data, convert_to_dummy = FALSE)
+
+# for (i in 1:length(dataframes_lm)){
+#     write.csv(dataframes_lm[[i]][[1]], paste0("processed_amaz_", intervals[[i]], ".csv"))
+#     write.csv(dataframes_lm[[i]][[2]], paste0("processed_atla_", intervals[[i]], ".csv"))
+# }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Define Parameters -----------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-# Identify common columns across all dataframes
+# Identify common columns across all dataframes of the same biome (across intervals)
 # (avoids errors for parametesrs like last_LU, that not all dataframes may contain depending on how many rows were sampled)
 # and filter out non-predictors
+data_pars <- c()
+for (i in seq_along(biomes)){
+    colnames_lists <- lapply(dataframes, function(df_list) {
+        colnames(df_list[[i]])
+    })
 
-colnames_lists <- lapply(dataframes, function(df_list) {
-    lapply(df_list, function(df) colnames(df))
-})
+    # Step 2: Find the intersection of all column names
+    colnames_intersect <- Reduce(intersect, colnames_lists)
 
-colnames_lists <- lapply(colnames_lists, unlist)
+    colnames_filtered <- colnames_intersect[!grepl(
+        "age|agbd|prec|si|nearest_mature|distance|biome|cwd",
+        colnames_intersect
+    )]
+    colnames_filtered
 
-# Step 2: Find the intersection of all column names
-colnames_intersect <- Reduce(intersect, colnames_lists)
-
-colnames_filtered <- colnames_intersect[!grepl(
-    "age|agbd|latitude|longitude|prec|si|nearest_mature|distance|biome|cwd",
-    colnames_intersect
-)]
-
-# Define different sets of data parameters for modeling
-data_pars <- list(
-    c("cwd"),
-    c("cwd", "mean_prec", "mean_si"),
-    c("cwd", climatic_pars),
-    c(colnames_filtered[!grepl("ecoreg|soil|last_LU", colnames_filtered)], "cwd", "mean_prec", "mean_si"), # land use only
-    c(colnames_filtered, "cwd", "mean_prec", "mean_si"),
-    c(colnames_filtered[!grepl("ecoreg|soil|last_LU", colnames_filtered)], "cwd", climatic_pars), # land use only
-    c(colnames_filtered, "cwd", climatic_pars)
-)
+    # Define different sets of data parameters for modeling
+    biome_pars <- list(
+        c("cwd"),
+        c("cwd", "mean_prec", "mean_si"),
+        c("cwd", climatic_pars),
+        c(colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)], "cwd", "mean_prec", "mean_si"), # land use only
+        c(colnames_filtered, "cwd", "mean_prec", "mean_si"),
+        c(colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)], "cwd", climatic_pars), # land use only
+        c(colnames_filtered, "cwd", climatic_pars)
+    )
+    data_pars[[i]] <- biome_pars
+}
 
 data_pars_names <- c(
-    "cwd", "mean_clim", "yearly_clim", "all_continuous_mean_clim", "all_mean_clim",
+    "cwd", "mean_clim", "yearly_clim",
+    "all_continuous_mean_clim", "all_mean_clim",
     "all_continuous_yearly_clim", "all_yearly_clim"
 )
 
@@ -118,7 +125,7 @@ if (!fit_logistic) {
 
 iterations_optim <- expand.grid(
     interval = seq_along(intervals),
-    data_par = seq_along(data_pars),
+    data_par = seq_along(data_pars[[1]]),
     biome = seq_along(biomes)
 )
 
@@ -133,7 +140,6 @@ if (!fit_logistic) {
     # Remove rows where both conditions are met
     iterations_optim <- iterations_optim %>% filter(!(basic_par %in% basic_pars_with_age & data_par %in% data_pars_with_climatic))
 }
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ----------------------------- Find ideal parameters -----------------------------------#
@@ -155,7 +161,8 @@ if (export_results){
         iter = 1:nrow(iterations_optim),
         .combine = "bind_rows", .packages = c("dplyr", "randomForest")
     ) %dopar% {
-        # for(iter in 1:nrow(iterations_optim)){
+
+    # for (iter in 1:length(initial_pars)){
 
         # Extract iteration-specific parameters
         i <- iterations_optim$interval[iter]
@@ -172,7 +179,6 @@ if (export_results){
         }
 
         pars_iter <- initial_pars[[iter]] # Parameters obtained from "find combination pars"
-
         # Perform cross-validation and process results
         optim_cv_output <- cross_valid(data, run_optim, pars_iter, conditions)
         row <- process_row(optim_cv_output, "optim", intervals[[i]], pars_names, biome_name)
@@ -181,18 +187,16 @@ if (export_results){
             data <- dataframes_lm[[i]][[k]]
 
             lu_pars <- names(pars_iter[!names(pars_iter) %in% non_data_pars])
-
             lm_cv_output <- cross_valid(data, run_lm, unique(c(lu_pars, "nearest_mature")))
 
             row_lm <- process_row(lm_cv_output, "lm", intervals[[i]], pars_names, biome_name)
             row <- rbind(row, row_lm)
-
         }
 
         print(row)
         row
     }
 
-    write.csv(results, "optim_results.csv", row.names = FALSE)
+    write.csv(results, paste0("./data/", name_export, "_results.csv"), row.names = FALSE)
 }
 

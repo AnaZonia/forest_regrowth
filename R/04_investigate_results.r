@@ -7,49 +7,55 @@
 library(corrplot)
 library(tidyverse)
 
+source("fit_1_import_data.r")
 source("fit_3_run_model.r")
 source("fit_2_functions.r")
-lm_cv_output <- cross_valid(data_lm, run_lm, c("ecoreg"))
 
-find_combination_pars(iterations_optim)
 
-data <- dataframes_lm[[2]][[3]]
-colnames(data_lm)
+length(pars_iter)
+pars_iter <- readRDS("./data/non_aggregated_ideal_par_combination.rds")
+data_lm <- dataframes_lm[[4]][[1]]
+data_opt <- dataframes[[4]][[1]]
 
-lm_cv_output <- cross_valid(data_lm, run_lm, c("ecoreg"))
+numeric_cols <- names(pars_iter)[!grepl("agbd|biome|distance|soil|ecoreg|LU|B0|k0|theta", names(pars_iter))]
+numeric_cols
+tst <- c(numeric_cols, "nearest_mature")
 
-indices <- sample(c(1:5), nrow(data), replace = TRUE)
-test <- data[indices == 1, ]
-train_data <- data[!indices == 1, ]
-for (col in names(train_data)) {
-    if (is.factor(train_data[[col]])) {
-        levels_train <- levels(train_data[[col]])
-        print(levels_train)
-        test <- test[test[[col]] %in% levels_train, ]
-        levels_test <- levels(test[[col]])
-        print(levels_test)
-    }
+lm_cv_output <- cross_valid(data_lm, run_lm, tst)
+optim_cv_output <- cross_valid(data_opt, run_optim, pars_iter, conditions)
+optim_cv_output$rsq
+lm_cv_output$rsq
+
+run_optim(data, pars_iter, conditions)
+which(is.na(growth_curve(pars_iter, data)))
+
+run_rf <- function(train_data, pars, test_data) {
+    lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
+
+    model <- randomForest(lm_formula, data = train_data, ntree = 100)
+
+    filtered_test_data <- filter_test_data(train_data, test_data)
+
+    pred <- predict(model, newdata = filtered_test_data)
+    rsq <- calc_rsq(filtered_test_data, pred)
+    print(paste("R-squared:", rsq))
+
+    return(list(
+        model_par = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
+        rsq = rsq
+    ))
 }
 
 
-source("fit_1_import_data.r")
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ------------------------------------- Correlations ---------------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-
-
-pars_iter <- data_pars[[4]]
-pars_iter
-numeric_cols <- pars_iter[!grepl("prec|si|agbd|biome|distance|soil|ecoreg|LU|B0|k0|theta", pars_iter)]
-numeric_cols
-tst <- c(numeric_cols, "nearest_mature")
-numeric_cols
-lm_cv_output <- cross_valid(data_lm, run_lm, tst)
-
-optim_cv_output <- cross_valid(data, run_optim, pars_iter, conditions)
-
-
-
-
+# very strong correlation - removing last_LU
+anova_result <- aov(lulc_sum_15 ~ last_LU, data = data)
+summary(anova_result)
 
 
 # Remove non-numeric columns
@@ -75,6 +81,8 @@ corrplot(cor_matrix,
     tl.col = "black", tl.srt = 45, addCoef.col = "black",
     number.cex = 0.7, cl.pos = "n"
 )
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Results ---------------------------------------#
