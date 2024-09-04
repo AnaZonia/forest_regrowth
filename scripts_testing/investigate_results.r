@@ -7,15 +7,13 @@
 library(corrplot)
 library(tidyverse)
 
-
 source("fit_1_import_data.r")
 source("fit_3_run_model.r")
 source("fit_2_functions.r")
 
-iterations_optim[,]
 
-pars_iter
-pars_iter <- readRDS("./data/non_aggregated_ideal_par_combination.rds")[[7]]
+length(pars_iter)
+pars_iter <- readRDS("./data/non_aggregated_ideal_par_combination.rds")
 data_lm <- dataframes_lm[[4]][[1]]
 data_opt <- dataframes[[4]][[1]]
 
@@ -30,6 +28,24 @@ lm_cv_output$rsq
 
 run_optim(data, pars_iter, conditions)
 which(is.na(growth_curve(pars_iter, data)))
+
+run_rf <- function(train_data, pars, test_data) {
+    lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
+
+    model <- randomForest(lm_formula, data = train_data, ntree = 100)
+
+    filtered_test_data <- filter_test_data(train_data, test_data)
+
+    pred <- predict(model, newdata = filtered_test_data)
+    rsq <- calc_rsq(filtered_test_data, pred)
+    print(paste("R-squared:", rsq))
+
+    return(list(
+        model_par = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
+        rsq = rsq
+    ))
+}
+
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
