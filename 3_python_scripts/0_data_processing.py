@@ -1,13 +1,21 @@
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#                                                                              
-#                 Forest Regrowth Model Fitting and Comparison                 
-#                                                                              
-#                            Ana Avila - August 2024                           
-#                                                                              
-#     This script runs and compares the Chapman-Richards growth curve fit      
-#     through Scipy (Nelder Mead) and Random Forest
-#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# scripts/data_processing.py
+import pandas as pd
+
+def load_and_preprocess_data(filepath):
+    df = pd.read_csv(filepath)
+
+    # List of columns to convert to 'category' dtype
+    categorical_columns = ['ecoreg', 'biome', 'indig', 'protec', 'soil']
+
+    # Convert the specified columns to 'category' dtype
+    df[categorical_columns] = df[categorical_columns].astype('category')
+
+
+    X = df.drop(columns=['agbd', 'Unnamed: 0', 'biome', 'distance'])
+    y = df['agbd']
+
+    return X, y
+
 
 
 import numpy as np
@@ -22,27 +30,10 @@ from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.inspection import permutation_importance
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold
-
 from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("data/processed_amaz_10yr.csv")
-df = df.drop(columns=[col for col in df.columns if col.startswith('prec_') or col.startswith('si_')])
-# for col in df.columns:
-#     print(col)
-print(df.shape)
-# Separate the response variable (agbd) and predictors
 
-df['ecoreg'] = df['ecoreg'].astype('category')
-df['biome'] = df['biome'].astype('category')
-df['indig'] = df['indig'].astype('category')
-df['protec'] = df['protec'].astype('category')
-df['soil'] = df['soil'].astype('category')
-
-X = df.drop(columns=['agbd', 'Unnamed: 0', 'biome', 'distance'])
-# X = df[['cwd', 'mean_prec', 'mean_si', 'ecoreg', 'nearest_mature']]
-y = df['agbd']                 # Response variable
-print(df.dtypes)
 # Fit the Random Forest Regressor
 # Create the Random Forest Regressor
 model = RandomForestRegressor(n_estimators=200, random_state=42)
