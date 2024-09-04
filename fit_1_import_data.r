@@ -134,7 +134,7 @@ import_data <- function(path, convert_to_dummy) {
         select(-any_of(columns_to_remove)) %>%
         select(-starts_with("system")) %>%
         mutate(across(all_of(categorical), as.factor))
-
+    print(nrow(data))
     data <- data[data$biome %in% c(1, 4), ]
 
     list_of_dfs <- split(data, data$biome)

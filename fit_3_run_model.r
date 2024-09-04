@@ -11,7 +11,7 @@ source("fit_1_import_data.r")
 source("fit_2_functions.r")
 
 set.seed(1)
-ncores <- 20
+ncores <- 40
 registerDoParallel(cores = ncores)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -47,6 +47,7 @@ if (fit_logistic) {
     non_data_pars <- c("k0", "B0_exp", "B0", "theta")
 }
 
+# biomes <- c("amaz", "atla", "pant", "all")
 biomes <- c("amaz", "atla", "both")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -61,6 +62,11 @@ intervals <- list("5yr", "10yr", "15yr", "all")
 datafiles <- paste0("./data/", name_import, "_", intervals, ".csv")
 dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE)
 dataframes_lm <- lapply(datafiles, import_data, convert_to_dummy = FALSE)
+
+# for (i in 1:length(dataframes_lm)){
+#     write.csv(dataframes_lm[[i]][[1]], paste0("processed_amaz_", intervals[[i]], ".csv"))
+#     write.csv(dataframes_lm[[i]][[2]], paste0("processed_atla_", intervals[[i]], ".csv"))
+# }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Define Parameters -----------------------------------#
@@ -94,12 +100,12 @@ for (i in seq_along(biomes)){
         c(colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)], "cwd", climatic_pars), # land use only
         c(colnames_filtered, "cwd", climatic_pars)
     )
-
     data_pars[[i]] <- biome_pars
 }
 
 data_pars_names <- c(
-    "cwd", "mean_clim", "yearly_clim", "all_continuous_mean_clim", "all_mean_clim",
+    "cwd", "mean_clim", "yearly_clim",
+    "all_continuous_mean_clim", "all_mean_clim",
     "all_continuous_yearly_clim", "all_yearly_clim"
 )
 
@@ -185,7 +191,6 @@ if (export_results){
 
             row_lm <- process_row(lm_cv_output, "lm", intervals[[i]], pars_names, biome_name)
             row <- rbind(row, row_lm)
-
         }
 
         print(row)
