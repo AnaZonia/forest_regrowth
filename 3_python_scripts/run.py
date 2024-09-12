@@ -1,17 +1,17 @@
 # main.py
+from data_processing import load_and_preprocess_data
+from nelder_mead import objective_function, cross_validate
+from scipy.optimize import minimize
 
 def main():
-    X, y = load_and_preprocess_data("data/processed_atla_all.csv")
+    X, y, initial_params = load_and_preprocess_data("0_data/processed_atla_all.csv")
     
-    conditions = [
-    lambda pars: pars.get('theta', float('inf')) > 10,
-    lambda pars: pars.get('theta', float('-inf')) < 0,
-    lambda pars: pars.get('B0', float('inf')) < 0
-    ]
+    # Optimize using Nelder-Mead
+    result = minimize(cross_validate, initial_params, method='Nelder-Mead')
 
     # Fit Nelder-Mead
-    nelder_mead_params = fit_nelder_mead(X, y)
-    print(f"Nelder-Mead fitted parameters: {nelder_mead_params}")
+    # nelder_mead_params = fit_nelder_mead(X, y)
+    # print(f"Nelder-Mead fitted parameters: {nelder_mead_params}")
 
     # # Fit Random Forest
     # rf_model, cv_scores, feature_importances = fit_random_forest(X, y)
