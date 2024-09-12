@@ -15,4 +15,11 @@ def load_and_preprocess_data(filepath):
     X = df[pars]    
     y = df['agbd']
 
-    return X, y
+    # Create the new DataFrame with one row
+    pars = pd.DataFrame(columns=pars)
+    # Fill the row with values
+    pars.loc[0] = 0  # Set all values to 1 initially
+    pars.loc[0, 'theta'] = 1
+    pars.loc[0, 'B0'] = df['agbd'].mean()
+
+    return X, y, pars
