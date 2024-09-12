@@ -7,42 +7,9 @@
 library(corrplot)
 library(tidyverse)
 
-source("fit_1_import_data.r")
-source("fit_3_run_model.r")
-source("fit_2_functions.r")
-
-
-length(pars_iter)
-pars_iter
-pars_iter <- readRDS("./data/non_aggregated_ideal_par_combination.rds")
-pars_iter <- readRDS("./data/non_aggregated_ideal_par_combination.rds")[[63]]
-data_lm <- dataframes_lm[[1]][[1]]
-data_opt <- dataframes[[1]][[1]]
-
-result <- subset(iterations_optim, interval == 3 & data_par == 1 & biome == 1)
-result <- Filter(function(x) "ecoreg_476" %in% names(x), pars_iter)
-indices <- which(sapply(pars_iter, function(x) "ecoreg_476" %in% names(x)))
-indices
-pars_iter <- pars_iter[[17]]
-
-numeric_cols <- names(pars_iter)[!grepl("agbd|biome|distance|LU|B0|k0|theta", names(pars_iter))]
-numeric_cols
-# Replace "ecoreg" in the names
-numeric_cols <- sub("ecoreg_.*", "ecoreg", numeric_cols)
-
-# Replace "soil" in the names
-numeric_cols <- sub("soil_.*", "soil", numeric_cols)
-tst <- unique(c(numeric_cols, "nearest_mature"))
-tst
-lm_cv_output <- cross_valid(data_lm, run_lm, tst)
-optim_cv_output <- cross_valid(data_opt, run_optim, pars_iter, conditions)
-optim_cv_output$rsq
-lm_cv_output$rsq
-
-run_optim(data, pars_iter, conditions)
-which(is.na(growth_curve(pars_iter, data)))
-
-iterations_optim[17,]
+source("1_import_data.r")
+source("3_run_model.r")
+source("2_functions.r")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Correlations ---------------------------------------#
