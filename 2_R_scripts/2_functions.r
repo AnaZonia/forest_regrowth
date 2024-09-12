@@ -72,12 +72,12 @@ growth_curve <- function(pars, data) {
     # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
     k[which(k > 7)] <- 7
 
-    # # Constrains k to avoid negative values
-    # if ("k0" %in% names(pars)) {
-    #     k[which(k < 0)] <- -log(1 - mean(data[["agbd"]]) / mean(data[["nearest_mature"]]))
-    # } else {
-    #     k[which(k < 0)] <- 0
-    # }
+    # Constrains k to avoid negative values
+    if ("k0" %in% names(pars)) {
+        k[which(k < 0)] <- -log(1 - mean(data[["agbd"]]) / mean(data[["nearest_mature"]]))
+    } else {
+        k[which(k < 0)] <- 0
+    }
 
     if (fit_logistic) {
         return(data[["nearest_mature"]] * (1 / (1 + exp(k))))
