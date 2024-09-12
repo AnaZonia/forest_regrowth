@@ -69,7 +69,8 @@ dataframes_lm <- prepare_dataframes(dataframes_lm, c(1, 4))
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Identify common columns across all dataframes
-# (avoids errors for parametesrs like last_LU, that not all dataframes may contain depending on how many rows were sampled)
+# (avoids errors for parametesrs like last_LU, that not all 
+# dataframes may contain depending on how many rows were sampled)
 # and filter out non-predictors
 
 colnames_lists <- lapply(dataframes, function(df_list) {
