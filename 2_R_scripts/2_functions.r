@@ -196,6 +196,7 @@ run_lm <- function(train_data, pars, test_data) {
 
 
 
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------- Filter Test Data to Match Training Data Range -------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -296,6 +297,12 @@ cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
         # Define the test and train sets
         test_data <- data[indices == index, ]
         train_data <- data[!indices == index, ]
+
+        # Normalize training and test sets independently, but using training data's min/max for both
+        norm_data <- normalize_independently(train_data, test_data)
+        train_data <- norm_data$train_data
+        test_data <- norm_data$test_data
+
         # Run the model function on the training set and evaluate on the test set
         if (identical(run_function, run_optim)){
             model_output <- run_function(train_data, pars_iter, conditions, test_data)
@@ -318,6 +325,45 @@ cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
     return(result)
 }
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# -------------------------- Prepare Dataframes Function --------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Function used in import_data to normalize numeric columns in dataframes.
+# Arguments:
+#   data             : The dataframe to be used for analysis
+# Returns:
+#   data             : A dataframe with normalized numerical values
+
+normalize_independently <- function(train_data, test_data) {
+    # Columns to exclude from normalization
+    exclude_cols <- c("soil", "biome", "ecoreg", "last_LU", "protec", "indig", "agbd", "nearest_mature", "fallow")
+
+    # Select numeric columns for normalization, excluding specified ones
+    norm_cols <- setdiff(names(train_data)[sapply(train_data, is.numeric)], exclude_cols)
+
+    # Compute min and max for normalization based on training data
+    train_min_max <- train_data %>%
+        summarise(across(all_of(norm_cols), list(min = ~ min(., na.rm = TRUE), max = ~ max(., na.rm = TRUE))))
+
+    # Normalize training and test data using training min/max values
+    normalize <- function(data) {
+        data %>%
+            mutate(across(
+                all_of(norm_cols),
+                ~ (. - train_min_max[[paste0(cur_column(), "_min")]]) /
+                    (train_min_max[[paste0(cur_column(), "_max")]] - train_min_max[[paste0(cur_column(), "_min")]])
+            ))
+    }
+
+    train_data_norm <- normalize(train_data)
+    test_data_norm <- normalize(test_data)
+
+    # Remove columns that are entirely NA (optional)
+    train_data_norm <- train_data_norm %>% select(where(~ sum(is.na(.)) < nrow(train_data_norm)))
+    test_data_norm <- test_data_norm %>% select(where(~ sum(is.na(.)) < nrow(test_data_norm)))
+
+    return(list(train_data = train_data_norm, test_data = test_data_norm))
+}
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------- Identify Optimal Parameter Combination -------------------#

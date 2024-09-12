@@ -76,7 +76,6 @@ import_data <- function(path, convert_to_dummy) {
             ungroup() %>% # Ungroup to return to a normal dataframe
             mutate(across(all_of(categorical), droplevels))
         df_sampled <- process_climatic(df_sampled)
-        df_sampled <- normalize(df_sampled)
 
         # Create dummy variables
         if (convert_to_dummy) {
@@ -140,29 +139,5 @@ process_climatic <- function(data) {
     }
 
     return(df_climatic_hist)
-}
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# -------------------------- Prepare Dataframes Function --------------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Function used in import_data to normalize numeric columns in dataframes.
-# Arguments:
-#   data             : The dataframe to be used for analysis
-# Returns:
-#   data             : A dataframe with normalized numerical values
-
-
-normalize <- function(data) {
-    data <- data %>%
-        mutate(across(
-            where(is.numeric) &
-                !matches("soil|biome|ecoreg|last_LU|protec|indig|agbd|nearest_mature|fallow"),
-            # Normalization formula: (x - min(x)) / (max(x) - min(x))
-            ~ (. - min(., na.rm = TRUE)) / (max(., na.rm = TRUE) - min(., na.rm = TRUE))
-        )) %>%
-        # Remove columns that are entirely NA
-        select(where(~ sum(is.na(.)) < nrow(data)))
-
-    return(data)
 }
 

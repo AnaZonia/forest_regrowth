@@ -44,14 +44,9 @@ biomes <- c("amaz", "atla", "both")
 # Define land-use history intervals to import four dataframes
 intervals <- list("5yr", "10yr", "15yr", "all")
 
-datafiles <- paste0("./data/", name_import, "_", intervals, ".csv")
-dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE)
-dataframes_lm <- lapply(datafiles, import_data, convert_to_dummy = FALSE)
-
-# for (i in 1:length(dataframes_lm)){
-#     write.csv(dataframes_lm[[i]][[1]], paste0("processed_amaz_", intervals[[i]], ".csv"))
-#     write.csv(dataframes_lm[[i]][[2]], paste0("processed_atla_", intervals[[i]], ".csv"))
-# }
+dataframes <- import_data("./data/non_aggregated_all.csv", convert_to_dummy = TRUE)
+dataframes_lm <- import_data("./data/non_aggregated_all.csv", convert_to_dummy = FALSE)
+data <- dataframes[[2]]
 
 pars <- c(
     "age", "nearest_mature", "lulc_sum_21", "lulc_sum_15", "lulc_sum_39",
@@ -59,14 +54,6 @@ pars <- c(
     "cwd"
 )
 
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ------------------------------------ Test Model ---------------------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-data <- dataframes[[4]][[2]]
-
-source("./2_R_scripts/2_functions.r")
 initial_pars <- find_combination_pars(pars, data)
 initial_pars
 optim_cv_output <- cross_valid(data, run_optim, initial_pars, conditions)
@@ -75,3 +62,4 @@ optim_cv_output$rsq
 lm_cv_output <- cross_valid(data, run_lm, c("age", "nearest_mature"))
 lm_cv_output$rsq
 initial_pars
+lm_output <- lm(data, c("age", "nearest_mature"))
