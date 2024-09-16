@@ -133,7 +133,7 @@ def main():
         "cwd"
     ]
 
-    X, y, _, _ = load_and_preprocess_data("non_aggregated_5000.csv", pars, keep_biome=True)
+    X, y, _, _, _ = load_and_preprocess_data("non_aggregated_100k_all.csv", pars, keep_all_data=True)
     
     biome_names = {
         1: 'Amazon',
@@ -151,9 +151,9 @@ def main():
     # Create mean plot with standard deviation
     mean_std_plot = create_mean_std_plot(data, biome_names)
 
-    # # Create Amazon nearest_mature comparison plot
-    # mature = plot_amazon_quartile_comparison(data, biome_names, variable='nearest_mature')
-    # cwd = plot_amazon_quartile_comparison(data, variable='cwd')
+    # Create Amazon nearest_mature comparison plot
+    mature = plot_amazon_quartile_comparison(data, biome_names, variable='nearest_mature')
+    cwd = plot_amazon_quartile_comparison(data, variable='cwd')
 
     plt.show()
 
