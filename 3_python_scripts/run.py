@@ -32,7 +32,8 @@ def create_and_evaluate_model(X, y, model, unseen_data, param_grid=None):
     ])
 
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
-
+    splits = list(kf.split(X))
+    
     if param_grid:
         param_grid = {'regressor__' + k: v for k, v in param_grid.items()}
         grid_search = GridSearchCV(pipeline, param_grid, cv=kf, 
@@ -55,8 +56,9 @@ def create_and_evaluate_model(X, y, model, unseen_data, param_grid=None):
         mse_scores = -cv_results['test_neg_mean_squared_error']
         best_index = np.argmin(-cv_results['test_neg_mean_squared_error'])
         best_model = cv_results['estimator'][best_index]
-        # Perform permutation importance
+        train_index, test_index = splits[best_index]
     
+    # Perform permutation importance
     _, test_indices = list(kf.split(X))[best_index]
     X_test = X.iloc[test_indices]
     y_test = y[test_indices]
