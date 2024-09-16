@@ -1,6 +1,5 @@
 # main.py
-from main import load_and_preprocess_data
-import numpy as np
+from main_optimize import load_and_preprocess_data
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -134,11 +133,8 @@ def main():
         "cwd"
     ]
 
-    X, y, initial_params = load_and_preprocess_data("./3_python_scripts/non_aggregated_100k_all.csv", pars)
+    X, y, _, _ = load_and_preprocess_data("non_aggregated_5000.csv", pars, keep_biome=True)
     
-    print((X != 0).sum())
-    print(X['biome'].unique())
-
     biome_names = {
         1: 'Amazon',
         4: 'Atlantic'
@@ -155,9 +151,9 @@ def main():
     # Create mean plot with standard deviation
     mean_std_plot = create_mean_std_plot(data, biome_names)
 
-    # Create Amazon nearest_mature comparison plot
-    mature = plot_amazon_quartile_comparison(data, biome_names, variable='nearest_mature')
-    cwd = plot_amazon_quartile_comparison(data, variable='cwd')
+    # # Create Amazon nearest_mature comparison plot
+    # mature = plot_amazon_quartile_comparison(data, biome_names, variable='nearest_mature')
+    # cwd = plot_amazon_quartile_comparison(data, variable='cwd')
 
     plt.show()
 

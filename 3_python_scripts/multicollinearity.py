@@ -40,7 +40,7 @@ def main():
     ]
 
     # Load and preprocess the data
-    X, y, initial_params = load_and_preprocess_data("./3_python_scripts/non_aggregated_all.csv", pars)
+    X, _, _, _ = load_and_preprocess_data("non_aggregated_100k_all.csv", pars)
     
     # Calculate and plot correlation matrix
     corr_matrix = calculate_correlation_matrix(X)
