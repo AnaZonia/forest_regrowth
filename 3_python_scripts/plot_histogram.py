@@ -1,5 +1,5 @@
 # main.py
-from main_optimize import load_and_preprocess_data
+from run import load_and_preprocess_data
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -87,7 +87,7 @@ def plot_amazon_quartile_comparison(data, variable='nearest_mature'):
 
     # Create masks for each quartile
     q1_mask = amazon_data[variable] <= quartiles[0.25]
-    q4_mask = amazon_data[variable] > quartiles[0.75]
+    q4_mask = amazon_data[variable] > quartiles[0.25]
 
     # Function to calculate mean and std for a group
     def calc_mean_std(group):
@@ -133,27 +133,27 @@ def main():
         "cwd"
     ]
 
-    X, y, _, _, _ = load_and_preprocess_data("non_aggregated_100k_all.csv", pars, keep_all_data=True)
+    X, y, _, _, _ = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars, keep_all_data=True)
     
-    biome_names = {
-        1: 'Amazon',
-        4: 'Atlantic'
-    }
-
     data = {'X': X, 'y': y}
 
-    # Create histograms
-    hist_1 = create_histogram(data, age=1, biome_names=biome_names, 
-                              title='Distribution of biomass by Biome for 1 year old forests')
-    hist_30 = create_histogram(data, age=30, biome_names=biome_names, 
-                               title='Distribution of biomass by Biome for 30 year old forests')
+    # biome_names = {
+    #     1: 'Amazon',
+    #     4: 'Atlantic'
+    # }
 
-    # Create mean plot with standard deviation
-    mean_std_plot = create_mean_std_plot(data, biome_names)
+    # # Create histograms
+    # hist_1 = create_histogram(data, age=1, biome_names=biome_names, 
+    #                           title='Distribution of biomass by Biome for 1 year old forests')
+    # hist_30 = create_histogram(data, age=30, biome_names=biome_names, 
+    #                            title='Distribution of biomass by Biome for 30 year old forests')
 
-    # Create Amazon nearest_mature comparison plot
-    mature = plot_amazon_quartile_comparison(data, biome_names, variable='nearest_mature')
-    cwd = plot_amazon_quartile_comparison(data, variable='cwd')
+    # # Create mean plot with standard deviation
+    # mean_std_plot = create_mean_std_plot(data, biome_names)
+
+    # # Create Amazon nearest_mature comparison plot
+    # mature = plot_amazon_quartile_comparison(data, biome_names, variable='nearest_mature')
+    cwd = plot_amazon_quartile_comparison(data, variable='lulc_sum_39')
 
     plt.show()
 

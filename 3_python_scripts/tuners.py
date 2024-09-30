@@ -3,38 +3,82 @@ import numpy as np
 import ray
 from ray import tune
 from ray.tune.schedulers import ASHAScheduler
-
 from skopt import gp_minimize
 from skopt.space import Real
 from skopt.utils import use_named_args
+from scipy.optimize import dual_annealing
+from deap import base, creator, tools, algorithms
+import random
+from itertools import product
+from tqdm import tqdm
 
-import stan
+def optimize_with_grid_search(fun, params):
+    # Define the grid search space
+    param_grid = {
+        'B0': np.linspace(100, 160, 3),
+        'theta': np.linspace(0.1, 10, 2),
+        'coeff_0': np.linspace(0, 10, 2),  # age
+        **{f'coeff_{i}': np.linspace(-10, 10, 2) for i in range(1, len(params) - 1)},
+        f'coeff_{len(params)-1}': np.linspace(0, 10, 2)  # cwd
+    }
 
-def optimize_with_ray_tune(fun, pars):
+    # Generate all combinations of parameters
+    param_combinations = list(product(*param_grid.values()))
+
+    best_mse = float('inf')
+    best_params = None
+   
+    pbar = tqdm(total=len(param_combinations), desc="Grid Search Progress")
+    
+    # Iterate through all parameter combinations
+    for i, params in enumerate(param_combinations, 1):
+        all_params = np.array(params)
+        mse = fun(params=all_params)
+
+        if mse < best_mse:
+            best_mse = mse
+            best_params = all_params
+            print(f"New best MSE: {best_mse} with params: {best_params}")
+
+            # Update progress bar
+        pbar.update(1)
+
+        # Print progress every 5% of total combinations
+        if i % max(1, len(param_combinations) // 20) == 0:
+            print(f"\nTested {i}/{len(param_combinations)} combinations ({i/len(param_combinations):.1%})")
+
+    pbar.close()
+
+    # Convert best_params to the same format as other optimizers
+    best_config = {
+        'B0': best_params[0],
+        'theta': best_params[1],
+        **{f'coeff_{i}': best_params[i] for i in range(len(params)-1)}
+    }
+
+    return best_config
+
+def optimize_with_ray_tune(fun, params):
     ray.init()
 
     def train_model(config):
-        all_pars = np.array([
+        all_params = np.array([
             config["B0"],
             config["theta"],
-            *[config[f"coeff_{i}"] for i in range(len(pars))]
+            *[config[f"coeff_{i}"] for i in range(len(params))]
         ])
         
         # Objective function with Ray Tune's parameters
-        mse = fun(pars=all_pars)
-        
+        mse = fun(params=all_params)
         ray.train.report({"mse": mse})
     
     config = {
         "B0": tune.uniform(60, 140),
-        "theta": tune.uniform(0.1, 10)
+        "theta": tune.uniform(0.1, 10),
+        "coeff_0": tune.uniform(0, 10),  # age
+        **{f"coeff_{i}": tune.uniform(-10, 10) for i in range(1, len(params)-1)},
+        f"coeff_{len(params)-1}": tune.uniform(0, 10)  # cwd
     }
-
-    # Add individual coefficient parameters
-    config["coeff_0"] = tune.uniform(0, 10)# age
-    for i in range(1,len(pars)-1):
-        config[f"coeff_{i}"] = tune.uniform(-10, 10)
-    config[f"coeff_{len(pars)-1}"] = tune.uniform(0, 10) # cwd
 
 
     scheduler = ASHAScheduler(
@@ -49,37 +93,35 @@ def optimize_with_ray_tune(fun, pars):
         train_model,
         config=config,
         scheduler=scheduler,
-        num_samples=10  # number of different parameter combinations to try
+        num_samples=10,  # number of different parameter combinations to try
+        verbose=0
     )
     
     best_config = analysis.get_best_config(metric="mse", mode="min")
     ray.shutdown()
     return best_config
 
-def optimize_with_skopt(fun, pars):
+
+def optimize_with_skopt(fun, params):
     # Define the search space
     space = [
         Real(60, 140, name='B0'),
         Real(0.1, 10, name='theta'),
         Real(0, 10, name='coeff_0'),  # age
+        *[Real(-10, 10, name=f'coeff_{i}') for i in range(1, len(params) - 1)],
+        Real(0, 10, name=f'coeff_{len(params)-1}')  # cwd
     ]
-    
-    # Add individual coefficient parameters
-    for i in range(1, len(pars) - 1):
-        space.append(Real(-10, 10, name=f'coeff_{i}'))
-    
-    space.append(Real(0, 10, name=f'coeff_{len(pars)-1}'))  # cwd
 
     # Define the objective function for skopt
     @use_named_args(space)
-    def objective(**params):
-        all_pars = np.array([
-            params['B0'],
-            params['theta'],
-            *[params[f'coeff_{i}'] for i in range(len(pars))]
+    def objective(**config):
+        all_params = np.array([
+            config['B0'],
+            config['theta'],
+            *[config[f'coeff_{i}'] for i in range(len(params))]
         ])
         
-        return fun(pars=all_pars)
+        return fun(params=all_params)
 
     # Run the optimization
     result = gp_minimize(
@@ -91,78 +133,57 @@ def optimize_with_skopt(fun, pars):
     )
 
     # Extract the best parameters
+    best_config = {dim.name: value for dim, value in zip(space, result.x)}
+    return best_config
+
+
+
+
+
+def optimize_with_simulated_annealing(fun, params):
+    def objective(x):
+        return fun(params=x)
+
+    bounds = [(60, 140), (0.1, 10)] + [(0, 10)] + [(-10, 10)] * (len(params) - 2) + [(0, 10)]
+    
+    result = dual_annealing(objective, bounds, maxiter=1000, initial_temp=5230, restart_temp_ratio=2e-5, visit=2.62, accept=-5.0, maxfun=1e7, seed=42)
+    
     best_params = {
         'B0': result.x[0],
         'theta': result.x[1],
+        **{f'coeff_{i}': result.x[i+2] for i in range(len(params))}
     }
-    for i in range(len(pars)):
-        best_params[f'coeff_{i}'] = result.x[i+2]
-
     return best_params
 
 
-def optimize_with_pystan_mcmc(fun, pars, X, y, A):
-    # Define the Stan model
-    stan_model = """
-    data {
-        int<lower=0> N;
-        int<lower=0> P;
-        matrix[N, P] X;
-        vector[N] y;
-        vector[N] A;
+
+
+def optimize_with_genetic_algorithm(fun, params):
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+    creator.create("Individual", list, fitness=creator.FitnessMin)
+
+    toolbox = base.Toolbox()
+    toolbox.register("attr_float", random.uniform, -10, 10)
+    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(params)+2)
+    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+
+    def evalOneMax(individual):
+        return fun(params=np.array(individual)),
+
+    toolbox.register("evaluate", evalOneMax)
+    toolbox.register("mate", tools.cxBlend, alpha=0.5)
+    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
+    toolbox.register("select", tools.selTournament, tournsize=3)
+
+    population = toolbox.population(n=100)
+    ngen = 50
+    
+    algorithms.eaSimple(population, toolbox, cxpb=0.5, mutpb=0.2, ngen=ngen, verbose=False)
+
+    best_ind = tools.selBest(population, 1)[0]
+    best_params = {
+        'B0': best_ind[0],
+        'theta': best_ind[1],
+        **{f'coeff_{i}': best_ind[i+2] for i in range(len(params))}
     }
-    parameters {
-        real<lower=0, upper=200> B0;
-        real<lower=0, upper=10> theta;
-        vector[P] coeffs;
-    }
-    model {
-        vector[N] mu;
-        vector[N] k;
-        
-        // Priors
-        B0 ~ uniform(60, 140);
-        theta ~ uniform(0.1, 10);
-        coeffs ~ normal(0, 10);
-        
-        // Model
-        k = X * coeffs + (-log1m(mean(y) / mean(A)));
-        for (n in 1:N) {
-            if (k[n] < 0) {
-                k[n] = -log1m(mean(y) / mean(A));
-            }
-        }
-        mu = B0 + (A - B0) .* (1 - exp(-k)) .^ theta;
-        
-        // Likelihood
-        y ~ normal(mu, 1);  // Assuming unit variance for simplicity
-    }
-    """
-
-    # Prepare data for Stan
-    stan_data = {
-        'N': X.shape[0],
-        'P': X.shape[1],
-        'X': X,
-        'y': y,
-        'A': A
-    }
-
-    # Compile the model
-    sm = pystan.StanModel(model_code=stan_model)
-
-    # Fit the model
-    fit = sm.sampling(data=stan_data, iter=2000, chains=4, warmup=1000, n_jobs=-1)
-
-    # Extract the posterior means
-    B0 = fit['B0'].mean()
-    theta = fit['theta'].mean()
-    coeffs = fit['coeffs'].mean(axis=0)
-
-    # Combine parameters
-    optimized_params = np.concatenate(([B0, theta], coeffs))
-
-    return optimized_params
-
-# Example usage:
-# best_params = optimize_with_pystan_mcmc(objective_function, pars, X, y, A)
+    return best_params

@@ -13,7 +13,7 @@ def load_and_preprocess_data(
         pars: List[str], 
         keep_all_data: bool = False, 
         test_size: int = 10000, 
-        first_stage_sample_size: int = 100, 
+        first_stage_sample_size: int = 500, 
         final_sample_size: int = 10000
     ) -> Tuple[pd.DataFrame, np.ndarray, np.ndarray, np.ndarray, Optional[DataSet]]:
     """
@@ -37,7 +37,17 @@ def load_and_preprocess_data(
         X = df[pars + ['biome', 'nearest_mature']]
         unseen_data = None
     else:
-        df = df[df['biome'] == 4]
+        df = df[df['biome'] == 1]
+        # df = df[df['num_fires_after_regrowth'] == 0]
+
+        # Count non-zero values in each column
+        non_zero_counts = (df[pars] != 0).sum()
+        
+        # Filter columns based on the count of non-zero values
+        valid_columns = non_zero_counts[non_zero_counts >= first_stage_sample_size].index.tolist()
+        
+        # Update pars list
+        pars = [col for col in pars if col in valid_columns]
 
         # Create a composite stratification variable
         df['strat_var'] = (
@@ -56,7 +66,6 @@ def load_and_preprocess_data(
         sample = df.groupby('strat_var').apply(
             lambda x: x.sample(min(len(x), first_stage_sample_size), random_state=42)
         )
-
 
         # Then, fill the rest with stratified sampling
         remaining_sample_size = final_sample_size - len(sample)
