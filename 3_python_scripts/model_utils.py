@@ -154,13 +154,10 @@ def nelder_mead_cv(X, y, A, params, unseen_data, name):
         ('scaler', MinMaxScaler()),
         ('regressor', partial(nelder_mead, A=A))
     ])
-    
+
     fig = plot_learning_curves(X, y, model_pipeline, name)
 
     return mean_r2, std_r2, unseen_r2, fig
-
-
-
 
 
 

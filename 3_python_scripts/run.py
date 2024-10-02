@@ -7,9 +7,9 @@ from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
 from functools import partial
 
-from data_utils import load_and_preprocess_data
+from data_utils import load_and_preprocess_data, load_and_preprocess_data_simplified
 from model_utils import regression_cv, nelder_mead_cv, nelder_mead
-from tuners import optimize_with_ray_tune, optimize_with_skopt, optimize_with_grid_search
+from tuners import optimize_with_grid_search
 
 
 def print_feature_importance(perm_importance, feature_names):
@@ -76,18 +76,17 @@ def regression_main():
 
 
 def nelder_mead_main():
-    pars = ["age_eu"]
+    pars = ["age"]
 
-    X, y, initial_params, A, unseen_data = load_and_preprocess_data("./0_data/mapbiomas_eu.csv", pars)
-    df = df.rename(columns={'age_eu': 'age'})
+    X, y, initial_params, unseen_data = load_and_preprocess_data_simplified("./0_data/mapbiomas_eu.csv", pars)
 
     # Create a partial function for the objective function
-    model = partial(nelder_mead, X = X, y = y, A = A)
+    model = partial(nelder_mead, X = X, y = y)
 
     # Define optimizers
     optimizers = {
-        # "Initial (Non-tuned)": lambda: initial_params,
-        "Grid Search": lambda: optimize_with_grid_search(model, initial_params[2:])
+        "Initial (Non-tuned)": lambda: initial_params,
+        # "Grid Search": lambda: optimize_with_grid_search(model, initial_params[2:])
         # "Ray Tune": lambda: optimize_with_ray_tune(model, initial_params[2:]),
         # "Skopt": lambda: optimize_with_skopt(model, initial_params[2:])
     }
@@ -110,7 +109,7 @@ def nelder_mead_main():
             ])
 
         mean_r2, std_r2, unseen_r2 = nelder_mead_cv(
-            X, y, A, params, unseen_data, name
+            X, y, params, unseen_data, name
         )
         
         print(f"\n{name} Results:")

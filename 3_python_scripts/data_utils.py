@@ -97,3 +97,35 @@ def load_and_preprocess_data(
     initial_params[1] = 1
 
     return X, y, initial_params, A, unseen_data
+
+
+def load_and_preprocess_data_simplified(
+        filepath: str, 
+        pars: List[str], 
+        test_size: int = 10000 
+    ):
+
+    df = pd.read_csv(filepath)
+    df = df.rename(columns={'age_eu': 'age'})
+
+    # Keep 10% of the data as "unseen" for final testing of model performance
+    df, unseen_df = train_test_split(
+        df, test_size=test_size, random_state=42
+    )
+
+    X = df[pars]
+
+    unseen_data = DataSet(
+        X=unseen_df[pars],
+        y=unseen_df['agbd'].values,
+        A=unseen_df['nearest_mature'].values
+    )
+
+    y = df['agbd'].values
+    A = df['nearest_mature'].values  # asymptote
+
+    initial_params = np.zeros(len(pars) + 2)
+    initial_params[0] = y.mean() # B0
+    initial_params[1] = 1 # theta
+
+    return X, y, initial_params, A, unseen_data
