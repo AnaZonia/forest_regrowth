@@ -76,16 +76,13 @@ def regression_main():
 
 
 def nelder_mead_main():
-    pars = [
-        "age", "lulc_sum_21", "lulc_sum_15", "lulc_sum_39",
-        "lulc_sum_41", "num_fires_before_regrowth", "sur_cover",
-        "cwd"
-    ]
+    pars = ["age_eu"]
 
-    X, y, initial_params, A, unseen_data = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars)
+    X, y, initial_params, A, unseen_data = load_and_preprocess_data("./0_data/mapbiomas_eu.csv", pars)
+    df = df.rename(columns={'age_eu': 'age'})
 
     # Create a partial function for the objective function
-    model = partial(nelder_mead, X=X, y=y, A=A)
+    model = partial(nelder_mead, X = X, y = y, A = A)
 
     # Define optimizers
     optimizers = {

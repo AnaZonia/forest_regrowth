@@ -99,7 +99,7 @@ def regression_cv(X, y, model, unseen_data, name, param_grid = None):
 
 
 
-def nelder_mead(params, X, y, A, return_predictions=False):
+def nelder_mead(params, X, y, A, return_predictions = False):
     B0, theta = params[:2]
     coeffs = params[2:]
     
@@ -130,7 +130,7 @@ def nelder_mead_cv(X, y, A, params, unseen_data, name):
         X_train = scaler.fit_transform(X_train)
         X_test = scaler.transform(X_test)
 
-        result = minimize(nelder_mead, params, args=(X_train, y_train, A_train), method='Nelder-Mead')
+        result = minimize(nelder_mead, params, args = (X_train, y_train, A_train), method='Nelder-Mead')
 
         y_pred = nelder_mead(result.x, X_test, y_test, A_test, return_predictions=True)
         r2_value = r2_score(y_test, y_pred)
@@ -154,6 +154,7 @@ def nelder_mead_cv(X, y, A, params, unseen_data, name):
         ('scaler', MinMaxScaler()),
         ('regressor', partial(nelder_mead, A=A))
     ])
+    
     fig = plot_learning_curves(X, y, model_pipeline, name)
 
     return mean_r2, std_r2, unseen_r2, fig

@@ -133,27 +133,33 @@ def main():
         "cwd"
     ]
 
-    X, y, _, _, _ = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars, keep_all_data=True)
+    # X, y, _, _, _ = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars, keep_all_data=True)
+    df = pd.read_csv("./0_data/mapbiomas_eu.csv")
+    df = df.rename(columns={'age_mapbiomas': 'age'})
     
+    # Select only the specified columns
+    X = df[['age', 'biome']]  # Now X contains both age and biome
+    y = df['agbd']
+
     data = {'X': X, 'y': y}
 
-    # biome_names = {
-    #     1: 'Amazon',
-    #     4: 'Atlantic'
-    # }
+    biome_names = {
+        1: 'Amazon'
+        # 4: 'Atlantic'
+    }
 
-    # # Create histograms
-    # hist_1 = create_histogram(data, age=1, biome_names=biome_names, 
-    #                           title='Distribution of biomass by Biome for 1 year old forests')
-    # hist_30 = create_histogram(data, age=30, biome_names=biome_names, 
-    #                            title='Distribution of biomass by Biome for 30 year old forests')
+    # Create histograms
+    hist_1 = create_histogram(data, age=1, biome_names=biome_names, 
+                              title='Distribution of biomass by Biome for 1 year old forests')
+    hist_30 = create_histogram(data, age=30, biome_names=biome_names, 
+                               title='Distribution of biomass by Biome for 30 year old forests')
 
     # # Create mean plot with standard deviation
     # mean_std_plot = create_mean_std_plot(data, biome_names)
 
     # # Create Amazon nearest_mature comparison plot
     # mature = plot_amazon_quartile_comparison(data, biome_names, variable='nearest_mature')
-    cwd = plot_amazon_quartile_comparison(data, variable='lulc_sum_39')
+    # cwd = plot_amazon_quartile_comparison(data, variable='lulc_sum_39')
 
     plt.show()
 
