@@ -13,8 +13,8 @@ print(df[['age_mapbiomas', 'age_eu']].corr())
 
 # Plot median agbd per value of age_eu
 median_agbd_age_eu = df.groupby('age_eu')['agbd'].median().reset_index()
-plt.figure(figsize=(10, 5))
-sns.lineplot(x='age_eu', y='agbd', data=median_agbd_age_eu, marker='o')
+plt.figure(figsize = (10, 5))
+sns.lineplot(x = 'age_eu', y = 'agbd', data = median_agbd_age_eu, marker = 'o')
 plt.title('Median AGBD per Age EU')
 plt.xlabel('age_eu')
 plt.ylabel('Median AGBD')
@@ -22,8 +22,8 @@ plt.show()
 
 # Plot median agbd per value of age_mapbiomas
 median_agbd_age_mapbiomas = df.groupby('age_mapbiomas')['agbd'].median().reset_index()
-plt.figure(figsize=(10, 5))
-sns.lineplot(x='age_mapbiomas', y='agbd', data=median_agbd_age_mapbiomas, marker='o')
+plt.figure(figsize = (10, 5))
+sns.lineplot(x = 'age_mapbiomas', y = 'agbd', data = median_agbd_age_mapbiomas, marker = 'o')
 plt.title('Median AGBD per Age Mapbiomas')
 plt.xlabel('age_mapbiomas')
 plt.ylabel('Median AGBD')

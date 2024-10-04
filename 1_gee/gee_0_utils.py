@@ -51,7 +51,7 @@ def export_image(img, name, folder = None, scale = None, crsTransform = None):
     # Add scale or crsTransform to the task arguments
     if scale is not None:
         task_args['scale'] = scale
-    elif crsTransform is not None:
+    if crsTransform is not None:
         task_args['crsTransform'] = crsTransform
 
     # Create the export task

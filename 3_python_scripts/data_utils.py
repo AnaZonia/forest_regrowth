@@ -11,11 +11,11 @@ class DataSet(NamedTuple):
 def load_and_preprocess_data(
         filepath: str, 
         pars: List[str], 
-        keep_all_data: bool = False, 
-        test_size: int = 10000, 
-        first_stage_sample_size: int = 500, 
+        keep_all_data: bool = False,
+        use_stratified_sample: bool = False,
+        first_stage_sample_size: int = 500,
         final_sample_size: int = 10000
-    ) -> Tuple[pd.DataFrame, np.ndarray, np.ndarray, np.ndarray, Optional[DataSet]]:
+    ) -> Tuple[pd.DataFrame, np.ndarray, np.ndarray, Optional[DataSet]]:
     """
     Load and preprocess data from a CSV file.
 
@@ -23,109 +23,101 @@ def load_and_preprocess_data(
         filepath (str): Path to the CSV file.
         pars (List[str]): List of parameter names to keep.
         keep_all_data (bool): Flag to keep all data or subset by 'biome'. Defaults to False.
-        test_size (int): Number of samples to use as unseen data. Defaults to 10000.
-        first_stage_sample_size (int): Number of samples per stratification group in the first stage. Defaults to 100.
+        use_stratified_sample (bool): Flag to use stratified sampling. Defaults to False.
+        first_stage_sample_size (int): Number of samples per stratification group in the first stage. Defaults to 500.
         final_sample_size (int): Total sample size to use after stratified sampling. Defaults to 10000.
 
     Returns:
-        Tuple[pd.DataFrame, np.ndarray, np.ndarray, np.ndarray, Optional[DataSet]]: 
-        Features (X), target (y), asymptote (A), initial parameters, and unseen dataset (if applicable).
+        Tuple[pd.DataFrame, np.ndarray, np.ndarray, Optional[DataSet]]: 
+        Features (X), target (y), asymptote (A), and unseen dataset (if applicable).
     """
     df = pd.read_csv(filepath)        
+    df = df.rename(columns = {'age_eu': 'age'})
 
     if keep_all_data:
         X = df[pars + ['biome', 'nearest_mature']]
         unseen_data = None
     else:
-        df = df[df['biome'] == 1]
-        # df = df[df['num_fires_after_regrowth'] == 0]
-
-        # Count non-zero values in each column
-        non_zero_counts = (df[pars] != 0).sum()
-        
-        # Filter columns based on the count of non-zero values
-        valid_columns = non_zero_counts[non_zero_counts >= first_stage_sample_size].index.tolist()
-        
-        # Update pars list
-        pars = [col for col in pars if col in valid_columns]
-
-        # Create a composite stratification variable
-        df['strat_var'] = (
-            (df['lulc_sum_39'] > 0).astype(int) * 100 +
-            (df['num_fires_before_regrowth'] > 0).astype(int) * 10 +
-            (df['lulc_sum_41'] > 0).astype(int)
-        )
 
         # Keep 10% of the data as "unseen" for final testing of model performance
-        df, unseen_df = train_test_split(
-            df, test_size=test_size, stratify=df['strat_var'], random_state=42
-        )
+        test_size = len(df) * 0.1
 
-        # Two-stage sampling
-        # First, ensure all categories are represented
-        sample = df.groupby('strat_var').apply(
-            lambda x: x.sample(min(len(x), first_stage_sample_size), random_state=42)
-        )
-
-        # Then, fill the rest with stratified sampling
-        remaining_sample_size = final_sample_size - len(sample)
-        if remaining_sample_size > 0:
-            remaining_df = df[~df.index.isin(sample.index)]
-            stratified_split = StratifiedShuffleSplit(
-                n_splits=1,
-                test_size=remaining_sample_size,
-                random_state=42
-            )
-            _, sample_idx = next(stratified_split.split(remaining_df, remaining_df['strat_var']))
-            df = pd.concat([sample, remaining_df.iloc[sample_idx]])
+        if use_stratified_sample:
+            df, unseen_df, pars = stratified_sample_df(df, pars, test_size, \
+                                                       first_stage_sample_size, final_sample_size)
+        else:
+            df, unseen_df = train_test_split(df, test_size = test_size, random_state = 42)
 
         X = df[pars]
 
         unseen_data = DataSet(
-            X=unseen_df[pars],
-            y=unseen_df['agbd'].values,
-            A=unseen_df['nearest_mature'].values
+            X = unseen_df[pars],
+            y = unseen_df['agbd'].values,
+            A = unseen_df['nearest_mature'].values
         )
-    
 
     y = df['agbd'].values
     A = df['nearest_mature'].values  # asymptote
-    print((X != 0).sum())
 
-    initial_params = np.zeros(len(pars) + 2)
-    initial_params[0] = y.mean()
-    initial_params[1] = 1
-
-    return X, y, initial_params, A, unseen_data
+    return X, y, A, unseen_data
 
 
-def load_and_preprocess_data_simplified(
-        filepath: str, 
-        pars: List[str], 
-        test_size: int = 10000 
-    ):
+def stratified_sample_df(df, pars, test_size,
+        first_stage_sample_size, 
+        final_sample_size):
 
-    df = pd.read_csv(filepath)
-    df = df.rename(columns={'age_eu': 'age'})
+    # Count non-zero values in each column
+    non_zero_counts = (df[pars] != 0).sum()
+    
+    # Filter columns based on the count of non-zero values
+    valid_columns = non_zero_counts[non_zero_counts >= first_stage_sample_size].index.tolist()
+    
+    # Update pars list
+    pars = [col for col in pars if col in valid_columns]
+
+    # Create a composite stratification variable
+    df['strat_var'] = (
+        (df['lulc_sum_39'] > 0).astype(int) * 100 +
+        (df['num_fires_before_regrowth'] > 0).astype(int) * 10 +
+        (df['lulc_sum_41'] > 0).astype(int)
+    )
 
     # Keep 10% of the data as "unseen" for final testing of model performance
     df, unseen_df = train_test_split(
-        df, test_size=test_size, random_state=42
+        df, test_size = test_size, stratify = df['strat_var'], random_state = 42
     )
 
-    X = df[pars]
-
-    unseen_data = DataSet(
-        X=unseen_df[pars],
-        y=unseen_df['agbd'].values,
-        A=unseen_df['nearest_mature'].values
+    # Two-stage sampling
+    # First, ensure all categories are represented
+    sample = df.groupby('strat_var').apply(
+        lambda x: x.sample(min(len(x), first_stage_sample_size), random_state = 42)
     )
 
-    y = df['agbd'].values
-    A = df['nearest_mature'].values  # asymptote
+    # Then, fill the rest with stratified sampling
+    remaining_sample_size = final_sample_size - len(sample)
+    if remaining_sample_size > 0:
+        remaining_df = df[~df.index.isin(sample.index)]
+        stratified_split = StratifiedShuffleSplit(
+            n_splits = 1,
+            test_size = remaining_sample_size,
+            random_state = 42
+        )
+        _, sample_idx = next(stratified_split.split(remaining_df, remaining_df['strat_var']))
+        df = pd.concat([sample, remaining_df.iloc[sample_idx]])
+    return df, unseen_df, pars
+
+
+def make_initial_parameters(pars, y):
 
     initial_params = np.zeros(len(pars) + 2)
     initial_params[0] = y.mean() # B0
     initial_params[1] = 1 # theta
 
-    return X, y, initial_params, A, unseen_data
+
+    initial_params[1] = 0 # m_base
+    initial_params[2] = 1 # sd_base
+    initial_params[3] = 1 # sd
+    initial_params[4] = 1 # theta
+
+
+    return initial_params

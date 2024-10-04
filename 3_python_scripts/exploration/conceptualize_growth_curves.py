@@ -17,19 +17,19 @@ k = 0.1
 theta = 3
 
 # Create a figure with three subplots side by side
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(24, 6))
+fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize = (24, 6))
 
 # Plot 1: Original Growth Model
 t1 = np.linspace(0, 50, 500)
 y_pred1 = growth_model_1(t1, B0, nearest_mature, k, theta)
 
-ax1.plot(t1, y_pred1, 'b-', linewidth=2)
+ax1.plot(t1, y_pred1, 'b-', linewidth = 2)
 ax1.set_title("Original Growth Model")
 ax1.set_xlabel("Time")
 ax1.set_ylabel("Size")
 ax1.grid(True)
-ax1.axhline(y=nearest_mature, color='r', linestyle='--', label='Maximum size')
-ax1.axhline(y=B0, color='g', linestyle='--', label='Initial size')
+ax1.axhline(y = nearest_mature, color = 'r', linestyle = '--', label = 'Maximum size')
+ax1.axhline(y = B0, color = 'g', linestyle = '--', label = 'Initial size')
 ax1.legend()
 
 # Plot 2: Growth Model with k0 added to k*t
@@ -39,7 +39,7 @@ colors = ['r', 'g', 'b']
 
 for k0, color in zip(k_values, colors):
     y2 = growth_model_2(t2, B0, nearest_mature, k, k0, theta)
-    ax2.plot(t2, y2, color=color, label=f'k0 = {k0}')
+    ax2.plot(t2, y2, color = color, label = f'k0 = {k0}')
 
 ax2.set_xlabel('Time')
 ax2.set_ylabel('Size')
@@ -52,7 +52,7 @@ t3 = np.linspace(0, 50, 500)
 
 for k0, color in zip(k_values, colors):
     y3 = growth_model_3(t3, B0, nearest_mature, k, k0, theta)
-    ax3.plot(t3, y3, color=color, label=f'k0 = {k0}')
+    ax3.plot(t3, y3, color = color, label = f'k0 = {k0}')
 
 ax3.set_xlabel('Time')
 ax3.set_ylabel('Size')

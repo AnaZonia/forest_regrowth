@@ -14,8 +14,8 @@ def calculate_correlation_matrix(df):
 
 def plot_correlation_heatmap(corr_matrix):
     """Plot a heatmap of the correlation matrix."""
-    plt.figure(figsize=(12, 10))
-    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', vmin=-1, vmax=1, center=0)
+    plt.figure(figsize = (12, 10))
+    sns.heatmap(corr_matrix, annot = True, cmap = 'coolwarm', vmin = -1, vmax = 1, center = 0)
     plt.title('Correlation Heatmap')
     plt.tight_layout()
     plt.show()
@@ -23,13 +23,13 @@ def plot_correlation_heatmap(corr_matrix):
 def calculate_vif(df):
     """Calculate the Variance Inflation Factor for each feature."""
     scaler = StandardScaler()
-    df_scaled = pd.DataFrame(scaler.fit_transform(df), columns=df.columns)
+    df_scaled = pd.DataFrame(scaler.fit_transform(df), columns = df.columns)
     
     vif_data = pd.DataFrame()
     vif_data["feature"] = df.columns
     vif_data["VIF"] = [variance_inflation_factor(df_scaled.values, i) for i in range(df_scaled.shape[1])]
     
-    return vif_data.sort_values('VIF', ascending=False)
+    return vif_data.sort_values('VIF', ascending = False)
 
 def main():
     # Define the parameters (features) you want to use

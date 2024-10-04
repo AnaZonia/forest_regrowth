@@ -12,9 +12,9 @@ def tune_random_forest(X:pd.DataFrame, y):
         'min_samples_leaf': Integer(1, 10),
     }
     
-    rf = RandomForestRegressor(random_state=42)
-    bayes_cv = BayesSearchCV(rf, param_space, n_iter=50, cv=5, 
-                             scoring='r2', random_state=42, n_jobs=-1)
+    rf = RandomForestRegressor(random_state = 42)
+    bayes_cv = BayesSearchCV(rf, param_space, n_iter = 50, cv = 5, 
+                             scoring = 'r2', random_state = 42, n_jobs = -1)
     bayes_cv.fit(X, y)
     
     return bayes_cv.best_estimator_, bayes_cv.best_params_, bayes_cv.best_score_
@@ -29,7 +29,7 @@ def test_tune_random_forest():
     assert isinstance(model, RandomForestRegressor), "Model is not an instance of RandomForestRegressor"
     assert isinstance(params, dict)
     assert isinstance(score, float)
-    
+
     assert len(params) > 0
     assert score > 0.0
     assert score <= 1.0

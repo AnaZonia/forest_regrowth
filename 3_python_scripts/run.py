@@ -18,9 +18,9 @@ def print_feature_importance(perm_importance, feature_names):
         'importance': perm_importance.importances_mean,
         'std': perm_importance.importances_std
     })
-    feature_importance = feature_importance.sort_values('importance', ascending=False)
+    feature_importance = feature_importance.sort_values('importance', ascending = False)
     print("\nFeature Importance:")
-    print(feature_importance.to_string(index=False))
+    print(feature_importance.to_string(index = False))
 
 
 def regression_main():
@@ -34,8 +34,8 @@ def regression_main():
 
     models = {
         "Linear Regression": LinearRegression(),
-        "XGBoost": XGBRegressor(random_state=42),
-        "Random Forest": RandomForestRegressor(random_state=42),
+        "XGBoost": XGBRegressor(random_state = 42),
+        "Random Forest": RandomForestRegressor(random_state = 42),
 
     }
 
