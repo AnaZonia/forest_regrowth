@@ -24,7 +24,7 @@ climatic_pars <- c("prec", "si")
 import_data <- function(path, convert_to_dummy) {
     categorical <- c("ecoreg", "soil", "last_LU")
     columns_to_remove <- c(
-        ".geo", "latitude", "longitude", "mature_forest_years", "fallow",
+        "latitude", "longitude", "mature_forest_years", "fallow",
         "num_fires_before_first_anthro", "num_fires_after_first_anthro", "num_fires_during_anthro"
     )
 
@@ -35,7 +35,7 @@ import_data <- function(path, convert_to_dummy) {
         } %>%
         select(-starts_with("system")) %>%
         mutate(across(all_of(categorical), as.factor))
-    
+
     # Create dummy variables
     if (convert_to_dummy) {
         data <- dummy_cols(data, select_columns = categorical, remove_selected_columns = TRUE)

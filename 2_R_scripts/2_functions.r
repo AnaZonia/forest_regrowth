@@ -10,13 +10,13 @@
 #     Functions included:
 #     - growth_curve
 #     - likelihood
-#     - filter_test_data
 #     - run_optim
-#     - run_gam
 #     - run_lm
-#     - run_rf
+#     - filter_test_data
+#     - calc_rsq
+#     - cross_valid
 #     - process_row
-#     - run_foreach
+#     - find_combination_pars
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
@@ -44,50 +44,21 @@
 #   - Incorporates growth rate intercept term k0 if provided
 #   - Incorporates yearly-changing climatic parameters if provided.
 
-
-growth_curve <- function(pars, data) {
-
-    # Define parameters that are not expected to change yearly (not prec or si)
-    non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
-
-    # Define whether age is an explicit or implicit parameter (to multiply the other parameters by)
-    implicit_age <- if (!"age" %in% names(pars)) data[["age"]] else rep(1, nrow(data))
-    # Define whether the intercept k0 is to be included in the growth rate k
-    k <- if ("k0" %in% names(pars)) pars[["k0"]] * implicit_age else rep(0, nrow(data))
-
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Calculate the growth rate k
-    if (length(non_clim_pars) > 0) {
-        k <- k + rowSums(sapply(non_clim_pars, function(par) pars[[par]] * data[[par]] * implicit_age))
-    }
-
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
-    for (clim_par in intersect(climatic_pars, names(pars))) {
-        years <- seq(2019, 1985, by = -1)
-        clim_columns <- paste0(clim_par, "_", years)
-        k <- k + rowSums(sapply(clim_columns, function(col) pars[[clim_par]] * data[[col]]))
-    }
-
-    # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
-    k[which(k > 7)] <- 7
-
-    # Constrains k to avoid negative values
-    if ("k0" %in% names(pars)) {
-        k[which(k < 0)] <- -log(1 - mean(data[["agbd"]]) / mean(data[["nearest_mature"]]))
-    } else {
-        k[which(k < 0)] <- 0
-    }
-
-    if (fit_logistic) {
-        return(data[["nearest_mature"]] * (1 / (1 + exp(k))))
-    } else {
-        if ("B0" %in% names(pars)) {
-            return(pars[["B0"]] + (data[["nearest_mature"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
-        } else {
-            return(data[["nearest_mature"]] * (1 - exp(-(pars[["B0_exp"]] + k)))^pars[["theta"]])
-        }
-    }
+growth_curve <- function(pars, data, lag) {
+    # Get the names of data_pars to iterate over
+    k <- rep(1, nrow(data)) # note, this might not be doing what you want. This adds 1, but not a flexible intercept (i.e., a fitted coefficient), which it needs for a "base" growth rate, although I'm not sure - maybe you did it elsewhere.
+    data_pars_names <- names(pars)[!names(pars) %in% c("B0", "theta")]
+    # Calculate k by summing the products of corresponding parameters and data columns
+    #  return(pars[["B0"]] + (data[["nearest_mature"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
+    # I've gotten rid of B0, so that at time zero, it starts at zero.
+    # this requires that k is modified, so that time lags add to the equation
+    # the easiest way might be to take the mean environment etc, and multiply that by time
+    # this is essentially the same thing as adding across time, but we can increase duration...
+    # it loses differnces in the specific env condition earlier on. i.e., it assumes that the years the mean was based on reflects the earlier years too.
+    k <- k + rowSums(sapply(data_pars_names, function(par) pars[[par]] * data[[par]])) * (data["age"] + lag)
+    # as mentioned above, best to use means*time...which should also include the "base" growth rate.
+    # also, order of operations - must calculate
+    return(data[["nearest_mature"]] * (1 - exp(-k))^pars[["theta"]])
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -111,10 +82,22 @@ growth_curve <- function(pars, data) {
 #   growth_curve()
 
 likelihood <- function(pars, data, conditions) {
-    result <- sum((growth_curve(pars, data) - data$agbd)^2)
+    #   result <- sum((growth_curve(pars, data) - data$agbd)^2)
+    scaled_base <- (re_base + pars["m_base"]) * pars["sd_base"] # fit the mean and standard deviation of the delays. mean value zero, and standard deviation of 1 to begin with.
+    # let's make it log normal instead.
+    # note that a log-normal distribution, or some other shape might make more sense. I'm keeping it normal for now...negative values probably don't make sense
+    m_results <- matrix(0, nrow = nrow(data), ncol = length(scaled_base))
+    for (i in 1:length(scaled_base)) # calculate mean across all lags, for each individual
+    { # inefficient - but let's get the logic down first
+        lag <- scaled_base[i]
+        m_results[, i] <- dnorm(growth_curve(pars, lag, data) - data$agbd, sd = par["sd"]) # fills in the likelihood across all individuals (row) for each lag (column)
+    }
+
+    # need to get the "probability", take mean of these across all values (i.e., marginalize), and then sum those across all datapoints.
+    results <- sum(-log(rowMeans(m_results))) # I think it is negative log likelihoods that we need (assuming we are minimizing), but check that.
 
     # Check whether any of the parameters is breaking the conditions (e.g. negative values)
-    if (any(sapply(conditions, function(cond) eval(parse(text = cond))))) {
+    if (any(sapply(conditions, function(cond) cond(pars)))) {
         return(-Inf)
     } else if (is.na(result) || result == 0) {
         return(-Inf)
@@ -154,10 +137,7 @@ likelihood <- function(pars, data, conditions) {
 
 run_optim <- function(train_data, pars, conditions, test_data = NULL) {
     if ("age" %in% names(pars)) {
-        conditions <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
-    }
-    if ("B0" %in% names(pars)) {
-        conditions <- c(conditions, list('pars["B0"] < 0'))
+        conditions <- c(conditions, list(function(pars) pars["age"] < 0))
     }
 
     model <- optim(pars, likelihood, data = train_data, conditions = conditions)
@@ -168,7 +148,7 @@ run_optim <- function(train_data, pars, conditions, test_data = NULL) {
         filtered_test_data <- filter_test_data(train_data, test_data)
         pred <- growth_curve(model$par, filtered_test_data)
         rsq <- calc_rsq(filtered_test_data, pred)
-        # print(paste("R-squared:", rsq))
+        print(paste("R-squared:", rsq))
 
         return(list(
             model_par = t(model$par),
@@ -177,63 +157,7 @@ run_optim <- function(train_data, pars, conditions, test_data = NULL) {
     }
 }
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ---------------------------- Run Linear Model and Evaluate ----------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
-# Function Description:
-#   Fits a linear model using the specified parameters, handles rank deficiency,
-#   predicts on filtered test data, and calculates R-squared.
-#
-# Arguments:
-#   train_data : Data frame containing the training dataset.
-#   pars       : Vector of parameter names to be used in the model.
-#   conditions : Placeholder - not used here, but used to prevent loops in cross_valid and run_foreach
-#   test_data  : Data frame containing the test dataset.
-#
-# Returns:
-#   list containing:
-#     model_par : Named matrix / array of model coefficients (excluding intercept).
-#     rsq       : R-squared value of the model predictions on filtered test data.
-# External Functions:
-#   filtered_data()
-#   calc_rsq()
 
-run_lm <- function(train_data, pars, test_data) {
-
-    # print(levels(train_data[["ecoreg"]]))
-    # print(length(levels(train_data[["ecoreg"]])))
-    print(table(train_data[["ecoreg"]]))
-
-    lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
-
-    model <- lm(lm_formula, data = train_data)
-    # print(summary(model)$coefficients)
-    # print(length(summary(model)$coefficients))
-
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Check for rank deficiency
-    aliased_vars <- summary(model)$aliased
-
-    if (any(aliased_vars)) {
-        problematic_vars <- names(aliased_vars)[aliased_vars]
-        print(paste("Rank-deficient variables:", paste(problematic_vars, collapse = ", ")))
-        for (var in problematic_vars) {
-            print(table(train_data[[var]]))
-        }
-    }
-
-    filtered_test_data <- filter_test_data(train_data, test_data)
-
-    pred <- predict(model, newdata = filtered_test_data)
-    rsq <- calc_rsq(filtered_test_data, pred)
-    print(paste("R-squared:", rsq))
-
-    return(list(
-        model_par = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
-        rsq = rsq
-    ))
-}
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -336,8 +260,14 @@ cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
         # Define the test and train sets
         test_data <- data[indices == index, ]
         train_data <- data[!indices == index, ]
+
+        # Normalize training and test sets independently, but using training data's min/max for both
+        norm_data <- normalize_independently(train_data, test_data)
+        train_data <- norm_data$train_data
+        test_data <- norm_data$test_data
+
         # Run the model function on the training set and evaluate on the test set
-        if (identical(run_function, run_optim)){
+        if (identical(run_function, run_optim)) {
             model_output <- run_function(train_data, pars_iter, conditions, test_data)
         } else {
             model_output <- run_function(train_data, pars_iter, test_data)
@@ -358,65 +288,45 @@ cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
     return(result)
 }
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#------------------------ Process Model Output into DataFrame Row --------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#   This function processes the output from cross-validation or model fitting into a
-#   structured data frame row. It organizes the model parameters, R-squared values, and
-#   other relevant information, ensuring missing parameters are filled with NA, and columns
-#   are ordered according to the specified structure.
-#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# -------------------------- Prepare Dataframes Function --------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Function used in import_data to normalize numeric columns in dataframes.
 # Arguments:
-#   cv_output        : List containing cross-validation output, including coefficients and R-squared values.
-#   model_type       : Type of model ("optim", "lm", "rf", "gam").
-#   data_name        : Name representing the intervals of land use history included (e.g., "5y", "10y", "15y", "all").
-#   data_pars_names  : Names of the fit parameters corresponding to data
-#   basic_pars_names : Names of the basic parameters used in the model (only for "optim" models)
-#   biome_name       : Name of the biome ("amaz", "atla", or "both")
-#
+#   data             : The dataframe to be used for analysis
 # Returns:
-#   A single-row data frame containing the organized model output.
+#   data             : A dataframe with normalized numerical values
 
+normalize_independently <- function(train_data, test_data) {
+    # Columns to exclude from normalization
+    exclude_cols <- c("soil", "biome", "ecoreg", "last_LU", "protec", "indig", "agbd", "nearest_mature", "fallow")
 
-# Define helper functions
-process_row <- function(
-    cv_output, model_type, data_name, data_pars_names, biome_name, basic_pars_names = NULL) {
-    # Initialize a data frame with model parameters (coefficients or variable importance)
-    row <- as.data.frame(cv_output$pars)
-    # Identify parameters missing from this iteration and add them as NA columns
-    all_possible_pars <- unique(unlist(c("nearest_mature", "age", non_data_pars, data_pars)))
-    missing_cols <- setdiff(all_possible_pars, names(row))
-    row[missing_cols] <- NA
+    # Select numeric columns for normalization, excluding specified ones
+    norm_cols <- setdiff(names(train_data)[sapply(train_data, is.numeric)], exclude_cols)
 
-    # Reorder the columns to ensure consistent output structure
-    row <- row[, all_possible_pars]
+    # Compute min and max for normalization based on training data
+    train_min_max <- train_data %>%
+        summarise(across(all_of(norm_cols), list(min = ~ min(., na.rm = TRUE), max = ~ max(., na.rm = TRUE))))
 
-    row$biome_name <- biome_name
-    row$data_name <- data_name
-    row$model_type <- model_type
-    row$data_pars <- data_pars_names
-    row$rsq <- cv_output$rsq
-    row$rsq_sd <- cv_output$rsq_sd
-
-    if (is.null(basic_pars_names)) {
-        row$basic_pars <- NA
-    } else {
-        row$basic_pars <- basic_pars_names
+    # Normalize training and test data using training min/max values
+    normalize <- function(data) {
+        data %>%
+            mutate(across(
+                all_of(norm_cols),
+                ~ (. - train_min_max[[paste0(cur_column(), "_min")]]) /
+                    (train_min_max[[paste0(cur_column(), "_max")]] - train_min_max[[paste0(cur_column(), "_min")]])
+            ))
     }
 
-    # Define the desired order of columns
-    desired_column_order <- c(
-        "biome_name", "data_name", "data_pars", "basic_pars", "model_type",
-        "rsq", "rsq_sd", "nearest_mature", "age"
-    )
+    train_data_norm <- normalize(train_data)
+    test_data_norm <- normalize(test_data)
 
-    row <- row %>%
-        select(all_of(desired_column_order), all_of(non_data_pars), everything())
+    # Remove columns that are entirely NA (optional)
+    train_data_norm <- train_data_norm %>% select(where(~ sum(is.na(.)) < nrow(train_data_norm)))
+    test_data_norm <- test_data_norm %>% select(where(~ sum(is.na(.)) < nrow(test_data_norm)))
 
-    return(row)
+    return(list(train_data = train_data_norm, test_data = test_data_norm))
 }
-
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------- Identify Optimal Parameter Combination -------------------#
@@ -442,122 +352,63 @@ process_row <- function(
 # External Functions:
 #   run_optim()
 
-find_combination_pars <- function(iterations) {
-    ideal_par_combination <- list()
+find_combination_pars <- function(pars, data) {
+    # Initialize parameter vector with basic parameters and theta
+    all_pars_iter <- c(setNames(
+        rep(0, length(pars)),
+        c(pars)
+    ))
 
-    for (iter in 1:nrow(iterations)) {
-        # Extract iteration-specific parameters
-        # i <- 2
-        # j <- 4
-        # k <- 1
-        # l <- 3
-        i <- iterations$interval[iter]
-        j <- iterations$data_par[iter]
-        k <- iterations$biome[iter]
+    all_pars_iter[["theta"]] <- 1
+    all_pars_iter["B0"] <- mean(data[["agbd"]])
 
-        data <- dataframes[[i]][[k]]
-        data_pars_iter <- data_pars[[j]]
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Initialize the best model with basic parameters
+    remaining <- 1:length(pars)
+    taken <- length(remaining) + 1 # out of the range of values such that remaining[-taken] = remaining for the first iteration
 
-        # Initialize parameter vector with basic parameters and theta
-        all_pars_iter <- c(setNames(
-            rep(0, length(data_pars_iter)),
-            c(data_pars_iter)
-        ))
+    # best model list
+    best <- list(AIC = 0)
 
-        if (!fit_logistic) {
-            l <- iterations$basic_par[iter]
-            basic_pars_iter <- basic_pars[[l]]
+    basic_pars <- c("theta", "B0")
+    # beginning with the essential parameters
+    best[["par"]] <- all_pars_iter[names(all_pars_iter) %in% basic_pars]
+    val <- length(basic_pars)
 
-            all_pars_iter[["theta"]] <- 1
-            basic_pars_iter <- c(basic_pars_iter, "theta")
+    base_row <- all_pars_iter
+    base_row[names(all_pars_iter)] <- NA
+    base_row <- c(likelihood = 0, base_row)
 
-            if ("B0" %in% basic_pars_iter) {
-                all_pars_iter["B0"] <- mean(data[["agbd"]])
-            }
+    # Iteratively add parameters and evaluate the model. Keep only AIC improvements.
+    for (i in 1:length(pars)) {
+        iter_df <- data.frame()
+        optim_remaining_pars <- for (j in remaining[-taken]) {
+            # as starting point, take the best values from last time
+            print(j)
+            inipar <- c(best$par, all_pars_iter[pars[j]])
 
-            if ("age" %in% basic_pars_iter) {
-                all_pars_iter["age"] <- 0
-            }
+            model <- run_optim(data, inipar, conditions)
 
-            if ("k0" %in% basic_pars_iter) {
-                if ("B0" %in% basic_pars_iter) {
-                    all_pars_iter["k0"] <- -log(1 - mean(data[["agbd"]]) / mean(data[["nearest_mature"]]))
-                }
-                all_pars_iter["B0_exp"] <- -log(1 - mean(data[["agbd"]]) / mean(data[["nearest_mature"]]))
-                all_pars_iter["k0"] <- 0
-            }
+            iter_row <- base_row
+            iter_row[names(inipar)] <- model$par
+            iter_row["likelihood"] <- model$value
+            iter_row <- as.data.frame(t(iter_row))
+            iter_df <- rbind(iter_df, iter_row)
         }
 
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Handle categorical variables by grouping dummy variables together
+        best_model <- which.min(iter_df$likelihood)
+        best_model_AIC <- 2 * iter_df$likelihood[best_model] + 2 * (i + val + 1)
 
-        categorical <- c("ecoreg", "soil", "last_LU")
-
-        for (cat_var in categorical) {
-            dummy_indices <- grep(cat_var, data_pars_iter)
-            if (length(dummy_indices) > 0) {
-                data_pars_iter <- c(data_pars_iter[-dummy_indices], cat_var)
-            }
-        }
-
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Initialize the best model with basic parameters
-        remaining <- 1:length(data_pars_iter)
-        best <- list(AIC = 0)
-        val <- 0
-        if (!fit_logistic) {
-            best[["par"]] <- all_pars_iter[names(all_pars_iter) %in% basic_pars_iter]
-            val <- length(basic_pars)
-        }
-        taken <- length(remaining) + 1 # out of the range of values such that remaining[-taken] = remaining for the first iteration
-
-        base_row <- all_pars_iter
-        base_row[names(all_pars_iter)] <- NA
-        base_row <- c(likelihood = 0, base_row)
-
-        # Iteratively add parameters and evaluate the model. Keep only AIC improvements.
-        for (i in 1:length(data_pars_iter)) {
-            optim_remaining_pars <- foreach(j = remaining[-taken]) %dopar% {
-                # check for categorical variables (to be included as a group)
-                if (data_pars_iter[j] %in% c("last_LU", "ecoreg", "soil")) {
-                    all_pars_iter_var <- all_pars_iter[grep(data_pars_iter[j], names(all_pars_iter))]
-                    inipar <- c(best$par, all_pars_iter_var)
-                } else {
-                    # as starting point, take the best values from last time
-                    inipar <- c(best$par, all_pars_iter[data_pars_iter[j]])
-                }
-
-                model <- run_optim(data, inipar, conditions)
-                iter_row <- base_row
-                iter_row[names(inipar)] <- model$par
-                iter_row["likelihood"] <- model$value
-                return(iter_row)
-            }
-
-            iter_df <- as.data.frame(do.call(rbind, optim_remaining_pars))
-            best_model <- which.min(iter_df$likelihood)
-            best_model_AIC <- 2 * iter_df$likelihood[best_model] + 2 * (i + val + 1)
-
-            print(paste0("iteration: ", iter, ", num parameters included: ", i))
-            print(best_model_AIC)
-
-            if (best$AIC == 0 | best_model_AIC < best$AIC) {
-                best$AIC <- best_model_AIC
-                best$par <- iter_df[best_model, names(all_pars_iter)]
-                best$par <- Filter(function(x) !is.na(x), best$par)
-                taken <- which(sapply(data_pars_iter, function(x) any(grepl(x, names(best$par)))))
-                df_list <- setNames(as.list(best$par[1, ]), colnames(best$par))
-                # optim_cv_output <- cross_valid(data, run_optim, df_list, conditions)
-                # print(paste("R-squared:", optim_cv_output$rsq))
-            } else {
-                print("No improvement. Exiting loop.")
-                break
-            }
-
-            ideal_par_combination <- append(ideal_par_combination, list(best$par))
-            write_rds(ideal_par_combination, paste0("./data/", name_export, "_ideal_par_combination.rds"))
+        if (best$AIC == 0 | best_model_AIC < best$AIC) {
+            best$AIC <- best_model_AIC
+            best$par <- iter_df[best_model, names(all_pars_iter)]
+            best$par <- Filter(function(x) !is.na(x), best$par)
+            taken <- which(sapply(pars, function(x) any(grepl(x, names(best$par)))))
+        } else {
+            print("No improvement. Exiting loop.")
+            break
         }
     }
 
-    return(ideal_par_combination)
+    return(best$par)
 }

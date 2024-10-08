@@ -14,7 +14,7 @@ from sklearn.inspection import permutation_importance
 
 import stan
 
-def plot_learning_curves(X, y, model, name, scoring = 'neg_mean_squared_error', cv = 5):
+def plot_learning_curves(X, y, model, name, cv = 5):
     """
     Plot learning curves for a given model pipeline.
     
@@ -26,7 +26,7 @@ def plot_learning_curves(X, y, model, name, scoring = 'neg_mean_squared_error', 
         cv (int): Number of cross-validation folds.
     """
     train_sizes, train_scores, test_scores = learning_curve(
-        model, X, y, cv = cv, scoring = scoring,
+        model, X, y, cv = cv, scoring = 'neg_mean_squared_error',
         train_sizes = np.linspace(0.1, 1.0, 10), n_jobs = -1)
     
     # Calculate mean and standard deviation for training set scores
@@ -100,6 +100,8 @@ def regression_cv(X, y, model, unseen_data, name, param_grid = None):
 
     return mean_r2, std_r2, unseen_r2, perm_importance, fig
 
+
+
 def nelder_mead_B0_theta(params, X, y, A, return_predictions = False):
     B0, theta = params[:2]
     coeffs = params[2:]
@@ -140,7 +142,7 @@ def nelder_mead_lag(params, X, y, A, random_state = 1, return_predictions = Fals
     mean_m_results = np.mean(m_results, axis = 1)
     # Replace zero values with epsilon
     mean_m_results[mean_m_results < 1e-10] = 1e-10
-    neg_log_likelihood = -np.sum(np.log(mean_m_results))
+    neg_log_likelihood = np.round(-np.sum(np.log(mean_m_results)), decimals = 4)
     print(neg_log_likelihood)
 
     if return_predictions:
@@ -148,18 +150,20 @@ def nelder_mead_lag(params, X, y, A, random_state = 1, return_predictions = Fals
     else:
         return neg_log_likelihood
 
-def process_fold(fold, X, y, A, params, kf, nelder_mead_func):
+def process_fold(X, y, A, params, kf, nelder_mead_func, fold):
     train_index, test_index = list(kf.split(X))[fold]
     X_train, X_test = X.iloc[train_index], X.iloc[test_index]
     y_train, y_test = y[train_index], y[test_index]
     A_train, A_test = A[train_index], A[test_index]
 
     scaler = MinMaxScaler()
+
     X_train = pd.DataFrame(
         scaler.fit_transform(X_train),
         columns=X_train.columns,
         index=X_train.index
     )
+
     X_test = pd.DataFrame(
         scaler.transform(X_test),
         columns=X_test.columns,
@@ -174,16 +178,10 @@ def process_fold(fold, X, y, A, params, kf, nelder_mead_func):
 
 
 
-def cross_validate_nelder_mead(X, y, A, params, unseen_data, name, func_form):
+def cross_validate_nelder_mead(X, y, A, params, unseen_data, name, nelder_mead_func):
     """
     Cross-validate a model using Nelder-Mead optimization.
     """
-    if func_form == 'B0_theta':
-        nelder_mead_func = nelder_mead_B0_theta
-        scoring = 'neg_mean_squared_error'
-    elif func_form == 'lag':
-        nelder_mead_func = nelder_mead_lag
-        scoring = 'neg_log_likelihood'
 
     kf = KFold(n_splits = 5, shuffle = True, random_state = 42)
 
@@ -193,7 +191,7 @@ def cross_validate_nelder_mead(X, y, A, params, unseen_data, name, func_form):
     # Create a pool of workers
     with multiprocessing.Pool(processes = 4) as pool:
         # Map the process_fold function to the folds
-        results = pool.map(process_fold_partial, range(kf.n_splits))
+        results = pool.map(process_fold_partial, range(5))
 
     # Unpack results
     fold_scores, fit_params = zip(*results)
@@ -209,16 +207,17 @@ def cross_validate_nelder_mead(X, y, A, params, unseen_data, name, func_form):
     y_pred = nelder_mead_func(best_params, unseen_X_scaled, unseen_data.y, unseen_data.A, return_predictions = True)
     unseen_r2 = r2_score(unseen_data.y, y_pred)
 
-    model_pipeline = Pipeline([
-        ('scaler', MinMaxScaler()),
-        ('regressor', partial(nelder_mead_func, A = A))
-    ])
+    if nelder_mead_func == nelder_mead_B0_theta:
+        model_pipeline = Pipeline([
+            ('scaler', MinMaxScaler()),
+            ('regressor', partial(nelder_mead_func, A = A))
+        ])
 
-    fig = plot_learning_curves(X, y, model_pipeline, name, scoring)
+        fig = plot_learning_curves(X, y, model_pipeline, name)
+    else:
+        fig = None
 
-    return mean_scores, std_scores, unseen_r2, fig
-
-
+        return mean_scores, std_scores, unseen_r2, fig
 
 def optimize_with_pystan_mcmc(fun, pars, X, y, A):
     # Define the Stan model

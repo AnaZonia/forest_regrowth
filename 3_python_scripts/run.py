@@ -8,7 +8,7 @@ from xgboost import XGBRegressor
 from functools import partial
 
 from data_utils import load_and_preprocess_data, make_initial_parameters, format_best_params
-from model_utils import regression_cv, cross_validate_nelder_mead, nelder_mead_lag
+from model_utils import regression_cv, cross_validate_nelder_mead, nelder_mead_lag, nelder_mead_B0_theta
 from tuners import optimize_with_grid_search, optimize_with_ray_tune, optimize_with_skopt
 
 
@@ -105,12 +105,17 @@ def nelder_mead_main(tune = False, func_form = 'lag'):
             # Convert best_params to the format your optimization function expects
             params = format_best_params(best_params, pars, func_form)
 
-        mean_score, _, unseen_r2, fig = cross_validate_nelder_mead(
-            X, y, A, params, unseen_data, name, func_form
+        if func_form == "B0_theta":
+            nelder_mead_func = nelder_mead_B0_theta
+        elif func_form == "lag":
+            nelder_mead_func = nelder_mead_lag
+
+        mean_score, std_score, unseen_r2, fig = cross_validate_nelder_mead(
+            X, y, A, params, unseen_data, name, nelder_mead_func
         )
         
         print(f"\n{name} Results:")
-        print(f"Cross-validation values: {mean_score:.3f} (±{mean_score:.3f})")
+        print(f"Cross-validation values: {mean_score:.3f} (±{std_score:.3f})")
         print(f"Unseen data R2: {unseen_r2:.3f}")
         
         figures.append((name, fig))
