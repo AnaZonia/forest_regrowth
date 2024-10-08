@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
 import pandas as pd
+import multiprocessing
 
 from scipy.stats import norm
 from scipy.optimize import minimize
@@ -13,7 +14,7 @@ from sklearn.inspection import permutation_importance
 
 import stan
 
-def plot_learning_curves(X, y, model, name, cv = 5):
+def plot_learning_curves(X, y, model, name, scoring = 'neg_mean_squared_error', cv = 5):
     """
     Plot learning curves for a given model pipeline.
     
@@ -25,7 +26,7 @@ def plot_learning_curves(X, y, model, name, cv = 5):
         cv (int): Number of cross-validation folds.
     """
     train_sizes, train_scores, test_scores = learning_curve(
-        model, X, y, cv = cv, scoring = 'neg_mean_squared_error',
+        model, X, y, cv = cv, scoring = scoring,
         train_sizes = np.linspace(0.1, 1.0, 10), n_jobs = -1)
     
     # Calculate mean and standard deviation for training set scores
@@ -99,7 +100,6 @@ def regression_cv(X, y, model, unseen_data, name, param_grid = None):
 
     return mean_r2, std_r2, unseen_r2, perm_importance, fig
 
-
 def nelder_mead_B0_theta(params, X, y, A, return_predictions = False):
     B0, theta = params[:2]
     coeffs = params[2:]
@@ -116,7 +116,7 @@ def nelder_mead_B0_theta(params, X, y, A, return_predictions = False):
     else:
         return mse
 
-def nelder_mead_lag(params, X, y, A, random_state = 1, return_predictions=False):
+def nelder_mead_lag(params, X, y, A, random_state = 1, return_predictions = False):
 
     m_base, sd_base, sd, theta = params[:4]
     coeffs = params[4:]
@@ -148,61 +148,75 @@ def nelder_mead_lag(params, X, y, A, random_state = 1, return_predictions=False)
     else:
         return neg_log_likelihood
 
+def process_fold(fold, X, y, A, params, kf, nelder_mead_func):
+    train_index, test_index = list(kf.split(X))[fold]
+    X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+    y_train, y_test = y[train_index], y[test_index]
+    A_train, A_test = A[train_index], A[test_index]
 
-def cross_validate_nelder_mead(X, y, A, params, unseen_data, name):
-    fold_scores = []
-    fit_params = []
     scaler = MinMaxScaler()
+    X_train = pd.DataFrame(
+        scaler.fit_transform(X_train),
+        columns=X_train.columns,
+        index=X_train.index
+    )
+    X_test = pd.DataFrame(
+        scaler.transform(X_test),
+        columns=X_test.columns,
+        index=X_test.index
+    )
+
+    result = minimize(nelder_mead_func, params, args=(X_train, y_train, A_train, fold),
+                      method='Nelder-Mead')
+
+    val_score = nelder_mead_func(result.x, X_test, y_test, A_test, fold)
+    return val_score, result.x
+
+
+
+def cross_validate_nelder_mead(X, y, A, params, unseen_data, name, func_form):
+    """
+    Cross-validate a model using Nelder-Mead optimization.
+    """
+    if func_form == 'B0_theta':
+        nelder_mead_func = nelder_mead_B0_theta
+        scoring = 'neg_mean_squared_error'
+    elif func_form == 'lag':
+        nelder_mead_func = nelder_mead_lag
+        scoring = 'neg_log_likelihood'
+
     kf = KFold(n_splits = 5, shuffle = True, random_state = 42)
 
-    for fold, (train_index, test_index) in enumerate(kf.split(X)):
-        print(fold)
-        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-        A_train, A_test = A[train_index], A[test_index]
+    # Create a partial function with fixed arguments
+    process_fold_partial = partial(process_fold, X, y, A, params, kf, nelder_mead_func)
+        
+    # Create a pool of workers
+    with multiprocessing.Pool(processes = 4) as pool:
+        # Map the process_fold function to the folds
+        results = pool.map(process_fold_partial, range(kf.n_splits))
 
-        # Fit and transform X_train, keeping it as a DataFrame
-        X_train = pd.DataFrame(
-            scaler.fit_transform(X_train),
-            columns=X_train.columns,
-            index=X_train.index
-        )
+    # Unpack results
+    fold_scores, fit_params = zip(*results)
 
-        # Transform X_test, keeping it as a DataFrame
-        X_test = pd.DataFrame(
-            scaler.transform(X_test),
-            columns=X_test.columns,
-            index=X_test.index
-        )
-
-        # Using fold as a random state for reproducibility
-        result = minimize(nelder_mead_lag, params, args = (X_train, y_train, A_train, fold), \
-                          method = 'Nelder-Mead')
-
-        val_score = nelder_mead_lag(result.x, X_test, y_test, A_test, fold)
-        fit_params.append(result.x)
-        fold_scores.append(val_score)
-
-    mean_score = np.mean(fold_scores)
-    std_score = np.std(fold_scores)
+    mean_scores = np.mean(fold_scores)
+    std_scores = np.std(fold_scores)
     # Find the best model
     best_index = np.argmin(fold_scores)
     best_params = fit_params[best_index]
 
-    # Calculate r2 of the best model in the unseen dataset
+    scaler = MinMaxScaler()
     unseen_X_scaled = scaler.fit_transform(unseen_data.X)
-    y_pred = nelder_mead_lag(best_params, unseen_X_scaled, unseen_data.y, unseen_data.A, \
-                         return_predictions = True)
+    y_pred = nelder_mead_func(best_params, unseen_X_scaled, unseen_data.y, unseen_data.A, return_predictions = True)
     unseen_r2 = r2_score(unseen_data.y, y_pred)
 
-    # model_pipeline = Pipeline([
-    #     ('scaler', MinMaxScaler()),
-    #     ('regressor', partial(nelder_mead_lag, A = A))
-    # ])
+    model_pipeline = Pipeline([
+        ('scaler', MinMaxScaler()),
+        ('regressor', partial(nelder_mead_func, A = A))
+    ])
 
-    # fig = plot_learning_curves(X, y, model_pipeline, name)
+    fig = plot_learning_curves(X, y, model_pipeline, name, scoring)
 
-    return mean_score, std_score, unseen_r2
+    return mean_scores, std_scores, unseen_r2, fig
 
 
 

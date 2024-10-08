@@ -7,9 +7,9 @@ from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
 from functools import partial
 
-from data_utils import load_and_preprocess_data, make_initial_parameters
+from data_utils import load_and_preprocess_data, make_initial_parameters, format_best_params
 from model_utils import regression_cv, cross_validate_nelder_mead, nelder_mead_lag
-from tuners import optimize_with_grid_search
+from tuners import optimize_with_grid_search, optimize_with_ray_tune, optimize_with_skopt
 
 
 def print_feature_importance(perm_importance, feature_names):
@@ -70,49 +70,50 @@ def regression_main():
 
 
 
-def nelder_mead_main():
+def nelder_mead_main(tune = False, func_form = 'lag'):
     pars = ["age", "cwd"]
 
     X, y, A, unseen_data = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars)
     initial_params = make_initial_parameters(pars, y, lag = True)
 
-    # # Create a partial function for the objective function
-    # model = partial(nelder_mead_lag, X = X, y = y)
-
-    # Define optimizers
-    optimizers = {
-        "Initial (Non-tuned)": lambda: initial_params,
-        # "Grid Search": lambda: optimize_with_grid_search(model, initial_params[2:])
-        # "Ray Tune": lambda: optimize_with_ray_tune(model, initial_params[2:]),
-        # "Skopt": lambda: optimize_with_skopt(model, initial_params[2:])
+    # Define tuners
+    init_param_tuners = {
+        "Initial (Non-tuned)": lambda: initial_params
     }
 
-    # Run optimizers and collect results
-    # figures = []
-    for name, optimizer in optimizers.items():
-        print(f"\nOptimizing with {name}...")
-        best_params = optimizer()
+    if tune:
+        # Create a partial function for the objective function
+        model = partial(nelder_mead_lag, X = X, y = y)
+        # Add tuning methods
+        init_param_tuners.update({
+            "Grid Search": lambda: optimize_with_grid_search(model, initial_params),
+            "Ray Tune": lambda: optimize_with_ray_tune(model, initial_params),
+            "Skopt": lambda: optimize_with_skopt(model, initial_params)
+        })
+
+
+    # Run tuners and collect results
+    figures = []
+    for name, init_params in init_param_tuners.items():
+        print(f"\nTuning with {name}...")
+        best_params = init_params()
         print(f"Best parameters found by {name}:", best_params)
 
         if name == "Initial (Non-tuned)":
             params = initial_params
         else:
             # Convert best_params to the format your optimization function expects
-            params = np.array([
-                best_params["B0"],
-                best_params["theta"],
-                *[best_params[f"coeff_{i}"] for i in range(len(pars))]
-            ])
+            params = format_best_params(best_params, pars, func_form)
 
-        mean_score, _, unseen_r2 = cross_validate_nelder_mead(
-            X, y, A, params, unseen_data, name
+        mean_score, _, unseen_r2, fig = cross_validate_nelder_mead(
+            X, y, A, params, unseen_data, name, func_form
         )
         
         print(f"\n{name} Results:")
         print(f"Cross-validation values: {mean_score:.3f} (±{mean_score:.3f})")
         print(f"Unseen data R2: {unseen_r2:.3f}")
         
-        # figures.append((name, fig))
+        figures.append((name, fig))
 
 if __name__ == "__main__":
     nelder_mead_main()

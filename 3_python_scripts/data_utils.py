@@ -32,13 +32,11 @@ def load_and_preprocess_data(
         Features (X), target (y), asymptote (A), and unseen dataset (if applicable).
     """
     df = pd.read_csv(filepath)        
-    df = df.rename(columns = {'age_eu': 'age'})
 
     if keep_all_data:
         X = df[pars + ['biome', 'nearest_mature']]
         unseen_data = None
     else:
-
         if use_stratified_sample:
                 # Keep 10% of the data as "unseen" for final testing of model performance
             test_size = len(df) * 0.1
@@ -46,9 +44,9 @@ def load_and_preprocess_data(
             df, unseen_df, pars = stratified_sample_df(df, pars, test_size, \
                                                        first_stage_sample_size, final_sample_size)
         else:
-            df = df[df['biome'] == 1]
+            # df = df[df['biome'] == 1]
 
-            # Split biome 1 data: 10k rows for df and 1k for unseen_df
+            # Split data: 10k rows for df and 1k for unseen_df
             df, unseen_df = train_test_split(df, test_size = 0.1, random_state = 42)
 
             df = df.head(10000)  # Take exactly 10k rows (if needed)
@@ -127,3 +125,27 @@ def make_initial_parameters(pars, y, lag = False):
         initial_params[1] = 1  # theta
 
     return initial_params
+
+def format_best_params(best_params, pars, func_form):
+
+    if func_form == "B0_theta":
+        params = np.array([
+            best_params["B0"],
+            best_params["theta"],
+            *[best_params[f"coeff_{i}"] for i in range(len(pars))]
+        ])
+    elif func_form == "lag":
+        params = np.array([
+            best_params["m_base"],
+            best_params["sd_base"],
+            best_params["sd"],
+            best_params["theta"],
+            *[best_params[f"coeff_{i}"] for i in range(len(pars))]
+        ])
+    else:
+        # Fallback: treat all as coefficients if no special params are found
+        params = np.array([
+            *[best_params[f"coeff_{i}"] for i in range(len(pars))]
+        ])
+
+    return params
