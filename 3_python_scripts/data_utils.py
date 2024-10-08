@@ -39,14 +39,20 @@ def load_and_preprocess_data(
         unseen_data = None
     else:
 
-        # Keep 10% of the data as "unseen" for final testing of model performance
-        test_size = len(df) * 0.1
-
         if use_stratified_sample:
+                # Keep 10% of the data as "unseen" for final testing of model performance
+            test_size = len(df) * 0.1
+
             df, unseen_df, pars = stratified_sample_df(df, pars, test_size, \
                                                        first_stage_sample_size, final_sample_size)
         else:
-            df, unseen_df = train_test_split(df, test_size = test_size, random_state = 42)
+            df = df[df['biome'] == 1]
+
+            # Split biome 1 data: 10k rows for df and 1k for unseen_df
+            df, unseen_df = train_test_split(df, test_size = 0.1, random_state = 42)
+
+            df = df.head(10000)  # Take exactly 10k rows (if needed)
+            unseen_df = unseen_df.head(1000)  # Take exactly 1k rows
 
         X = df[pars]
 
@@ -107,17 +113,17 @@ def stratified_sample_df(df, pars, test_size,
     return df, unseen_df, pars
 
 
-def make_initial_parameters(pars, y):
-
-    initial_params = np.zeros(len(pars) + 2)
-    initial_params[0] = y.mean() # B0
-    initial_params[1] = 1 # theta
-
-
-    initial_params[1] = 0 # m_base
-    initial_params[2] = 1 # sd_base
-    initial_params[3] = 1 # sd
-    initial_params[4] = 1 # theta
-
+def make_initial_parameters(pars, y, lag = False):
+    if lag:
+        initial_params = np.zeros(len(pars) + 3)
+        initial_params[0] = 0  # m_base
+        initial_params[1] = 1  # sd_base
+        initial_params[2] = 1  # sd
+        initial_params[3] = 1  # theta
+        initial_params[4] = 0.0001  # par1
+    else:
+        initial_params = np.zeros(len(pars) + 2)
+        initial_params[0] = y.mean()  # B0
+        initial_params[1] = 1  # theta
 
     return initial_params

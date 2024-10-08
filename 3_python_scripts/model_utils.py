@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
+import pandas as pd
 
 from scipy.stats import norm
 from scipy.optimize import minimize
@@ -71,7 +72,7 @@ def regression_cv(X, y, model, unseen_data, name, param_grid = None):
         best_params = grid_search.best_params_
         model = model.set_params(**best_params)
 
-    # in order to find the correct coordinates, we fit again for the best model
+    # After performing grid search, perform cross-validation
     cv_results = cross_validate(model, X, y, cv = kf, 
                         scoring = ['neg_mean_squared_error'],
                         return_estimator = True)
@@ -95,9 +96,8 @@ def regression_cv(X, y, model, unseen_data, name, param_grid = None):
     unseen_r2 = r2_score(unseen_data.y, y_pred)
 
     fig = plot_learning_curves(X, y, best_model, name)
-    
-    return mean_r2, std_r2, unseen_r2, perm_importance, fig
 
+    return mean_r2, std_r2, unseen_r2, perm_importance, fig
 
 
 def nelder_mead_B0_theta(params, X, y, A, return_predictions = False):
@@ -107,84 +107,102 @@ def nelder_mead_B0_theta(params, X, y, A, return_predictions = False):
     adjustment_value = -np.log(1 - (y.mean() / A.mean()))
     k = np.dot(X, coeffs) + adjustment_value
     k = np.where(k < 0, adjustment_value, k)
-    
+
     y_pred = B0 + (A - B0) * (1 - np.exp(-k))**theta
+    mse = np.mean((y - y_pred)**2)
 
     if return_predictions:
         return y_pred
     else:
-        return np.mean((y - y_pred)**2)  # MSE
+        return mse
 
+def nelder_mead_lag(params, X, y, A, random_state = 1, return_predictions=False):
 
-def nelder_mead_lag(params, X, y, A):
     m_base, sd_base, sd, theta = params[:4]
     coeffs = params[4:]
     
     age = X['age']
     X = X.drop('age', axis = 1)
 
+    np.random.seed(random_state)
     re_base = np.random.normal(0, 1, 1000)
     log_normal_scaled_base = np.exp((re_base + m_base) * sd_base)
     
-    # Matrix to store the likelihood for each individual for all lags
     m_results = np.zeros((len(y), len(log_normal_scaled_base)))
+    y_pred_all = np.zeros((len(y), len(log_normal_scaled_base)))
 
     for i, lag in enumerate(log_normal_scaled_base):
         k = np.dot(X, coeffs) * age + lag
-
         y_pred = A * (1 - np.exp(-k))**theta
-        
+        y_pred_all[:, i] = y_pred
         m_results[:, i] = norm.pdf(y_pred - y, scale = sd)
 
-    # Marginalize the likelihood across all lags and take the negative log-likelihood
-    neg_log_likelihood = -np.sum(np.log(np.mean(m_results, axis = 1)))
-    
-    return neg_log_likelihood
+    mean_m_results = np.mean(m_results, axis = 1)
+    # Replace zero values with epsilon
+    mean_m_results[mean_m_results < 1e-10] = 1e-10
+    neg_log_likelihood = -np.sum(np.log(mean_m_results))
+    print(neg_log_likelihood)
+
+    if return_predictions:
+        return np.mean(y_pred_all, axis = 1)
+    else:
+        return neg_log_likelihood
 
 
-
-def nelder_mead_cv(X, y, A, params, unseen_data, name):
-    r2_scores = []
+def cross_validate_nelder_mead(X, y, A, params, unseen_data, name):
+    fold_scores = []
     fit_params = []
     scaler = MinMaxScaler()
     kf = KFold(n_splits = 5, shuffle = True, random_state = 42)
 
-    for train_index, test_index in kf.split(X):
+    for fold, (train_index, test_index) in enumerate(kf.split(X)):
+        print(fold)
         X_train, X_test = X.iloc[train_index], X.iloc[test_index]
         y_train, y_test = y[train_index], y[test_index]
         A_train, A_test = A[train_index], A[test_index]
 
-        X_train = scaler.fit_transform(X_train)
-        X_test = scaler.transform(X_test)
+        # Fit and transform X_train, keeping it as a DataFrame
+        X_train = pd.DataFrame(
+            scaler.fit_transform(X_train),
+            columns=X_train.columns,
+            index=X_train.index
+        )
 
-        result = minimize(nelder_mead, params, args = (X_train, y_train, A_train), method = 'Nelder-Mead')
+        # Transform X_test, keeping it as a DataFrame
+        X_test = pd.DataFrame(
+            scaler.transform(X_test),
+            columns=X_test.columns,
+            index=X_test.index
+        )
 
-        y_pred = nelder_mead(result.x, X_test, y_test, A_test, return_predictions = True)
-        r2_value = r2_score(y_test, y_pred)
-        r2_scores.append(r2_value)
+        # Using fold as a random state for reproducibility
+        result = minimize(nelder_mead_lag, params, args = (X_train, y_train, A_train, fold), \
+                          method = 'Nelder-Mead')
+
+        val_score = nelder_mead_lag(result.x, X_test, y_test, A_test, fold)
         fit_params.append(result.x)
+        fold_scores.append(val_score)
 
-    # Calculate R2 from MSE
-    mean_r2 = np.mean(r2_scores)
-    std_r2 = np.std(r2_scores)
-
+    mean_score = np.mean(fold_scores)
+    std_score = np.std(fold_scores)
     # Find the best model
-    best_index = np.argmax(r2_scores)
+    best_index = np.argmin(fold_scores)
     best_params = fit_params[best_index]
 
     # Calculate r2 of the best model in the unseen dataset
     unseen_X_scaled = scaler.fit_transform(unseen_data.X)
-    y_pred = nelder_mead(best_params, unseen_X_scaled, unseen_data.y, unseen_data.A, return_predictions = True)
+    y_pred = nelder_mead_lag(best_params, unseen_X_scaled, unseen_data.y, unseen_data.A, \
+                         return_predictions = True)
     unseen_r2 = r2_score(unseen_data.y, y_pred)
 
-    model_pipeline = Pipeline([
-        ('scaler', MinMaxScaler()),
-        ('regressor', partial(nelder_mead, A = A))
-    ])
+    # model_pipeline = Pipeline([
+    #     ('scaler', MinMaxScaler()),
+    #     ('regressor', partial(nelder_mead_lag, A = A))
+    # ])
 
-    fig = plot_learning_curves(X, y, model_pipeline, name)
+    # fig = plot_learning_curves(X, y, model_pipeline, name)
 
-    return mean_r2, std_r2, unseen_r2, fig
+    return mean_score, std_score, unseen_r2
 
 
 

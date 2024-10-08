@@ -7,8 +7,8 @@ from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
 from functools import partial
 
-from data_utils import load_and_preprocess_data, load_and_preprocess_data_simplified
-from model_utils import regression_cv, nelder_mead_cv, nelder_mead
+from data_utils import load_and_preprocess_data, make_initial_parameters
+from model_utils import regression_cv, cross_validate_nelder_mead, nelder_mead_lag
 from tuners import optimize_with_grid_search
 
 
@@ -24,11 +24,7 @@ def print_feature_importance(perm_importance, feature_names):
 
 
 def regression_main():
-    pars = [
-        "age", "lulc_sum_21", "lulc_sum_15", "lulc_sum_39",
-        "lulc_sum_41", "num_fires_before_regrowth", "sur_cover",
-        "cwd"
-    ]
+    pars = ["age", "cwd"]
 
     X, y, _, _, unseen_data = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars)
 
@@ -36,7 +32,6 @@ def regression_main():
         "Linear Regression": LinearRegression(),
         "XGBoost": XGBRegressor(random_state = 42),
         "Random Forest": RandomForestRegressor(random_state = 42),
-
     }
 
     param_grids = {
@@ -76,12 +71,13 @@ def regression_main():
 
 
 def nelder_mead_main():
-    pars = ["age"]
+    pars = ["age", "cwd"]
 
-    X, y, initial_params, unseen_data = load_and_preprocess_data_simplified("./0_data/mapbiomas_eu.csv", pars)
+    X, y, A, unseen_data = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars)
+    initial_params = make_initial_parameters(pars, y, lag = True)
 
-    # Create a partial function for the objective function
-    model = partial(nelder_mead, X = X, y = y)
+    # # Create a partial function for the objective function
+    # model = partial(nelder_mead_lag, X = X, y = y)
 
     # Define optimizers
     optimizers = {
@@ -92,7 +88,7 @@ def nelder_mead_main():
     }
 
     # Run optimizers and collect results
-    figures = []
+    # figures = []
     for name, optimizer in optimizers.items():
         print(f"\nOptimizing with {name}...")
         best_params = optimizer()
@@ -108,15 +104,15 @@ def nelder_mead_main():
                 *[best_params[f"coeff_{i}"] for i in range(len(pars))]
             ])
 
-        mean_r2, std_r2, unseen_r2 = nelder_mead_cv(
-            X, y, params, unseen_data, name
+        mean_score, _, unseen_r2 = cross_validate_nelder_mead(
+            X, y, A, params, unseen_data, name
         )
         
         print(f"\n{name} Results:")
-        print(f"Cross-validation R2: {mean_r2:.3f} (±{std_r2:.3f})")
+        print(f"Cross-validation values: {mean_score:.3f} (±{mean_score:.3f})")
         print(f"Unseen data R2: {unseen_r2:.3f}")
         
         # figures.append((name, fig))
 
 if __name__ == "__main__":
-    regression_main()
+    nelder_mead_main()
