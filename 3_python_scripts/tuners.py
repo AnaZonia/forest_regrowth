@@ -1,4 +1,14 @@
-# scripts/hyperparameter_tuning.py
+"""
+tuners.py
+
+This module contains functions for hyperparameter tuning using various methods.
+It includes functions for performing grid search and Ray Tune optimization.
+
+Functions:
+- optimize_with_grid_search: Perform hyperparameter tuning using grid search.
+- optimize_with_ray_tune: Perform hyperparameter tuning using Ray Tune.
+"""
+
 import numpy as np
 import ray
 from ray import tune
@@ -13,6 +23,16 @@ from itertools import product
 from tqdm import tqdm
 
 def optimize_with_grid_search(fun, params):
+    """
+    Perform hyperparameter tuning using grid search.
+
+    Args:
+        fun (function): The objective function to minimize.
+        params (list): List of initial parameters.
+
+    Returns:
+        dict: Best configuration of parameters found by grid search.
+    """
     # Define the grid search space
     param_grid = {
         'B0': np.linspace(100, 160, 3),
@@ -59,6 +79,16 @@ def optimize_with_grid_search(fun, params):
     return best_config
 
 def optimize_with_ray_tune(fun, params):
+    """
+    Perform hyperparameter tuning using Ray Tune.
+
+    Args:
+        fun (function): The objective function to minimize.
+        params (list): List of initial parameters.
+
+    Returns:
+        dict: Best configuration of parameters found by Ray Tune.
+    """
     ray.init()
 
     def train_model(config):

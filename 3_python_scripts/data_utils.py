@@ -1,3 +1,20 @@
+"""
+data_utils.py
+
+This module contains utility functions for loading, preprocessing, and handling data for regression analysis.
+It includes functions for loading data from a CSV file, performing stratified sampling, and generating initial
+parameters for optimization algorithms.
+
+Functions:
+- load_and_preprocess_data: Load and preprocess data from a CSV file.
+- stratified_sample_df: Perform stratified sampling on a DataFrame.
+- make_initial_parameters: Generate initial parameters for optimization.
+- format_best_params: Format the best parameters for optimization.
+
+Classes:
+- DataSet: NamedTuple to store features, target, and asymptote data.
+"""
+
 import pandas as pd
 import numpy as np
 from typing import List, Tuple, NamedTuple, Optional
@@ -66,10 +83,21 @@ def load_and_preprocess_data(
     return X, y, A, unseen_data
 
 
-def stratified_sample_df(df, pars, test_size,
-        first_stage_sample_size, 
-        final_sample_size):
+def stratified_sample_df(df, pars, test_size, first_stage_sample_size, final_sample_size):
+    """
+    Perform stratified sampling on a DataFrame.
 
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+        pars (List[str]): List of parameter names to keep.
+        test_size (float): Proportion of the data to keep as "unseen".
+        first_stage_sample_size (int): Number of samples per stratification group in the first stage.
+        final_sample_size (int): Total sample size to use after stratified sampling.
+
+    Returns:
+        Tuple[pd.DataFrame, pd.DataFrame, List[str]]: 
+        Sampled DataFrame, unseen DataFrame, and updated list of parameters.
+    """
     # Count non-zero values in each column
     non_zero_counts = (df[pars] != 0).sum()
     
@@ -112,6 +140,17 @@ def stratified_sample_df(df, pars, test_size,
 
 
 def make_initial_parameters(pars, y, lag = False):
+    """
+    Generate initial parameters for optimization.
+
+    Args:
+        pars (List[str]): List of parameter names.
+        y (np.ndarray): Target values.
+        lag (bool): Flag to include lag parameters. Defaults to False.
+
+    Returns:
+        np.ndarray: Initial parameters for optimization.
+    """
     if lag:
         initial_params = np.zeros(len(pars) + 3)
         initial_params[0] = 0  # m_base
@@ -127,7 +166,17 @@ def make_initial_parameters(pars, y, lag = False):
     return initial_params
 
 def format_best_params(best_params, pars, func_form):
+    """
+    Format the best parameters for optimization.
 
+    Args:
+        best_params (dict): Dictionary of best parameters.
+        pars (List[str]): List of parameter names.
+        func_form (str): Functional form ('B0_theta' or 'lag').
+
+    Returns:
+        np.ndarray: Formatted parameters for optimization.
+    """
     if func_form == "B0_theta":
         params = np.array([
             best_params["B0"],

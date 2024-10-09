@@ -1,4 +1,24 @@
-# scripts/nelder_mead_fit.py
+"""
+Nelder-Mead Optimization and Regression Analysis Script
+
+This script performs regression analysis and Nelder-Mead optimization on a dataset.
+It includes functionality for:
+1. Standard regression analysis using Linear Regression, XGBoost, and Random Forest
+2. Nelder-Mead optimization with optional hyperparameter tuning
+3. Visualization of results
+
+Modules:
+- data_utils: Contains utility functions for loading, preprocessing, and handling data.
+- model_utils: Contains functions for performing regression and Nelder-Mead optimization.
+- tuners: Contains functions for hyperparameter tuning using various methods.
+
+Functions:
+- print_feature_importance: Prints the feature importance based on permutation importance.
+- regression_main: Main function to perform regression analysis using different models.
+- nelder_mead_main: Main function to perform Nelder-Mead optimization with optional parameter tuning.
+
+"""
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,6 +33,13 @@ from tuners import optimize_with_grid_search, optimize_with_ray_tune, optimize_w
 
 
 def print_feature_importance(perm_importance, feature_names):
+    """
+    Print the feature importance based on permutation importance.
+
+    Parameters:
+    - perm_importance: PermutationImportance object containing importances.
+    - feature_names: List of feature names.
+    """
     feature_importance = pd.DataFrame({
         'feature': feature_names,
         'importance': perm_importance.importances_mean,
@@ -24,6 +51,10 @@ def print_feature_importance(perm_importance, feature_names):
 
 
 def regression_main():
+    """
+    Main function to perform regression analysis using different models.
+    Loads data, performs 5-fold cross-validation, and prints results.
+    """
     pars = ["age", "cwd"]
 
     X, y, _, _, unseen_data = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars)
@@ -71,6 +102,16 @@ def regression_main():
 
 
 def nelder_mead_main(tune = False, func_form = 'lag'):
+    """
+    Main function to perform Nelder-Mead optimization with optional parameter tuning.
+
+    Parameters:
+    - tune: bool, whether to perform parameter tuning using different methods.
+    - func_form: str, the functional form to use ('lag' or 'B0_theta').
+
+    Returns:
+    - None, but prints the results of cross-validation and unseen data R2 scores.
+    """
     pars = ["age", "cwd"]
 
     X, y, A, unseen_data = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars)

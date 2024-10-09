@@ -1,3 +1,21 @@
+"""
+model_utils.py
+
+This module contains utility functions and classes for performing regression analysis and optimization.
+It includes functions for plotting learning curves, performing cross-validation, and optimizing models
+using Nelder-Mead and Stan MCMC methods.
+
+Functions:
+- plot_learning_curves: Plot learning curves for a given model pipeline.
+- regression_cv: Perform cross-validation for regression models.
+- nelder_mead_B0_theta: Objective function for Nelder-Mead optimization with B0 and theta parameters.
+- nelder_mead_lag: Objective function for Nelder-Mead optimization with lag parameters.
+- process_fold: Process a single fold for cross-validation using Nelder-Mead optimization.
+- cross_validate_nelder_mead: Cross-validate a model using Nelder-Mead optimization.
+- optimize_with_pystan_mcmc: Optimize model parameters using PyStan MCMC.
+
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
@@ -55,7 +73,20 @@ def plot_learning_curves(X, y, model, name, cv = 5):
 
 
 def regression_cv(X, y, model, unseen_data, name, param_grid = None):
+    """
+    Perform cross-validation for regression models.
 
+    Args:
+        X (pd.DataFrame): Feature matrix.
+        y (np.ndarray): Target values.
+        model: The regression model to train.
+        unseen_data (DataSet): Unseen data for evaluation.
+        name (str): Name of the model for the plot title.
+        param_grid (dict): Parameter grid for hyperparameter tuning.
+
+    Returns:
+        tuple: Mean R2, standard deviation of R2, unseen R2, permutation importance, and learning curve figure.
+    """
     model = Pipeline([
         ('scaler', MinMaxScaler()),
         ('regressor', model)
@@ -103,6 +134,19 @@ def regression_cv(X, y, model, unseen_data, name, param_grid = None):
 
 
 def nelder_mead_B0_theta(params, X, y, A, return_predictions = False):
+    """
+    Objective function for Nelder-Mead optimization with B0 and theta parameters.
+
+    Args:
+        params (list): List of parameters [B0, theta, coeffs].
+        X (pd.DataFrame): Feature matrix.
+        y (np.ndarray): Target values.
+        A (np.ndarray): Asymptote values.
+        return_predictions (bool): Flag to return predictions instead of MSE.
+
+    Returns:
+        float or np.ndarray: MSE or predictions.
+    """
     B0, theta = params[:2]
     coeffs = params[2:]
     
@@ -119,7 +163,20 @@ def nelder_mead_B0_theta(params, X, y, A, return_predictions = False):
         return mse
 
 def nelder_mead_lag(params, X, y, A, random_state = 1, return_predictions = False):
+    """
+    Objective function for Nelder-Mead optimization with lag parameters.
 
+    Args:
+        params (list): List of parameters [m_base, sd_base, sd, theta, coeffs].
+        X (pd.DataFrame): Feature matrix.
+        y (np.ndarray): Target values.
+        A (np.ndarray): Asymptote values.
+        random_state (int): Random seed for reproducibility.
+        return_predictions (bool): Flag to return predictions instead of negative log-likelihood.
+
+    Returns:
+        float or np.ndarray: Negative log-likelihood or predictions.
+    """
     m_base, sd_base, sd, theta = params[:4]
     coeffs = params[4:]
     
@@ -151,6 +208,21 @@ def nelder_mead_lag(params, X, y, A, random_state = 1, return_predictions = Fals
         return neg_log_likelihood
 
 def process_fold(X, y, A, params, kf, nelder_mead_func, fold):
+    """
+    Process a single fold for cross-validation using Nelder-Mead optimization.
+
+    Args:
+        X (pd.DataFrame): Feature matrix.
+        y (np.ndarray): Target values.
+        A (np.ndarray): Asymptote values.
+        params (list): Initial parameters for optimization.
+        kf (KFold): KFold cross-validator.
+        nelder_mead_func (function): Nelder-Mead objective function.
+        fold (int): Fold index.
+
+    Returns:
+        tuple: Validation score and optimized parameters.
+    """
     train_index, test_index = list(kf.split(X))[fold]
     X_train, X_test = X.iloc[train_index], X.iloc[test_index]
     y_train, y_test = y[train_index], y[test_index]
@@ -181,6 +253,18 @@ def process_fold(X, y, A, params, kf, nelder_mead_func, fold):
 def cross_validate_nelder_mead(X, y, A, params, unseen_data, name, nelder_mead_func):
     """
     Cross-validate a model using Nelder-Mead optimization.
+
+    Args:
+        X (pd.DataFrame): Feature matrix.
+        y (np.ndarray): Target values.
+        A (np.ndarray): Asymptote values.
+        params (list): Initial parameters for optimization.
+        unseen_data (DataSet): Unseen data for evaluation.
+        name (str): Name of the model for the plot title.
+        nelder_mead_func (function): Nelder-Mead objective function.
+
+    Returns:
+        tuple: Mean scores, standard deviation of scores, unseen R2, and learning curve figure.
     """
 
     kf = KFold(n_splits = 5, shuffle = True, random_state = 42)
@@ -220,6 +304,19 @@ def cross_validate_nelder_mead(X, y, A, params, unseen_data, name, nelder_mead_f
         return mean_scores, std_scores, unseen_r2, fig
 
 def optimize_with_pystan_mcmc(fun, pars, X, y, A):
+    """
+    Optimize model parameters using PyStan MCMC.
+
+    Args:
+        fun (function): Objective function to minimize.
+        pars (list): Initial parameters for optimization.
+        X (pd.DataFrame): Feature matrix.
+        y (np.ndarray): Target values.
+        A (np.ndarray): Asymptote values.
+
+    Returns:
+        np.ndarray: Optimized parameters.
+    """
     # Define the Stan model
     stan_model = """
     data {
