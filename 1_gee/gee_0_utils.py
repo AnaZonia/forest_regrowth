@@ -117,9 +117,9 @@ def desired_lulc():
             .updateMask(age))
 
     fire = (ee.Image("projects/mapbiomas-public/assets/brazil/fire/collection3/mapbiomas_fire_collection3_annual_burned_coverage_v1")
-            .select([f"burned_coverage_{year}" for year in config.range_1985_2019])
+            .select([f"burned_coverage_{year}" for year in config.range_1985_2020])
             .byte()
-            .rename([str(year) for year in config.range_1985_2019])
+            .rename([str(year) for year in config.range_1985_2020])
             .updateMask(age))
 
     remapped_image = lulc.bandNames().map(lambda band_name: remap_band(band_name, lulc))
