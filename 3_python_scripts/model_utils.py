@@ -162,6 +162,7 @@ def nelder_mead_B0_theta(params, X, y, A, return_predictions = False):
     else:
         return mse
 
+
 def nelder_mead_lag(params, X, y, A, random_state = 1, return_predictions = False):
     """
     Objective function for Nelder-Mead optimization with lag parameters.

@@ -6,7 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 # Import the load_and_preprocess_data function from your existing script
-from main import load_and_preprocess_data
+from data_utils import load_and_preprocess_data
 
 def calculate_correlation_matrix(df):
     """Calculate the correlation matrix for the dataframe."""
@@ -33,15 +33,17 @@ def calculate_vif(df):
 
 def main():
     # Define the parameters (features) you want to use
-    pars = [
-        "nearest_mature", "age", "lulc_sum_21", "lulc_sum_15", "lulc_sum_39",
-        "lulc_sum_40", "lulc_sum_41", "num_fires_before_regrowth", "sur_cover",
-        "cwd"
-    ]
-
+    # pars = [
+    #     "nearest_mature", "age", "lulc_sum_21", "lulc_sum_15", "lulc_sum_39",
+    #     "lulc_sum_40", "lulc_sum_41", "num_fires_before_regrowth", "sur_cover",
+    #     "cwd"
+    # ]
     # Load and preprocess the data
-    X, _, _, _ = load_and_preprocess_data("non_aggregated_100k_all.csv", pars)
-    
+    # X, _, _, _ = load_and_preprocess_data("./0_data/eu.csv")#, use_stratified_sample = True)
+    X, _, _, _ = load_and_preprocess_data("./0_data/non_aggregated.csv", \
+                                           biome = 4, keep_all_data = True,
+                                           use_stratified_sample = True)
+
     # Calculate and plot correlation matrix
     corr_matrix = calculate_correlation_matrix(X)
     plot_correlation_heatmap(corr_matrix)

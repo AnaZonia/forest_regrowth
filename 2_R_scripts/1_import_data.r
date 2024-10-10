@@ -21,29 +21,34 @@ climatic_pars <- c("prec", "si")
 # Returns:
 #   data             : A dataframe ready for analysis with or without dummy variables.
 
-import_data <- function(path, convert_to_dummy) {
-    categorical <- c("ecoreg", "soil", "last_LU")
-    columns_to_remove <- c(
-        "latitude", "longitude", "mature_forest_years", "fallow",
-        "num_fires_before_first_anthro", "num_fires_after_first_anthro", "num_fires_during_anthro"
-    )
+import_data <- function(path, convert_to_dummy = TRUE) {
+    categorical <- c("ecoreg", "soil", "topography", "last_LU")
 
-    data <- read_csv(path, show_col_types = FALSE) %>% # show_col_types = FALSE quiets a large message during import
-        {
-            cols_present <- columns_to_remove[columns_to_remove %in% names(.)]
-            if (length(cols_present) > 0) select(., -all_of(cols_present)) else .
-        } %>%
-        select(-starts_with("system")) %>%
-        mutate(across(all_of(categorical), as.factor))
+    # Import data
+    data <- read_csv(path, show_col_types = FALSE)
 
-    # Create dummy variables
+    # Create dummy variables only for categorical columns that are present
     if (convert_to_dummy) {
-        data <- dummy_cols(data, select_columns = categorical, remove_selected_columns = TRUE)
+        # Identify which categorical columns are present in the data
+        present_categorical <- intersect(categorical, names(data))
+
+        if (length(present_categorical) > 0) {
+            # Convert present categorical columns to factors
+            data <- data %>%
+                mutate(across(all_of(present_categorical), as.factor))
+
+            # Create dummy variables for present categorical columns
+            data <- dummy_cols(data,
+                select_columns = present_categorical,
+                remove_selected_columns = TRUE
+            )
+        }
     }
 
     print("Imported!")
     return(data)
 }
+
 
 # Function to import and process climatic data, normalize it, and optionally convert categorical variables to dummy variables.
 # Arguments:

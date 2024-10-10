@@ -52,12 +52,15 @@ def print_feature_importance(perm_importance, feature_names):
 
 def regression_main():
     """
-    Main function to perform regression analysis using different models.
-    Loads data, performs 5-fold cross-validation, and prints results.
+    Main function to perform regression analysis using different models for multiple biomes and data sources.
+    Saves the results into a CSV file.
     """
-    pars = ["age", "cwd"]
-
-    X, y, _, _, unseen_data = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars)
+    # Define biomes and data sources
+    biomes = [1, 4, "both"]  # You can extend this as needed
+    filepaths = {
+        "eu": "./0_data/eu.csv",
+        "mapbiomas": "./0_data/non_aggregated.csv"
+    }
 
     models = {
         "Linear Regression": LinearRegression(),
@@ -80,25 +83,52 @@ def regression_main():
             'min_samples_leaf': [1, 4]
         }
     }
-    
-    figures = []
-    for name, model in models.items():
-        mean_r2, std_r2, unseen_r2, perm_importance, fig = regression_cv(
-            X, y, model, unseen_data, name, param_grids[name]
-        )
-        
-        print(f"\n{name} Results:")
-        print(f"Cross-validation R2: {mean_r2:.3f} (±{std_r2:.3f})")
-        print(f"Unseen data R2: {unseen_r2:.3f}")
-        
-        print_feature_importance(perm_importance, X.columns)
-        figures.append((name, fig))
 
-    # Display all figures at the end
-    for name, fig in figures:
-        fig.suptitle(name)
-        plt.show()
+    results_list = []
+    # Loop over each biome and data source
+    for biome in biomes:
+        for datasource, filepath in filepaths.items():
+            # Load and preprocess data for the given biome
+            if filepath == "./0_data/non_aggregated.csv":
+                use_stratified_sample = True
+            else:
+                use_stratified_sample = False
+            
+            X, y, _, unseen_data = load_and_preprocess_data(filepath, \
+                                biome = biome, use_stratified_sample = use_stratified_sample,
+                                first_stage_sample_size = 500, final_sample_size = 15000,
+                                unseen_portion = 0.2)
 
+            # Perform regression analysis for each model
+            for name, model in models.items():
+                mean_r2, std_r2, unseen_r2, perm_importance, _ = regression_cv(
+                    X, y, model, unseen_data, name, param_grids[name]
+                )
+                
+                # Print results for this combination
+                print(f"\n{name} Results for Biome {biome}, DataSource: {datasource}")
+                print(f"Cross-validation R2: {mean_r2:.3f} (±{std_r2:.3f})")
+                print(f"Unseen data R2: {unseen_r2:.3f}")
+                
+                print_feature_importance(perm_importance, X.columns)
+
+                results_list.append({
+                    'biome': biome,
+                    'datasource': datasource,
+                    'model': name,
+                    'cv_r2': mean_r2,
+                    'unseen_r2': unseen_r2
+                })
+                                
+                # # Display the figure (optional)
+                # fig.suptitle(f"{name} - Biome {biome} - {datasource}")
+                # plt.show()
+
+    # After the loop, create the DataFrame from the list of results
+    results_df = pd.DataFrame(results_list)
+    # Save results to CSV
+    results_df.to_csv("./0_results/regression_results.csv", index = False)
+    print("Results saved to ./0_results/regression_results.csv")
 
 
 def nelder_mead_main(tune = False, func_form = 'lag'):
@@ -162,4 +192,4 @@ def nelder_mead_main(tune = False, func_form = 'lag'):
         figures.append((name, fig))
 
 if __name__ == "__main__":
-    nelder_mead_main()
+    regression_main()

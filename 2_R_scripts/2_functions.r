@@ -46,19 +46,15 @@
 
 growth_curve <- function(pars, data, lag) {
     # Get the names of data_pars to iterate over
-    k <- rep(1, nrow(data)) # note, this might not be doing what you want. This adds 1, but not a flexible intercept (i.e., a fitted coefficient), which it needs for a "base" growth rate, although I'm not sure - maybe you did it elsewhere.
-    data_pars_names <- names(pars)[!names(pars) %in% c("B0", "theta")]
-    # Calculate k by summing the products of corresponding parameters and data columns
-    #  return(pars[["B0"]] + (data[["nearest_mature"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
-    # I've gotten rid of B0, so that at time zero, it starts at zero.
-    # this requires that k is modified, so that time lags add to the equation
-    # the easiest way might be to take the mean environment etc, and multiply that by time
-    # this is essentially the same thing as adding across time, but we can increase duration...
-    # it loses differnces in the specific env condition earlier on. i.e., it assumes that the years the mean was based on reflects the earlier years too.
-    k <- k + rowSums(sapply(data_pars_names, function(par) pars[[par]] * data[[par]])) * (data["age"] + lag)
+    k <- rep(pars["k0"], nrow(data))
+
+    data_pars_names <- names(pars)[!names(pars) %in% basic_pars]
+
+    k <- k + rowSums(sapply(data_pars_names, function(par) {
+        pars[[par]] * data[[par]]
+    })) * (data["age"] + lag)
     # as mentioned above, best to use means*time...which should also include the "base" growth rate.
-    # also, order of operations - must calculate
-    return(data[["nearest_mature"]] * (1 - exp(-k))^pars[["theta"]])
+    return(data[["nearest_mature_biomass"]] * (1 - exp(-k))^pars[["theta"]])
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -83,12 +79,11 @@ growth_curve <- function(pars, data, lag) {
 
 likelihood <- function(pars, data, conditions) {
     #   result <- sum((growth_curve(pars, data) - data$agbd)^2)
-    scaled_base <- (re_base + pars["m_base"]) * pars["sd_base"] # fit the mean and standard deviation of the delays. mean value zero, and standard deviation of 1 to begin with.
-    # let's make it log normal instead.
-    # note that a log-normal distribution, or some other shape might make more sense. I'm keeping it normal for now...negative values probably don't make sense
+    scaled_base <- (re_base + pars["m_base"]) * pars["sd_base"]
+
     m_results <- matrix(0, nrow = nrow(data), ncol = length(scaled_base))
     for (i in 1:length(scaled_base)) # calculate mean across all lags, for each individual
-    { # inefficient - but let's get the logic down first
+    {
         lag <- scaled_base[i]
         m_results[, i] <- dnorm(growth_curve(pars, lag, data) - data$agbd, sd = par["sd"]) # fills in the likelihood across all individuals (row) for each lag (column)
     }
@@ -299,7 +294,7 @@ cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
 
 normalize_independently <- function(train_data, test_data) {
     # Columns to exclude from normalization
-    exclude_cols <- c("soil", "biome", "ecoreg", "last_LU", "protec", "indig", "agbd", "nearest_mature", "fallow")
+    exclude_cols <- c("soil", "biome", "ecoreg", "last_LU", "protec", "indig", "agbd", "nearest_mature_biomass", "fallow")
 
     # Select numeric columns for normalization, excluding specified ones
     norm_cols <- setdiff(names(train_data)[sapply(train_data, is.numeric)], exclude_cols)
