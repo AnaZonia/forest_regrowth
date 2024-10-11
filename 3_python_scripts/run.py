@@ -144,8 +144,8 @@ def nelder_mead_main(tune = False, func_form = 'lag'):
     """
     pars = ["age", "cwd"]
 
-    X, y, A, unseen_data = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars)
-    initial_params = make_initial_parameters(pars, y, lag = True)
+    X, y, A, unseen_data = load_and_preprocess_data("./0_data/non_aggregated.csv", pars)
+    initial_params = make_initial_parameters(pars, y, func_form)
 
     # Define tuners
     init_param_tuners = {
@@ -181,7 +181,7 @@ def nelder_mead_main(tune = False, func_form = 'lag'):
         elif func_form == "lag":
             nelder_mead_func = nelder_mead_lag
 
-        mean_score, std_score, unseen_r2, fig = cross_validate_nelder_mead(
+        mean_score, std_score, unseen_r2 = cross_validate_nelder_mead(
             X, y, A, params, unseen_data, name, nelder_mead_func
         )
         
@@ -189,7 +189,8 @@ def nelder_mead_main(tune = False, func_form = 'lag'):
         print(f"Cross-validation values: {mean_score:.3f} (±{std_score:.3f})")
         print(f"Unseen data R2: {unseen_r2:.3f}")
         
-        figures.append((name, fig))
+        # figures.append((name, fig))
 
 if __name__ == "__main__":
-    regression_main()
+    # nelder_mead_main(tune = False, func_form = "B0_theta")
+    nelder_mead_main(tune = False, func_form = "lag")

@@ -133,7 +133,7 @@ def regression_cv(X, y, model, unseen_data, name, param_grid = None):
 
 
 
-def nelder_mead_B0_theta(params, X, y, A, return_predictions = False):
+def nelder_mead_B0_theta(params, X, y, A, fold = None, return_predictions = False):
     """
     Objective function for Nelder-Mead optimization with B0 and theta parameters.
 
@@ -163,7 +163,7 @@ def nelder_mead_B0_theta(params, X, y, A, return_predictions = False):
         return mse
 
 
-def nelder_mead_lag(params, X, y, A, random_state = 1, return_predictions = False):
+def nelder_mead_lag(params, X, y, A, fold = 1, return_predictions = False):
     """
     Objective function for Nelder-Mead optimization with lag parameters.
 
@@ -184,18 +184,19 @@ def nelder_mead_lag(params, X, y, A, random_state = 1, return_predictions = Fals
     age = X['age']
     X = X.drop('age', axis = 1)
 
-    np.random.seed(random_state)
+    np.random.seed(fold)
     re_base = np.random.normal(0, 1, 1000)
     log_normal_scaled_base = np.exp((re_base + m_base) * sd_base)
     
     m_results = np.zeros((len(y), len(log_normal_scaled_base)))
     y_pred_all = np.zeros((len(y), len(log_normal_scaled_base)))
 
-    for i, lag in enumerate(log_normal_scaled_base):
-        k = np.dot(X, coeffs) * age + lag
-        y_pred = A * (1 - np.exp(-k))**theta
-        y_pred_all[:, i] = y_pred
-        m_results[:, i] = norm.pdf(y_pred - y, scale = sd)
+    age = age.to_numpy()
+    X = X.to_numpy()
+    # Vectorized operations
+    k = np.dot(X, coeffs)[:, np.newaxis] * age[:, np.newaxis] + log_normal_scaled_base
+    y_pred_all = A[:, np.newaxis] * (1 - np.exp(-k))**theta
+    m_results = norm.pdf(y_pred_all - y[:, np.newaxis], scale=sd)
 
     mean_m_results = np.mean(m_results, axis = 1)
     # Replace zero values with epsilon
@@ -239,8 +240,8 @@ def process_fold(X, y, A, params, kf, nelder_mead_func, fold):
 
     X_test = pd.DataFrame(
         scaler.transform(X_test),
-        columns=X_test.columns,
-        index=X_test.index
+        columns = X_test.columns,
+        index = X_test.index
     )
 
     result = minimize(nelder_mead_func, params, args=(X_train, y_train, A_train, fold),
@@ -278,11 +279,13 @@ def cross_validate_nelder_mead(X, y, A, params, unseen_data, name, nelder_mead_f
         # Map the process_fold function to the folds
         results = pool.map(process_fold_partial, range(5))
 
+    # results = [process_fold(X, y, A, params, kf, nelder_mead_func, fold) for fold in range(5)]
+
     # Unpack results
     fold_scores, fit_params = zip(*results)
 
-    mean_scores = np.mean(fold_scores)
-    std_scores = np.std(fold_scores)
+    mean_score = np.mean(fold_scores)
+    std_score = np.std(fold_scores)
     # Find the best model
     best_index = np.argmin(fold_scores)
     best_params = fit_params[best_index]
@@ -292,17 +295,18 @@ def cross_validate_nelder_mead(X, y, A, params, unseen_data, name, nelder_mead_f
     y_pred = nelder_mead_func(best_params, unseen_X_scaled, unseen_data.y, unseen_data.A, return_predictions = True)
     unseen_r2 = r2_score(unseen_data.y, y_pred)
 
-    if nelder_mead_func == nelder_mead_B0_theta:
-        model_pipeline = Pipeline([
-            ('scaler', MinMaxScaler()),
-            ('regressor', partial(nelder_mead_func, A = A))
-        ])
+    return mean_score, std_score, unseen_r2 #, fig
 
-        fig = plot_learning_curves(X, y, model_pipeline, name)
-    else:
-        fig = None
+    # if nelder_mead_func == nelder_mead_B0_theta:
+    #     model_pipeline = Pipeline([
+    #         ('scaler', MinMaxScaler()),
+    #         ('regressor', partial(nelder_mead_func, A = A))
+    #     ])
 
-        return mean_scores, std_scores, unseen_r2, fig
+    #     fig = None #plot_learning_curves(X, y, model_pipeline, name)
+    # else:
+    #     fig = None
+
 
 def optimize_with_pystan_mcmc(fun, pars, X, y, A):
     """

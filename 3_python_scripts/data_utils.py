@@ -27,8 +27,8 @@ class DataSet(NamedTuple):
 
 def load_and_preprocess_data(
         filepath: str, 
-        biome = "both",
         pars = None, 
+        biome = "both",
         keep_all_data: bool = False,
         use_stratified_sample: bool = False,
         first_stage_sample_size: int = 500,
@@ -159,7 +159,7 @@ def stratified_sample_df(df, pars, first_stage_sample_size, final_sample_size, u
     return df, unseen_df, pars
 
 
-def make_initial_parameters(pars, y, lag = False):
+def make_initial_parameters(pars, y, func_form):
     """
     Generate initial parameters for optimization.
 
@@ -171,13 +171,12 @@ def make_initial_parameters(pars, y, lag = False):
     Returns:
         np.ndarray: Initial parameters for optimization.
     """
-    if lag:
-        initial_params = np.zeros(len(pars) + 3)
+    if func_form == "lag":
+        initial_params = np.full(len(pars) + 3, 0.0001)
         initial_params[0] = 0  # m_base
         initial_params[1] = 1  # sd_base
         initial_params[2] = 1  # sd
         initial_params[3] = 1  # theta
-        initial_params[4] = 0.0001  # par1
     else:
         initial_params = np.zeros(len(pars) + 2)
         initial_params[0] = y.mean()  # B0
@@ -209,7 +208,7 @@ def format_best_params(best_params, pars, func_form):
             best_params["sd_base"],
             best_params["sd"],
             best_params["theta"],
-            *[best_params[f"coeff_{i}"] for i in range(len(pars))]
+            *[best_params[f"coeff_{i}"] for i in range(len(pars) - 1)]
         ])
     else:
         # Fallback: treat all as coefficients if no special params are found
