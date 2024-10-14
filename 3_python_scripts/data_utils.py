@@ -17,13 +17,14 @@ Classes:
 
 import pandas as pd
 import numpy as np
-from typing import List, Tuple, NamedTuple, Optional
+from typing import Tuple, Optional, List
 from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 
-class DataSet(NamedTuple):
-    X: pd.DataFrame
-    y: np.ndarray
-    A: np.ndarray
+class DataSet:
+    def __init__(self, X, y, A):
+        self.X = X
+        self.y = y
+        self.A = A
 
 def load_and_preprocess_data(
         filepath: str, 
@@ -159,7 +160,7 @@ def stratified_sample_df(df, pars, first_stage_sample_size, final_sample_size, u
     return df, unseen_df, pars
 
 
-def make_initial_parameters(pars, y, func_form):
+def make_initial_parameters(pars, y, A, func_form):
     """
     Generate initial parameters for optimization.
 
@@ -172,11 +173,12 @@ def make_initial_parameters(pars, y, func_form):
         np.ndarray: Initial parameters for optimization.
     """
     if func_form == "lag":
-        initial_params = np.full(len(pars) + 3, 0.0001)
+        initial_params = np.full(len(pars) + 4, 0.0001)
         initial_params[0] = 0  # m_base
         initial_params[1] = 1  # sd_base
         initial_params[2] = 1  # sd
         initial_params[3] = 1  # theta
+        # initial_params[4] = -np.log(1 - (y.mean() / A.mean())) # k0
     else:
         initial_params = np.zeros(len(pars) + 2)
         initial_params[0] = y.mean()  # B0

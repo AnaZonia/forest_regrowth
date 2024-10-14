@@ -145,7 +145,7 @@ def nelder_mead_main(tune = False, func_form = 'lag'):
     pars = ["age", "cwd"]
 
     X, y, A, unseen_data = load_and_preprocess_data("./0_data/non_aggregated.csv", pars)
-    initial_params = make_initial_parameters(pars, y, func_form)
+    initial_params = make_initial_parameters(pars, y, A, func_form)
 
     # Define tuners
     init_param_tuners = {
@@ -192,5 +192,5 @@ def nelder_mead_main(tune = False, func_form = 'lag'):
         # figures.append((name, fig))
 
 if __name__ == "__main__":
-    # nelder_mead_main(tune = False, func_form = "B0_theta")
-    nelder_mead_main(tune = False, func_form = "lag")
+    nelder_mead_main(tune = False, func_form = "B0_theta")
+    # nelder_mead_main(tune = False, func_form = "lag")

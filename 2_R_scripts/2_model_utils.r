@@ -44,18 +44,53 @@
 #   - Incorporates growth rate intercept term k0 if provided
 #   - Incorporates yearly-changing climatic parameters if provided.
 
-growth_curve <- function(pars, data, lag) {
-    # Get the names of data_pars to iterate over
+growth_curve_lag <- function(pars, data, lag) {
     k <- rep(pars["k0"], nrow(data))
 
+    # Get the names of data_pars to iterate over
     data_pars_names <- names(pars)[!names(pars) %in% basic_pars]
 
-    k <- k + rowSums(sapply(data_pars_names, function(par) {
-        pars[[par]] * data[[par]]
-    })) * (data["age"] + lag)
-    # as mentioned above, best to use means*time...which should also include the "base" growth rate.
+    if (length(data_pars_names) > 0) {
+        k <- k + rowSums(sapply(data_pars_names, function(par) {
+            pars[[par]] * data[[par]]
+        }, simplify = TRUE)) * (data[["age"]] + lag)
+    }
+
     return(data[["nearest_mature_biomass"]] * (1 - exp(-k))^pars[["theta"]])
 }
+
+growth_curve_B0_theta <- function(pars, data) {
+    k <- rep(1, nrow(data))
+
+    # Get the names of data_pars to iterate over
+    data_pars_names <- names(pars)[!names(pars) %in% basic_pars]
+
+    if (length(data_pars_names) > 0) {
+        k <- k + rowSums(sapply(data_pars_names, function(par) {
+            pars[[par]] * data[[par]]
+        }, simplify = TRUE)) * (data[["age"]])
+    }
+
+    return(pars[["B0"]] + (data[["nearest_mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
+}
+
+
+growth_curve_B0 <- function(pars, data) {
+    B0 <- rep(pars["B0"], nrow(data))
+
+    # Get the names of data_pars to iterate over
+    data_pars_names <- names(pars)[!names(pars) %in% basic_pars]
+
+    if (length(data_pars_names) > 0) {
+        B0 <- B0 + rowSums(sapply(data_pars_names, function(par) {
+            pars[[par]] * data[[par]]
+        }, simplify = TRUE))
+    }
+
+    return(B0 + (data[["nearest_mature_biomass"]] - B0) * (1 - exp(-pars["k"] * (data[["age"]]))))
+}
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------ Likelihood Function for Optimization -------------------------#
@@ -77,21 +112,24 @@ growth_curve <- function(pars, data, lag) {
 # External Functions:
 #   growth_curve()
 
-likelihood <- function(pars, data, conditions) {
-    #   result <- sum((growth_curve(pars, data) - data$agbd)^2)
-    scaled_base <- (re_base + pars["m_base"]) * pars["sd_base"]
+
+likelihood_lag <- function(pars, data, conditions) {
+    # Calculate log-normal scaled base using re_base and parameters
+    scaled_base <- exp((re_base + pars["m_base"]) * pars["sd_base"])
 
     m_results <- matrix(0, nrow = nrow(data), ncol = length(scaled_base))
-    for (i in 1:length(scaled_base)) # calculate mean across all lags, for each individual
-    {
-        lag <- scaled_base[i]
-        m_results[, i] <- dnorm(growth_curve(pars, lag, data) - data$agbd, sd = par["sd"]) # fills in the likelihood across all individuals (row) for each lag (column)
-    }
 
-    # need to get the "probability", take mean of these across all values (i.e., marginalize), and then sum those across all datapoints.
-    results <- sum(-log(rowMeans(m_results))) # I think it is negative log likelihoods that we need (assuming we are minimizing), but check that.
+    growth_curves <- sapply(scaled_base, function(lag) growth_curve_lag(pars, data, lag))
+    differences <- sweep(growth_curves, 1, data$agbd, "-")
+    m_results <- dnorm(differences, sd = pars["sd"])
 
-    # Check whether any of the parameters is breaking the conditions (e.g. negative values)
+    mean_results <- rowMeans(m_results)
+    mean_results[mean_results == 0] <- 1e-10
+
+    # Calculate log-likelihood
+    result <- sum(-log(mean_results))
+
+    # Check parameter constraints
     if (any(sapply(conditions, function(cond) cond(pars)))) {
         return(-Inf)
     } else if (is.na(result) || result == 0) {
@@ -100,6 +138,33 @@ likelihood <- function(pars, data, conditions) {
         return(result)
     }
 }
+
+likelihood_B0_theta <- function(pars, data, conditions, growth_curve_func, NLS = TRUE) {
+    # Use NLS if required, otherwise calculate log-likelihood
+    if (NLS) {
+        result <- sum((growth_curve_func(pars, data) - data$agbd)^2)
+    } else {
+        # Calculate the residuals and the likelihood
+        residuals <- growth_curve_func(pars, data) - data$agbd
+        m_results <- dnorm(residuals, sd = pars["sd"])
+
+        # Prevent log(0) by adding a small constant
+        mean_results <- mean(m_results)
+        mean_results[mean_results == 0] <- 1e-10
+
+        result <- sum(-log(mean_results))
+    }
+
+    # Check parameter constraints
+    if (any(sapply(conditions, function(cond) cond(pars)))) {
+        return(-Inf)
+    } else if (is.na(result) || result == 0) {
+        return(-Inf)
+    } else {
+        return(result)
+    }
+}
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------------------- Optimization for Forest Regrowth ---------------------------#
@@ -130,18 +195,24 @@ likelihood <- function(pars, data, conditions) {
 #   filtered_data()
 
 
-run_optim <- function(train_data, pars, conditions, test_data = NULL) {
+run_optim <- function(train_data, pars, conditions, growth_func, test_data = NULL) {
+
     if ("age" %in% names(pars)) {
         conditions <- c(conditions, list(function(pars) pars["age"] < 0))
     }
 
-    model <- optim(pars, likelihood, data = train_data, conditions = conditions)
+    # Pass the growth_func to the likelihood function
+    model <- optim(pars, likelihood,
+        data = train_data,
+        conditions = conditions,
+        growth_func = growth_func
+    )
 
     if (is.null(test_data)) {
         return(model)
     } else {
         filtered_test_data <- filter_test_data(train_data, test_data)
-        pred <- growth_curve(model$par, filtered_test_data)
+        pred <- growth_func(model$par, filtered_test_data)
         rsq <- calc_rsq(filtered_test_data, pred)
         print(paste("R-squared:", rsq))
 
@@ -151,6 +222,7 @@ run_optim <- function(train_data, pars, conditions, test_data = NULL) {
         ))
     }
 }
+
 
 
 
@@ -206,10 +278,19 @@ filter_test_data <- function(train_data, test_data) {
 #   rsq  : The R-squared value indicating the goodness of fit.
 
 calc_rsq <- function(data, pred) {
-    obs_pred <- lm(data$agbd ~ pred)
+    # Identify indices of infinite values in pred
+    infinite_indices <- is.infinite(pred)
+    cat(sprintf("Number of -Inf values output by optim (removed): %d\n", sum(infinite_indices)))
+    # Create a logical mask for finite values
+    finite_mask <- !infinite_indices
+    # Subset pred and data$agbd using the finite mask
+    pred_cleaned <- pred[finite_mask]
+    agbd_cleaned <- data$agbd[finite_mask]
+
+    obs_pred <- lm(agbd_cleaned ~ pred_cleaned)
     residuals <- summary(obs_pred)$residuals
     sum_res_squared <- sum(residuals^2)
-    total_sum_squares <- sum((data$agbd - mean(data$agbd))^2)
+    total_sum_squares <- sum((agbd_cleaned - mean(agbd_cleaned))^2)
     rsq <- 1 - (sum_res_squared / total_sum_squares)
 
     return(rsq)
@@ -262,11 +343,7 @@ cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
         test_data <- norm_data$test_data
 
         # Run the model function on the training set and evaluate on the test set
-        if (identical(run_function, run_optim)) {
-            model_output <- run_function(train_data, pars_iter, conditions, test_data)
-        } else {
-            model_output <- run_function(train_data, pars_iter, test_data)
-        }
+        model_output <- run_function(train_data, pars_iter, conditions, test_data)
 
         # Collect R-squared values and model parameters
         r_squared_fit <- append(r_squared_fit, model_output$rsq)
@@ -294,7 +371,10 @@ cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
 
 normalize_independently <- function(train_data, test_data) {
     # Columns to exclude from normalization
-    exclude_cols <- c("soil", "biome", "ecoreg", "last_LU", "protec", "indig", "agbd", "nearest_mature_biomass", "fallow")
+    exclude_cols <- c(
+        "soil", "biome", "ecoreg", "last_LU", "protec", "indig",
+        "agbd", "nearest_mature_biomass", "fallow"
+    )
 
     # Select numeric columns for normalization, excluding specified ones
     norm_cols <- setdiff(names(train_data)[sapply(train_data, is.numeric)], exclude_cols)
