@@ -2,6 +2,14 @@
 
 Step 0: Data gathering
 
+## Aggregating land use types
+Land use can be described with all categories provided by Mapbiomas, or aggregated into fewer categories.
+
+
+## Land Use Intervals
+
+
+
 results_df has results for non_aggregated, max_limit, all land use intervals
 it shows that amazon and atlantic forest fit best in separation
 
@@ -64,8 +72,9 @@ Step 1: Compare Models
   └── Non-Aggregated
        └── Process-Based Model:
            ├── B0_theta
-           ├── Lag
-           ├── Changing Intercept
+           ├── Lag + fit k
+           ├── Lag + fit A
+           ├── Lag + fit k + fit A
            └── k0 = -np.log(1 - (y.mean() / A.mean()))
                ├── Parameter Combinations:
                    ├── Environmental
@@ -76,9 +85,9 @@ Step 3: Compare Climate History (Using Preferred Land Use Method)
   │   ├── Biomes:
   │   │    ├── Amazon
   │   |    ├── Atlantic Forest
-  |   |    └── Both 
-  |   |        ├─ No Climate History
-  |   |        └─ Climate History 
+  │   |    └── Both 
+  │   |        ├─ No Climate History
+  │   |        └─ Climate History 
   |
   └─ Panama 
       └─ Environmental + Fire (EU)
