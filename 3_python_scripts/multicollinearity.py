@@ -41,8 +41,10 @@ def main():
     # Load and preprocess the data
     # X, _, _, _ = load_and_preprocess_data("./0_data/eu.csv")#, use_stratified_sample = True)
     X, _, _, _ = load_and_preprocess_data("./0_data/non_aggregated.csv", \
-                                           biome = 4, keep_all_data = True,
-                                           use_stratified_sample = True)
+                                           biome = 1, keep_all_data = True,
+                                           use_stratified_sample = True,
+                                first_stage_sample_size = 500, final_sample_size = 15000,
+                                unseen_portion = 0.2)
 
     # Calculate and plot correlation matrix
     corr_matrix = calculate_correlation_matrix(X)

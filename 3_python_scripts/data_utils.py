@@ -52,7 +52,10 @@ def load_and_preprocess_data(
         Features (X), target (y), asymptote (A), and unseen dataset (if applicable).
     """
     df = pd.read_csv(filepath)        
-    
+
+    if use_stratified_sample:
+        df = df.drop(columns = ['last_LU']) # multicollinearity
+
     if biome != "both":
         df = df[df['biome'] == biome]
     if biome == 4:
@@ -60,23 +63,28 @@ def load_and_preprocess_data(
     if biome == "both":
         df = df.drop(columns = ['mean_aet']) # multicollinearity
 
-    # Convert 'topography' and 'ecoreg' to categorical if present
-    for col in ['topography', 'ecoreg', 'indig', 'protec', 'last_LU']:
-        if col in df.columns:
-            df[col] = df[col].astype('category')
-
     if pars is None:
         pars = df.columns.drop(["biome", "agbd"]).tolist()
 
     if keep_all_data:
         X = df[pars + ['biome', 'agbd']]
         unseen_data = None
-    
-    if use_stratified_sample:
 
+    if use_stratified_sample:
         df, unseen_df, pars = stratified_sample_df(df, pars,
                                                     first_stage_sample_size, final_sample_size, unseen_portion)
     else:
+        # Convert categorical if present
+        for col in ['topography', 'ecoreg', 'indig', 'protec']:
+            if col in df.columns:
+                counts = df[col].value_counts()
+                # Identify categories with fewer than 500 occurrences
+                rare_categories = counts[counts < first_stage_sample_size].index
+                # Remove rows with those categories
+                df = df[~df[col].isin(rare_categories)]
+                # Convert to categorical
+                df[col] = df[col].astype('category')
+
         # Split data: 10k rows for df and 1k for unseen_df
         df, unseen_df = train_test_split(df, test_size = unseen_portion, random_state = 42)
 
@@ -112,26 +120,40 @@ def stratified_sample_df(df, pars, first_stage_sample_size, final_sample_size, u
         Tuple[pd.DataFrame, pd.DataFrame, List[str]]: 
         Sampled DataFrame, unseen DataFrame, and updated list of parameters.
     """
-    # Count non-zero values in each column
-    non_zero_counts = (df[pars] != 0).sum()
+    categorical_colnames = ['topography', 'ecoreg', 'indig', 'protec']
+    
+    # Remove categories with fewer than 500 occurrences
+    for col in categorical_colnames:
+        if col in df.columns:
+            counts = df[col].value_counts()
+            rare_categories = counts[counts < 100].index
+            df = df[~df[col].isin(rare_categories)]
     
     # Filter columns based on the count of non-zero values
+    non_zero_counts = (df[pars] != 0).sum()
     valid_columns = non_zero_counts[non_zero_counts >= first_stage_sample_size].index.tolist()
-    
-    # Update pars list
     pars = [col for col in pars if col in valid_columns]
-    df = df[valid_columns + ['agbd']]
+    df = df[valid_columns + ['agbd']].copy()
 
     # Create a composite stratification variable
-    df['strat_var'] = (df['num_fires_before_regrowth'] > 0).astype(int)
+    df.loc[:, 'strat_var'] = (df['num_fires_before_regrowth'] > 0).astype(int)
     # Add contribution from each lulc_sum column
     lulc_sum_columns = [col for col in df.columns if 'lulc_sum' in col]
-    # Get the top N most common lulc_sum columns
-    top_lulc_columns = df[lulc_sum_columns].sum().nlargest(2).index.tolist()
+    selected_columns = lulc_sum_columns + [col for col in categorical_colnames if col in df.columns]
 
-    # Add contribution from each of the top lulc_sum columns
-    for i, col in enumerate(top_lulc_columns):
-        df['strat_var'] += (df[col] > 0).astype(int) * (10 ** (i + 1))
+    # Add contribution from each of the selected_columns
+    for i, col in enumerate(selected_columns):
+        df.loc[:, 'strat_var'] += (df[col] > 0).astype(int) * (10 ** (i + 1))
+
+    # Remove rows with infrequent strat_var values
+    value_counts = df['strat_var'].value_counts()
+    values_to_remove = value_counts[value_counts < 50].index
+    df = df[~df['strat_var'].isin(values_to_remove)]
+
+    # Convert categorical columns to category type
+    for col in categorical_colnames:
+        if col in df.columns:
+            df[col] = df[col].astype('category')
 
     # Keep 10% of the data as "unseen" for final testing of model performance
     df, unseen_df = train_test_split(
@@ -157,6 +179,7 @@ def stratified_sample_df(df, pars, first_stage_sample_size, final_sample_size, u
         )
         _, sample_idx = next(stratified_split.split(remaining_df, remaining_df['strat_var']))
         df = pd.concat([sample, remaining_df.iloc[sample_idx]])
+
     return df, unseen_df, pars
 
 

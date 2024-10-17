@@ -13,12 +13,7 @@ set.seed(123)
 re_base <- dnorm(1000)
 
 # Import data
-data <- import_data("./0_data/non_aggregated.csv", convert_to_dummy = TRUE)
-data <- data %>%
-    filter(biome == 4) %>%
-    sample_n(10000)
-
-# normalize the data then compare the results
+data <- import_data("./0_data/data_mapbiomas_4.csv", convert_to_dummy = TRUE)
 
 # Define parameter sets
 par_columns_simple <- c("sur_cover")
@@ -56,6 +51,7 @@ run_model <- function(model_type, par_columns) {
         )
 
         model <- optim(pars, function(pars) likelihood_B0_theta(pars, data, conditions, growth_curve_B0))
+
         pred <- growth_curve_B0(model$par, data)
     } else if (model_type == "B0_theta") {
         pars <- setNames(rep(0.0001, length(par_columns)), par_columns)

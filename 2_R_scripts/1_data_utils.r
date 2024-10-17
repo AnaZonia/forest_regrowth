@@ -12,7 +12,7 @@ climatic_pars <- c("prec", "si")
 #------------------- Main Functions -------------------#
 
 
-# Function to import data, remove unnecessary columns, and optionally convert categorical columns to dummy variables.
+# Function to import data and optionally convert categorical columns to dummy variables.
 # Arguments:
 #   path             : The path to the CSV file.
 #   convert_to_dummy : Logical switch to decide if categorical variables should be converted to dummy variables.
@@ -50,7 +50,7 @@ import_data <- function(path, convert_to_dummy = TRUE) {
 }
 
 
-# Function to import and process climatic data, normalize it, and optionally convert categorical variables to dummy variables.
+
 # Arguments:
 #   path       : The path to the CSV file.
 #   normalize  : Logical switch to decide if the data should be normalized.
@@ -98,18 +98,6 @@ import_climatic_data <- function(path, normalize, convert_to_dummy) {
         age_data[clim_columns_not_included] <- 0
 
         df_climatic_hist <- bind_rows(df_climatic_hist, age_data)
-    }
-
-    if (normalize) {
-        df_climatic_hist <- df_climatic_hist %>%
-            mutate(across(
-                where(is.numeric) &
-                    !matches("soil|biome|ecoreg|last_LU|protec|indig|agbd|nearest_mature|fallow"),
-                # Normalization formula: (x - min(x)) / (max(x) - min(x))
-                ~ (. - min(., na.rm = TRUE)) / (max(., na.rm = TRUE) - min(., na.rm = TRUE))
-            )) %>%
-            # Remove columns that are entirely NA
-            select(where(~ sum(is.na(.)) < nrow(df_climatic_hist)))
     }
 
     return(df_climatic_hist)
