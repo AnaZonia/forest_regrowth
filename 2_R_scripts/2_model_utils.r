@@ -10,12 +10,9 @@
 #     Functions included:
 #     - growth_curve
 #     - likelihood
-#     - run_optim
-#     - run_lm
-#     - filter_test_data
 #     - calc_rsq
 #     - cross_valid
-#     - process_row
+#     - normalize_independently
 #     - find_combination_pars
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -45,7 +42,7 @@
 #   - Incorporates yearly-changing climatic parameters if provided.
 
 growth_curve_lag_k <- function(pars, data, lag) {
-    k <- rep(pars["k"], nrow(data))
+    k <- rep(pars[["k"]], nrow(data))
 
     # Get the names of data_pars to iterate over
     data_pars_names <- names(pars)[!names(pars) %in% basic_pars]
@@ -59,35 +56,35 @@ growth_curve_lag_k <- function(pars, data, lag) {
     return(data[["nearest_mature_biomass"]] * (1 - exp(-k))^pars[["theta"]])
 }
 
-growth_curve_lag_A <- function(pars, data, lag) {
-    A <- rep(pars["A"], nrow(data))
+# growth_curve_lag_A <- function(pars, data, lag) {
+#     A <- rep(pars["A"], nrow(data))
 
-    # Get the names of data_pars to iterate over
-    data_pars_names <- names(pars)[!names(pars) %in% basic_pars]
+#     # Get the names of data_pars to iterate over
+#     data_pars_names <- names(pars)[!names(pars) %in% basic_pars]
 
-    if (length(data_pars_names) > 0) {
-        A <- A + rowSums(sapply(data_pars_names, function(par) {
-            pars[[par]] * data[[par]]
-        }, simplify = TRUE))
-    }
+#     if (length(data_pars_names) > 0) {
+#         A <- A + rowSums(sapply(data_pars_names, function(par) {
+#             pars[[par]] * data[[par]]
+#         }, simplify = TRUE))
+#     }
 
-    return(A * (1 - exp(-pars[["k"]] * (data[["age"]] + lag)))^pars[["theta"]])
-}
+#     return(A * (1 - exp(-pars[["k"]] * (data[["age"]] + lag)))^pars[["theta"]])
+# }
 
-growth_curve_lag_k_A <- function(pars, data, lag) {
-    k <- rep(pars["k"], nrow(data))
+# growth_curve_lag_k_A <- function(pars, data, lag) {
+#     k <- rep(pars["k"], nrow(data))
 
-    # Get the names of data_pars to iterate over
-    data_pars_names <- names(pars)[!names(pars) %in% basic_pars]
+#     # Get the names of data_pars to iterate over
+#     data_pars_names <- names(pars)[!names(pars) %in% basic_pars]
 
-    if (length(data_pars_names) > 0) {
-        k <- k + rowSums(sapply(data_pars_names, function(par) {
-            pars[[par]] * data[[par]]
-        }, simplify = TRUE)) * (data[["age"]] + lag)
-    }
+#     if (length(data_pars_names) > 0) {
+#         k <- k + rowSums(sapply(data_pars_names, function(par) {
+#             pars[[par]] * data[[par]]
+#         }, simplify = TRUE)) * (data[["age"]] + lag)
+#     }
 
-    return(data[["nearest_mature_biomass"]] * (1 - exp(-k))^pars[["theta"]])
-}
+#     return(data[["nearest_mature_biomass"]] * (1 - exp(-k))^pars[["theta"]])
+# }
 
 
 growth_curve_B0_theta <- function(pars, data) {
@@ -127,13 +124,13 @@ growth_curve_B0_theta <- function(pars, data) {
 #   growth_curve()
 
 
-likelihood_lag <- function(pars, data, conditions) {
+likelihood_lag <- function(pars, data, conditions, growth_curve_func) {
     # Calculate log-normal scaled base using re_base and parameters
     scaled_base <- exp((re_base + pars["m_base"]) * pars["sd_base"])
 
     m_results <- matrix(0, nrow = nrow(data), ncol = length(scaled_base))
 
-    growth_curves <- sapply(scaled_base, function(lag) growth_curve_lag(pars, data, lag))
+    growth_curves <- sapply(scaled_base, function(lag) growth_curve_func(pars, data, lag))
     differences <- sweep(growth_curves, 1, data$agbd, "-")
     m_results <- dnorm(differences, sd = pars["sd"])
 
@@ -153,7 +150,7 @@ likelihood_lag <- function(pars, data, conditions) {
     }
 }
 
-likelihood_B0_theta <- function(pars, data, conditions, growth_curve_func, NLS = TRUE) {
+likelihood_B0_theta <- function(pars, data, conditions, growth_curve_func) {
     # Use NLS if required, otherwise calculate log-likelihood
     if (NLS) {
         result <- sum((growth_curve_func(pars, data) - data$agbd)^2)
@@ -178,45 +175,6 @@ likelihood_B0_theta <- function(pars, data, conditions, growth_curve_func, NLS =
         return(result)
     }
 }
-
-
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# --------------------- Filter Test Data to Match Training Data Range -------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
-# Function Description:
-#   Filters the test dataset to ensure that all rows are within the min-max range of
-#   the training dataset for each variable.
-#
-# Arguments:
-#   train_data : The training dataset used to determine valid ranges.
-#   test_data  : The test dataset to be filtered.
-#
-# Returns:
-#   filtered_test_data : The subset of test_data where all values are within
-#                        the training data's min-max range.
-
-filter_test_data <- function(train_data, test_data) {
-    # Identify non-factor columns
-    non_factor_columns <- sapply(train_data, is.numeric)
-    # Apply min and max only to non-factor columns
-
-    train_min <- sapply(train_data[, non_factor_columns], min)
-    train_max <- sapply(train_data[, non_factor_columns], max)
-
-    # Function to check if a row is within the range
-    is_within_range <- function(row) {
-        all(row >= train_min & row <= train_max)
-    }
-
-    # Apply the function to each row of test_data
-    filtered_test_data <- test_data[apply(test_data[, non_factor_columns], 1, is_within_range), ]
-
-    return(filtered_test_data)
-}
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------- Calculate R-squared -----------------------------------#
@@ -282,12 +240,13 @@ calc_rsq <- function(data, pred) {
 #   - The R-squared values from each fold are stored in `r_squared_fit`, and the best model
 #
 
-cross_valid <- function(data, pars, conditions, likelihood_func, growth_func) {
+cross_valid <- function(data, pars, conditions, likelihood_func, growth_curve_func) {
     r_squared_fit <- c()
     pars_fit <- list()
     indices <- sample(c(1:5), nrow(data), replace = TRUE)
 
     for (index in 1:5) {
+
         # Define the test and train sets
         test_data <- data[indices == index, ]
         train_data <- data[!indices == index, ]
@@ -297,16 +256,22 @@ cross_valid <- function(data, pars, conditions, likelihood_func, growth_func) {
         train_data <- norm_data$train_data
         test_data <- norm_data$test_data
 
-        # Run the model function on the training set and evaluate on the test set
-        model <- optim(pars, function(pars) likelihood_func(pars, train_data, conditions, growth_func))
+        model <- optim(pars, function(pars) likelihood_func(pars, train_data, conditions, growth_curve_func))
 
-        filtered_test_data <- filter_test_data(train_data, test_data)
-        pred <- growth_func(model$par, filtered_test_data)
-        rsq <- calc_rsq(filtered_test_data, pred)
+        if (identical(likelihood_func, likelihood_B0_theta)) {
+            pred <- growth_curve_B0_theta(model$par, test_data)
+        } else {
+            pred <- unname(growth_curve_lag(
+                model$par, test_data,
+                exp((re_base + model$par["m_base"]) * model$par["sd_base"])
+            ))
+        }
+
+        rsq <- calc_rsq(test_data, pred)
 
         # Collect R-squared values and model parameters
         r_squared_fit <- append(r_squared_fit, rsq)
-        pars_fit[[index]] <- model_output$pars
+        pars_fit[[index]] <- model$par
     }
 
     # Calculate mean and standard deviation of R-squared across folds
@@ -331,6 +296,7 @@ cross_valid <- function(data, pars, conditions, likelihood_func, growth_func) {
 
 normalize_independently <- function(train_data, test_data) {
     # Columns to exclude from normalization
+    exclude_cols <- c("age", "nearest_mature_biomass", "agbd")
 
     # Select numeric columns for normalization, excluding specified ones
     norm_cols <- setdiff(names(train_data)[sapply(train_data, is.numeric)], exclude_cols)
