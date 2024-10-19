@@ -53,6 +53,8 @@ growth_curve_lag_k <- function(pars, data, lag) {
         }, simplify = TRUE)) * (data[["age"]] + lag)
     }
 
+    k[k <= 0] <- 1e-10
+
     return(data[["nearest_mature_biomass"]] * (1 - exp(-k))^pars[["theta"]])
 }
 
@@ -88,7 +90,7 @@ growth_curve_lag_k <- function(pars, data, lag) {
 
 
 growth_curve_B0_theta <- function(pars, data) {
-    k <- rep(1, nrow(data))
+    k <- rep(pars[["k"]], nrow(data))
 
     # Get the names of data_pars to iterate over
     data_pars_names <- names(pars)[!names(pars) %in% basic_pars]
@@ -96,8 +98,11 @@ growth_curve_B0_theta <- function(pars, data) {
     if (length(data_pars_names) > 0) {
         k <- k + rowSums(sapply(data_pars_names, function(par) {
             pars[[par]] * data[[par]]
-        }, simplify = TRUE)) * (data[["age"]])
+        }, simplify = TRUE)) # * (data[["age"]])
     }
+
+    k[which(k > 7)] <- 7 #
+    k[which(k < 0)] <- 1e-10
 
     return(pars[["B0"]] + (data[["nearest_mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
 }
@@ -124,21 +129,24 @@ growth_curve_B0_theta <- function(pars, data) {
 #   growth_curve()
 
 
-likelihood_lag <- function(pars, data, conditions, growth_curve_func) {
+likelihood_lag <- function(pars, data, conditions, growth_curve_func, NLL) {
     # Calculate log-normal scaled base using re_base and parameters
     scaled_base <- exp((re_base + pars["m_base"]) * pars["sd_base"])
 
     m_results <- matrix(0, nrow = nrow(data), ncol = length(scaled_base))
 
     growth_curves <- sapply(scaled_base, function(lag) growth_curve_func(pars, data, lag))
-    differences <- sweep(growth_curves, 1, data$agbd, "-")
-    m_results <- dnorm(differences, sd = pars["sd"])
+    residuals <- sweep(growth_curves, 1, data$agbd, "-")
 
-    mean_results <- rowMeans(m_results)
-    mean_results[mean_results == 0] <- 1e-10
-
-    # Calculate log-likelihood
-    result <- sum(-log(mean_results))
+    if (NLL) {
+        m_results <- dnorm(residuals, sd = pars["sd"])
+        mean_results <- rowMeans(m_results)
+        mean_results[mean_results == 0] <- 1e-10
+        # Calculate log-likelihood
+        result <- sum(-log(mean_results))
+    } else {
+        result <- sum(residuals^2)
+    }
 
     # Check parameter constraints
     if (any(sapply(conditions, function(cond) cond(pars)))) {
@@ -150,20 +158,31 @@ likelihood_lag <- function(pars, data, conditions, growth_curve_func) {
     }
 }
 
-likelihood_B0_theta <- function(pars, data, conditions, growth_curve_func) {
+likelihood_B0_theta <- function(pars, data, conditions, growth_curve_func, NLL) {
     # Use NLS if required, otherwise calculate log-likelihood
-    if (NLS) {
-        result <- sum((growth_curve_func(pars, data) - data$agbd)^2)
-    } else {
+    residuals <- growth_curve_func(pars, data) - data$agbd
+
+    if (NLL) {
         # Calculate the residuals and the likelihood
-        residuals <- growth_curve_func(pars, data) - data$agbd
         m_results <- dnorm(residuals, sd = pars["sd"])
 
         # Prevent log(0) by adding a small constant
         mean_results <- mean(m_results)
         mean_results[mean_results == 0] <- 1e-10
 
-        result <- sum(-log(mean_results))
+        result <- sum(-log(mean_results)) # + 0.01 * log(pars["sd"])
+
+        # if (is.na(result) || is.nan(result)) {
+        #     cat("Result is NA or NaN. Debugging information:\n")
+        #     cat("pars['sd'] =", pars["sd"], "\n")
+        #     cat("mean_results =", mean_results, "\n")
+        # } else if (result < 0) {
+        #     cat("Result is negative. pars['sd'] =", pars["sd"], "\n")
+        # }
+        # print(result)
+
+    } else {
+        result <- sum(residuals^2)
     }
 
     # Check parameter constraints
@@ -193,7 +212,7 @@ likelihood_B0_theta <- function(pars, data, conditions, growth_curve_func) {
 calc_rsq <- function(data, pred) {
     # Identify indices of infinite values in pred
     infinite_indices <- is.infinite(pred)
-    cat(sprintf("Number of -Inf values output by optim (removed): %d\n", sum(infinite_indices)))
+    # cat(sprintf("Number of -Inf values output by optim (removed): %d\n", sum(infinite_indices)))
     # Create a logical mask for finite values
     finite_mask <- !infinite_indices
     # Subset pred and data$agbd using the finite mask
@@ -237,12 +256,12 @@ calc_rsq <- function(data, pred) {
 #   - The function uses random sampling to assign data points to each of the five folds.
 #   - The function assumes that `run_function` takes as input the training data, parameters,
 #     conditions, and test data, and returns the model output.
-#   - The R-squared values from each fold are stored in `r_squared_fit`, and the best model
+#   - The R-squared values from each fold are stored in `r2_list`, and the best model
 #
 
-cross_valid <- function(data, pars, conditions, likelihood_func, growth_curve_func) {
-    r_squared_fit <- c()
-    pars_fit <- list()
+cross_valid <- function(data, pars, conditions, likelihood_func, growth_curve_func, NLL) {
+    r2_list <- c()
+    pars_list <- list()
     indices <- sample(c(1:5), nrow(data), replace = TRUE)
 
     for (index in 1:5) {
@@ -256,12 +275,12 @@ cross_valid <- function(data, pars, conditions, likelihood_func, growth_curve_fu
         train_data <- norm_data$train_data
         test_data <- norm_data$test_data
 
-        model <- optim(pars, function(pars) likelihood_func(pars, train_data, conditions, growth_curve_func))
+        model <- optim(pars, function(pars) likelihood_func(pars, train_data, conditions, growth_curve_func, NLL))
 
         if (identical(likelihood_func, likelihood_B0_theta)) {
-            pred <- growth_curve_B0_theta(model$par, test_data)
+            pred <- growth_curve_func(model$par, test_data)
         } else {
-            pred <- unname(growth_curve_lag(
+            pred <- unname(growth_curve_func(
                 model$par, test_data,
                 exp((re_base + model$par["m_base"]) * model$par["sd_base"])
             ))
@@ -270,15 +289,28 @@ cross_valid <- function(data, pars, conditions, likelihood_func, growth_curve_fu
         rsq <- calc_rsq(test_data, pred)
 
         # Collect R-squared values and model parameters
-        r_squared_fit <- append(r_squared_fit, rsq)
-        pars_fit[[index]] <- model$par
+        r2_list <- append(r2_list, rsq)
+        pars_list[[index]] <- model$par
     }
+
+    norm_unseen_data <- normalize_independently(unseen_data)$train_data
+    best_pars <- pars_list[[which.max(r2_list)]]
+    if (identical(likelihood_func, likelihood_B0_theta)) {
+        pred <- growth_curve_func(best_pars, norm_unseen_data)
+    } else {
+        pred <- unname(growth_curve_func(
+            best_pars, norm_unseen_data,
+            exp((re_base + best_pars["m_base"]) * best_pars["sd_base"])
+        ))
+    }
+    r2_unseen <- calc_rsq(norm_unseen_data, pred)
 
     # Calculate mean and standard deviation of R-squared across folds
     result <- list(
-        rsq = mean(r_squared_fit),
-        rsq_sd = sd(r_squared_fit),
-        pars = pars_fit[[which.max(r_squared_fit)]]
+        r2_mean = mean(r2_list),
+        r2_sd = sd(r2_list),
+        r2_unseen = r2_unseen,
+        best_pars = best_pars
     )
 
     return(result)
@@ -294,9 +326,9 @@ cross_valid <- function(data, pars, conditions, likelihood_func, growth_curve_fu
 # Returns:
 #   data             : A dataframe with normalized numerical values
 
-normalize_independently <- function(train_data, test_data) {
+normalize_independently <- function(train_data, test_data = NULL) {
     # Columns to exclude from normalization
-    exclude_cols <- c("age", "nearest_mature_biomass", "agbd")
+    exclude_cols <- c("nearest_mature_biomass", "agbd")
 
     # Select numeric columns for normalization, excluding specified ones
     norm_cols <- setdiff(names(train_data)[sapply(train_data, is.numeric)], exclude_cols)
@@ -316,13 +348,17 @@ normalize_independently <- function(train_data, test_data) {
     }
 
     train_data_norm <- normalize(train_data)
-    test_data_norm <- normalize(test_data)
-
     # Remove columns that are entirely NA (optional)
-    train_data_norm <- train_data_norm %>% select(where(~ sum(is.na(.)) < nrow(train_data_norm)))
-    test_data_norm <- test_data_norm %>% select(where(~ sum(is.na(.)) < nrow(test_data_norm)))
+    # train_data_norm <- train_data_norm %>% select(where(~ sum(is.na(.)) < nrow(train_data_norm)))
 
-    return(list(train_data = train_data_norm, test_data = test_data_norm))
+    if (is.null(test_data)) {
+        return(list(train_data = train_data_norm))
+    } else {
+        test_data_norm <- normalize(test_data)
+        # test_data_norm <- test_data_norm %>% select(where(~ sum(is.na(.)) < nrow(test_data_norm)))
+        return(list(train_data = train_data_norm, test_data = test_data_norm))
+    }
+
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

@@ -95,7 +95,7 @@ def regression_main():
                 use_stratified_sample = False
             
             X, y, _, unseen_data = load_and_preprocess_data(filepath, \
-                                biome = biome, use_stratified_sample = use_stratified_sample,
+                                biome = biome, ML = True, use_stratified_sample = use_stratified_sample,
                                 first_stage_sample_size = 500, final_sample_size = 15000,
                                 unseen_portion = 0.2)
 
@@ -142,9 +142,16 @@ def nelder_mead_main(tune = False, func_form = 'lag'):
     Returns:
     - None, but prints the results of cross-validation and unseen data R2 scores.
     """
-    pars = ["age", "cwd"]
+    # pars = ["age", "cwd"]
 
-    X, y, A, unseen_data = load_and_preprocess_data("./0_data/non_aggregated.csv", pars)
+    X, y, A, unseen_data = load_and_preprocess_data("./0_data/non_aggregated.csv", 
+                                                    biome = 4, 
+                                                    use_stratified_sample=True,
+                                                    first_stage_sample_size = 500, final_sample_size = 15000,
+                                                    unseen_portion = 0.2)
+    X = pd.get_dummies(X, drop_first = True)
+    unseen_data.X = pd.get_dummies(unseen_data.X, drop_first = True)
+    pars = X.columns.tolist()
     initial_params = make_initial_parameters(pars, y, A, func_form)
 
     # Define tuners
@@ -181,13 +188,13 @@ def nelder_mead_main(tune = False, func_form = 'lag'):
         elif func_form == "lag":
             nelder_mead_func = nelder_mead_lag
 
-        mean_score, std_score, unseen_r2 = cross_validate_nelder_mead(
+        r2_mean, r2_sd, r2_unseen = cross_validate_nelder_mead(
             X, y, A, params, unseen_data, name, nelder_mead_func
         )
         
         print(f"\n{name} Results:")
-        print(f"Cross-validation values: {mean_score:.3f} (±{std_score:.3f})")
-        print(f"Unseen data R2: {unseen_r2:.3f}")
+        print(f"Cross-validation values: {r2_mean:.3f} (±{r2_sd:.3f})")
+        print(f"Unseen data R2: {r2_unseen:.3f}")
         
         # figures.append((name, fig))
 
@@ -251,7 +258,7 @@ def export_data():
 
 
 if __name__ == "__main__":
-    regression_main()
+    # regression_main()
     # export_data()
-    # nelder_mead_main(tune = False, func_form = "B0_theta")
+    nelder_mead_main(tune = False, func_form = "B0_theta")
     # nelder_mead_main(tune = False, func_form = "lag")

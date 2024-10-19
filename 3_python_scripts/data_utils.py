@@ -17,20 +17,24 @@ Classes:
 
 import pandas as pd
 import numpy as np
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional
 from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 
+
+# DataSet class definition
 class DataSet:
     def __init__(self, X, y, A):
-        self.X = X
-        self.y = y
-        self.A = A
+        self.X = X  # Features
+        self.y = y  # Target variable
+        self.A = A  # Asymptote
+
 
 def load_and_preprocess_data(
         filepath: str, 
         pars = None, 
         biome = "both",
-        keep_all_data: bool = False,
+        ML = False,
+        keep_agbd: bool = False,
         use_stratified_sample: bool = False,
         first_stage_sample_size: int = 500,
         final_sample_size: int = 10000,
@@ -63,16 +67,20 @@ def load_and_preprocess_data(
     if biome == "both":
         df = df.drop(columns = ['mean_aet']) # multicollinearity
 
+    # Select parameters
     if pars is None:
-        pars = df.columns.drop(["biome", "agbd"]).tolist()
+        exclude_cols = ["biome", "agbd"] + ([] if ML else ["nearest_mature_biomass"])
+        pars = df.columns.drop(exclude_cols).tolist()
 
-    if keep_all_data:
+    if keep_agbd:
         X = df[pars + ['biome', 'agbd']]
         unseen_data = None
 
     if use_stratified_sample:
         df, unseen_df, pars = stratified_sample_df(df, pars,
-                                                    first_stage_sample_size, final_sample_size, unseen_portion)
+                                                    first_stage_sample_size,
+                                                    final_sample_size,
+                                                    unseen_portion, ML)
     else:
         # Convert categorical if present
         for col in ['topography', 'ecoreg', 'indig', 'protec']:
@@ -91,53 +99,62 @@ def load_and_preprocess_data(
         df = df.head(final_sample_size)  # Take exactly 10k rows (if needed)
         unseen_df = unseen_df.head(int(final_sample_size * unseen_portion))  # Take exactly 1k rows
 
+    # Prepare features, target, and asymptote
     X = df[pars]
-
-    unseen_data = DataSet(
-        X = unseen_df[pars],
-        y = unseen_df['agbd'].values,
-        A = unseen_df['nearest_mature_biomass'].values
-    )
-
     y = df['agbd'].values
-    A = df['nearest_mature_biomass'].values  # asymptote
+    A = df['nearest_mature_biomass'].values
+
+    # Prepare unseen dataset
+    unseen_data = DataSet(
+        X=unseen_df[pars],
+        y=unseen_df['agbd'].values,
+        A=unseen_df['nearest_mature_biomass'].values
+    )
 
     return X, y, A, unseen_data
 
 
-def stratified_sample_df(df, pars, first_stage_sample_size, final_sample_size, unseen_portion):
+# Stratified sampling function
+def stratified_sample_df(df, pars, first_stage_sample_size, final_sample_size, unseen_portion, ML):
     """
     Perform stratified sampling on a DataFrame.
 
     Args:
         df (pd.DataFrame): The input DataFrame.
         pars (List[str]): List of parameter names to keep.
-        test_size (float): Proportion of the data to keep as "unseen".
         first_stage_sample_size (int): Number of samples per stratification group in the first stage.
         final_sample_size (int): Total sample size to use after stratified sampling.
+        unseen_portion (float): Proportion of data to keep as "unseen" for testing.
 
     Returns:
         Tuple[pd.DataFrame, pd.DataFrame, List[str]]: 
         Sampled DataFrame, unseen DataFrame, and updated list of parameters.
     """
+    # Add unique identifier
+    df['original_index'] = df.index
+    # Store original relationships for verification
+    original_df = df.copy()
+
+    # Remove categories with fewer than 100 occurrences
     categorical_colnames = ['topography', 'ecoreg', 'indig', 'protec']
-    
-    # Remove categories with fewer than 500 occurrences
     for col in categorical_colnames:
         if col in df.columns:
             counts = df[col].value_counts()
             rare_categories = counts[counts < 100].index
             df = df[~df[col].isin(rare_categories)]
     
-    # Filter columns based on the count of non-zero values
+    # Remove columns with fewer than 500 non-zero values
     non_zero_counts = (df[pars] != 0).sum()
     valid_columns = non_zero_counts[non_zero_counts >= first_stage_sample_size].index.tolist()
+
+    # Update pars list
     pars = [col for col in pars if col in valid_columns]
-    df = df[valid_columns + ['agbd']].copy()
+    keep_cols = ['original_index', 'agbd'] + ([] if ML else ["nearest_mature_biomass"])
+    df = df[keep_cols + valid_columns].copy()
 
     # Create a composite stratification variable
     df.loc[:, 'strat_var'] = (df['num_fires_before_regrowth'] > 0).astype(int)
-    # Add contribution from each lulc_sum column
+    # Add contribution from each lulc_sum column and each category
     lulc_sum_columns = [col for col in df.columns if 'lulc_sum' in col]
     selected_columns = lulc_sum_columns + [col for col in categorical_colnames if col in df.columns]
 
@@ -159,7 +176,6 @@ def stratified_sample_df(df, pars, first_stage_sample_size, final_sample_size, u
     df, unseen_df = train_test_split(
         df, test_size = unseen_portion, stratify = df['strat_var'], random_state = 42
     )
-
     unseen_df = unseen_df.head(int(final_sample_size * unseen_portion))
 
     # Two-stage sampling
@@ -171,16 +187,64 @@ def stratified_sample_df(df, pars, first_stage_sample_size, final_sample_size, u
     # Then, fill the rest with stratified sampling
     remaining_sample_size = final_sample_size - len(sample)
     if remaining_sample_size > 0:
-        remaining_df = df[~df.index.isin(sample.index)]
+        # Exclude rows that have already been sampled in the first stage
+        remaining_df = df[~df['original_index'].isin(sample['original_index'])].reset_index(drop=True)
+
         stratified_split = StratifiedShuffleSplit(
-            n_splits = 1,
-            test_size = remaining_sample_size,
-            random_state = 42
+            n_splits=1,
+            test_size = remaining_sample_size,  # Oversample by 50%
+            random_state=42
         )
-        _, sample_idx = next(stratified_split.split(remaining_df, remaining_df['strat_var']))
-        df = pd.concat([sample, remaining_df.iloc[sample_idx]])
+
+        _, indices = next(stratified_split.split(remaining_df, remaining_df['strat_var']))
+        
+        # Concatenate the initial sample and the newly sampled data, avoiding duplicates
+        df = pd.concat([sample, remaining_df.loc[indices]])
+
+    verify_data_integrity(original_df, df, unseen_df, pars)
+    df = df.drop(columns = ['strat_var', 'original_index'])
+    unseen_df = unseen_df.drop(columns = ['strat_var', 'original_index'])
 
     return df, unseen_df, pars
+
+# Data integrity verification function
+def verify_data_integrity(original_df, sampled_df, unseen_df, pars):
+    """
+    Verify the integrity of the sampled and unseen data.
+
+    Args:
+        original_df (pd.DataFrame): Original DataFrame.
+        sampled_df (pd.DataFrame): Sampled DataFrame.
+        unseen_df (pd.DataFrame): Unseen DataFrame.
+        pars (List[str]): List of parameter names.
+
+    Raises:
+        AssertionError: If any integrity check fails.
+    """
+    # Check for duplicate indices
+    assert len(sampled_df['original_index']) == len(sampled_df['original_index'].unique()), "Duplicate indices found in sampled data"
+    assert len(unseen_df['original_index']) == len(unseen_df['original_index'].unique()), "Duplicate indices found in unseen data"
+
+    # Check if all sampled rows exist in original data
+    all_sampled_indices = set(sampled_df['original_index']).union(set(unseen_df['original_index']))
+    assert all_sampled_indices.issubset(set(original_df['original_index'])), "Some sampled rows don't exist in original data"
+
+    # Verify relationships between columns
+    original_relationships = original_df[['original_index', 'agbd'] + pars].head(10).to_dict('records')
+    for record in original_relationships:
+        orig_index = record['original_index']
+        if orig_index in sampled_df['original_index'].values:
+            sampled_record = sampled_df[sampled_df['original_index'] == orig_index].iloc[0]
+        elif orig_index in unseen_df['original_index'].values:
+            sampled_record = unseen_df[unseen_df['original_index'] == orig_index].iloc[0]
+        else:
+            continue
+
+        for col in pars + ['agbd']:
+            if col in sampled_record:
+                assert np.isclose(record[col], sampled_record[col]), f"Mismatch in {col} for index {orig_index}"
+
+    print("All integrity checks passed!")
 
 
 def make_initial_parameters(pars, y, A, func_form):

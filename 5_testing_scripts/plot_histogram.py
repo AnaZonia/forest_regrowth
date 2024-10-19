@@ -133,7 +133,7 @@ def main():
         "cwd"
     ]
 
-    # X, y, _, _, _ = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars, keep_all_data = True)
+    # X, y, _, _, _ = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars, keep_agbd = True)
     df = pd.read_csv("./0_data/mapbiomas_eu.csv")
     df = df.rename(columns = {'age_mapbiomas': 'age'})
     

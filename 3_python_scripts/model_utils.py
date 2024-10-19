@@ -271,7 +271,8 @@ def process_fold(X, y, A, params, kf, nelder_mead_func, fold):
     X_test_scaled = pd.DataFrame(scaler.transform(X_test),
                                     columns=X_test.columns, index=X_test.index).to_records(index=False)
 
-    result = minimize(nelder_mead_func, params, args=(X_train_scaled, y_train, A_train, fold),
+    result = minimize(nelder_mead_func, params,
+                      args=(X_train_scaled, y_train, A_train, fold),
                       method='Nelder-Mead')
 
     val_score = nelder_mead_func(result.x, X_test_scaled, y_test, A_test, fold)
@@ -312,8 +313,8 @@ def cross_validate_nelder_mead(X, y, A, params, unseen_data, name, nelder_mead_f
     # Unpack results
     fold_scores, fit_params = zip(*results)
 
-    mean_score = np.mean(fold_scores)
-    std_score = np.std(fold_scores)
+    r2_mean = np.mean(fold_scores)
+    r2_sd = np.std(fold_scores)
     # Find the best model
     best_index = np.argmin(fold_scores)
     best_params = fit_params[best_index]
@@ -322,9 +323,9 @@ def cross_validate_nelder_mead(X, y, A, params, unseen_data, name, nelder_mead_f
     unseen_X_scaled = pd.DataFrame(scaler.fit_transform(unseen_data.X),
                                     columns=unseen_data.X.columns, index=unseen_data.X.index).to_records(index=False)
     y_pred = nelder_mead_func(best_params, unseen_X_scaled, unseen_data.y, unseen_data.A, return_predictions = True)
-    unseen_r2 = r2_score(unseen_data.y, y_pred)
+    r2_unseen = r2_score(unseen_data.y, y_pred)
 
-    return mean_score, std_score, unseen_r2 #, fig
+    return r2_mean, r2_sd, r2_unseen #, fig
 
     # if nelder_mead_func == nelder_mead_B0_theta:
     #     model_pipeline = Pipeline([
