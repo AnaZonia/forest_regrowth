@@ -7,11 +7,20 @@
 library(corrplot)
 library(tidyverse)
 
-source("1_import_data.r")
-source("3_run_model.r")
-source("2_functions.r")
+source("./2_R_scripts/1_import_data.r")
+source("./2_R_scripts/3_run_model.r")
+source("./2_R_scripts/2_functions.r")
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+tst <- read.csv("./data/non_aggregated_results.csv")
+
+head(tst)
+
+range(tst$rsq)
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Correlations ---------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 

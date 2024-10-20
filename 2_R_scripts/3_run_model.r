@@ -21,6 +21,8 @@ registerDoParallel(cores = ncores)
 # --------------------------------- Global Variables ------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+name_import <- "non_aggregated"
+name_export <- name_import
 
 # number of rows to be included in analysis
 n_samples <- 10000
@@ -44,22 +46,43 @@ biomes <- c("amaz", "atla", "both")
 # Define land-use history intervals to import four dataframes
 intervals <- list("5yr", "10yr", "15yr", "all")
 
-dataframes <- import_data("./data/non_aggregated_all.csv", convert_to_dummy = TRUE)
-dataframes_lm <- import_data("./data/non_aggregated_all.csv", convert_to_dummy = FALSE)
-data <- dataframes[[2]]
+datafiles <- paste0("./data/", name_import, "_", intervals, ".csv")
+dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE)
+dataframes_lm <- lapply(datafiles, import_data, convert_to_dummy = FALSE)
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------------------------------- Define Parameters -----------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# check multicollinearity when adding ecoregion and/or soils
+# sometimes you can transform collinear variables - can we control from time since last fire
+# that would be of interest in relation with age
 pars <- c(
     "age", "nearest_mature", "lulc_sum_21", "lulc_sum_15", "lulc_sum_39",
     "lulc_sum_40", "lulc_sum_41", "num_fires_before_regrowth", "sur_cover",
     "cwd"
 )
 
-initial_pars <- find_combination_pars(pars, data)
-initial_pars
-optim_cv_output <- cross_valid(data, run_optim, initial_pars, conditions)
-optim_cv_output$rsq
+iterations <- expand.grid(
+    interval = seq_along(intervals),
+    biome = seq_along(biomes)
+)
 
-lm_cv_output <- cross_valid(data, run_lm, c("age", "nearest_mature"))
-lm_cv_output$rsq
-initial_pars
-lm_output <- lm(data, c("age", "nearest_mature"))
+for (iter in 1:nrow(iterations)) {
+    i <- iterations$interval[iter]
+    k <- iterations$biome[iter]
+
+    data <- dataframes[[i]][[k]]
+    print(biomes[[k]])
+    
+    initial_pars <- find_combination_pars(pars, data)
+    optim_cv_output <- cross_valid(data, run_optim, initial_pars, conditions)
+    optim_cv_output$rsq
+
+    lm_cv_output <- cross_valid(data, run_lm, pars)
+    lm_cv_output$rsq
+    lm_output <- lm(data, pars)
+}
+
+
+
