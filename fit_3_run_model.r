@@ -18,8 +18,7 @@ registerDoParallel(cores = ncores)
 # -------------------------------------- Switches ---------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-fit_logistic <- FALSE
-find_ideal_combination_pars <- FALSE
+find_ideal_combination_pars <- TRUE
 export_results <- TRUE
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -31,21 +30,15 @@ name_export <- name_import
 
 # number of rows to be included in analysis
 n_samples <- 10000
+re_base <- dnorm(1000)
 
 # List of climatic parameters that change yearly
 climatic_pars <- c("prec", "si")
 categorical <- c("ecoreg", "soil")
 
-# Define parameters that do not correspond to data, used for functional form
-if (fit_logistic) {
-    name_export <- paste0(name_import, "_logistic")
-    conditions <- list()
-    non_data_pars <- c("k0", "B0")
-} else {
-    # Define conditions for parameter constraints
-    conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0')
-    non_data_pars <- c("k0", "B0_exp", "B0", "theta")
-}
+# Define conditions for parameter constraints
+conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0')
+non_data_pars <- c("k0", "B0_exp", "B0", "theta", "m_base", "sd_base")
 
 # biomes <- c("amaz", "atla", "pant", "all")
 biomes <- c("amaz", "atla", "both")
@@ -53,16 +46,21 @@ biomes <- c("amaz", "atla", "both")
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------------------------- Import Data ----------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 # Define land-use history intervals to import four dataframes
 intervals <- list("5yr", "10yr", "15yr", "all")
 
 datafiles <- paste0("./data/", name_import, "_", intervals, ".csv")
 dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE)
-dataframes_lm <- lapply(datafiles, import_data, convert_to_dummy = FALSE)
+# dataframes_lm <- lapply(datafiles, import_data, convert_to_dummy = FALSE)
+
+# dataframe lengths differ, all slightly below 10k. maybe check if that is making a difference in the results.
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Define Parameters -----------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 
 # Identify common columns across all dataframes of the same biome (across intervals)
 # (avoids errors for parametesrs like last_LU, that not all dataframes may contain depending on how many rows were sampled)
@@ -77,18 +75,20 @@ for (i in seq_along(biomes)){
     colnames_intersect <- Reduce(intersect, colnames_lists)
 
     colnames_filtered <- colnames_intersect[!grepl(
-        "age|agbd|prec|si|nearest_mature|distance|biome|cwd",
+        "age|agbd|prec|si|nearest_mature_biomass|distance|biome|cwd",
         colnames_intersect
     )]
     colnames_filtered
-    print(colnames_filtered)
 
     # Define different sets of data parameters for modeling
     biome_pars <- list(
-        c("cwd", "mean_prec", "mean_si")
-        c(colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)]),
-        c(colnames_filtered[!grepl("ecoreg|soil", colnames_filtered)], "cwd", "mean_prec", "mean_si"),
-        c(colnames_filtered, "cwd", "mean_prec", "mean_si"),
+        c("cwd", "mean_prec", "mean_si"),
+        
+        c(colnames_filtered[!grepl(paste0(categorical, collapse = "|"), colnames_filtered)]),
+        
+        c(colnames_filtered[!grepl(paste0(categorical, collapse = "|"), colnames_filtered)], "cwd", "mean_prec", "mean_si"),
+        
+        c(colnames_filtered, "cwd", "mean_prec", "mean_si")
     )
     data_pars[[i]] <- biome_pars
 }
@@ -162,12 +162,11 @@ basic_pars_names <- as.list(sapply(basic_pars, function(par_set) paste(par_set, 
 # Create grids of different combinations of model inputs
 
 iterations_optim <- expand.grid(
+    basic_par = seq_along(basic_pars),
     interval = seq_along(intervals),
     data_par = seq_along(data_pars[[1]]),
-    biome = seq_along(biomes),
-    basic_par = seq_along(basic_pars)
+    biome = seq_along(biomes)
 )
-
 
 basic_pars_with_age <- which(sapply(basic_pars, function(x) "age" %in% x))
 data_pars_with_climatic <- which(sapply(data_pars, function(x) any(climatic_pars %in% x)))
@@ -185,27 +184,18 @@ if (find_ideal_combination_pars) {
     initial_pars <- readRDS(paste0("./data/", name_export, "_ideal_par_combination.rds"))
 }
 
-# # Find indices to remove
-# indices_to_remove <- which(iterations_optim$basic_par == 4)
-
-# # Remove these indices from initial_pars
-# initial_pars <- initial_pars[-indices_to_remove]
-
-# # Adjust iterations_optim accordingly
-# iterations_optim <- iterations_optim[-indices_to_remove, ]
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Run Model ---------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+source("fit_2_functions.r")
 
-if (export_results){
+if (export_results) {
     results <- foreach(
         iter = 1:nrow(iterations_optim),
         .combine = "bind_rows", .packages = c("dplyr", "randomForest")
     ) %dopar% {
-
-    # for (iter in 1:length(initial_pars)){
+        # for (iter in 1:length(initial_pars)){
 
         # Extract iteration-specific parameters
         i <- iterations_optim$interval[iter]
@@ -221,12 +211,11 @@ if (export_results){
         pars_iter <- initial_pars[[iter]] # Parameters obtained from "find combination pars"
         # Perform cross-validation and process results
         optim_cv_output <- cross_valid(data, run_optim, pars_iter, conditions)
-        row <- process_row(optim_cv_output, "optim", intervals[[i]], pars_names, biome_name, basic_pars_name)
 
+        row <- process_row(optim_cv_output, "optim", intervals[[i]], pars_names, biome_name, basic_pars_name)
         print(row)
         row
     }
 
     write.csv(results, paste0("./data/", name_export, "_results.csv"), row.names = FALSE)
 }
-

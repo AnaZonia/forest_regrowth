@@ -136,13 +136,14 @@ import_data <- function(path, convert_to_dummy) {
         mutate(across(all_of(categorical), as.factor))
     print(nrow(data))
     data <- data[data$biome %in% c(1, 4), ]
+    names(data)[names(data) == "nearest_mature"] <- "nearest_mature_biomass"
 
     list_of_dfs <- split(data, data$biome)
  
     list_of_dfs <- list(
         list_of_dfs[[1]], # First split result (e.g., biome 1)
         list_of_dfs[[2]], # Second split result (e.g., biome 4)
-        data # Original dataframe without split
+        data
     )
 
     list_of_dfs <- lapply(list_of_dfs, function(df) {
@@ -160,6 +161,7 @@ import_data <- function(path, convert_to_dummy) {
         }
         return(df_sampled)
     })
+
 
     print("Imported!")
     return(list_of_dfs)
