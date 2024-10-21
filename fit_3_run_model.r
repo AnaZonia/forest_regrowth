@@ -35,7 +35,8 @@ re_base <- dnorm(1000)
 
 # List of climatic parameters that change yearly
 climatic_pars <- c("prec", "si")
-categorical <- c("ecoreg", "topography")
+categorical <- c("ecoreg", "topography", "indig", "protec")
+# categorical <- c("ecoreg", "soil", "last_LU", "indig", "protec")
 
 # Define conditions for parameter constraints
 conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0')
@@ -53,7 +54,9 @@ biomes <- c("atla")
 # intervals <- list("5yr", "10yr", "15yr", "all")
 intervals <- list("15yr")
 
-datafiles <- paste0("./0_data/", name_import, "_", intervals, ".csv")
+datafiles <- paste0("./new_data/", name_import, "_", intervals, ".csv")
+# datafiles <- "./new_data/data_mapbiomas.csv"
+source("fit_1_import_data.r")
 dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE, process_climatic = FALSE)
 
 # dataframes_lm <- lapply(datafiles, import_data, convert_to_dummy = FALSE)
@@ -79,7 +82,7 @@ for (i in seq_along(biomes)){
     colnames_intersect <- Reduce(intersect, colnames_lists)
 
     colnames_filtered <- colnames_intersect[!grepl(
-        "age|agbd|prec|si|nearest_mature_biomass|distance|biome|cwd",
+        "age|agbd|prec|si|nearest_mature_biomass|cwd",
         colnames_intersect
     )]
     print(colnames_filtered)
@@ -93,8 +96,8 @@ for (i in seq_along(biomes)){
         )
     } else {
         biome_pars <- list(
-            c(colnames_filtered[!grepl(paste0(categorical, collapse = "|"), colnames_filtered)]),
-            colnames_filtered
+            c(colnames_filtered[!grepl(paste0(categorical, collapse = "|"), colnames_filtered)]),# "cwd"),
+            c(colnames_filtered) #, "cwd")
         )
     }
 
@@ -141,6 +144,7 @@ data_pars_with_climatic <- which(sapply(data_pars, function(x) any(climatic_pars
 # Remove rows where both conditions are met
 iterations_optim <- iterations_optim %>% filter(!(basic_par %in% basic_pars_with_age & data_par %in% data_pars_with_climatic))
 
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ----------------------------- Find ideal parameters -----------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -156,13 +160,15 @@ if (find_ideal_combination_pars) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Run Model ---------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+source("fit_2_functions.r")
+
 
 if (export_results) {
-    results <- foreach(
-        iter = 1:nrow(iterations_optim),
-        .combine = "bind_rows", .packages = c("dplyr", "randomForest")
-    ) %dopar% {
-        # for (iter in 1:length(initial_pars)){
+    # results <- foreach(
+    #     iter = 1:nrow(iterations_optim),
+    #     .combine = "bind_rows", .packages = c("dplyr", "randomForest")
+    # ) %dopar% {
+    for (iter in 1:length(initial_pars)){
 
         # Extract iteration-specific parameters
         i <- iterations_optim$interval[iter]
@@ -185,5 +191,6 @@ if (export_results) {
         row
     }
 
-    write.csv(results, paste0("./data/", name_export, "_results_newlag.csv"), row.names = FALSE)
+    write.csv(results, paste0("./data/", name_export, "_results.csv"), row.names = FALSE)
 }
+

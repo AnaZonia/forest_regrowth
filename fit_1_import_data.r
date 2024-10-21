@@ -85,10 +85,12 @@ process_climatic <- function(data) {
 
 
 normalize <- function(data) {
+    # Select numeric columns for normalization, excluding specified ones
+    norm_cols <- c(names(data)[!grepl(paste0(c(unlist(categorical), "agbd", "nearest_mature_biomass"), collapse = "|"), names(data))])
+
     data <- data %>%
         mutate(across(
-            where(is.numeric) &
-                !matches("soil|biome|ecoreg|last_LU|protec|indig|agbd|nearest_mature|fallow"),
+            all_of(norm_cols),
             # Normalization formula: (x - min(x)) / (max(x) - min(x))
             ~ (. - min(., na.rm = TRUE)) / (max(., na.rm = TRUE) - min(., na.rm = TRUE))
         )) %>%
@@ -126,44 +128,59 @@ normalize <- function(data) {
 import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
     
     columns_to_remove <- c(
-        ".geo", "latitude", "longitude", "mature_forest_years", "last_LU",
+        ".geo", "latitude", "longitude", "mature_forest_years",
+        "last_LU",
         "num_fires_before_first_anthro", "num_fires_after_first_anthro", "num_fires_during_anthro"
     )
 
-    data <- read_csv(path, show_col_types = FALSE) %>% # show_col_types = FALSE quiets a large message during import
+    df <- read_csv(path, show_col_types = FALSE) %>% # show_col_types = FALSE quiets a large message during import
         select(-any_of(columns_to_remove)) %>%
         select(-starts_with("system")) %>%
         mutate(across(all_of(categorical), as.factor))
-    print(nrow(data))
-    data <- data[data$biome %in% c(1, 4), ]
-    if ("nearest_mature" %in% names(data)){
-        names(data)[names(data) == "nearest_mature"] <- "nearest_mature_biomass"
+
+    df <- df[df$biome %in% c(1, 4), ]
+    
+    if ("nearest_mature" %in% names(df)){
+        names(df)[names(df) == "nearest_mature"] <- "nearest_mature_biomass"
     }
 
-    list_of_dfs <- split(data, data$biome)
+    list_of_dfs <- split(df, df$biome)
  
     list_of_dfs <- list(
         list_of_dfs[[1]], # First split result (e.g., biome 1)
         list_of_dfs[[2]], # Second split result (e.g., biome 4)
-        data
+        df
     )
 
     list_of_dfs <- lapply(list_of_dfs, function(df) {
-        df_sampled <- df[sample(nrow(df), n_samples, replace = FALSE), ]
+
         if (process_climatic) {
-            df_sampled <- process_climatic(df_sampled)
+            df <- process_climatic(df)
         }
-        df_sampled <- normalize(df_sampled)
-        df_sampled <- df_sampled %>%
-            group_by(across(all_of(categorical))) %>% # Group by the categorical columns
-            filter(n() >= 50) %>% # Keep groups with 50 or more occurrences
-            ungroup() %>% # Ungroup to return to a normal dataframe
+
+        # df <- normalize(df)
+        
+        non_zero_counts <- colSums(df != 0, na.rm = TRUE)
+        df <- df[, non_zero_counts > 50]
+
+        df <- df %>%
+            group_by(across(all_of(categorical))) %>%
+            filter(n() >= 50) %>%
+            ungroup() %>%
             mutate(across(all_of(categorical), droplevels))
+        
+        df <- df[sample(nrow(df), n_samples, replace = FALSE), ]
+        df <- df[, !names(df) %in% "biome"]
+        
         # Create dummy variables
         if (convert_to_dummy) {
-            df_sampled <- dummy_cols(df_sampled, select_columns = categorical, remove_selected_columns = TRUE)
+            df <- dummy_cols(df,
+                select_columns = categorical,
+                remove_first_dummy = TRUE,
+                remove_selected_columns = TRUE
+            )
         }
-        return(df_sampled)
+        return(df)
     })
 
 
