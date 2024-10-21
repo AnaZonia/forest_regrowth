@@ -110,7 +110,7 @@ likelihood <- function(pars, data, conditions) {
 
     if ("m_base" %in% names(pars)) {
         # Calculate log-normal scaled base using re_base and parameters
-        scaled_base <- exp((re_base + pars["m_base"]) * pars["sd_base"])
+        scaled_base <- exp(re_base * pars["sd_base"] + pars["m_base"])
 
         m_results <- matrix(0, nrow = nrow(data), ncol = length(scaled_base))
 
@@ -229,6 +229,9 @@ run_optim <- function(train_data, pars, conditions, test_data = NULL) {
     }
     if ("B0" %in% names(pars)) {
         conditions <- c(conditions, list('pars["B0"] < 0'))
+    }
+    if ("sd_base" %in% names(pars)) {
+        conditions <- c(conditions, list('pars["sd_base"] < 0'))
     }
 
     model <- optim(pars, likelihood, data = train_data, conditions = conditions)
@@ -404,7 +407,7 @@ process_row <- function(
     # Initialize a data frame with model parameters (coefficients or variable importance)
     row <- as.data.frame(cv_output$pars)
     # Identify parameters missing from this iteration and add them as NA columns
-    all_possible_pars <- unique(unlist(c("nearest_mature", "age", non_data_pars, data_pars)))
+    all_possible_pars <- unique(unlist(c("nearest_mature_biomass", "age", non_data_pars, data_pars)))
     missing_cols <- setdiff(all_possible_pars, names(row))
     row[missing_cols] <- NA
 
@@ -428,7 +431,7 @@ process_row <- function(
     # Define the desired order of columns
     desired_column_order <- c(
         "biome_name", "data_name", "data_pars", "basic_pars", "model_type",
-        "rsq", "rsq_sd", "rsq_unseen", "nearest_mature", "age"
+        "rsq", "rsq_sd", "rsq_unseen", "nearest_mature_biomass", "age"
     )
 
     row <- row %>%
@@ -527,9 +530,11 @@ find_combination_pars <- function(iterations) {
         base_row <- all_pars_iter
         base_row[names(all_pars_iter)] <- NA
         base_row <- c(likelihood = 0, base_row)
-
+        
+        should_continue <- TRUE
         # Iteratively add parameters and evaluate the model. Keep only AIC improvements.
         for (i in 1:length(data_pars_iter)) {
+            if (!should_continue) break
             optim_remaining_pars <- foreach(j = remaining[-taken]) %dopar% {
                 # check for categorical variables (to be included as a group)
                 if (data_pars_iter[j] %in% categorical) {
@@ -560,7 +565,7 @@ find_combination_pars <- function(iterations) {
                 taken <- which(sapply(data_pars_iter, function(x) any(grepl(x, names(best$par)))))
             } else {
                 print("No improvement. Exiting loop.")
-                break
+                should_continue <- FALSE
             }
         }
 

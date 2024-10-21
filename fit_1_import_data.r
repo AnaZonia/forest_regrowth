@@ -123,7 +123,7 @@ normalize <- function(data) {
 # Returns:
 #   list_of_dfs             : A list with three dataframes, one per ecoregion, ready for analysis with or without dummy variables.
 
-import_data <- function(path, convert_to_dummy) {
+import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
     
     columns_to_remove <- c(
         ".geo", "latitude", "longitude", "mature_forest_years", "last_LU",
@@ -136,7 +136,9 @@ import_data <- function(path, convert_to_dummy) {
         mutate(across(all_of(categorical), as.factor))
     print(nrow(data))
     data <- data[data$biome %in% c(1, 4), ]
-    names(data)[names(data) == "nearest_mature"] <- "nearest_mature_biomass"
+    if ("nearest_mature" %in% names(data)){
+        names(data)[names(data) == "nearest_mature"] <- "nearest_mature_biomass"
+    }
 
     list_of_dfs <- split(data, data$biome)
  
@@ -148,7 +150,9 @@ import_data <- function(path, convert_to_dummy) {
 
     list_of_dfs <- lapply(list_of_dfs, function(df) {
         df_sampled <- df[sample(nrow(df), n_samples, replace = FALSE), ]
-        df_sampled <- process_climatic(df_sampled)
+        if (process_climatic) {
+            df_sampled <- process_climatic(df_sampled)
+        }
         df_sampled <- normalize(df_sampled)
         df_sampled <- df_sampled %>%
             group_by(across(all_of(categorical))) %>% # Group by the categorical columns
