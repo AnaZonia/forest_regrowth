@@ -20,7 +20,7 @@ registerDoParallel(cores = ncores)
 
 find_ideal_combination_pars <- TRUE
 export_results <- TRUE
-old_data <- FALSE
+old_data <- TRUE
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Global Variables ------------------------------------#
@@ -35,12 +35,12 @@ re_base <- dnorm(1000)
 
 # List of climatic parameters that change yearly
 climatic_pars <- c("prec", "si")
-categorical <- c("ecoreg", "topography", "indig", "protec")
-# categorical <- c("ecoreg", "soil", "last_LU", "indig", "protec")
+# categorical <- c("ecoreg", "topography", "indig", "protec")
+categorical <- c("ecoreg", "soil", "indig", "protec")
 
 # Define conditions for parameter constraints
 conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0')
-non_data_pars <- c("k0", "B0_exp", "B0", "theta", "m_base", "sd_base")
+non_data_pars <- c("k0", "B0_exp", "B0", "theta", "m_base", "sd_base", "A")
 
 # biomes <- c("amaz", "atla", "pant", "all")
 # biomes <- c("amaz", "atla", "both")
@@ -54,10 +54,9 @@ biomes <- c("atla")
 # intervals <- list("5yr", "10yr", "15yr", "all")
 intervals <- list("15yr")
 
-datafiles <- paste0("./new_data/", name_import, "_", intervals, ".csv")
+datafiles <- paste0("./data/", name_import, "_", intervals, ".csv")
 # datafiles <- "./new_data/data_mapbiomas.csv"
-source("fit_1_import_data.r")
-dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE, process_climatic = FALSE)
+dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE, process_climatic = TRUE)
 
 # dataframes_lm <- lapply(datafiles, import_data, convert_to_dummy = FALSE)
 
@@ -91,8 +90,8 @@ for (i in seq_along(biomes)){
         biome_pars <- list(
             c("cwd", "mean_prec", "mean_si"),
             c(colnames_filtered[!grepl(paste0(categorical, collapse = "|"), colnames_filtered)]),
-            c(colnames_filtered[!grepl(paste0(categorical, collapse = "|"), colnames_filtered)], "cwd", "mean_prec", "mean_si"),
-            c(colnames_filtered, "cwd", "mean_prec", "mean_si")
+            c(colnames_filtered[!grepl(paste0(categorical, collapse = "|"), colnames_filtered)], "cwd", "mean_prec", "mean_si")
+            # c(colnames_filtered, "cwd", "mean_prec", "mean_si")
         )
     } else {
         biome_pars <- list(
@@ -109,7 +108,7 @@ if (old_data) {
         "mean_clim",
         "land_use",
         "land_use_clim",
-        "land_use_clim_ecoreg_soil"
+        # "land_use_clim_ecoreg_soil"
     )
 } else {
     data_pars_names <- c(
@@ -120,10 +119,10 @@ if (old_data) {
 
 # Define basic parameter sets for modeling
 basic_pars <- list(
-    c("age", "B0"),
-    c("age", "k0", "B0"),
-    c("k0", "B0"),
-    c("m_base", "sd_base", "k0")
+    # c("age", "B0"),
+    # c("age", "k0", "B0"),
+    # c("k0", "B0"),
+    c("m_base", "sd_base", "k0", "A")
 )
 
 basic_pars_names <- as.list(sapply(basic_pars, function(par_set) paste(par_set, collapse = "_")))
@@ -148,6 +147,7 @@ iterations_optim <- iterations_optim %>% filter(!(basic_par %in% basic_pars_with
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ----------------------------- Find ideal parameters -----------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+source("fit_2_functions.r")
 
 if (find_ideal_combination_pars) {
     # keep combination of parameters for initial fit
@@ -160,15 +160,14 @@ if (find_ideal_combination_pars) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Run Model ---------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-source("fit_2_functions.r")
 
 
 if (export_results) {
-    # results <- foreach(
-    #     iter = 1:nrow(iterations_optim),
-    #     .combine = "bind_rows", .packages = c("dplyr", "randomForest")
-    # ) %dopar% {
-    for (iter in 1:length(initial_pars)){
+    results <- foreach(
+        iter = 1:nrow(iterations_optim),
+        .combine = "bind_rows", .packages = c("dplyr", "randomForest")
+    ) %dopar% {
+    # for (iter in 1:length(initial_pars)){
 
         # Extract iteration-specific parameters
         i <- iterations_optim$interval[iter]
