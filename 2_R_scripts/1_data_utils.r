@@ -11,6 +11,7 @@ climatic_pars <- c("prec", "si")
 
 #------------------- Main Functions -------------------#
 
+tst <- read_csv("./0_data/non_aggregated_15yr.csv")
 
 # Function to import data and optionally convert categorical columns to dummy variables.
 # Arguments:

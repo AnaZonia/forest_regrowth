@@ -108,9 +108,9 @@ def desired_lulc():
     """Process and return desired land use/land cover data."""
     config = ProjectConfig()
 
-    age = ee.Image("projects/mapbiomas-workspace/public/collection8/mapbiomas_collection80_secondary_vegetation_age_v2").select("secondary_vegetation_age_2020")
+    age = ee.Image("projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_secondary_vegetation_age_v1").select("secondary_vegetation_age_2020")
 
-    lulc = (ee.Image("projects/mapbiomas-workspace/public/collection8/mapbiomas_collection80_integration_v1")
+    lulc = (ee.Image("projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_integration_v1")
             .select([f"classification_{year}" for year in config.range_1985_2020])
             .byte()
             .rename([str(year) for year in config.range_1985_2020])
