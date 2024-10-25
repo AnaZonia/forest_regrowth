@@ -19,6 +19,53 @@
 #     - find_combination_pars
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# -------------------------- Optimization for Forest Regrowth ---------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+# Function Description:
+#   Prepares and executes the optimization process for the forest regrowth model.
+#   It applies constraints, performs optimization, and optionally calculates R-squared.
+#
+# Arguments:
+#   train_data : Data frame containing the training dataset.
+#   pars       : Named vector of initial parameter values for optimization.
+#   conditions : List of parameter constraints expressed as character strings.
+#   test_data  : Optional. Data frame containing the test dataset for R-squared calculation.
+#
+# Returns:
+#   If test_data is NULL:
+#     Returns the full optimization result from optim().
+#   If test_data is provided:
+#     Returns a list containing:
+#       model_par : Optimized parameter values.
+#       rsq       : R-squared value of model predictions on filtered test data.
+#
+# External Functions:
+#   likelihood()
+#   growth_curve()
+#   calc_rsq()
+#   filtered_data()
+
+
+run_optim <- function(train_data, pars, conditions) {
+    if ("age" %in% names(pars)) {
+        conditions <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
+    }
+    if ("B0" %in% names(pars)) {
+        conditions <- c(conditions, list('pars["B0"] < 0'))
+    }
+    if ("sd_base" %in% names(pars)) {
+        conditions <- c(conditions, list('pars["sd_base"] < 0', 'pars["m_base"] < 0'))
+    }
+    if ("k0" %in% names(pars)) {
+        conditions <- c(conditions, list('pars["k0"] < 0'))
+    }
+
+    model <- optim(pars, likelihood, data = train_data, conditions = conditions)
+
+    return(model)
+}
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -44,78 +91,66 @@
 #   - Incorporates growth rate intercept term k0 if provided
 #   - Incorporates yearly-changing climatic parameters if provided.
 
+
 growth_curve <- function(pars, data, lag = NULL) {
+
     # Define parameters that are not expected to change yearly (not prec or si)
     non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
 
-    # Extract base parameters
-    k0 <- pars[["k0"]]
-    A0 <- pars[["A"]]
-
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Calculate the growth rate k
-    k <- rep(k0, nrow(data))
-    k_pars <- grep("_k$", names(pars), value = TRUE)
-    k <- k + rowSums(sapply(k_pars, function(par) {
-        base_par <- sub("_k$", "", par)
-        pars[[par]] * data[[base_par]]
-    }, simplify = TRUE)) * (data[["age"]] + lag)
+    if ("m_base" %in% names(pars)) {
+        pars[["B0"]] <- 0
+        k <- rep(pars[["k0"]], nrow(data))
+        k <- k + rowSums(sapply(non_clim_pars, function(par) {
+            pars[[par]] * data[[par]]
+        }, simplify = TRUE)) * (data[["age"]] + lag)
+    } else {
+        # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
 
-    # Calculate A
-    A <- rep(A0, nrow(data))
-    A_pars <- grep("_A$", names(pars), value = TRUE)
-    A <- A + rowSums(sapply(A_pars, function(par) {
-        base_par <- sub("_A$", "", par)
-        pars[[par]] * data[[base_par]]
-    }, simplify = TRUE))
+        for (clim_par in intersect(climatic_pars, names(pars))) {
+            years <- seq(2019, 1985, by = -1)
+            clim_columns <- paste0(clim_par, "_", years)
+            k <- k + rowSums(sapply(clim_columns, function(col) pars[[clim_par]] * data[[col]]))
+        }
 
-    k[which(k < 0)] <- 1e-10
+        # Define whether age is an explicit or implicit parameter (to multiply the other parameters by)
+        implicit_age <- if (!"age" %in% names(pars)) data[["age"]] else rep(1, nrow(data))
+        # Define whether the intercept k0 is to be included in the growth rate k
+        k <- if ("k0" %in% names(pars)) pars[["k0"]] * implicit_age else rep(0, nrow(data))
+        k <- k + rowSums(sapply(non_clim_pars, function(par) pars[[par]] * data[[par]] * implicit_age))
+    }
+
+    # Constrains k to avoid negative values
+    if ("k0" %in% names(pars)) {
+        k[which(k < 0)] <- -log(1 - mean(data[["agbd"]]) / mean(data[["nearest_mature_biomass"]]))
+    } else {
+        k[which(k < 0)] <- 1e-10
+    }
+
     k[which(k > 7)] <- 7 # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
 
-    return(A * (1 - exp(-k))^pars[["theta"]])
+    return(pars[["B0"]] + (data[["nearest_mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
 }
 
+# updated_k_values <- NULL
 
 # growth_curve <- function(pars, data, lag = NULL) {
-
-#     # Define parameters that are not expected to change yearly (not prec or si)
 #     non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
-
-#     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#     # Calculate the growth rate k
-#     if ("m_base" %in% names(pars)) {
-#         pars[["B0"]] <- 0
-#         k <- rep(pars[["k0"]], nrow(data))
-#         k <- k + rowSums(sapply(non_clim_pars, function(par) {
-#             pars[[par]] * data[[par]]
-#         }, simplify = TRUE)) * (data[["age"]] + lag)
-#     } else {
-#         # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
-
-#         for (clim_par in intersect(climatic_pars, names(pars))) {
-#             years <- seq(2019, 1985, by = -1)
-#             clim_columns <- paste0(clim_par, "_", years)
-#             k <- k + rowSums(sapply(clim_columns, function(col) pars[[clim_par]] * data[[col]]))
-#         }
-
-#         # Define whether age is an explicit or implicit parameter (to multiply the other parameters by)
-#         implicit_age <- if (!"age" %in% names(pars)) data[["age"]] else rep(1, nrow(data))
-#         # Define whether the intercept k0 is to be included in the growth rate k
-#         k <- if ("k0" %in% names(pars)) pars[["k0"]] * implicit_age else rep(0, nrow(data))
-#         k <- k + rowSums(sapply(non_clim_pars, function(par) pars[[par]] * data[[par]] * implicit_age))
-#     }
+    
+#     rf_model <- randomForest(k ~ non_clim_pars, data = data)
+#     predicted_k <- predict(rf_model, newdata = data)
+#     k <- data[["k"]] * (data[["age"]] + lag)
 
 #     # Constrains k to avoid negative values
-#     if ("k0" %in% names(pars)) {
-#         k[which(k < 0)] <- -log(1 - mean(data[["agbd"]]) / mean(data[["nearest_mature_biomass"]]))
-#     } else {
-#         k[which(k < 0)] <- 1e-10
-#     }
-
+#     k[which(k < 0)] <- -log(1 - mean(data[["agbd"]]) / mean(data[["nearest_mature_biomass"]]))
 #     k[which(k > 7)] <- 7 # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
+#     # Update global k values
+#     assign("updated_k_values", k, envir = .GlobalEnv)
 
-#     return(pars[["B0"]] + (data[["nearest_mature_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
+#     return(data[["nearest_mature_biomass"]] * (1 - exp(-k))^pars[["theta"]])
 # }
+
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -166,40 +201,6 @@ likelihood <- function(pars, data, conditions) {
 }
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# --------------------- Filter Test Data to Match Training Data Range -------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
-# Function Description:
-#   Filters the test dataset to ensure that all rows are within the min-max range of
-#   the training dataset for each variable.
-#
-# Arguments:
-#   train_data : The training dataset used to determine valid ranges.
-#   test_data  : The test dataset to be filtered.
-#
-# Returns:
-#   filtered_test_data : The subset of test_data where all values are within
-#                        the training data's min-max range.
-
-filter_test_data <- function(train_data, test_data) {
-    # Identify non-factor columns
-    non_factor_columns <- sapply(train_data, is.numeric)
-    # Apply min and max only to non-factor columns
-    train_min <- sapply(train_data[, non_factor_columns], min)
-    train_max <- sapply(train_data[, non_factor_columns], max)
-
-    # Function to check if a row is within the range
-    is_within_range <- function(row) {
-        all(row >= train_min & row <= train_max)
-    }
-
-    # Apply the function to each row of test_data
-    filtered_test_data <- test_data[apply(test_data[, non_factor_columns], 1, is_within_range), ]
-
-    return(filtered_test_data)
-}
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------- Calculate R-squared -----------------------------------#
@@ -223,129 +224,6 @@ calc_rsq <- function(data, pred) {
     rsq <- 1 - (sum_res_squared / total_sum_squares)
 
     return(rsq)
-}
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# -------------------------- Optimization for Forest Regrowth ---------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
-# Function Description:
-#   Prepares and executes the optimization process for the forest regrowth model.
-#   It applies constraints, performs optimization, and optionally calculates R-squared.
-#
-# Arguments:
-#   train_data : Data frame containing the training dataset.
-#   pars       : Named vector of initial parameter values for optimization.
-#   conditions : List of parameter constraints expressed as character strings.
-#   test_data  : Optional. Data frame containing the test dataset for R-squared calculation.
-#
-# Returns:
-#   If test_data is NULL:
-#     Returns the full optimization result from optim().
-#   If test_data is provided:
-#     Returns a list containing:
-#       model_par : Optimized parameter values.
-#       rsq       : R-squared value of model predictions on filtered test data.
-#
-# External Functions:
-#   likelihood()
-#   growth_curve()
-#   calc_rsq()
-#   filtered_data()
-
-
-run_optim <- function(train_data, pars, conditions, test_data = NULL) {
-    if ("age" %in% names(pars)) {
-        conditions <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
-    }
-    if ("B0" %in% names(pars)) {
-        conditions <- c(conditions, list('pars["B0"] < 0'))
-    }
-    if ("sd_base" %in% names(pars)) {
-        conditions <- c(conditions, list('pars["sd_base"] < 0', 'pars["m_base"] < 0'))
-    }
-    if ("k0" %in% names(pars)) {
-        conditions <- c(conditions, list('pars["k0"] < 0'))
-    }
-    if ("A" %in% names(pars)) {
-        conditions <- c(conditions, list('pars["A"] < 0'))
-    }
-
-    model <- optim(pars, likelihood, data = train_data, conditions = conditions)
-
-    if (is.null(test_data)) {
-        return(model)
-    } else {
-        filtered_test_data <- filter_test_data(train_data, test_data)
-        if ("m_base" %in% names(pars)){
-            pred <- growth_curve(
-                model$par, filtered_test_data,
-                exp(re_base * model$par["sd_base"] + model$par["m_base"])
-            )
-        } else {
-            pred <- growth_curve(model$par, filtered_test_data)
-        }
-        rsq <- calc_rsq(filtered_test_data, pred)
-        print(paste("R-squared:", rsq))
-
-        return(list(
-            model_par = t(model$par),
-            rsq = rsq
-        ))
-    }
-}
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ---------------------------- Run Linear Model and Evaluate ----------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
-# Function Description:
-#   Fits a linear model using the specified parameters, handles rank deficiency,
-#   predicts on filtered test data, and calculates R-squared.
-#
-# Arguments:
-#   train_data : Data frame containing the training dataset.
-#   pars       : Vector of parameter names to be used in the model.
-#   conditions : Placeholder - not used here, but used to prevent loops in cross_valid and run_foreach
-#   test_data  : Data frame containing the test dataset.
-#
-# Returns:
-#   list containing:
-#     model_par : Named matrix / array of model coefficients (excluding intercept).
-#     rsq       : R-squared value of the model predictions on filtered test data.
-# External Functions:
-#   filtered_data()
-#   calc_rsq()
-
-run_lm <- function(train_data, pars, test_data) {
-
-    lm_formula <- as.formula(paste("agbd ~", paste(pars, collapse = " + ")))
-
-    model <- lm(lm_formula, data = train_data)
-
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Check for rank deficiency
-    aliased_vars <- summary(model)$aliased
-
-    if (any(aliased_vars)) {
-        problematic_vars <- names(aliased_vars)[aliased_vars]
-        print(paste("Rank-deficient variables:", paste(problematic_vars, collapse = ", ")))
-        for (var in problematic_vars) {
-            print(table(train_data[[var]]))
-        }
-    }
-
-    filtered_test_data <- filter_test_data(train_data, test_data)
-
-    pred <- predict(model, newdata = filtered_test_data)
-    rsq <- calc_rsq(filtered_test_data, pred)
-    print(paste("R-squared:", rsq))
-
-    return(list(
-        model_par = t(summary(model)$coefficients[-1, 1, drop = FALSE]), # -1 to remove (Intercept),
-        rsq = rsq
-    ))
 }
 
 
@@ -380,50 +258,60 @@ run_lm <- function(train_data, pars, test_data) {
 #   - The R-squared values from each fold are stored in `rsq_list`, and the best model
 #
 
-cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
-    rsq_list <- c()
-    pars_list <- list()
-    indices <- sample(c(1:6), nrow(data), replace = TRUE)
+cross_valid <- function(data, pars_iter, conditions) {
+    indices <- sample(c(1:5), nrow(data), replace = TRUE)
+    data$pred <- NA
+    rsq_list <- numeric(5)
+
+    predict_growth <- function(model, test_data) {
+        if ("m_base" %in% names(pars_iter)) {
+            growth_curve(
+                model$par, test_data,
+                exp(re_base * model$par["sd_base"] + model$par["m_base"])
+            )
+        } else {
+            growth_curve(model$par, test_data)
+        }
+    }
 
     for (index in 1:5) {
         # Define the test and train sets
-        test_data <- data[indices == index, ]
-        train_data <- data[indices != index & indices != 6, ]
+        test_data <- data[indices == index, !(names(data) %in% c("pred"))]
+        train_data <- data[indices != index, !(names(data) %in% c("pred"))]
         # Normalize training and test sets independently, but using training data's min/max for both
         norm_data <- normalize_independently(train_data, test_data)
         train_data <- norm_data$train_data
         test_data <- norm_data$test_data
 
         # Run the model function on the training set and evaluate on the test set
-        if (identical(run_function, run_optim)) {
-            model_output <- run_function(train_data, pars_iter, conditions, test_data)
-        } else {
-            model_output <- run_function(train_data, pars_iter, test_data)
-        }
-
-        # Collect R-squared values and model parameters
-        rsq_list <- append(rsq_list, model_output$rsq)
-        pars_list[[index]] <- model_output$model_par
+        model <- run_optim(train_data, pars_iter, conditions) # optim
+        print("done")
+        # save the predicted values of each iteration of the cross validation.
+        pred <- predict_growth(model, test_data)
+        rsq_list[index] <- calc_rsq(test_data, pred)
+        data$pred[indices == index] <- pred
     }
-    
-    norm_unseen_data <- normalize_independently(data[indices == 6, ])$train_data
-    # print(head(norm_unseen_data))
-    best_pars_list <- pars_list[[which.max(rsq_list)]]
-    best_pars <- as.vector(best_pars_list)
-    names(best_pars) <- colnames(best_pars_list)
 
-    final_output <- run_function(norm_unseen_data, best_pars, conditions, norm_unseen_data)
+    # Fit the model on the full data
+    norm_data <- normalize_independently(data)$train_data
+    final_output <- run_optim(norm_data, pars_iter, conditions)
+    pred_final <- predict_growth(final_output, norm_data)
+
+    rsq_final <- calc_rsq(norm_data, pred_final)
+    rsq_all <- calc_rsq(data, data$pred)
 
     # Calculate mean and standard deviation of R-squared across folds
     result <- list(
-        rsq = mean(rsq_list),
-        rsq_sd = sd(rsq_list),
-        rsq_unseen = final_output$rsq,
-        pars = best_pars_list
+        rsq_mean = mean(rsq_list, na.rm = TRUE),
+        rsq_sd = sd(rsq_list, na.rm = TRUE),
+        rsq_all = rsq_all,
+        rsq_final = rsq_final,
+        pars = final_output$par
     )
 
     return(result)
 }
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------------------- Prepare Dataframes Function --------------------------------#
@@ -435,26 +323,30 @@ cross_valid <- function(data, run_function, pars_iter, conditions = NULL) {
 #   data             : A dataframe with normalized numerical values
 
 normalize_independently <- function(train_data, test_data = NULL) {
-
     # Select numeric columns for normalization, excluding specified ones
     norm_cols <- c(names(train_data)[!grepl(paste0(c(unlist(categorical), "agbd", "nearest_mature_biomass"), collapse = "|"), names(train_data))])
 
-    # Compute min and max for normalization based on training data
-    train_min_max <- train_data %>%
-        summarise(across(all_of(norm_cols), list(min = ~ min(., na.rm = TRUE), max = ~ max(., na.rm = TRUE))))
+    # Compute mean and standard deviation for normalization based on training data
+    train_mean_sd <- train_data %>%
+        summarise(across(all_of(norm_cols), list(mean = ~ mean(., na.rm = TRUE), sd = ~ sd(., na.rm = TRUE))))
 
-    # Normalize training and test data using training min/max values
+    # Normalize training and test data using training mean/sd values
     normalize <- function(data) {
         data %>%
             mutate(across(
                 all_of(norm_cols),
-                ~ (. - train_min_max[[paste0(cur_column(), "_min")]]) /
-                    (train_min_max[[paste0(cur_column(), "_max")]] - train_min_max[[paste0(cur_column(), "_min")]])
+                ~ {
+                    standardized <- (. - train_mean_sd[[paste0(cur_column(), "_mean")]]) /
+                        train_mean_sd[[paste0(cur_column(), "_sd")]]
+                    # Shift and scale to make positive
+                    standardized_min <- min(standardized, na.rm = TRUE)
+                    standardized_max <- max(standardized, na.rm = TRUE)
+                    (standardized - standardized_min) / (standardized_max - standardized_min)
+                }
             ))
     }
 
     train_data_norm <- normalize(train_data)
-    # Remove columns that are entirely NA
     train_data_norm <- train_data_norm %>% select(where(~ sum(is.na(.)) < nrow(train_data_norm)))
 
     if (is.null(test_data)) {
@@ -466,7 +358,42 @@ normalize_independently <- function(train_data, test_data = NULL) {
     }
 }
 
+# normalize_independently <- function(train_data, test_data = NULL) {
 
+#     # Select numeric columns for normalization, excluding specified ones
+#     norm_cols <- c(names(train_data)[!grepl(paste0(c(unlist(categorical), "agbd", "nearest_mature_biomass"), collapse = "|"), names(train_data))])
+
+#     # Compute min and max for normalization based on training data
+#     train_min_max <- train_data %>%
+#         summarise(across(all_of(norm_cols), list(min = ~ min(., na.rm = TRUE), max = ~ max(., na.rm = TRUE))))
+
+#     # Normalize training and test data using training min/max values
+#     normalize <- function(data) {
+#         data %>%
+#             mutate(across(
+#                 all_of(norm_cols),
+#                 ~ (. - train_min_max[[paste0(cur_column(), "_min")]]) /
+#                     (train_min_max[[paste0(cur_column(), "_max")]] - train_min_max[[paste0(cur_column(), "_min")]])
+#             ))
+#     }
+
+#     train_data_norm <- normalize(train_data)
+#     # Remove columns that are entirely NA
+#     # train_data_norm <- train_data_norm %>% select(where(~ sum(is.na(.)) < nrow(train_data_norm)))
+
+#     if (is.null(test_data)) {
+#         return(list(train_data = train_data_norm))
+#     } else {
+#         test_data_norm <- normalize(test_data)
+#         # test_data_norm <- test_data_norm %>% select(where(~ sum(is.na(.)) < nrow(test_data_norm)))
+#         return(list(train_data = train_data_norm, test_data = test_data_norm))
+#     }
+# }
+
+# just show obs vs expected in different places. a measure of error in different places.
+# variance across different folds
+# column of predicted values for the entire data.
+# distribution of parameter values
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #------------------------ Process Model Output into DataFrame Row --------------------------#
@@ -491,11 +418,11 @@ normalize_independently <- function(train_data, test_data = NULL) {
 # Define helper functions
 
 process_row <- function(
-    cv_output, model_type, data_name, data_pars_names, biome_name, basic_pars_names = NULL) {
+    cv_output, data_name, data_pars_names, biome_name, basic_pars_names) {
     # Initialize a data frame with model parameters (coefficients or variable importance)
     row <- as.data.frame(cv_output$pars)
     # Identify parameters missing from this iteration and add them as NA columns
-    all_possible_pars <- unique(unlist(c("nearest_mature_biomass", "age", non_data_pars, data_pars)))
+    all_possible_pars <- unique(unlist(c("age", non_data_pars, data_pars)))
     missing_cols <- setdiff(all_possible_pars, names(row))
     row[missing_cols] <- NA
 
@@ -504,22 +431,17 @@ process_row <- function(
 
     row$biome_name <- biome_name
     row$data_name <- data_name
-    row$model_type <- model_type
     row$data_pars <- data_pars_names
     row$rsq <- cv_output$rsq
     row$rsq_sd <- cv_output$rsq_sd
-    row$rsq_unseen <- cv_output$rsq_unseen
-
-    if (is.null(basic_pars_names)) {
-        row$basic_pars <- NA
-    } else {
-        row$basic_pars <- basic_pars_names
-    }
+    row$rsq_all <- cv_output$rsq_all
+    row$rsq_final <- cv_output$rsq_final
+    row$basic_pars <- basic_pars_names
 
     # Define the desired order of columns
     desired_column_order <- c(
-        "biome_name", "data_name", "data_pars", "basic_pars", "model_type",
-        "rsq", "rsq_sd", "rsq_unseen", "nearest_mature_biomass", "age"
+        "biome_name", "data_name", "data_pars", "basic_pars",
+        "rsq", "rsq_sd", "rsq_all", "rsq_final", "age"
     )
 
     row <- row %>%
@@ -573,20 +495,12 @@ find_combination_pars <- function(iterations) {
         basic_pars_iter <- basic_pars[[l]]
 
         # Initialize parameter vector with basic parameters and theta
-        # all_pars_iter <- c(setNames(
-        #     rep(0, length(data_pars_iter)),
-        #     c(data_pars_iter)
-        # ))
-        
-        all_pars_iter <- c()
-        for (param in data_pars_iter) {
-            all_pars_iter <- c(
-                all_pars_iter,
-                setNames(0, paste0(param, "_k")),
-                setNames(0, paste0(param, "_A"))
-            )
-        }
+        all_pars_iter <- c(setNames(
+            rep(0, length(data_pars_iter)),
+            c(data_pars_iter)
+        ))
 
+        all_pars_iter[["B0"]] <- mean(data[["agbd"]])
         all_pars_iter[["theta"]] <- 1
         basic_pars_iter <- c(basic_pars_iter, "theta")
 
@@ -603,12 +517,6 @@ find_combination_pars <- function(iterations) {
             all_pars_iter["sd_base"] <- 1
         }
 
-        if ("A" %in% basic_pars_iter) {
-            all_pars_iter["A"] <- mean(data[["nearest_mature_biomass"]])
-        } else {
-            all_pars_iter["B0"] <- mean(data[["agbd"]])
-        }
-        
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle categorical variables by grouping dummy variables together
         for (cat_var in categorical) {
@@ -642,16 +550,10 @@ find_combination_pars <- function(iterations) {
 
                 # check for categorical variables (to be included as a group)
                 if (data_pars_iter[j] %in% categorical) {
-                    # inipar <- c(best$par, all_pars_iter[grep(data_pars_iter[j], names(all_pars_iter))])
-                    param_pattern <- paste0("^", data_pars_iter[j], "(_k|_A)?$")
-                    inipar <- c(best$par, all_pars_iter[grep(param_pattern, names(all_pars_iter))])
-                    print(inipar)
+                    inipar <- c(best$par, all_pars_iter[grep(data_pars_iter[j], names(all_pars_iter))])
                 } else {
                     # as starting point, take the best values from last time
-                    # inipar <- c(best$par, all_pars_iter[data_pars_iter[j]])
-                    param_pattern <- paste0("^", data_pars_iter[j], "(_k|_A)?$")
-                    selected_pars <- all_pars_iter[grep(param_pattern, names(all_pars_iter))]
-                    inipar <- c(best$par, selected_pars)
+                    inipar <- c(best$par, all_pars_iter[data_pars_iter[j]])
                 }
 
                 model <- run_optim(data, inipar, conditions)

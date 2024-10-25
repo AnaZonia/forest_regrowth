@@ -77,32 +77,6 @@ process_climatic <- function(data) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------------------- Prepare Dataframes Function --------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Function used in import_data to normalize numeric columns in dataframes.
-# Arguments:
-#   data             : The dataframe to be used for analysis
-# Returns:
-#   data             : A dataframe with normalized numerical values
-
-
-normalize <- function(data) {
-    # Select numeric columns for normalization, excluding specified ones
-    norm_cols <- c(names(data)[!grepl(paste0(c(unlist(categorical), "agbd", "nearest_mature_biomass"), collapse = "|"), names(data))])
-
-    data <- data %>%
-        mutate(across(
-            all_of(norm_cols),
-            # Normalization formula: (x - min(x)) / (max(x) - min(x))
-            ~ (. - min(., na.rm = TRUE)) / (max(., na.rm = TRUE) - min(., na.rm = TRUE))
-        )) %>%
-        # Remove columns that are entirely NA
-        select(where(~ sum(is.na(.)) < nrow(data)))
-
-    return(data)
-}
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# -------------------------- Prepare Dataframes Function --------------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Function to import data, remove unnecessary columns, and optionally convert categorical columns to dummy variables.
 # This function prepares a list of dataframes by:
@@ -157,8 +131,6 @@ import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
         if (process_climatic) {
             df <- process_climatic(df)
         }
-
-        # df <- normalize(df)
         
         non_zero_counts <- colSums(df != 0, na.rm = TRUE)
         df <- df[, non_zero_counts > 50]
@@ -169,7 +141,7 @@ import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
             ungroup() %>%
             mutate(across(all_of(categorical), droplevels))
         
-        df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
+        # df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
         df <- df[, !names(df) %in% "biome"]
         
         # Create dummy variables
