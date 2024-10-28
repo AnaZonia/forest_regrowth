@@ -10,17 +10,7 @@ from scipy.interpolate import BSpline
 
 # Growth curve function with safe exponentiation to avoid overflow
 def growth_curve(X, A, age, B0, betas, theta):
-    # k = np.dot(X, betas) * age
-    # Define a sequence of coefficients for each predictor (length should match len(knots) - k)
-    # Assuming the coefficients are part of `betas` and properly structured
-    # Adjust knots and coefficients if needed
-    knots = np.linspace(0, 1, 6)  # Example knot sequence for normalized data
-    coefficients = [np.array([betas[i]] * (len(knots) - 3)) for i in range(X.shape[1])]  # Adjust length based on k
-
-    # Construct splines for each predictor using the coefficients
-    splines = [BSpline(knots, coefficients[i], k=2)(X[:, i]) for i in range(X.shape[1])]
-    k = np.sum(splines, axis=0) * age
-
+    k = np.dot(X, betas) * age
     k = np.clip(k, 1e-10, 7)  # Keep k within a reasonable range
     result = B0 + (A - B0) * (1 - np.exp(-k)) ** theta
     return result
@@ -38,7 +28,6 @@ def fit_curve_fit(X, A, age, y, initial_params, bounds):
         bounds=bounds
     )
     return params
-
 
 # Wrapper for minimize using Nelder-Mead with -inf penalty for bounds
 def fit_minimize(X, A, age, y, initial_params, bounds, method):
@@ -64,6 +53,104 @@ def fit_minimize(X, A, age, y, initial_params, bounds, method):
     # Call minimize using Nelder-Mead
     result = minimize(loss, initial_params, method=method, tol=1e-1)
     return result.x
+
+# Cross-validation with option for optimizer choice
+def cross_validate(df, predictors, optimizer="curve_fit", initial_params=None):
+    X = df[predictors].values
+    y = df['agbd'].values
+    A = df['nearest_mature_biomass'].values
+    age = df['age'].values
+
+    if initial_params is None:
+        initial_params = [100] + [0] * len(predictors) + [1.0]
+    
+    bounds = ([0] + [-5] * len(predictors) + [0], 
+              [150] + [5] * len(predictors) + [10])
+
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    r_squared_values = []
+
+    for train_idx, test_idx in kf.split(X):
+        scaler = MinMaxScaler()
+        X_train = scaler.fit_transform(X[train_idx])
+        X_test = scaler.transform(X[test_idx])
+        y_train, y_test = y[train_idx], y[test_idx]
+        A_train, A_test = A[train_idx], A[test_idx]
+        age_train, age_test = age[train_idx], age[test_idx]
+
+        # Choose the optimizer
+        if optimizer == "curve_fit":
+            params = fit_curve_fit(X_train, A_train, age_train, y_train, initial_params, bounds)
+        else:
+            params = fit_minimize(X_train, A_train, age_train, y_train, initial_params, bounds, optimizer)
+
+        # Predict on the test set
+        B0, *betas, theta = params
+        y_pred = growth_curve(X_test, A_test, age_test, B0, betas, theta)
+        print(np.dot(X_test, betas) * age_test)
+
+        # Calculate R-squared
+        ss_res = np.sum((y_test - y_pred) ** 2)
+        ss_tot = np.sum((y_test - np.mean(y_test)) ** 2)
+        r_squared = 1 - (ss_res / ss_tot)
+        r_squared_values.append(r_squared)
+
+    return np.mean(r_squared_values)
+
+
+def run_model_iteration(data, param, best, base_row, all_pars_iter, categorical):
+    if param in categorical:
+        inipar = {**best['par'], **{key: all_pars_iter[key] for key in all_pars_iter.keys() if param in key}}
+    else:
+        inipar = {**best['par'], param: all_pars_iter[param]}
+    
+    model = minimize(lambda params: np.sum((data - params) ** 2), list(inipar.values()), method='Nelder-Mead')
+
+    iter_row = base_row.copy()
+    iter_row.update(dict(zip(inipar.keys(), model.x)))
+    iter_row['likelihood'] = model.fun
+    
+    return iter_row
+
+def iterative_model_selection(data, data_pars_iter, all_pars_iter, basic_pars_iter, categorical):
+    remaining = list(range(len(data_pars_iter)))
+    taken = len(remaining) + 1  # Ensure out-of-range index in the first iteration
+
+    best = {'AIC': float('inf'), 'par': {key: all_pars_iter[key] for key in basic_pars_iter}}
+    val = len(basic_pars_iter)
+
+    base_row = {key: np.nan for key in all_pars_iter.keys()}
+    base_row['likelihood'] = 0
+
+    should_continue = True
+    ideal_par_combination = []
+
+    for i in range(len(data_pars_iter)):
+        if not should_continue:
+            break
+        
+        # Parallel processing for optimizing remaining parameters
+        optim_remaining_pars = Parallel(n_jobs=-1)(delayed(run_model_iteration)(
+            data, data_pars_iter[j], best, base_row, all_pars_iter, categorical) for j in remaining if j not in taken)
+
+        # Create a DataFrame for results
+        iter_df = pd.DataFrame(optim_remaining_pars)
+        best_model_idx = iter_df['likelihood'].idxmin()
+        best_model_AIC = 2 * iter_df['likelihood'].iloc[best_model_idx] + 2 * (i + val + 1)
+
+        print(f"Iteration: {i + 1}, Parameters included: {i + 1}")
+
+        # Update best model if AIC improves
+        if best['AIC'] == float('inf') or best_model_AIC < best['AIC']:
+            best['AIC'] = best_model_AIC
+            best['par'] = iter_df.loc[best_model_idx, all_pars_iter.keys()].dropna().to_dict()
+            taken = [idx for idx, name in enumerate(data_pars_iter) if any(name in k for k in best['par'].keys())]
+        else:
+            print("No improvement. Exiting loop.")
+            should_continue = False
+
+    ideal_par_combination.append(best['par'])
+    return ideal_par_combination
 
 
 # Cross-validation with option for optimizer choice, applied to each cluster
@@ -138,26 +225,27 @@ def cross_validate_cluster(df, predictors, optimizer="curve_fit", initial_params
 df = pd.read_csv("./0_data/non_aggregated_all.csv")
 df = pd.get_dummies(df, columns=['topography', 'ecoreg', 'indig', 'protec', 'last_LU'], drop_first=True)
 # df = df.sample(10000, random_state=42)
-predictors = [col for col in df.columns if col not in ['age', 'agbd', 'nearest_mature_biomass']]
+# predictors = [col for col in df.columns if col not in ['age', 'agbd', 'nearest_mature_biomass']]
+predictors = ["nitro", "num_fires_before_regrowth", "sur_cover"]
 
 # mean_r_squared_curve_fit = cross_validate(df, predictors, optimizer="curve_fit")
 # print(f"Mean cross-validated R-squared using curve_fit: {mean_r_squared_curve_fit}")
 # mean_r_squared_nelder_mead = cross_validate(df, predictors, optimizer="Nelder-Mead")
 # print(f"Mean cross-validated R-squared using Nelder-Mead: {mean_r_squared_nelder_mead}")
-# mean_r_squared_LBFGSB = cross_validate(df, predictors, optimizer="L-BFGS-B")
-# print(f"Mean cross-validated R-squared using L-BFGS-B: {mean_r_squared_LBFGSB}")
+mean_r_squared_LBFGSB = cross_validate(df, predictors, optimizer="L-BFGS-B")
+print(f"Mean cross-validated R-squared using L-BFGS-B: {mean_r_squared_LBFGSB}")
 
 
 # best_params_lbfgsb, best_r_squared_lbfgsb = grid_search_initial_params(df, predictors, optimizer="L-BFGS-B")
 # print(f"Best initial parameters and R-squared using L-BFGS-B: {best_params_lbfgsb}, R^2 = {best_r_squared_lbfgsb}")
 
 
-# Run cross-validation for each cluster
-cluster_r_squared = cross_validate_cluster(df, predictors, optimizer="Nelder-Mead")
+# # Run cross-validation for each cluster
+# cluster_r_squared = cross_validate_cluster(df, predictors, optimizer="Nelder-Mead")
 
-# Print R-squared values per cluster
-for cluster_id, r2 in cluster_r_squared.items():
-    print(f"Cluster {cluster_id} - Mean R-squared: {r2:.4f}")
+# # Print R-squared values per cluster
+# for cluster_id, r2 in cluster_r_squared.items():
+#     print(f"Cluster {cluster_id} - Mean R-squared: {r2:.4f}")
 
 
 

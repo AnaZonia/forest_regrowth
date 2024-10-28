@@ -98,7 +98,7 @@ class MapManager:
 
 def remap_band(band_name, img):
     """Remap a band to desired land use categories."""
-    desired_values = ee.List([3, 6, 15, 39, 20, 40, 62, 41, 46, 47, 35, 48, 9, 21])
+    desired_values = ee.List([3, 6, 15, 39, 20, 40, 41, 46, 35, 48, 9, 21])
     mask_all_ones = ee.List.repeat(1, desired_values.size())
     band = img.select(ee.String(band_name))
     new_band = band.remap(desired_values, mask_all_ones, 0)
