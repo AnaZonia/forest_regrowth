@@ -141,7 +141,7 @@ import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
             ungroup() %>%
             mutate(across(all_of(categorical), droplevels))
         
-        # df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
+        df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
         df <- df[, !names(df) %in% "biome"]
         
         # Create dummy variables
