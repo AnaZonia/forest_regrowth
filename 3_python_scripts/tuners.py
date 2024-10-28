@@ -110,7 +110,6 @@ def optimize_with_ray_tune(fun, params):
         f"coeff_{len(params)-1}": tune.uniform(0, 10)  # cwd
     }
 
-
     scheduler = ASHAScheduler(
         metric = "mse",
         mode = "min",

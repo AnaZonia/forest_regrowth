@@ -59,7 +59,7 @@ def regression_main():
     biomes = [1, 4, "both"]  # You can extend this as needed
     filepaths = {
         # "eu": "./0_data/eu.csv",
-        "mapbiomas": "./0_data/non_aggregated_all.csv"
+        "mapbiomas": "./0_data/non_aggregated.csv"
     }
 
     models = {
@@ -89,25 +89,21 @@ def regression_main():
     for biome in biomes:
         for datasource, filepath in filepaths.items():
             # Load and preprocess data for the given biome
-            if datasource == "mapbiomas":
-                use_stratified_sample = True
-            else:
-                use_stratified_sample = False
             
-            X, y, _, unseen_data = load_and_preprocess_data(filepath, \
-                                biome = biome, ML = True, use_stratified_sample = use_stratified_sample,
-                                first_stage_sample_size = 500, final_sample_size = 10000,
-                                unseen_portion = 0.2)
-
             # X, y, _, unseen_data = load_and_preprocess_data(filepath, \
-            #                     biome = biome, use_stratified_sample = use_stratified_sample,
-            #                     first_stage_sample_size = 500, final_sample_size = 15000,
+            #                     biome = biome, ML = True, use_stratified_sample = use_stratified_sample,
+            #                     first_stage_sample_size = 500, final_sample_size = 10000,
             #                     unseen_portion = 0.2)
 
+            X, y, _, unseen_data = load_and_preprocess_data(filepath, \
+                                biome = biome,
+                                final_sample_size = 15000,
+                                unseen_portion = 0.2,
+                                remove_land_use_params = True)
 
             # Perform regression analysis for each model
             for name, model in models.items():
-                mean_r2, std_r2, unseen_r2, perm_importance, _ = regression_cv(
+                mean_r2, std_r2, unseen_r2, perm_importance, _, best_model = regression_cv(
                     X, y, model, unseen_data, name, param_grids[name]
                 )
                 
@@ -125,16 +121,25 @@ def regression_main():
                     'cv_r2': mean_r2,
                     'unseen_r2': unseen_r2
                 })
+
+                # Add predictions to the original dataset
+                X['pred'] = best_model.predict(X)
+                X['agbd'] = y
+                # Save the dataset with predictions
+                output_filepath = f"./0_results/predictions_{datasource}_biome_{biome}.csv"
+                X.to_csv(output_filepath, index=False)
+                print(f"Predictions saved to {output_filepath}")
+
                                 
                 # # Display the figure (optional)
                 # fig.suptitle(f"{name} - Biome {biome} - {datasource}")
                 # plt.show()
 
-    # After the loop, create the DataFrame from the list of results
-    results_df = pd.DataFrame(results_list)
-    # Save results to CSV
-    results_df.to_csv("./0_results/regression_results_nocat.csv", index = False)
-    print("Results saved to ./0_results/regression_results.csv")
+    # # After the loop, create the DataFrame from the list of results
+    # results_df = pd.DataFrame(results_list)
+    # # Save results to CSV
+    # results_df.to_csv("./0_results/regression_results_nocat.csv", index = False)
+    # print("Results saved to ./0_results/regression_results.csv")
 
 
 
@@ -153,13 +158,13 @@ def nelder_mead_main(tune = False, func_form = 'lag'):
     """
     # pars = ["age", "cwd"]
 
-    X, y, A, unseen_data = load_and_preprocess_data("./0_data/non_aggregated.csv", 
+    X, y, A, unseen_data = load_and_preprocess_data("./0_data/non_aggregated_all.csv", 
                                                     biome = 4, 
-                                                    use_stratified_sample=True,
-                                                    first_stage_sample_size = 500, final_sample_size = 15000,
+                                                    final_sample_size = 15000,
                                                     unseen_portion = 0.2)
-    X = pd.get_dummies(X, drop_first = True)
-    unseen_data.X = pd.get_dummies(unseen_data.X, drop_first = True)
+    
+    X = pd.get_dummies(X, drop_first = True).astype(int)
+    unseen_data.X = pd.get_dummies(unseen_data.X, drop_first = True).astype(int)
     pars = X.columns.tolist()
     initial_params = make_initial_parameters(pars, y, A, func_form)
 
@@ -177,7 +182,6 @@ def nelder_mead_main(tune = False, func_form = 'lag'):
             "Ray Tune": lambda: optimize_with_ray_tune(model, initial_params),
             "Skopt": lambda: optimize_with_skopt(model, initial_params)
         })
-
 
     # Run tuners and collect results
     figures = []
@@ -208,65 +212,8 @@ def nelder_mead_main(tune = False, func_form = 'lag'):
         # figures.append((name, fig))
 
 
-def export_data():
-    """
-    Writes sampled data into CSV file.
-    """
-    # Define biomes and data sources
-    filepaths = {
-        # "eu": "./0_data/eu.csv",
-        "mapbiomas": "./0_data/non_aggregated_15yr.csv"
-    }
-
-    # Loop over each biome and data source
-    for datasource, filepath in filepaths.items():
-        unseen_data_output_path = f"./0_data/unseen_data_{datasource}.csv"
-        main_data_output_path = f"./0_data/data_{datasource}.csv"
-
-        # Load and preprocess data for the given biome
-        if filepath == "./0_data/non_aggregated.csv":
-            use_stratified_sample = True
-        else:
-            use_stratified_sample = False
-        
-        X, y, A, unseen_data = load_and_preprocess_data(filepath, \
-                            biome = "both", 
-                            keep_biome = True,
-                            use_stratified_sample = use_stratified_sample,
-                            first_stage_sample_size = 500, final_sample_size = 15000,
-                            unseen_portion = 0.2)
-        
-        # Calculate the proportion of non-zero elements per column
-        proportions = X.apply(lambda col: (col != 0).sum())
-
-        print("-----------------------------------------")
-        print(datasource)
-        # Print the result
-        print(proportions)
-        print(X.dtypes)
-        
-        # Export unseen_data to CSV
-        if unseen_data_output_path:
-            unseen_df = pd.DataFrame({
-                **{col: unseen_data.X[col] for col in unseen_data.X.columns},
-                'agbd': unseen_data.y,
-                'nearest_mature_biomass': unseen_data.A
-            })
-            unseen_df.to_csv(unseen_data_output_path, index=False)
-            print(f"Unseen data exported to {unseen_data_output_path}")
-
-        # Export X, y, A to CSV
-        if main_data_output_path:
-            main_df = X.copy()
-            main_df['agbd'] = y
-            main_df['nearest_mature_biomass'] = A
-            main_df.to_csv(main_data_output_path, index=False)
-            print(f"Main data (X, y, A) exported to {main_data_output_path}")
-
-
-
 if __name__ == "__main__":
-    regression_main()
+    # regression_main()
     # export_data()
-    # nelder_mead_main(tune = False, func_form = "B0_theta")
+    nelder_mead_main(tune = True, func_form = "B0_theta")
     # nelder_mead_main(tune = False, func_form = "lag")
