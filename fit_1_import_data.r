@@ -103,7 +103,8 @@ import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
     
     columns_to_remove <- c(
         ".geo", "latitude", "longitude", "mature_forest_years",
-        "last_LU",
+        # "last_LU",
+        "lulc_sum_35", "lulc_sum_41",
         "num_fires_before_first_anthro", "num_fires_after_first_anthro", "num_fires_during_anthro"
     )
 
@@ -133,7 +134,7 @@ import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
         }
         
         non_zero_counts <- colSums(df != 0, na.rm = TRUE)
-        df <- df[, non_zero_counts > 50]
+        df <- df[, non_zero_counts > 200]
 
         df <- df %>%
             group_by(across(all_of(categorical))) %>%
@@ -141,7 +142,7 @@ import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
             ungroup() %>%
             mutate(across(all_of(categorical), droplevels))
         
-        df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
+        # df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
         df <- df[, !names(df) %in% "biome"]
         
         # Create dummy variables

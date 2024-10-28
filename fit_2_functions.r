@@ -92,7 +92,7 @@ run_optim <- function(train_data, pars, conditions) {
 #   - Incorporates yearly-changing climatic parameters if provided.
 
 
-growth_curve <- function(pars, data, lag = NULL) {
+growth_curve <- function(pars, data, lag = 0) {
 
     # Define parameters that are not expected to change yearly (not prec or si)
     non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
@@ -173,9 +173,7 @@ likelihood <- function(pars, data, conditions) {
     if ("m_base" %in% names(pars)) {
         # Calculate log-normal scaled base using re_base and parameters
         scaled_base <- exp(re_base * pars["sd_base"] + pars["m_base"])
-
         m_results <- matrix(0, nrow = nrow(data), ncol = length(scaled_base))
-
         growth_curves <- sapply(scaled_base, function(lag) growth_curve(pars, data, lag))
         residuals <- sweep(growth_curves, 1, data$agbd, "-")
 
@@ -255,17 +253,19 @@ calc_rsq <- function(data, pred) {
 
 cross_valid <- function(data, pars_iter, conditions) {
     indices <- sample(c(1:5), nrow(data), replace = TRUE)
-    data$pred <- NA
+    data$pred_cv <- NA
+    data$pred_final <- NA
     rsq_list <- numeric(5)
 
-    predict_growth <- function(model, test_data) {
+    predict_growth <- function(model, data) {
         if ("m_base" %in% names(pars_iter)) {
             growth_curve(
-                model$par, test_data,
+                model$par, data,
                 exp(re_base * model$par["sd_base"] + model$par["m_base"])
             )
+
         } else {
-            growth_curve(model$par, test_data)
+            growth_curve(model$par, data)
         }
     }
 
@@ -282,27 +282,29 @@ cross_valid <- function(data, pars_iter, conditions) {
         model <- run_optim(train_data, pars_iter, conditions) # optim
 
         # save the predicted values of each iteration of the cross validation.
-        pred <- predict_growth(model, test_data)
-        rsq_list[index] <- calc_rsq(test_data, pred)
-        data$pred[indices == index] <- pred
+        pred_cv <- predict_growth(model, test_data)
+        data$pred_cv[indices == index] <- pred_cv
+        rsq <- calc_rsq(data[indices == index, ], pred_cv)
+        print(rsq)
+        rsq_list[index] <- rsq
+
     }
 
     # Fit the model on the full data
     norm_data <- normalize_independently(data)$train_data
-    final_output <- run_optim(norm_data, pars_iter, conditions)
-    pred_final <- predict_growth(final_output, norm_data)
-    rsq_final <- calc_rsq(norm_data, pred_final)
+    final_model <- run_optim(norm_data, pars_iter, conditions)
+    data$pred_final <- growth_curve(final_model$par, norm_data)
 
-    rsq_all <- calc_rsq(data, data$pred)
+    # get r squared of model fit on the entire data
+    rsq_final <- calc_rsq(norm_data, predict_growth(final_model, norm_data))
 
     # Calculate mean and standard deviation of R-squared across folds
     result <- list(
         rsq_mean = mean(rsq_list, na.rm = TRUE),
         rsq_sd = sd(rsq_list, na.rm = TRUE),
-        rsq_all = rsq_all,
         rsq_final = rsq_final,
-        pars = t(final_output$par),
-        pred = data$pred
+        pars = t(final_model$par),
+        pred = data$pred_final
     )
 
     return(result)
@@ -615,9 +617,9 @@ find_combination_pars <- function(iter, data) {
     # Iteratively add parameters and evaluate the model. Keep only AIC improvements.
     for (i in 1:length(data_pars_iter)) {
         if (!should_continue) break
-        optim_remaining_pars <- foreach(j = remaining[-taken]) %dopar% {
-            # for (j in remaining[-taken]) {
 
+        optim_remaining_pars <- foreach(j = remaining[-taken]) %dopar% {
+        # for (j in remaining[-taken]) {
             # check for categorical variables (to be included as a group)
             if (data_pars_iter[j] %in% categorical) {
                 inipar <- c(best$par, all_pars_iter[grep(data_pars_iter[j], names(all_pars_iter))])
@@ -630,7 +632,6 @@ find_combination_pars <- function(iter, data) {
             iter_row <- base_row
             iter_row[names(inipar)] <- model$par
             iter_row["likelihood"] <- model$value
-
             return(iter_row)
         }
 
