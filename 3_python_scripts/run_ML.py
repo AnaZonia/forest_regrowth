@@ -76,17 +76,18 @@ def load_and_preprocess_data(
     #     df = df.drop(columns = ['mean_aet', 'cwd']) # multicollinearity
     # if biome == "both":
     #     df = df.drop(columns = ['mean_aet']) # multicollinearity
-
+    df = df.loc[:, ~df.columns.str.contains(r"\d{4}")]
+    
     # Convert 'topography' and 'ecoreg' to categorical if present
     for col in ['topography', 'ecoreg', 'indig', 'protec', 'last_LU']:
         if col in df.columns:
             df[col] = df[col].astype('category')
 
     if pars is None:
-        pars = df.columns.drop(["biome", "agbd"]).tolist()
+        pars = df.columns.drop(["biome", "biomass"]).tolist()
 
     if keep_all_data:
-        X = df[pars + ['biome', 'agbd']]
+        X = df[pars + ['biome', 'biomass']]
         unseen_data = None
 
     # Remove land use related parameters if the switch is on
@@ -104,11 +105,11 @@ def load_and_preprocess_data(
 
     unseen_data = DataSet(
         X = unseen_df[pars],
-        y = unseen_df['agbd'].values,
+        y = unseen_df['biomass'].values,
         A = unseen_df['nearest_mature_biomass'].values
     )
 
-    y = df['agbd'].values
+    y = df['biomass'].values
     A = df['nearest_mature_biomass'].values  # asymptote
 
     return X, y, A, unseen_data
@@ -242,7 +243,7 @@ def regression_main():
     biomes = [1, 4, "both"]  # You can extend this as needed
     filepaths = {
         # "eu": "./0_data/eu.csv",
-        "mapbiomas": "./0_data/non_aggregated.csv"
+        "mapbiomas": "./0_data/non_aggregated_all.csv"
     }
 
     models = {
@@ -274,7 +275,7 @@ def regression_main():
             # Load and preprocess data for the given biome
             X, y, _, unseen_data = load_and_preprocess_data(filepath, \
                                 biome = biome,
-                                final_sample_size = 15000,
+                                final_sample_size = 8000,
                                 unseen_portion = 0.2,
                                 remove_land_use_params = True)
 
@@ -301,7 +302,7 @@ def regression_main():
 
                 # Add predictions to the original dataset
                 X['pred'] = best_model.predict(X)
-                X['agbd'] = y
+                X['biomass'] = y
                 # Save the dataset with predictions
                 output_filepath = f"./0_results/predictions_{datasource}_biome_{biome}.csv"
                 X.to_csv(output_filepath, index=False)
