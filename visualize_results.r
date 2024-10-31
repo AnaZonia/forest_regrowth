@@ -1,6 +1,51 @@
 
 library(tidyverse)
 library(ggplot2)
+library(reshape2)
+
+tst <- read.csv("./0_data/non_aggregated_all.csv")
+tst <- tst %>% filter(biome == 4)
+
+# Extract year columns for variables that vary with year
+year_columns <- grep("_(\\d{4})$", names(tst), value = TRUE)
+mean_values <- colMeans(tst[, year_columns], na.rm = TRUE)
+print(mean_values)
+# Convert mean_values into a data frame
+mean_values_df <- data.frame(variable = names(mean_values), mean_value = mean_values)
+
+# Extract year and variable names
+mean_values_df$year <- as.numeric(sub(".*_(\\d{4})$", "\\1", mean_values_df$variable))
+mean_values_df$variable <- sub("_(\\d{4})$", "", mean_values_df$variable)
+
+# Reshape the data to have one row per year and one column per variable
+mean_values_wide <- reshape(mean_values_df, idvar = "year", timevar = "variable", direction = "wide")
+
+# Rename columns to remove "mean_value." prefix for clarity
+colnames(mean_values_wide) <- sub("mean_value\\.", "", colnames(mean_values_wide))
+
+# Sort by year to ensure rows are in chronological order
+mean_values_wide <- mean_values_wide[order(mean_values_wide$year), ]
+
+# Get the list of column names (excluding 'year')
+variables <- colnames(mean_values_wide)[colnames(mean_values_wide) != "year"]
+
+dev.off()
+par(mfrow = c(3, 3)) # Adjust c(row, col) to match the number of variables
+
+# Loop through each variable and plot
+for (var in variables) {
+    formula <- as.formula(paste(var, "~ year"))
+    model <- lm(formula, data = mean_values_wide)
+
+    # Plot the data with a regression line
+    plot(mean_values_wide$year, mean_values_wide[[var]],
+        main = paste(var, "vs Year"),
+        xlab = "Year", ylab = var, pch = 19
+    )
+    abline(model, col = "blue", lwd = 2)
+}
+
+# check if there is sidnificant annual variation in the data
 
 
 
