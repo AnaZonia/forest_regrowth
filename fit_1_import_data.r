@@ -105,18 +105,21 @@ import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
         ".geo", "latitude", "longitude", "mature_forest_years",
         # "last_LU",
         "lulc_sum_35", "lulc_sum_41",
-        "num_fires_before_first_anthro", "num_fires_after_first_anthro", "num_fires_during_anthro"
+        "num_fires_before_first_anthro", "num_fires_after_first_anthro", "num_fires_during_anthro", "system", "prec", "si", "aet"
     )
 
     df <- read_csv(path, show_col_types = FALSE) %>% # show_col_types = FALSE quiets a large message during import
-        select(-any_of(columns_to_remove)) %>%
-        select(-starts_with("system")) %>%
+        select(-starts_with(columns_to_remove)) %>%
         mutate(across(all_of(categorical), as.factor))
 
     df <- df[df$biome %in% c(1, 4), ]
     
     if ("nearest_mature" %in% names(df)){
         names(df)[names(df) == "nearest_mature"] <- "nearest_mature_biomass"
+    }
+    if ("agbd" %in% names(df)) {
+        names(df)[names(df) == "agbd"] <-
+            "biomass"
     }
 
     list_of_dfs <- split(df, df$biome)
