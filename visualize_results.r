@@ -45,9 +45,8 @@ for (var in variables) {
     abline(model, col = "blue", lwd = 2)
 }
 
-# check if there is sidnificant annual variation in the data
+# check if there is significant annual variation in the data
 
-# there is annual variation in srad, soil, temp, vpd. add those as yearly variables. for the others (prec, si, aet) keep only the mean.
 
 ### Curve fit on medians and on the entire dataset
 # plot curves from the non-clustered data and the 10 fits

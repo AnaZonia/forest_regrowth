@@ -73,7 +73,7 @@ def load_and_preprocess_data(
     if pars is None:
         pars = df.columns.tolist()
         if not keep_all_data:
-            pars = [col for col in pars if col not in ["biome", "biomass", "latitude", "longitude"]]
+            pars = [col for col in pars if col not in ["biome", "biomass", "latitude", "longitude", "nearest_mature_biomass"]]
 
     # Remove land use related parameters if the switch is on
     if remove_land_use:
@@ -89,7 +89,7 @@ def load_and_preprocess_data(
 
 
 
-def plot_learning_curves(X, y, model, name, cv = 5):
+def plot_learning_curves(X, y, model, name, cv = 5): 
     """
     Plot learning curves for a given model pipeline.
     
@@ -171,13 +171,6 @@ def regression_cv(X, y, model, param_grid = None):
                         return_estimator = True)
     mse_scores = -cv_results['test_neg_mean_squared_error']
 
-    # Collect predictions for each fold
-    for i, (_, test_indices) in enumerate(splits):
-        fold_model = cv_results['estimator'][i]
-        predictions[test_indices] = fold_model.predict(X.iloc[test_indices])
-
-    predictions_r2 = r2_score(y, predictions)
-
     # Perform permutation importance
     best_index = np.argmin(-cv_results['test_neg_mean_squared_error'])
     _, test_indices = splits[best_index]
@@ -191,7 +184,7 @@ def regression_cv(X, y, model, param_grid = None):
     mean_r2 = np.mean(r2_scores)
     std_r2 = np.std(r2_scores)
 
-    # Fit the best model on the entire dataset
+    # Fit the model on the entire dataset
     final_model = Pipeline([
         ('scaler', MinMaxScaler()),
         ('regressor', model.named_steps['regressor'])
@@ -201,7 +194,7 @@ def regression_cv(X, y, model, param_grid = None):
     # Now you can use final_model for predictions on new data
     final_r2 = r2_score(y, final_model.predict(X))
 
-    return mean_r2, std_r2, predictions_r2, final_r2, perm_importance
+    return mean_r2, std_r2, final_r2, perm_importance
 
 def print_feature_importance(perm_importance, feature_names):
     """
@@ -241,11 +234,11 @@ def run_model(datasource, models, param_grids, biome = 1, remove_land_use = Fals
                         biome = biome,
                         final_sample_size = 8000,
                         remove_land_use = remove_land_use)
-    
+
     rows = pd.DataFrame()
     # Perform regression analysis for each model
     for name, model in models.items():
-        mean_r2, std_r2, predictions_r2, final_r2, perm_importance = regression_cv(
+        mean_r2, std_r2, final_r2, perm_importance = regression_cv(
             X, y, model, param_grids[name]
         )
         
@@ -257,8 +250,7 @@ def run_model(datasource, models, param_grids, biome = 1, remove_land_use = Fals
             'model': name,
             'mean_r2': mean_r2,
             'std_r2': std_r2,
-            'final_r2': final_r2,
-            'predictions_r2': predictions_r2,
+            'final_r2': final_r2
         }
 
         print(row)
@@ -293,15 +285,19 @@ if __name__ == "__main__":
     }
 
     # Define biomes, intervals, and types
-    biomes = [1, 4, "both"]
-    intervals = ["all", "5", "10", "15"]
+    # biomes = [1, 4, "both"]
+    # intervals = ["all", "5yr", "10yr", "15yr"]
+    biomes = [4]
+    intervals = ["all"]
     types = ["aggregated", "non_aggregated"]
     results_df = pd.DataFrame()
     for biome in biomes:
         for interval in intervals:
             for data_type in types:
                 datasource = f"{data_type}_{interval}"
-                results = run_model(datasource, models, param_grids, biome)
+                results = run_model(datasource, {"XGBoost": models["XGBoost"]},
+                                    {"XGBoost": param_grids["XGBoost"]},
+                                     biome)
                 results_df = pd.concat([results_df, results], ignore_index=True)
 
     results_df.to_csv("./0_results/biome_interval_aggregated.csv", index=False)
