@@ -1,5 +1,5 @@
 # main.py
-from run import load_and_preprocess_data
+from run_ML import load_and_preprocess_data
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -74,7 +74,7 @@ def create_mean_std_plot(data, biome_names):
     return fig
 
 
-def plot_amazon_quartile_comparison(data, variable = 'nearest_mature'):
+def plot_amazon_quartile_comparison(data, variable = 'nearest_mature_biomass'):
     # Filter for Amazon biome
     amazon_data = pd.DataFrame({
         'age': data['X']['age'][data['X']['biome'] == 1],
@@ -125,43 +125,90 @@ def plot_amazon_quartile_comparison(data, variable = 'nearest_mature'):
     plt.tight_layout()
     return fig
 
+def plot_mean_biomass_comparison(df1, df2, label1='EU', label2='Non-Aggregated'):
+    """
+    Plot mean biomass per age for two dataframes to compare.
+    
+    Args:
+        df1 (pd.DataFrame): First dataset containing 'age' and 'biomass' columns.
+        df2 (pd.DataFrame): Second dataset containing 'age' and 'biomass' columns.
+        label1 (str): Label for the first dataset.
+        label2 (str): Label for the second dataset.
+    """
+    # Calculate mean and standard deviation by age for each dataframe
+    stats1 = df1.groupby('age')['biomass'].agg(['mean', 'std']).reset_index().rename(columns={'mean': f'mean_{label1}', 'std': f'std_{label1}'})
+    stats2 = df2.groupby('age')['biomass'].agg(['mean', 'std']).reset_index().rename(columns={'mean': f'mean_{label2}', 'std': f'std_{label2}'})
+    
+    # Merge statistics on age
+    comparison_df = pd.merge(stats1, stats2, on='age', how='inner')
+
+    # Create the plot
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    # Plot means and standard deviations for both datasets
+    ax.plot(comparison_df['age'], comparison_df[f'mean_{label1}'], label=label1, color='blue', linewidth=2)
+    ax.fill_between(comparison_df['age'], 
+                    comparison_df[f'mean_{label1}'] - comparison_df[f'std_{label1}'],
+                    comparison_df[f'mean_{label1}'] + comparison_df[f'std_{label1}'],
+                    color='blue', alpha=0.3)
+
+    ax.plot(comparison_df['age'], comparison_df[f'mean_{label2}'], label=label2, color='green', linewidth=2)
+    ax.fill_between(comparison_df['age'], 
+                    comparison_df[f'mean_{label2}'] - comparison_df[f'std_{label2}'],
+                    comparison_df[f'mean_{label2}'] + comparison_df[f'std_{label2}'],
+                    color='green', alpha=0.3)
+
+    # Titles and labels
+    ax.set_title('Comparison of Mean Biomass by Age', fontsize=16)
+    ax.set_xlabel('Age (years)', fontsize=12)
+    ax.set_ylabel('Mean Biomass (tons per hectare)', fontsize=12)
+    
+    # Legend and grid
+    ax.legend(title='Dataset', title_fontsize='13', fontsize='10', loc='upper left')
+    ax.grid(True, linestyle='--', alpha=0.7)
+
+    plt.tight_layout()
+    plt.show()
 
 def main():
-    pars = [
-        "nearest_mature", "age", "lulc_sum_21", "lulc_sum_15", "lulc_sum_39",
-        "lulc_sum_41", "num_fires_before_regrowth", "sur_cover",
-        "cwd"
-    ]
 
-    # X, y, _, _, _ = load_and_preprocess_data("./0_data/non_aggregated_100k_all.csv", pars, keep_agbd = True)
-    df = pd.read_csv("./0_data/mapbiomas_eu.csv")
-    df = df.rename(columns = {'age_mapbiomas': 'age'})
-    
-    # Select only the specified columns
-    X = df[['age', 'biome']]  # Now X contains both age and biome
-    y = df['agbd']
+    df1 = pd.read_csv("./0_data/eu.csv")
+    df2 = pd.read_csv("./0_data/non_aggregated_all.csv")
 
-    data = {'X': X, 'y': y}
+    # stats1 = df1.groupby('age')['biomass'].agg(['mean', 'std']).reset_index()
+    # stats2 = df2.groupby('age')['biomass'].agg(['mean', 'std']).reset_index()
+    # comparison_df = stats1.merge(stats2, on='age', suffixes=('_eu', '_mapbiomas'))
+    # print(comparison_df)
+    # print(comparison_df['std_eu'].mean())
+    # print(comparison_df['std_mapbiomas'].mean())
 
-    biome_names = {
-        1: 'Amazon'
-        # 4: 'Atlantic'
-    }
+    # plot_mean_biomass_comparison(df1, df2, label1='EU', label2='Mapbiomas')
 
-    # Create histograms
-    hist_1 = create_histogram(data, age = 1, biome_names = biome_names, 
-                              title = 'Distribution of biomass by Biome for 1 year old forests')
-    hist_30 = create_histogram(data, age = 30, biome_names = biome_names, 
-                               title = 'Distribution of biomass by Biome for 30 year old forests')
+    # # Select only the specified columns
+    # X = df[['age', 'biome']]  # Now X contains both age and biome
+    # y = df['biomass']
 
-    # # Create mean plot with standard deviation
+    # data = {'X': X, 'y': y}
+
+    # biome_names = {
+    #     1: 'Amazon',
+    #     4: 'Atlantic'
+    # }
+
+    # # Create histograms
+    # hist_1 = create_histogram(data, age = 1, biome_names = biome_names, 
+    #                           title = 'Distribution of biomass by Biome for 1 year old forests')
+    # hist_30 = create_histogram(data, age = 30, biome_names = biome_names, 
+    #                            title = 'Distribution of biomass by Biome for 30 year old forests')
+
+    # Create mean plot with standard deviation
     # mean_std_plot = create_mean_std_plot(data, biome_names)
-
-    # # Create Amazon nearest_mature comparison plot
-    # mature = plot_amazon_quartile_comparison(data, biome_names, variable = 'nearest_mature')
+    
+    # # Create Amazon nearest_mature_biomass comparison plot
+    # mature = plot_amazon_quartile_comparison(data, biome_names, variable = 'nearest_mature_biomass')
     # cwd = plot_amazon_quartile_comparison(data, variable = 'lulc_sum_39')
 
-    plt.show()
+    # plt.show()
 
 if __name__ == "__main__":
     main()

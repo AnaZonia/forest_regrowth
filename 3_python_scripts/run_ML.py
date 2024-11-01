@@ -32,8 +32,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import KFold, cross_validate, GridSearchCV, learning_curve
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.inspection import permutation_importance
-
-
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedShuffleSplit
 
 def load_and_preprocess_data(
         filepath: str, 
@@ -41,7 +41,8 @@ def load_and_preprocess_data(
         biome = "both",
         keep_all_data: bool = False,
         final_sample_size: int = 10000,
-        remove_land_use: bool = False  # New switch
+        remove_land_use: bool = False,
+        remove_landscape: bool = False
     ) -> Tuple[pd.DataFrame, np.ndarray]:
     """
     Load and preprocess data from a CSV file.
@@ -73,14 +74,28 @@ def load_and_preprocess_data(
     if pars is None:
         pars = df.columns.tolist()
         if not keep_all_data:
-            pars = [col for col in pars if col not in ["biome", "biomass", "latitude", "longitude", "nearest_mature_biomass"]]
+            pars = [col for col in pars if col not in ["biome", "biomass", "latitude", "longitude"]]
 
     # Remove land use related parameters if the switch is on
     if remove_land_use:
-        keywords = ['lulc', 'LU', 'fallow', 'mature_forest_years', 'num_fires', 'cover']
+        keywords = ['lulc', 'LU', 'fallow', 'num_fires']
+        pars = [par for par in pars if not any(keyword in par for keyword in keywords)]
+    # Remove land use related parameters if the switch is on
+    if remove_landscape:
+        keywords = ['nearest_mature_biomass', 'sur_cover', 'distance']
         pars = [par for par in pars if not any(keyword in par for keyword in keywords)]
 
-    # df = df.sample(final_sample_size, random_state = 42)
+    # # Identify columns with fewer than 200 non-zero values
+    # low_value_columns = [col for col in df.columns if (df[col] != 0).sum() < 200]
+
+    # # Create a temporary combined category column for adjusted sampling
+    # df['stratify_col'] = df[low_value_columns].astype(str).agg('-'.join, axis=1)
+    # class_counts = df['stratify_col'].value_counts()
+    # df['sampling_weight'] = df['stratify_col'].map(1 / class_counts)
+    # df_sample = df.sample(n=10000, weights='sampling_weight', random_state=42, replace=False)
+    # df_sample = df_sample.drop(columns=['stratify_col', 'sampling_weight'])
+
+    # df = df.sample(10000, random_state = 42)
 
     X = df[pars]
     y = df['biomass'].values
@@ -189,10 +204,10 @@ def regression_cv(X, y, model, param_grid = None):
         ('scaler', MinMaxScaler()),
         ('regressor', model.named_steps['regressor'])
     ])
-    final_model.fit(X, y)
-    
-    # Now you can use final_model for predictions on new data
-    final_r2 = r2_score(y, final_model.predict(X))
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    final_model.fit(X_train, y_train)
+    final_r2 = r2_score(y_test, final_model.predict(X_test))
 
     return mean_r2, std_r2, final_r2, perm_importance
 
@@ -214,7 +229,7 @@ def print_feature_importance(perm_importance, feature_names):
     print(feature_importance.to_string(index = False))
 
 
-def run_model(datasource, models, param_grids, biome = 1, remove_land_use = False):
+def run_model(datasource, models, param_grids, biome = 4, remove_land_use = False, remove_landscape = False):
     """
     Run regression models on a specified datasource with configurable biome and land-use parameter removal.
 
@@ -233,7 +248,8 @@ def run_model(datasource, models, param_grids, biome = 1, remove_land_use = Fals
     X, y = load_and_preprocess_data(filepath, \
                         biome = biome,
                         final_sample_size = 8000,
-                        remove_land_use = remove_land_use)
+                        remove_land_use = remove_land_use,
+                        remove_landscape = remove_landscape)
 
     rows = pd.DataFrame()
     # Perform regression analysis for each model
@@ -287,32 +303,57 @@ if __name__ == "__main__":
     # Define biomes, intervals, and types
     # biomes = [1, 4, "both"]
     # intervals = ["all", "5yr", "10yr", "15yr"]
-    biomes = [4]
-    intervals = ["all"]
-    types = ["aggregated", "non_aggregated"]
-    results_df = pd.DataFrame()
-    for biome in biomes:
-        for interval in intervals:
-            for data_type in types:
-                datasource = f"{data_type}_{interval}"
-                results = run_model(datasource, {"XGBoost": models["XGBoost"]},
-                                    {"XGBoost": param_grids["XGBoost"]},
-                                     biome)
-                results_df = pd.concat([results_df, results], ignore_index=True)
+    # biomes = [4]
+    # intervals = ["all"]
+    # types = ["aggregated", "non_aggregated"]
+    # results_df = pd.DataFrame()
+    # for biome in biomes:
+    #     for interval in intervals:
+    #         for data_type in types:
+    #             datasource = f"{data_type}_{interval}"
+    #             results = run_model(datasource, 
+    #                                 {"XGBoost": models["XGBoost"]},
+    #                                 {"XGBoost": param_grids["XGBoost"]},
+    #                                  biome)
+    #             results_df = pd.concat([results_df, results], ignore_index=True)
 
-    results_df.to_csv("./0_results/biome_interval_aggregated.csv", index=False)
-    print("Saved to CSV.")
+    # results_df.to_csv("./0_results/biome_interval_aggregated.csv", index=False)
+    # print("Saved to CSV.")
 
-    # datasources = ["mapbiomas", "eu"]
-    # lulc_presence = [True, False]
+    # datasources = ["aggregated_all", "ESA_fire"]
     # results_df = pd.DataFrame()
     # for datasource in datasources:
-    #     for remove_land_use in lulc_presence:
-    #         results = run_model(datasource, models[2], param_grids[2], remove_land_use = remove_land_use)
-    #         results_df = pd.concat([results_df, results], ignore_index=True)
+    #     results = run_model(datasource, 
+    #                                 {"XGBoost": models["XGBoost"]},
+    #                                 {"XGBoost": param_grids["XGBoost"]},
+    #                                 biome = 1,
+    #                                 remove_land_use = True
+    #                                 )
+    #     results_df = pd.concat([results_df, results], ignore_index=True)
 
-    # results_df.to_csv("./0_results/mapbiomas_eu_lulc.csv", index=False)
+    # # results_df.to_csv("./0_results/mapbiomas_eu.csv", index=False)
+    # # print("Saved to CSV.")
+
+
+
+    lulc_presence = [True, False]
+    landscape_presence = [True, False]
+    results_df = pd.DataFrame()
+    for remove_landscape in landscape_presence:
+        for remove_land_use in lulc_presence:
+            results = run_model("aggregated_all", 
+                                        {"XGBoost": models["XGBoost"]},
+                                        {"XGBoost": param_grids["XGBoost"]},
+                                        biome = 1,
+                                        remove_land_use = remove_land_use,
+                                        remove_landscape = remove_landscape
+                                        )
+            results_df = pd.concat([results_df, results], ignore_index=True)
+
+    # results_df.to_csv("./0_results/mapbiomas_eu.csv", index=False)
     # print("Saved to CSV.")
+
+
 
     # filepaths = ["mapbiomas_fire", "ESA_fire"]
     # results_df = pd.DataFrame()
