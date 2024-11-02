@@ -252,11 +252,13 @@ cross_valid <- function(data, pars_iter, conditions = NULL) {
 
     if (is.null(conditions)) { # run lm
         # Filter out elements containing any categorical pattern and keep track of matched categories
-        pars_iter_filtered <- names(pars_iter)[!sapply(categorical, function(cat) grepl(cat, names(pars_iter)))]
+        pars_iter_filtered <- names(pars_iter)[!sapply(names(pars_iter), function(name) {
+            any(sapply(categorical, function(cat) grepl(cat, name)))
+        })]
+        pars_iter_filtered <- pars_iter_filtered[!pars_iter_filtered %in% non_data_pars]
         # Identify which categories were found in pars_iter and append only once per matched category
         matched_categories <- categorical[sapply(categorical, function(cat) any(grepl(cat, names(pars_iter))))]
         pars_iter_filtered <- c(pars_iter_filtered, matched_categories)
-
         lm_formula <- as.formula(paste("biomass ~", paste(pars_iter_filtered, collapse = " + ")))
     }
 
@@ -270,8 +272,10 @@ cross_valid <- function(data, pars_iter, conditions = NULL) {
         test_data <- norm_data$test_data
 
         if (is.null(conditions)) {  # run lm
+            print(lm_formula)
             model <- lm(lm_formula, data = train_data)
             pred_cv <- predict(model, test_data)
+            print(model)
         } else { # run optim
             # Run the model function on the training set and evaluate on the test set
             model <- run_optim(train_data, pars_iter, conditions)
@@ -324,7 +328,8 @@ cross_valid <- function(data, pars_iter, conditions = NULL) {
 normalize_independently <- function(pars, train_data, test_data = NULL) {
     # Select numeric columns for normalization, excluding specified ones
     exclusion_list <- c(unlist(categorical), "biomass", "nearest_mature_biomass", climatic_pars)
-    exclusion_list <- c(exclusion_list, if ("age" %in% names(pars)) "age")
+    # if k is multiplied by the age column, don't normalize age
+    exclusion_list <- c(exclusion_list, if (!"age" %in% names(pars)) "age")
     norm_cols <- c(names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))])
 
     # Compute mean and standard deviation for normalization based on training data
@@ -472,9 +477,9 @@ process_row <- function(cv_output, data_name, data_pars_name, biome_name, basic_
 
 find_combination_pars <- function(iter, data) {
 
-    j <- iterations_optim$data_par[iter]
-    k <- iterations_optim$biome[iter]
-    l <- iterations_optim$basic_par[iter]
+    j <- iterations$data_par[iter]
+    k <- iterations$biome[iter]
+    l <- iterations$basic_par[iter]
 
     data_pars_iter <- data_pars[[k]][[j]]
     basic_pars_iter <- basic_pars[[l]]
@@ -519,7 +524,6 @@ find_combination_pars <- function(iter, data) {
 
     # best model list
     best <- list(AIC = 0)
-    val <- 0
     best[["par"]] <- all_pars_iter[names(all_pars_iter) %in% basic_pars_iter]
     val <- length(basic_pars)
 
@@ -553,15 +557,15 @@ find_combination_pars <- function(iter, data) {
         best_model <- which.min(iter_df$likelihood)
         best_model_AIC <- 2 * iter_df$likelihood[best_model] + 2 * (i + val + 1)
 
-        print(paste0("iteration: ", iter, ", num parameters included: ", i))
-
         if (best$AIC == 0 | best_model_AIC < best$AIC) {
             best$AIC <- best_model_AIC
             best$par <- iter_df[best_model, names(all_pars_iter)]
             best$par <- Filter(function(x) !is.na(x), best$par)
             taken <- which(sapply(data_pars_iter, function(x) any(grepl(x, names(best$par)))))
+            print(paste0("iteration: ", iter, ", num parameters included: ", i, ", parameters taken: ", toString(data_pars_iter[taken])))
         } else {
-            print("No improvement. Exiting loop.")
+            not_taken <- data_pars_iter[!data_pars_iter %in% names(best$par)]
+            print(paste("No improvement. Exiting loop. Parameters not taken:", toString(not_taken)))
             should_continue <- FALSE
         }
     }

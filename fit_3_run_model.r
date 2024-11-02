@@ -11,7 +11,7 @@ source("fit_1_import_data.r")
 source("fit_2_functions.r")
 
 set.seed(1)
-ncores <- 20
+ncores <- 30
 registerDoParallel(cores = ncores)
 
 
@@ -73,12 +73,13 @@ for (i in seq_along(biomes)){
     exclusion_pattern <- paste(c("age", "biomass", "nearest_mature_biomass", paste0(climatic_pars, "_")), collapse = "|")
     # Filter colnames based on this pattern
     colnames_filtered <- colnames_intersect[!grepl(exclusion_pattern, colnames_intersect)]
+    colnames_filtered_no_mean_climate <- colnames_filtered[!grepl(paste(paste0("mean_", climatic_pars), collapse = "|"), colnames_filtered)]
 
     biome_pars <- list(
         c(colnames_filtered[!grepl(paste0(land_use, collapse = "|"), colnames_filtered)]),
         c(colnames_filtered[!grepl(paste0(landscape, collapse = "|"), colnames_filtered)]),
         c(colnames_filtered),
-        c(colnames_filtered, climatic_pars)
+        c(colnames_filtered_no_mean_climate, climatic_pars)
     )
 
     data_pars[[i]] <- biome_pars
@@ -93,30 +94,27 @@ data_pars_names <- c(
 
 # Define basic parameter sets for modeling
 basic_pars <- list(
-    c("age", "k0", "B0"),
-    c("k0", "B0"),
+    c("age", "k0", "B0"), #age is fit as its own independent predictor
+    c("k0", "B0"), # k is multiplied by the age column
     c("m_base", "sd_base", "k0")
 )
 
 basic_pars_names <- as.list(sapply(basic_pars, function(par_set) paste(par_set, collapse = "_")))
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Create grids of different combinations of model inputs
 
-basic_pars_iter <- expand.grid(
+iterations <- expand.grid(
     basic_par = seq_along(basic_pars),
     interval = seq_along(intervals),
     data_par = seq_along(data_pars[[1]]),
     biome = seq_along(biomes)
 )
 
-basic_pars_with_age <- which(sapply(basic_pars, function(x) "age" %in% x))
-basic_pars_with_age
+basic_pars_fit_age <- which(sapply(basic_pars, function(x) "age" %in% x))
 data_pars_with_climatic <- which(sapply(data_pars[[1]], function(x) any(climatic_pars %in% x)))
 # Remove rows where both conditions are met
-iterations_optim <- iterations_optim %>% filter(!(basic_par %in% basic_pars_with_age & data_par %in% data_pars_with_climatic))
-
+iterations <- iterations %>% filter(!(basic_par %in% basic_pars_fit_age & data_par %in% data_pars_with_climatic))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Run Model ---------------------------------------#
@@ -124,22 +122,22 @@ iterations_optim <- iterations_optim %>% filter(!(basic_par %in% basic_pars_with
 
 pars_iter_list <- list()
 
-for (iter in 1:nrow(iterations_optim)) {
-    i <- iterations_optim$interval[iter]
-    k <- iterations_optim$biome[iter]
+for (iter in 1:nrow(iterations)) {
+    i <- iterations$interval[iter]
+    k <- iterations$biome[iter]
     data <- dataframes[[i]][[k]]
     pars_iter <- find_combination_pars(iter, data)
     pars_iter_list[[iter]] <- pars_iter
     saveRDS(pars_iter_list, "temp_pars_iter_list.rds")
 }
 
-results <- foreach(iter in 1:nrow(iterations_optim), .combine = rbind,
+results <- foreach(iter = 1:nrow(iterations), .combine = rbind,
  .packages = c("tidyverse")) %dopar% {
     # Extract iteration-specific parameters
-    i <- iterations_optim$interval[iter]
-    j <- iterations_optim$data_par[iter]
-    k <- iterations_optim$biome[iter]
-    l <- iterations_optim$basic_par[iter]
+    i <- iterations$interval[iter]
+    j <- iterations$data_par[iter]
+    k <- iterations$biome[iter]
+    l <- iterations$basic_par[iter]
     
     pars_iter <- pars_iter_list[[iter]]
     data <- dataframes[[i]][[k]]
@@ -152,7 +150,6 @@ results <- foreach(iter in 1:nrow(iterations_optim), .combine = rbind,
     row <- process_row(cv_output, intervals[[i]], pars_names, biome_name, basic_pars_name)
 
     if (!any(climatic_pars %in% names(pars_iter))) {
-        print(names(pars_iter))
         data_lm <- dataframes_lm[[i]][[k]]
         # Perform cross-validation and process results
         cv_output <- cross_valid(data_lm, pars_iter)
@@ -166,15 +163,16 @@ results <- foreach(iter in 1:nrow(iterations_optim), .combine = rbind,
 
 write.csv(results, paste0("./new_data_yearly/", name_export, "_results.csv"), row.names = FALSE)
 
+
 # n_clusters <- 10
 
-# for (iter in 1:nrow(iterations_optim)){
+# for (iter in 1:nrow(iterations)){
 
 #     # Extract iteration-specific parameters
-#     i <- iterations_optim$interval[iter]
-#     j <- iterations_optim$data_par[iter]
-#     k <- iterations_optim$biome[iter]
-#     l <- iterations_optim$basic_par[iter]
+#     i <- iterations$interval[iter]
+#     j <- iterations$data_par[iter]
+#     k <- iterations$biome[iter]
+#     l <- iterations$basic_par[iter]
 
 #     data <- dataframes[[i]][[k]]
 #     data_pars_name <- data_pars_names[[j]]
