@@ -40,17 +40,12 @@ process_climatic <- function(data) {
             na.rm = TRUE
         )
     })
-    # Append mean climatic variables as new columns to the data
-    colnames(means) <- paste0("mean_", climatic_pars)
-    data <- cbind(data, means)
 
     # Process climatic data for each age group
     df_climatic_hist <- tibble()
 
-
     for (yrs in 1:max(data$age)) {
         age_data <- data %>% filter(age == yrs)
-
         # Generate a sequence of years for the current age group
         # Starting from 2019 and going back 'yrs' number of years
         year_seq <- seq(2019, 2019 - yrs + 1, by = -1)
@@ -59,7 +54,7 @@ process_climatic <- function(data) {
         clim_columns <- expand.grid(climatic_pars, year_seq) %>%
             unite(col = "col", sep = "_") %>%
             pull(col)
-
+        # print(clim_columns)
         # Subset the dataframe to only include the climatic columns of the desired years
         all_clim_columns <- names(data)[str_detect(names(data), paste(climatic_pars, "_", collapse = "|"))]
 
@@ -102,25 +97,13 @@ process_climatic <- function(data) {
 import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
     
     columns_to_remove <- c(
-        ".geo", "latitude", "longitude", "mature_forest_years",
-        # "last_LU",
-        "lulc_sum_35", "lulc_sum_41",
-        "num_fires_before_first_anthro", "num_fires_after_first_anthro", "num_fires_during_anthro", "system", "prec", "si", "aet"
+        ".geo", "latitude", "longitude", "pr_", "si_", "aet_", "last_LU"
     )
 
-    df <- read_csv(path, show_col_types = FALSE) %>% # show_col_types = FALSE quiets a large message during import
+    df <- read_csv(datafiles[[1]], show_col_types = FALSE) %>% # show_col_types = FALSE quiets a large message during import
         select(-starts_with(columns_to_remove)) %>%
         mutate(across(all_of(categorical), as.factor))
 
-    df <- df[df$biome %in% c(1, 4), ]
-    
-    if ("nearest_mature" %in% names(df)){
-        names(df)[names(df) == "nearest_mature"] <- "nearest_mature_biomass"
-    }
-    if ("agbd" %in% names(df)) {
-        names(df)[names(df) == "agbd"] <-
-            "biomass"
-    }
 
     list_of_dfs <- split(df, df$biome)
  
@@ -137,7 +120,7 @@ import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
         }
         
         non_zero_counts <- colSums(df != 0, na.rm = TRUE)
-        df <- df[, non_zero_counts > 200]
+        df <- df[, non_zero_counts > 100]
 
         df <- df %>%
             group_by(across(all_of(categorical))) %>%
