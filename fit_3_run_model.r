@@ -11,7 +11,7 @@ source("fit_1_import_data.r")
 source("fit_2_functions.r")
 
 set.seed(1)
-ncores <- 30
+ncores <- 50
 registerDoParallel(cores = ncores)
 
 
@@ -44,12 +44,12 @@ biomes <- c("amaz", "atla")
 
 # Define land-use history intervals to import four dataframes
 # intervals <- list("5yr", "10yr", "15yr", "all")
-intervals <- list("all")
+intervals <- list("10yr")
 
 datafiles <- paste0("./new_data_yearly/", name_import, "_", intervals, ".csv")
 # source("fit_1_import_data.r")
-dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE, process_climatic = TRUE)
-dataframes_lm <- lapply(datafiles, import_data, convert_to_dummy = FALSE, process_climatic = FALSE)
+dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE)
+dataframes_lm <- lapply(datafiles, import_data, convert_to_dummy = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Define Parameters -----------------------------------#
@@ -76,6 +76,7 @@ for (i in seq_along(biomes)){
     colnames_filtered_no_mean_climate <- colnames_filtered[!grepl(paste(paste0("mean_", climatic_pars), collapse = "|"), colnames_filtered)]
 
     biome_pars <- list(
+        c(colnames_filtered[!grepl(paste0(c(land_use, landscape), collapse = "|"), colnames_filtered)]),
         c(colnames_filtered[!grepl(paste0(land_use, collapse = "|"), colnames_filtered)]),
         c(colnames_filtered[!grepl(paste0(landscape, collapse = "|"), colnames_filtered)]),
         c(colnames_filtered),
@@ -86,6 +87,7 @@ for (i in seq_along(biomes)){
 }
 
 data_pars_names <- c(
+    "no_land_use_no_landscape",
     "no_land_use",
     "no_landscape",
     "all",
@@ -121,8 +123,8 @@ iterations <- iterations %>% filter(!(basic_par %in% basic_pars_fit_age & data_p
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 pars_iter_list <- list()
-
 for (iter in 1:nrow(iterations)) {
+    iter = 28
     i <- iterations$interval[iter]
     k <- iterations$biome[iter]
     data <- dataframes[[i]][[k]]
@@ -130,10 +132,13 @@ for (iter in 1:nrow(iterations)) {
     pars_iter_list[[iter]] <- pars_iter
     saveRDS(pars_iter_list, "temp_pars_iter_list.rds")
 }
+# source("fit_2_functions.r")
+# pars_iter_list <- readRDS('temp_pars_iter_list.rds')
 
 results <- foreach(iter = 1:nrow(iterations), .combine = rbind,
  .packages = c("tidyverse")) %dopar% {
-    # Extract iteration-specific parameters
+# for (iter in 1:nrow(iterations)){
+
     i <- iterations$interval[iter]
     j <- iterations$data_par[iter]
     k <- iterations$biome[iter]
@@ -147,13 +152,13 @@ results <- foreach(iter = 1:nrow(iterations), .combine = rbind,
 
     # Perform cross-validation and process results
     cv_output <- cross_valid(data, pars_iter, conditions)
-    row <- process_row(cv_output, intervals[[i]], pars_names, biome_name, basic_pars_name)
+    row <- process_row(cv_output, "optim", intervals[[i]], pars_names, biome_name, basic_pars_name)
 
     if (!any(climatic_pars %in% names(pars_iter))) {
         data_lm <- dataframes_lm[[i]][[k]]
         # Perform cross-validation and process results
         cv_output <- cross_valid(data_lm, pars_iter)
-        row_lm <- process_row(cv_output, intervals[[i]], pars_names, biome_name, basic_pars_name)
+        row_lm <- process_row(cv_output, "lm", intervals[[i]], pars_names, biome_name, basic_pars_name)
         row <- rbind(row, row_lm)
     }
 
@@ -161,7 +166,7 @@ results <- foreach(iter = 1:nrow(iterations), .combine = rbind,
     return(row)
 }
 
-write.csv(results, paste0("./new_data_yearly/", name_export, "_results.csv"), row.names = FALSE)
+write.csv(results, paste0("./new_data_yearly/", name_export, "_min_lik_results.csv"), row.names = FALSE)
 
 
 # n_clusters <- 10

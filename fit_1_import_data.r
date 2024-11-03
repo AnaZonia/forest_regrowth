@@ -22,54 +22,6 @@ library(tidyverse)
 library(fastDummies)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# -------------------------- Process Climatic Variables ---------------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
-# Function to import and process climatic data, normalize it, and optionally convert categorical variables to dummy variables.
-#
-# Arguments:
-#   data   : A list of dataframes to process.
-# Returns:
-#   df_climatic_hist : A processed dataframe with historical climatic data.
-
-process_climatic <- function(data) {
-
-    # Calculate the mean of specified climatic variables across years
-    means <- sapply(climatic_pars, function(var) {
-        rowMeans(data[, grep(var, names(data))],
-            na.rm = TRUE
-        )
-    })
-
-    # Process climatic data for each age group
-    df_climatic_hist <- tibble()
-
-    for (yrs in 1:max(data$age)) {
-        age_data <- data %>% filter(age == yrs)
-        # Generate a sequence of years for the current age group
-        # Starting from 2019 and going back 'yrs' number of years
-        year_seq <- seq(2019, 2019 - yrs + 1, by = -1)
-
-        # Create column names for climatic parameters for each year
-        clim_columns <- expand.grid(climatic_pars, year_seq) %>%
-            unite(col = "col", sep = "_") %>%
-            pull(col)
-        # print(clim_columns)
-        # Subset the dataframe to only include the climatic columns of the desired years
-        all_clim_columns <- names(data)[str_detect(names(data), paste(climatic_pars, "_", collapse = "|"))]
-
-        # Identify climatic columns not relevant for the current age group
-        clim_columns_not_included <- setdiff(all_clim_columns, clim_columns)
-        # Set values in non-relevant columns to 0
-        age_data[clim_columns_not_included] <- 0
-
-        df_climatic_hist <- bind_rows(df_climatic_hist, age_data)
-    }
-
-    return(df_climatic_hist)
-}
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------------------- Prepare Dataframes Function --------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
@@ -94,7 +46,7 @@ process_climatic <- function(data) {
 # Returns:
 #   list_of_dfs             : A list with three dataframes, one per ecoregion, ready for analysis with or without dummy variables.
 
-import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
+import_data <- function(path, convert_to_dummy) {
     
     columns_to_remove <- c(
         ".geo", "latitude", "longitude", "pr_", "si_", "aet_", "last_LU"
@@ -114,10 +66,6 @@ import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
     )
 
     list_of_dfs <- lapply(list_of_dfs, function(df) {
-
-        if (process_climatic) {
-            df <- process_climatic(df)
-        }
         
         non_zero_counts <- colSums(df != 0, na.rm = TRUE)
         df <- df[, non_zero_counts > 100]
