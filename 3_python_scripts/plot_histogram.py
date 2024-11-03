@@ -185,10 +185,10 @@ def main():
     # plot_mean_biomass_comparison(df1, df2, label1='EU', label2='Mapbiomas')
 
     # df = pd.read_csv("./0_data/eu.csv")
-    df = pd.read_csv("./0_data/non_aggregated_15yr.csv")
+    df = pd.read_csv("./0_data/non_aggregated_all.csv")
 
     # Select only the specified columns
-    X = df[['age', 'biome', 'num_fires_before_regrowth', 'cwd']]  # Now X contains both age and biome
+    X = df[['age', 'biome', 'num_fires', 'cwd']]  # Now X contains both age and biome
     y = df['biomass']
 
     data = {'X': X, 'y': y}
@@ -208,7 +208,7 @@ def main():
     # mean_std_plot = create_mean_std_plot(data, biome_names)
     
     # # Create Amazon nearest_mature_biomass comparison plot
-    plot = plot_amazon_quartile_comparison(data, variable = 'num_fires_before_regrowth')
+    plot = plot_amazon_quartile_comparison(data, variable = 'num_fires')
 
 
     plt.show()
