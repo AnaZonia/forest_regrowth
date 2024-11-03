@@ -34,8 +34,7 @@ categorical <- c("ecoreg", "topography")
 conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0', 'pars["k0"] < 0')
 non_data_pars <- c("k0", "B0", "theta", "m_base", "sd_base")
 
-# biomes <- c("amaz", "atla", "pant", "all")
-biomes <- c("amaz", "atla")
+biomes <- c("amaz", "atla", "both")
 # biomes <- c("atla")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -43,18 +42,17 @@ biomes <- c("amaz", "atla")
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Define land-use history intervals to import four dataframes
-# intervals <- list("5yr", "10yr", "15yr", "all")
-intervals <- list("10yr")
+intervals <- list("5yr", "10yr", "15yr", "all")
+# intervals <- list("10yr")
 
 datafiles <- paste0("./new_data_yearly/", name_import, "_", intervals, ".csv")
-# source("fit_1_import_data.r")
 dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE)
 dataframes_lm <- lapply(datafiles, import_data, convert_to_dummy = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Define Parameters -----------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-land_use <- c("lulc", "LU", "fallow", "num_fires_before_regrowth")
+land_use <- c("lulc", "LU", "fallow", "num_fires")
 landscape <- c("distance", "sur_cover", "nearest_mature_biomass")
 
 # Identify common columns across all dataframes of the same biome (across intervals)
@@ -76,23 +74,32 @@ for (i in seq_along(biomes)){
     colnames_filtered_no_mean_climate <- colnames_filtered[!grepl(paste(paste0("mean_", climatic_pars), collapse = "|"), colnames_filtered)]
 
     biome_pars <- list(
-        c(colnames_filtered[!grepl(paste0(c(land_use, landscape), collapse = "|"), colnames_filtered)]),
-        c(colnames_filtered[!grepl(paste0(land_use, collapse = "|"), colnames_filtered)]),
-        c(colnames_filtered[!grepl(paste0(landscape, collapse = "|"), colnames_filtered)]),
-        c(colnames_filtered),
-        c(colnames_filtered_no_mean_climate, climatic_pars)
+        c(colnames_filtered)
     )
+
+    # biome_pars <- list(
+    #     c(colnames_filtered[!grepl(paste0(c(land_use, landscape), collapse = "|"), colnames_filtered)]),
+    #     c(colnames_filtered[!grepl(paste0(land_use, collapse = "|"), colnames_filtered)]),
+    #     c(colnames_filtered[!grepl(paste0(landscape, collapse = "|"), colnames_filtered)]),
+    #     c(colnames_filtered),
+    #     c(colnames_filtered_no_mean_climate, climatic_pars)
+    # )
 
     data_pars[[i]] <- biome_pars
 }
 
 data_pars_names <- c(
-    "no_land_use_no_landscape",
-    "no_land_use",
-    "no_landscape",
-    "all",
-    "all_yearly_clim"
+    "all"
 )
+
+
+# data_pars_names <- c(
+#     "no_land_use_no_landscape",
+#     "no_land_use",
+#     "no_landscape",
+#     "all",
+#     "all_yearly_clim"
+# )
 
 # Define basic parameter sets for modeling
 basic_pars <- list(
@@ -124,7 +131,6 @@ iterations <- iterations %>% filter(!(basic_par %in% basic_pars_fit_age & data_p
 
 pars_iter_list <- list()
 for (iter in 1:nrow(iterations)) {
-    iter = 28
     i <- iterations$interval[iter]
     k <- iterations$biome[iter]
     data <- dataframes[[i]][[k]]

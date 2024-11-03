@@ -90,8 +90,6 @@ run_optim <- function(train_data, pars, conditions) {
 
 
 growth_curve <- function(pars, data, lag = 0) {
-    pars <- inipar
-    lag = 0
     # Define parameters that are not expected to change yearly (not prec or si)
     non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
     
@@ -549,10 +547,8 @@ find_combination_pars <- function(iter, data) {
         if (!should_continue) break
 
         optim_remaining_pars <- foreach(j = remaining[-taken]) %dopar% {
-        
-        # iter_df <- data.frame()
-        for (j in remaining[-taken]) {
-            j = 20
+        # for (j in remaining[-taken]) {
+
             # check for categorical variables (to be included as a group)
             if (data_pars_iter[j] %in% categorical) {
                 inipar <- c(best$par, all_pars_iter[grep(data_pars_iter[j], names(all_pars_iter))])
@@ -560,12 +556,11 @@ find_combination_pars <- function(iter, data) {
                 # as starting point, take the best values from last time
                 inipar <- c(best$par, all_pars_iter[data_pars_iter[j]])
             }
-            print(inipar)
             model <- run_optim(data, inipar, conditions)
             iter_row <- base_row
             iter_row[names(inipar)] <- model$par
             iter_row["likelihood"] <- model$value
-            # return(iter_row)
+            return(iter_row)
         }
 
         iter_df <- as.data.frame(do.call(rbind, optim_remaining_pars))

@@ -49,13 +49,12 @@ library(fastDummies)
 import_data <- function(path, convert_to_dummy) {
     
     columns_to_remove <- c(
-        ".geo", "latitude", "longitude", "pr_", "si_", "aet_", "last_LU"
+        ".geo", "latitude", "longitude", "pr_", "si_", "aet_", "last_LU", "GEDI"
     )
 
     df <- read_csv(datafiles[[1]], show_col_types = FALSE) %>% # show_col_types = FALSE quiets a large message during import
         select(-starts_with(columns_to_remove)) %>%
         mutate(across(all_of(categorical), as.factor))
-
 
     list_of_dfs <- split(df, df$biome)
  
