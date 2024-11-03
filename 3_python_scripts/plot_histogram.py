@@ -172,8 +172,8 @@ def plot_mean_biomass_comparison(df1, df2, label1='EU', label2='Non-Aggregated')
 
 def main():
 
-    df1 = pd.read_csv("./0_data/eu.csv")
-    df2 = pd.read_csv("./0_data/non_aggregated_all.csv")
+    # df1 = pd.read_csv("./0_data/eu.csv")
+    # df2 = pd.read_csv("./0_data/non_aggregated_all.csv")
 
     # stats1 = df1.groupby('age')['biomass'].agg(['mean', 'std']).reset_index()
     # stats2 = df2.groupby('age')['biomass'].agg(['mean', 'std']).reset_index()
@@ -184,16 +184,19 @@ def main():
 
     # plot_mean_biomass_comparison(df1, df2, label1='EU', label2='Mapbiomas')
 
-    # # Select only the specified columns
-    # X = df[['age', 'biome']]  # Now X contains both age and biome
-    # y = df['biomass']
+    # df = pd.read_csv("./0_data/eu.csv")
+    df = pd.read_csv("./0_data/non_aggregated_15yr.csv")
 
-    # data = {'X': X, 'y': y}
+    # Select only the specified columns
+    X = df[['age', 'biome', 'num_fires_before_regrowth', 'cwd']]  # Now X contains both age and biome
+    y = df['biomass']
 
-    # biome_names = {
-    #     1: 'Amazon',
-    #     4: 'Atlantic'
-    # }
+    data = {'X': X, 'y': y}
+
+    biome_names = {
+        1: 'Amazon',
+        4: 'Atlantic'
+    }
 
     # # Create histograms
     # hist_1 = create_histogram(data, age = 1, biome_names = biome_names, 
@@ -205,10 +208,10 @@ def main():
     # mean_std_plot = create_mean_std_plot(data, biome_names)
     
     # # Create Amazon nearest_mature_biomass comparison plot
-    # mature = plot_amazon_quartile_comparison(data, biome_names, variable = 'nearest_mature_biomass')
-    # cwd = plot_amazon_quartile_comparison(data, variable = 'lulc_sum_39')
+    plot = plot_amazon_quartile_comparison(data, variable = 'num_fires_before_regrowth')
 
-    # plt.show()
+
+    plt.show()
 
 if __name__ == "__main__":
     main()
