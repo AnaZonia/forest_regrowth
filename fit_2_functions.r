@@ -335,8 +335,7 @@ cross_valid <- function(data, pars_iter, conditions = NULL) {
 #   data             : A dataframe with normalized numerical values
 
 normalize_independently <- function(train_data, test_data = NULL) {
-    # train_data <- data_cluster
-    # pars <- basic_pars_iter
+
     # Select numeric columns for normalization, excluding specified ones
     exclusion_list <- c(unlist(categorical), "biomass", "nearest_mature_biomass", "pred", "cluster", climatic_pars)
     # if k is multiplied by the age column, don't normalize age
@@ -430,15 +429,23 @@ process_row <- function(cv_output, model, data_name, data_pars_name, biome_name)
     all_possible_pars <- unique(unlist(c(non_data_pars, unique_colnames, categorical)))
     missing_cols <- setdiff(all_possible_pars, names(cv_output$pars))
 
+    # Determine the values for the new columns based on data_pars_name
+    landscape <- data_pars_name %in% c("all", "no_land_use")
+    land_use <- data_pars_name %in% c("all", "no_landscape")
+    yearly_clim <- data_pars_name == "all_yearly_clim"
+
     # Initialize row with provided and calculated values
     row <- data.frame(
         model = model,
-        biome_name = biome_name,
-        data = data_name,
-        data_pars = data_pars_name,
+        aggregation = import_name,
+        biome = biome_name,
+        interval = data_name,
         r2_mean = cv_output$r2_mean,
         r2_sd = cv_output$r2_sd,
         r2_final = cv_output$r2_final,
+        landscape = landscape,
+        land_use = land_use,
+        yearly_clim = yearly_clim,
         stringsAsFactors = FALSE
     )
 
@@ -454,11 +461,11 @@ process_row <- function(cv_output, model, data_name, data_pars_name, biome_name)
 
     # Define the desired order of columns and reorder
     desired_column_order <- c(
-        "model", "biome_name", "data", "data_pars",
-        "r2_mean", "r2_sd", "r2_final", "age"
+        "model", "aggregation", "biome", "interval",
+        "r2_mean", "r2_sd", "r2_final", "age",
+        "landscape", "land_use", "yearly_clim"
     )
     row <- row %>% select(all_of(desired_column_order), all_of(non_data_pars), everything())
-
 
     return(row)
 }
