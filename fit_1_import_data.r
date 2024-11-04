@@ -49,7 +49,7 @@ library(fastDummies)
 import_data <- function(path, convert_to_dummy) {
     
     columns_to_remove <- c(
-        ".geo", "latitude", "longitude", "pr_", "si_", "aet_", "last_LU", "GEDI"
+        ".geo", "latitude", "longitude", "pr_", "si_", "aet_", "last_LU", "GEDI", "mean_si"
     )
 
     df <- read_csv(datafiles[[1]], show_col_types = FALSE) %>% # show_col_types = FALSE quiets a large message during import

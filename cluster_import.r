@@ -100,7 +100,7 @@ process_climatic <- function(data) {
 
 import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
     columns_to_remove <- c(
-        ".geo", "latitude", "longitude", "mature_forest_years",
+        ".geo", "latitude", "longitude", "mature_forest_years", "mean_si",
         # "last_LU",
         "lulc_sum_35", "lulc_sum_41",
         "num_fires_before_first_anthro", "num_fires_after_first_anthro", "num_fires_during_anthro"
@@ -115,6 +115,14 @@ import_data <- function(path, convert_to_dummy, process_climatic = TRUE) {
 
     if ("nearest_mature" %in% names(df)) {
         names(df)[names(df) == "nearest_mature"] <- "nearest_mature_biomass"
+    }
+
+    if ("agbd" %in% names(df)) {
+        names(df)[names(df) == "agbd"] <- "biomass"
+    }
+
+    if ("num_fires_before_regrowth" %in% names(df)) {
+        names(df)[names(df) == "num_fires_before_regrowth"] <- "num_fires"
     }
 
     list_of_dfs <- split(df, df$biome)

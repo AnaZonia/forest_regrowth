@@ -93,6 +93,9 @@ run_optim <- function(train_data, pars, conditions) {
 
 
 growth_curve <- function(pars, data, lag = 0) {
+    # data <- test_data
+    # pars = model$par
+    # lag = 0
     # Define parameters that are not expected to change yearly (not prec or si)
     non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
 
@@ -175,9 +178,9 @@ likelihood <- function(pars, data, conditions) {
         growth_curves <- sapply(scaled_base, function(lag) growth_curve(pars, data, lag))
         residuals <- sweep(growth_curves, 1, data$biomass, "-")
 
-        result <- sum(residuals^2)
+        result <- mean(residuals^2)
     } else {
-        result <- sum((growth_curve(pars, data) - data$biomass)^2)
+        result <- mean((growth_curve(pars, data) - data$biomass)^2)
     }
 
     # Check whether any of the parameters is breaking the conditions (e.g. negative values)
@@ -266,6 +269,7 @@ cross_valid <- function(data, pars_iter, conditions) {
     }
 
     for (index in 1:5) {
+        print(index)
         # Define the test and train sets
         test_data <- data[indices == index, !(names(data) %in% c("pred"))]
         train_data <- data[indices != index, !(names(data) %in% c("pred"))]
@@ -409,149 +413,13 @@ process_row <- function(
 
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# --------------------------- Identify Optimal Parameter Combination -------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
-# Function Description:
-#   This function identifies the optimal combination of parameters for a given dataset
-#   by iteratively fitting parameter combinations with run_optim and selecting the one that minimizes
-#   the Akaike Information Criterion (AIC).
-#
-# Arguments:
-#   iterations       : A dataframe where each row contains the information needed to perform
-#                      one iteration of the parameter selection process, including the land use history
-#                      interval, data parameter set, basic parameter set, and biome.
-#
-# Returns:
-#   ideal_par_combination : A list where each element contains the best parameter combination
-#                           identified for each iteration in the `iterations` dataframe.
-#
-# Notes:
-#   - Categorical variables are handled by grouping their dummy variables together during optimization.
-#   - The function writes the results of each iteration to an RDS file for future use.
-# External Functions:
-#   run_optim()
-
-# find_combination_pars <- function(iterations) {
-#     ideal_par_combination <- list()
-
-#     for (iter in 1:nrow(iterations)) {
-#         # Extract iteration-specific parameters
-#         # i <- 2
-#         # j <- 4
-#         # k <- 1
-#         # l <- 3
-#         i <- iterations_optim$interval[iter]
-#         j <- iterations_optim$data_par[iter]
-#         k <- iterations_optim$biome[iter]
-#         l <- iterations_optim$basic_par[iter]
-
-#         data <- normalize_independently(dataframes[[i]][[k]])$train_data
-#         data_pars_iter <- data_pars[[k]][[j]]
-#         basic_pars_iter <- basic_pars[[l]]
-
-#         # Initialize parameter vector with basic parameters and theta
-#         all_pars_iter <- c(setNames(
-#             rep(0, length(data_pars_iter)),
-#             c(data_pars_iter)
-#         ))
-
-#         all_pars_iter[["B0"]] <- mean(data[["biomass"]])
-#         all_pars_iter[["theta"]] <- 1
-#         basic_pars_iter <- c(basic_pars_iter, "theta")
-
-#         if ("age" %in% basic_pars_iter) {
-#             all_pars_iter["age"] <- 0
-#         }
-
-#         if ("k0" %in% basic_pars_iter) {
-#             all_pars_iter["k0"] <- -log(1 - mean(data[["biomass"]]) / mean(data[["nearest_mature_biomass"]]))
-#         }
-
-#         if ("m_base" %in% basic_pars_iter) {
-#             all_pars_iter["m_base"] <- 0
-#             all_pars_iter["sd_base"] <- 1
-#         }
-
-#         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#         # Handle categorical variables by grouping dummy variables together
-#         for (cat_var in categorical) {
-#             dummy_indices <- grep(cat_var, data_pars_iter)
-#             if (length(dummy_indices) > 0) {
-#                 data_pars_iter <- c(data_pars_iter[-dummy_indices], cat_var)
-#             }
-#         }
-
-#         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#         # Initialize the best model with basic parameters
-#         remaining <- 1:length(data_pars_iter)
-#         taken <- length(remaining) + 1 # out of the range of values such that remaining[-taken] = remaining for the first iteration
-
-#         # best model list
-#         best <- list(AIC = 0)
-#         val <- 0
-#         best[["par"]] <- all_pars_iter[names(all_pars_iter) %in% basic_pars_iter]
-#         val <- length(basic_pars)
-
-#         base_row <- all_pars_iter
-#         base_row[names(all_pars_iter)] <- NA
-#         base_row <- c(likelihood = 0, base_row)
-
-#         should_continue <- TRUE
-#         # Iteratively add parameters and evaluate the model. Keep only AIC improvements.
-#         for (i in 1:length(data_pars_iter)) {
-#             if (!should_continue) break
-#             optim_remaining_pars <- foreach(j = remaining[-taken]) %dopar% {
-#                 # for (j in remaining[-taken]) {
-
-#                 # check for categorical variables (to be included as a group)
-#                 if (data_pars_iter[j] %in% categorical) {
-#                     inipar <- c(best$par, all_pars_iter[grep(data_pars_iter[j], names(all_pars_iter))])
-#                 } else {
-#                     # as starting point, take the best values from last time
-#                     inipar <- c(best$par, all_pars_iter[data_pars_iter[j]])
-#                 }
-
-#                 model <- run_optim(data, inipar, conditions)
-#                 iter_row <- base_row
-#                 iter_row[names(inipar)] <- model$par
-#                 iter_row["likelihood"] <- model$value
-
-#                 return(iter_row)
-#             }
-
-#             iter_df <- as.data.frame(do.call(rbind, optim_remaining_pars))
-#             best_model <- which.min(iter_df$likelihood)
-#             best_model_AIC <- 2 * iter_df$likelihood[best_model] + 2 * (i + val + 1)
-
-#             print(paste0("iteration: ", iter, ", num parameters included: ", i))
-
-#             if (best$AIC == 0 | best_model_AIC < best$AIC) {
-#                 best$AIC <- best_model_AIC
-#                 best$par <- iter_df[best_model, names(all_pars_iter)]
-#                 best$par <- Filter(function(x) !is.na(x), best$par)
-#                 taken <- which(sapply(data_pars_iter, function(x) any(grepl(x, names(best$par)))))
-#             } else {
-#                 print("No improvement. Exiting loop.")
-#                 should_continue <- FALSE
-#             }
-#         }
-#         print(list(best$par))
-
-#         ideal_par_combination <- append(ideal_par_combination, list(best$par))
-#         write_rds(ideal_par_combination, paste0("./data/", name_export, "_ideal_par_combination.rds"))
-#     }
-
-#     return(ideal_par_combination)
-# }
-
 find_combination_pars <- function(iter, data) {
     # Extract iteration-specific parameters
     # i <- 2
     # j <- 4
     # k <- 1
     # l <- 3
+    # data <- data_cluster
     j <- iterations_optim$data_par[iter]
     k <- iterations_optim$biome[iter]
     l <- iterations_optim$basic_par[iter]
@@ -621,19 +489,22 @@ find_combination_pars <- function(iter, data) {
                 # as starting point, take the best values from last time
                 inipar <- c(best$par, all_pars_iter[data_pars_iter[j]])
             }
+            # print(inipar)
 
             model <- run_optim(data, inipar, conditions)
             iter_row <- base_row
             iter_row[names(inipar)] <- model$par
             iter_row["likelihood"] <- model$value
+            # print(iter_row)
             return(iter_row)
         }
 
         iter_df <- as.data.frame(do.call(rbind, optim_remaining_pars))
         best_model <- which.min(iter_df$likelihood)
         best_model_AIC <- 2 * iter_df$likelihood[best_model] + 2 * (i + val + 1)
+        taken <- which(sapply(data_pars_iter, function(x) any(grepl(x, names(best$par)))))
 
-        print(paste0("iteration: ", iter, ", num parameters included: ", i))
+        print(paste0("iteration: ", iter, ", num parameters included: ", i, ", parameters taken: ", toString(data_pars_iter[taken])))
 
         if (best$AIC == 0 | best_model_AIC < best$AIC) {
             best$AIC <- best_model_AIC

@@ -12,7 +12,7 @@ source("fit_2_functions.r")
 
 # Set up parallel processing
 set.seed(1)
-ncores <- 5
+ncores <- 40
 registerDoParallel(cores = ncores)
 
 
@@ -78,7 +78,7 @@ for (i in seq_along(biomes)){
     colnames_filtered_no_mean_climate <- colnames_filtered[!grepl(paste(paste0("mean_", climatic_pars), collapse = "|"), colnames_filtered)]
 
     biome_pars <- list(
-        c(colnames_filtered)
+        c(colnames_filtered[!grepl(paste0(land_use, collapse = "|"), colnames_filtered)])
     )
 
     # biome_pars <- list(
@@ -116,6 +116,7 @@ basic_pars_names <- c(
     # "intercept",
     "lag"
 )
+data_pars
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Create grids of different combinations of model inputs
@@ -131,11 +132,12 @@ basic_pars_fit_age <- which(sapply(basic_pars, function(x) "age" %in% x))
 data_pars_with_climatic <- which(sapply(data_pars[[1]], function(x) any(climatic_pars %in% x)))
 # Remove rows where both conditions are met
 iterations <- iterations %>% filter(!(basic_par %in% basic_pars_fit_age & data_par %in% data_pars_with_climatic))
+iterations
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Run Model ---------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# source("fit_2_functions.r")
+source("fit_2_functions.r")
 
 pars_iter_list <- list()
 for (iter in 1:nrow(iterations)) {
@@ -207,58 +209,74 @@ final_file <- paste0("./new_data_yearly/", name_export, "_final_results.csv")
 write.csv(all_results, final_file, row.names = FALSE)
 
 
+iter = 1
+iterations
+i <- iterations$interval[iter]
+j <- iterations$data_par[iter]
+k <- iterations$biome[iter]
+l <- iterations$basic_par[iter]
+
+data <- dataframes[[i]][[k]]
+pars_names <- data_pars_names[[j]]
+biome_name <- biomes[[k]]
+basic_pars_name <- basic_pars_names[[l]]
+pars_iter <- find_combination_pars(iter, data)
+
+# Perform cross-validation and process results
+cv_output <- cross_valid(data, pars_iter, conditions)
+
+
+
 
 # lag, atla, all, all
 n_clusters <- 5
 
 for (iter in 1:nrow(iterations)){
     # Extract iteration-specific parameters
-    iter = 1
+    # iter = 1
     i <- iterations$interval[iter]
     j <- iterations$data_par[iter]
     k <- iterations$biome[iter]
     l <- iterations$basic_par[iter]
 
-    data <- dataframes[[i]][[k]]
+    data_iter <- dataframes[[i]][[k]]
     data_pars_name <- data_pars_names[[j]]
     biome_name <- biomes[[k]]
     basic_pars_name <- basic_pars_names[[l]]
 
-    data$pred <- NA
+    data_iter$pred <- NA
     # names_anthro <- names(data)[grepl(paste0(c(land_use, landscape), collapse = "|"), names(data))]
-    names_enviro <- names(data)[!grepl(paste0(c(land_use, landscape), collapse = "|"), names(data))]
-    data_norm <- data[, names(data) %in% names_enviro]
-    data_norm <- normalize_independently(NULL, data_norm)$train_data
+    names_enviro <- names(data_iter)[!grepl(paste0(c(land_use), collapse = "|"), names(data_iter))]
+    data_norm <- data_iter[, names(data_iter) %in% names_enviro]
+    data_norm <- normalize_independently(data_norm)$train_data
     pca <- PCA(data_norm, ncp = n_clusters, graph = FALSE)
   
     data_norm_pca <- as.data.frame(pca$ind$coord)
     kmeans_result <- kmeans(data_norm_pca, centers = n_clusters, nstart = 20)
-    data$cluster <- kmeans_result$cluster
+    data_iter$cluster <- kmeans_result$cluster
 
     r2_cluster <- numeric(n_clusters)
     # Loop through each unique cluster and perform cross-validation
 
     for (cluster_id in 1:n_clusters) {
         print(cluster_id)
-        data_cluster <- subset(data, cluster == cluster_id)    
+        data_cluster <- subset(data_iter, cluster == cluster_id)
         pars_iter <- find_combination_pars(iter, data_cluster)
         # Perform cross-validation and process results
         optim_cv_output <- cross_valid(data_cluster, pars_iter, conditions)
-        print(optim_cv_output$r2_mean)
-        print(optim_cv_output$r2_sd)
-        r2_cluster[cluster_id] <- optim_cv_output$r2_final
-        data[data$cluster == cluster_id, c("pred_cv", "pred_final")] <- optim_cv_output$pred
+        # print(optim_cv_output$r2_mean)
+        # print(optim_cv_output$r2_sd)
+        # r2_cluster[cluster_id] <- optim_cv_output$r2_final
+        # data[data$cluster == cluster_id, c("pred_cv", "pred_final")] <- optim_cv_output$pred
         print(mean(optim_cv_output$pred))
     }
 
-    print(mean(r2_cluster))
+    # print(mean(r2_cluster))
     
-    head(data[, c("pred_cv", "pred_final")])
-    mean(data[["pred_cv"]])
-    mean(data[["pred_final"]])
+    # head(data[, c("pred_cv", "pred_final")])
+    # mean(data[["pred_cv"]])
+    # mean(data[["pred_final"]])
     # row <- cbind(row, data.frame(r2_mean_clusters = mean(r2_cluster)))
     # print(row)
     # return(row)
 }
-
-

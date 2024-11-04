@@ -160,6 +160,7 @@ if (not_cluster) {
 
 
 
+source("cluster_functions.r")
 
 n_clusters <- 10
 if (export_results) {
@@ -176,56 +177,58 @@ if (export_results) {
 
     # for (iter in 1:nrow(iterations_optim)) {
     iter = 2
-        # Extract iteration-specific parameters
-        i <- iterations_optim$interval[iter]
-        j <- iterations_optim$data_par[iter]
-        k <- iterations_optim$biome[iter]
-        l <- iterations_optim$basic_par[iter]
+    # Extract iteration-specific parameters
+    i <- iterations_optim$interval[iter]
+    j <- iterations_optim$data_par[iter]
+    k <- iterations_optim$biome[iter]
+    l <- iterations_optim$basic_par[iter]
 
-        data <- dataframes[[i]][[k]]
-        data_pars_name <- data_pars_names[[j]]
-        biome_name <- biomes[[k]]
-        basic_pars_name <- basic_pars_names[[l]]
+    data <- dataframes[[i]][[k]]
+    data_pars_name <- data_pars_names[[j]]
+    biome_name <- biomes[[k]]
+    basic_pars_name <- basic_pars_names[[l]]
 
-        data$pred <- NA
-        data_norm <- data[, names(data) %in% data_pars[[1]][[j]]]
-        data_norm <- normalize_independently(data_norm)$train_data
-        pca <- PCA(data_norm, ncp = n_clusters, graph = FALSE)
+    data$pred <- NA
+    data_norm <- data[, names(data) %in% data_pars[[1]][[j]]]
+    data_norm <- normalize_independently(data_norm)$train_data
+    pca <- PCA(data_norm, ncp = n_clusters, graph = FALSE)
 
-        data_norm_pca <- as.data.frame(pca$ind$coord)
-        kmeans_result <- kmeans(data_norm_pca, centers = n_clusters, nstart = 20)
-        data$cluster <- kmeans_result$cluster
+    data_norm_pca <- as.data.frame(pca$ind$coord)
+    kmeans_result <- kmeans(data_norm_pca, centers = n_clusters, nstart = 20)
+    data$cluster <- kmeans_result$cluster
 
-        cluster_r_squared <- numeric(n_clusters)
-        # Loop through each unique cluster and perform cross-validation
-        for (cluster_id in 1:n_clusters) {
-            data_cluster <- subset(data, cluster == cluster_id)
+    cluster_r_squared <- numeric(n_clusters)
+    # Loop through each unique cluster and perform cross-validation
+    for (cluster_id in 1:n_clusters) {
+        # cluster_id = 2
+        print(cluster_id)
+        data_cluster <- subset(data, cluster == cluster_id)
 
-            pars_iter <- find_combination_pars(iter, data_cluster)
+        pars_iter <- find_combination_pars(iter, data_cluster)
 
-            # Perform cross-validation and process results
-            optim_cv_output <- cross_valid(data_cluster, pars_iter, conditions)
-            print(optim_cv_output$rsq_mean)
-            print(optim_cv_output$rsq_sd)
-            cluster_r_squared[cluster_id] <- optim_cv_output$rsq_final
-            data$pred[data$cluster == cluster_id] <- optim_cv_output$pred
-            print(mean(optim_cv_output$pred))
-        }
+        # Perform cross-validation and process results
+        optim_cv_output <- cross_valid(data_cluster, pars_iter, conditions)
+        print(optim_cv_output$rsq_mean)
+        print(optim_cv_output$rsq_sd)
+        cluster_r_squared[cluster_id] <- optim_cv_output$rsq_final
+        data$pred[data$cluster == cluster_id] <- optim_cv_output$pred
+        print(mean(optim_cv_output$pred))
+    }
 
-        row <- data.frame(
-            biome_name = biome_name,
-            data = intervals[[i]],
-            data_pars = data_pars_name,
-            basic_pars = basic_pars_name,
-            rsq_mean = mean(cluster_r_squared),
-            rsq_sd = sd(cluster_r_squared),
-            stringsAsFactors = FALSE
-        )
+    row <- data.frame(
+        biome_name = biome_name,
+        data = intervals[[i]],
+        data_pars = data_pars_name,
+        basic_pars = basic_pars_name,
+        rsq_mean = mean(cluster_r_squared),
+        rsq_sd = sd(cluster_r_squared),
+        stringsAsFactors = FALSE
+    )
 
-        # Append the row to results
-        results <- bind_rows(results, row)
+    # Append the row to results
+    results <- bind_rows(results, row)
 
-        print(row)
+    print(row)
     # }
 
     # write.csv(results, paste0("./data/", name_export, "_results.csv"), row.names = FALSE)

@@ -273,7 +273,7 @@ cross_valid <- function(data, pars_iter, conditions = NULL) {
         test_data <- data[indices == index, -grep("pred", names(data))]
         train_data <- data[indices != index, -grep("pred", names(data))]
         # Normalize training and test sets independently, but using training data's min/max for both
-        norm_data <- normalize_independently(pars_iter, train_data, test_data)
+        norm_data <- normalize_independently(train_data, test_data)
         train_data <- norm_data$train_data
         test_data <- norm_data$test_data
 
@@ -293,7 +293,7 @@ cross_valid <- function(data, pars_iter, conditions = NULL) {
     }
 
     # Fit the model on the full data
-    norm_data <- normalize_independently(pars_iter, data[, -grep("pred", names(data))])$train_data
+    norm_data <- normalize_independently(data)$train_data
 
     if (is.null(conditions)) { # run lm
         final_model <- lm(lm_formula, data = norm_data)
@@ -303,10 +303,6 @@ cross_valid <- function(data, pars_iter, conditions = NULL) {
     } else {
         final_model <- run_optim(norm_data, pars_iter, conditions)
         pred_final <- growth_curve(final_model$par, norm_data) # with no lag, to give the expected values at low ages
-        if ("m_base" %in% names(pars_iter)){
-            pred_final <- cbind(data$pred_cv, pred_final)
-            colnames(pred_final) <- c("pred", "pred_low_ages")
-        }
         pars <- as.vector(t(final_model$par))
         names(pars) <- names(final_model$par)
     }
@@ -321,6 +317,10 @@ cross_valid <- function(data, pars_iter, conditions = NULL) {
         pars = pars,
         pred = pred_final
     )
+    if ("m_base" %in% names(pars_iter)){
+        result[["pred_nolag"]] <- data$pred_cv
+    }
+
     return(result)
 }
 
@@ -334,13 +334,13 @@ cross_valid <- function(data, pars_iter, conditions = NULL) {
 # Returns:
 #   data             : A dataframe with normalized numerical values
 
-normalize_independently <- function(pars, train_data, test_data = NULL) {
+normalize_independently <- function(train_data, test_data = NULL) {
     # train_data <- data_cluster
     # pars <- basic_pars_iter
     # Select numeric columns for normalization, excluding specified ones
     exclusion_list <- c(unlist(categorical), "biomass", "nearest_mature_biomass", "pred", "cluster", climatic_pars)
     # if k is multiplied by the age column, don't normalize age
-    exclusion_list <- c(exclusion_list, if (!"age" %in% names(pars)) "age")
+    # exclusion_list <- c(exclusion_list, if (!"age" %in% names(pars)) "age")
     norm_cols <- c(names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))])
 
     # Compute mean and standard deviation for normalization based on training data
@@ -498,7 +498,7 @@ find_combination_pars <- function(iter, data) {
 
     data_pars_iter <- data_pars[[k]][[j]]
     basic_pars_iter <- basic_pars[[l]]
-    data <- normalize_independently(basic_pars_iter, data)$train_data
+    data <- normalize_independently(data)$train_data
 
     # Initialize parameter vector with basic parameters and theta
     all_pars_iter <- c(setNames(
@@ -589,6 +589,5 @@ find_combination_pars <- function(iter, data) {
             should_continue <- FALSE
         }
     }
-
     return(best$par)
 }
