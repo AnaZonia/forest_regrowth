@@ -65,7 +65,7 @@ import_data <- function(path, convert_to_dummy) {
     )
 
     list_of_dfs <- lapply(list_of_dfs, function(df) {
-        
+        df <- df[, !names(df) %in% "biome"]
         non_zero_counts <- colSums(df != 0, na.rm = TRUE)
         df <- df[, non_zero_counts > 100]
 
@@ -75,9 +75,6 @@ import_data <- function(path, convert_to_dummy) {
             ungroup() %>%
             mutate(across(all_of(categorical), droplevels))
         
-        # df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
-        df <- df[, !names(df) %in% "biome"]
-        
         # Create dummy variables
         if (convert_to_dummy) {
             df <- dummy_cols(df,
@@ -86,9 +83,10 @@ import_data <- function(path, convert_to_dummy) {
                 remove_selected_columns = TRUE
             )
         }
+        # df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
+
         return(df)
     })
-
 
     print("Imported!")
     return(list_of_dfs)

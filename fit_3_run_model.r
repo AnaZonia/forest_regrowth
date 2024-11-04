@@ -10,8 +10,9 @@ library(cluster) # For k-means clustering
 source("fit_1_import_data.r")
 source("fit_2_functions.r")
 
+# Set up parallel processing
 set.seed(1)
-ncores <- 50
+ncores <- 5
 registerDoParallel(cores = ncores)
 
 
@@ -34,16 +35,17 @@ categorical <- c("ecoreg", "topography")
 conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0', 'pars["k0"] < 0')
 non_data_pars <- c("k0", "B0", "theta", "m_base", "sd_base")
 
-biomes <- c("amaz", "atla", "both")
-# biomes <- c("atla")
+# biomes <- c("amaz", "atla", "both")
+biomes <- c("atla")
+# biomes <- c("amaz")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------------------------- Import Data ----------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Define land-use history intervals to import four dataframes
-intervals <- list("5yr", "10yr", "15yr", "all")
-# intervals <- list("10yr")
+# intervals <- list("5yr", "10yr", "15yr", "all")
+intervals <- list("all")
 
 datafiles <- paste0("./new_data_yearly/", name_import, "_", intervals, ".csv")
 dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE)
@@ -52,6 +54,8 @@ dataframes_lm <- lapply(datafiles, import_data, convert_to_dummy = FALSE)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Define Parameters -----------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
 land_use <- c("lulc", "LU", "fallow", "num_fires")
 landscape <- c("distance", "sur_cover", "nearest_mature_biomass")
 
@@ -92,7 +96,6 @@ data_pars_names <- c(
     "all"
 )
 
-
 # data_pars_names <- c(
 #     "no_land_use_no_landscape",
 #     "no_land_use",
@@ -103,12 +106,16 @@ data_pars_names <- c(
 
 # Define basic parameter sets for modeling
 basic_pars <- list(
-    c("age", "k0", "B0"), #age is fit as its own independent predictor
-    c("k0", "B0"), # k is multiplied by the age column
+    # c("age", "k0", "B0"), #age is fit as its own independent predictor
+    # c("k0", "B0"), # k is multiplied by the age column
     c("m_base", "sd_base", "k0")
 )
 
-basic_pars_names <- as.list(sapply(basic_pars, function(par_set) paste(par_set, collapse = "_")))
+basic_pars_names <- c(
+    # "intercept_age",
+    # "intercept",
+    "lag"
+)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Create grids of different combinations of model inputs
@@ -128,6 +135,7 @@ iterations <- iterations %>% filter(!(basic_par %in% basic_pars_fit_age & data_p
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Run Model ---------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# source("fit_2_functions.r")
 
 pars_iter_list <- list()
 for (iter in 1:nrow(iterations)) {
@@ -138,87 +146,119 @@ for (iter in 1:nrow(iterations)) {
     pars_iter_list[[iter]] <- pars_iter
     saveRDS(pars_iter_list, "temp_pars_iter_list.rds")
 }
-# source("fit_2_functions.r")
-# pars_iter_list <- readRDS('temp_pars_iter_list.rds')
 
-results <- foreach(iter = 1:nrow(iterations), .combine = rbind,
- .packages = c("tidyverse")) %dopar% {
-# for (iter in 1:nrow(iterations)){
+# Define batch size
+batch_size <- 20
+num_batches <- ceiling(nrow(iterations) / batch_size)
 
+# Initialize an empty list to store file names
+csv_files <- vector("list", num_batches)
+
+# Loop over each batch
+for (batch in 1:num_batches) {
+    start <- (batch - 1) * batch_size + 1
+    end <- min(batch * batch_size, nrow(iterations))
+    print(start)
+    print(end)
+
+    # Process the current batch
+    results <- foreach(iter = start:end, .combine = rbind, .packages = c("tidyverse")
+    ) %dopar% {
+    # for (iter in start:end){
+
+        i <- iterations$interval[iter]
+        j <- iterations$data_par[iter]
+        k <- iterations$biome[iter]
+        l <- iterations$basic_par[iter]
+
+        pars_iter <- pars_iter_list[[iter]]
+        data <- dataframes[[i]][[k]]
+        pars_names <- data_pars_names[[j]]
+        biome_name <- biomes[[k]]
+        basic_pars_name <- basic_pars_names[[l]]
+
+        # Perform cross-validation and process results
+        cv_output <- cross_valid(data, pars_iter, conditions)
+
+        row <- process_row(cv_output, basic_pars_name, intervals[[i]], pars_names, biome_name)
+
+        if (!any(climatic_pars %in% names(pars_iter))) {
+            data_lm <- dataframes_lm[[i]][[k]]
+            # Perform cross-validation and process results
+            cv_output <- cross_valid(data_lm, pars_iter)
+            row_lm <- process_row(cv_output, "lm", intervals[[i]], pars_names, biome_name)
+            row <- rbind(row, row_lm)
+        }
+        print(row)
+        return(row)
+    }
+
+    # Define the name for the intermediate CSV file
+    batch_file <- paste0("./new_data_yearly/", name_export, "_batch_", batch, "_results.csv")
+    csv_files[[batch]] <- batch_file
+
+    # Write the batch results to a CSV file
+    write.csv(results, batch_file, row.names = FALSE)
+}
+
+# Combine all intermediate CSV files and export final CSV
+all_results <- do.call(rbind, lapply(csv_files, read.csv))
+final_file <- paste0("./new_data_yearly/", name_export, "_final_results.csv")
+write.csv(all_results, final_file, row.names = FALSE)
+
+
+
+# lag, atla, all, all
+n_clusters <- 5
+
+for (iter in 1:nrow(iterations)){
+    # Extract iteration-specific parameters
+    iter = 1
     i <- iterations$interval[iter]
     j <- iterations$data_par[iter]
     k <- iterations$biome[iter]
     l <- iterations$basic_par[iter]
-    
-    pars_iter <- pars_iter_list[[iter]]
+
     data <- dataframes[[i]][[k]]
-    pars_names <- data_pars_names[[j]]
+    data_pars_name <- data_pars_names[[j]]
     biome_name <- biomes[[k]]
     basic_pars_name <- basic_pars_names[[l]]
 
-    # Perform cross-validation and process results
-    cv_output <- cross_valid(data, pars_iter, conditions)
-    row <- process_row(cv_output, "optim", intervals[[i]], pars_names, biome_name, basic_pars_name)
+    data$pred <- NA
+    # names_anthro <- names(data)[grepl(paste0(c(land_use, landscape), collapse = "|"), names(data))]
+    names_enviro <- names(data)[!grepl(paste0(c(land_use, landscape), collapse = "|"), names(data))]
+    data_norm <- data[, names(data) %in% names_enviro]
+    data_norm <- normalize_independently(NULL, data_norm)$train_data
+    pca <- PCA(data_norm, ncp = n_clusters, graph = FALSE)
+  
+    data_norm_pca <- as.data.frame(pca$ind$coord)
+    kmeans_result <- kmeans(data_norm_pca, centers = n_clusters, nstart = 20)
+    data$cluster <- kmeans_result$cluster
 
-    if (!any(climatic_pars %in% names(pars_iter))) {
-        data_lm <- dataframes_lm[[i]][[k]]
+    r2_cluster <- numeric(n_clusters)
+    # Loop through each unique cluster and perform cross-validation
+
+    for (cluster_id in 1:n_clusters) {
+        print(cluster_id)
+        data_cluster <- subset(data, cluster == cluster_id)    
+        pars_iter <- find_combination_pars(iter, data_cluster)
         # Perform cross-validation and process results
-        cv_output <- cross_valid(data_lm, pars_iter)
-        row_lm <- process_row(cv_output, "lm", intervals[[i]], pars_names, biome_name, basic_pars_name)
-        row <- rbind(row, row_lm)
+        optim_cv_output <- cross_valid(data_cluster, pars_iter, conditions)
+        print(optim_cv_output$r2_mean)
+        print(optim_cv_output$r2_sd)
+        r2_cluster[cluster_id] <- optim_cv_output$r2_final
+        data[data$cluster == cluster_id, c("pred_cv", "pred_final")] <- optim_cv_output$pred
+        print(mean(optim_cv_output$pred))
     }
 
-    print(row)
-    return(row)
+    print(mean(r2_cluster))
+    
+    head(data[, c("pred_cv", "pred_final")])
+    mean(data[["pred_cv"]])
+    mean(data[["pred_final"]])
+    # row <- cbind(row, data.frame(r2_mean_clusters = mean(r2_cluster)))
+    # print(row)
+    # return(row)
 }
-
-write.csv(results, paste0("./new_data_yearly/", name_export, "_min_lik_results.csv"), row.names = FALSE)
-
-
-# n_clusters <- 10
-
-# for (iter in 1:nrow(iterations)){
-
-#     # Extract iteration-specific parameters
-#     i <- iterations$interval[iter]
-#     j <- iterations$data_par[iter]
-#     k <- iterations$biome[iter]
-#     l <- iterations$basic_par[iter]
-
-#     data <- dataframes[[i]][[k]]
-#     data_pars_name <- data_pars_names[[j]]
-#     biome_name <- biomes[[k]]
-#     basic_pars_name <- basic_pars_names[[l]]
-
-#     data$pred <- NA
-#     data_norm <- data[, names(data) %in% data_pars[[1]][[j]]]
-#     data_norm <- normalize_independently(data_norm)$train_data
-#     pca <- PCA(data_norm, ncp = n_clusters, graph = FALSE)
-
-#     data_norm_pca <- as.data.frame(pca$ind$coord)
-#     kmeans_result <- kmeans(data_norm_pca, centers = n_clusters, nstart = 20)
-#     data$cluster <- kmeans_result$cluster
-
-#     cluster_r_squared <- numeric(n_clusters)
-#     # Loop through each unique cluster and perform cross-validation
-#     for (cluster_id in 1:n_clusters) {
-#         data_cluster <- subset(data, cluster == cluster_id)
-
-#         pars_iter <- find_combination_pars(iter, data_cluster)
-
-#         # Perform cross-validation and process results
-#         optim_cv_output <- cross_valid(data_cluster, pars_iter, conditions)
-#         print(optim_cv_output$r2_mean)
-#         print(optim_cv_output$r2_sd)
-#         cluster_r_squared[cluster_id] <- optim_cv_output$r2_final
-#         data$pred[data$cluster == cluster_id] <- optim_cv_output$pred
-#     }
-
-#     # Append the row to results
-#     results <- bind_rows(results, row)
-
-#     print(row)
-# }
-
 
 

@@ -7,11 +7,22 @@ library(ggplot2)
 ### Curve fit on medians and on the entire dataset
 # plot curves from the non-clustered data and the 10 fits
 
+tst <- read.csv("./new_data_yearly/non_aggregated_final_results.csv")
+# tst <- subset(tst, biome == 1)
+hist(tst$age)
+
+
+# the amazon has more young forests, the atlantic has more old forests
+
+# would sampling across ages make a difference?
+
 
 # Calculate median of `pred` by age group and define asymptote
 median_pred_per_age <- data %>%
     group_by(age) %>%
-    summarize(median_pred = median(pred, na.rm = TRUE))
+    summarize(median_pred = median(agbd, na.rm = TRUE))
+
+
 asymptote <- median(data$nearest_mature_biomass, na.rm = TRUE)
 
 # Extend age range and join with `median_pred_per_age`
@@ -59,10 +70,3 @@ ggplot(median_pred_per_age_extended, aes(x = age)) +
     ) +
     theme_minimal() +
     scale_color_manual(values = c("Original Median" = "blue", "Fitted Curve" = "red"))
-
-
-
-# plot heatmaps of r squared values to show all the comparisons
-# across models and configurations
-
-
