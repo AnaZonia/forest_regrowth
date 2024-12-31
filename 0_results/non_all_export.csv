@@ -1,0 +1,2 @@
+datasource,biome,model,remove_land_use,remove_landscape,r2_mean,r2_sd,r2_final
+aggregated_all,1,XGBoost,True,True,0.4485783111150668,0.007197936713899526,0.44857828451978066
