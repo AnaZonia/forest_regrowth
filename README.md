@@ -90,6 +90,9 @@ To get started with the project, follow these steps:
     ```sh
     pip install -r requirements.txt
     ```
+    ```R
+    renv::restore()
+    ```
 
 3. Run the data processing script:
     ```sh
