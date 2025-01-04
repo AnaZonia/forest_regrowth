@@ -48,6 +48,7 @@
 #   filtered_data()
 
 
+
 run_optim <- function(train_data, pars, conditions) {
     if ("age" %in% names(pars)) {
         conditions <- c(conditions, list('pars["age"] < 0', 'pars["age"] > 5'))
@@ -88,12 +89,11 @@ run_optim <- function(train_data, pars, conditions) {
 #   - Incorporates growth rate intercept term k0 if provided
 #   - Incorporates yearly-changing climatic parameters if provided.
 
-
 growth_curve <- function(pars, data, lag = 0) {
 
     # Define parameters that are not expected to change yearly (not prec or si)
     non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
-    
+
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Calculate the growth rate k
     if ("m_base" %in% names(pars)) {

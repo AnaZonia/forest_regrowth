@@ -1,5 +1,6 @@
 # Ignore directories with "data" in their name
 **/*data*/
+**/*results*/
 
 # Ignore virtual environment directories
 venv/
