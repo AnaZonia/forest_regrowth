@@ -46,11 +46,13 @@ run_mode <- "direct" # Set to either "direct" or "clustered"
 # ---------------------------------- Import Data ----------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Define land-use history intervals to import four dataframes
-intervals <- list("5yr", "10yr", "15yr", "all")
+# intervals <- list("5yr", "10yr", "15yr", "all")
+intervals <- list("all")
 
-datafiles <- paste0("./new_data_yearly/", import_name, "_", intervals, ".csv")
-dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE)
-dataframes_lm <- lapply(datafiles, import_data, convert_to_dummy = FALSE)
+# datafiles <- paste0("./new_data/", name_import, "_", intervals, ".csv")
+# dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE, process_climatic = FALSE)
+
+dataframe <- read.csv("~/Documents/data/mapbiomas_heinrich_field.csv")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Define Parameters -----------------------------------#

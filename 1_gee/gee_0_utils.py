@@ -12,8 +12,8 @@ Key components:
 - Map visualization tools
 - Land use/land cover data processing
 
-Author: [Your Name]
-Date: [Current Date]
+Author: Ana Catarina Avila
+Date: 2024-08-29
 """
 
 import ee
@@ -47,7 +47,7 @@ class ProjectConfig:
         self.range_1985_2019 = range(self.first_year, self.last_year)
         self.range_1985_2020 = range(self.first_year, self.last_year + 1)
 
-def export_image(img, name, folder=None, scale=None, crsTransform=None):
+def export_image(img, name, region, folder=None, scale=None, crsTransform=None):
     """Export an Earth Engine image to an asset."""
     config = ProjectConfig()
     path = f"{config.data_folder}/{folder}" if folder else config.data_folder
@@ -56,7 +56,7 @@ def export_image(img, name, folder=None, scale=None, crsTransform=None):
         'image': img,
         'description': name,
         'assetId': f"{path}/{name}",
-        'region': config.roi,
+        'region': region,
         'crs': "EPSG:4326",
         'maxPixels': 4e12,
     }
@@ -98,7 +98,7 @@ class MapManager:
 
 def remap_band(band_name, img):
     """Remap a band to desired land use categories."""
-    desired_values = ee.List([3, 6, 15, 39, 20, 40, 41, 46, 35, 48, 9, 21])
+    desired_values = ee.List([3, 22, 6, 15, 39, 20, 40, 41, 46, 35, 48, 9, 21])
     mask_all_ones = ee.List.repeat(1, desired_values.size())
     band = img.select(ee.String(band_name))
     new_band = band.remap(desired_values, mask_all_ones, 0)

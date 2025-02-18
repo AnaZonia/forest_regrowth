@@ -41,41 +41,37 @@ forest_regrowth
 
 
 ### 1_gee_scripts/
-- **gee_0_utils.py**: Utility functions for Google Earth Engine (GEE) scripts.
-- **gee_1_secondary.ipynb**: Notebook for processing secondary forest data.
-- **gee_2_categorical.ipynb**: Notebook for processing categorical data.
-- **gee_3_climate.ipynb**: Notebook for processing climate data.
-- **gee_4_mature.ipynb**: Notebook for processing mature forest data.
-- **gee_5_land_use.ipynb**: Notebook for processing land use data.
-- **gee_6_write_csv.ipynb**: Notebook for writing data to CSV files.
-- **test_scripts/**: Contains test scripts for various GEE functionalities.
-  - **gee_histogram.ipynb**: Notebook for creating histograms.
-  - **gee_manage_assets.py**: Script for managing GEE assets.
-  - **gee_visualize_Planet.ipynb**: Notebook for visualizing Planet data.
-  - **modis.py**: Script for processing MODIS data.
+- **gee_0_utils.py**:
+    - imports files for data processing (from Google Earth Engine)
+    - defines functions for data processing and visualization
+
+- **gee_1_secondary.ipynb**:
+    - imports secondary forest age data
+    - imports and reprojects biomass data
+    - exports "secondary" to GEE assets
+
+- **gee_2_categorical.ipynb**:
+- **gee_3_climate.ipynb**:
+- **gee_4_mature.ipynb**:
+- **gee_5_land_use.ipynb**:
+- **gee_6_write_csv.ipynb**:
+- **test_scripts/**: 
+  - **gee_histogram.ipynb**:
+  - **gee_manage_assets.py**:
+  - **gee_visualize_Planet.ipynb**:
+  - **modis.py**:
+
 
 ### 2_R_scripts/
-- **1_data_utils.r**: Utility functions for data processing in R.
-- **2_model_utils.r**: Utility functions for model training in R.
-- **3_run.r**: Script to run the R models.
+- **1_data_utils.r**:
+- **2_model_utils.r**:
+- **3_run.r**:
 
 ### 3_python_scripts/
-- **data_utils.py**: Utility functions for data processing in Python.
-- **model_utils.py**: Utility functions for model training in Python.
-- **run.py**: Script to run the Python models.
-- **tuners.py**: Script for hyperparameter tuning.
-
-### 4_stan_scripts/
-- **model.stan**: Stan model definition.
-- **run_model_stan.R**: Script to run the Stan model using R.
-
-### 5_testing_scripts/
-- **conceptualize_growth_curves.py**: Script to conceptualize growth curves.
-- **eu_mapbiomas_exploration.py**: Script for exploring EU MapBiomas data.
-- **hyper_tune_bayes_skopt.py**: Script for hyperparameter tuning using Bayesian optimization.
-- **investigate_mature_biomass.qmd**: Quarto document for investigating mature biomass.
-- **multicollinearity.py**: Script to check for multicollinearity.
-- **plot_histogram.py**: Script to plot histograms.
+- **data_utils.py**:
+- **model_utils.py**:
+- **run.py**:
+- **tuners.py**:
 
 ## Getting Started
 To get started with the project, follow these steps:
