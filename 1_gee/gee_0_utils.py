@@ -12,8 +12,8 @@ Key components:
 - Map visualization tools
 - Land use/land cover data processing
 
-Author: [Your Name]
-Date: [Current Date]
+Author: Ana Catarina Avila
+Date: 2024-08-29
 """
 
 import ee

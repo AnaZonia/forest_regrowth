@@ -90,7 +90,7 @@ def load_and_preprocess_data(
     if pars is None:
         pars = df.columns.tolist()
         if not keep_all_data:
-            pars = [col for col in pars if col not in ["biome", "biomass", "latitude", "longitude"]]
+            pars = [col for col in pars if col not in ["biome", "biomass", "latitude", "longitude", "silva_age", "heinrich_biomass_2020"]]
 
     # Define keywords for land use and landscape parameters, and include "age"
     land_use_keywords = ['lulc', 'LU', 'fallow', 'num_fires']
@@ -111,9 +111,9 @@ def load_and_preprocess_data(
 
     X = df[pars]
     y = df['biomass'].values
-    lat_lon = df[['latitude', 'longitude']]
+    # lat_lon = df[['latitude', 'longitude']]
 
-    return X, y, lat_lon
+    return X, y#, lat_lon
 
 
 
@@ -262,10 +262,11 @@ def run_model(datasource, models, param_grids, biome = 4, remove_land_use = Fals
         pd.DataFrame: DataFrame containing the results for each model.
     """
 
-    filepath = f"./0_data/{datasource}.csv"
+    # filepath = f"./0_data/{datasource}.csv"
+    filepath = "~/Documents/data/mapbiomas_heinrich.csv"
 
     # Load and preprocess data for the given biome
-    X, y, _ = load_and_preprocess_data(filepath, \
+    X, y = load_and_preprocess_data(filepath, \
                         biome = biome,
                         final_sample_size = 8000,
                         remove_land_use = remove_land_use,
@@ -482,33 +483,32 @@ total_iterations = len(biomes) * len(types) * len(intervals) * len(configuration
 current_iteration = 0  # Initialize the counter
 
 results_df = pd.DataFrame()
-for biome in biomes:
-    for data_type in types:
-        for interval in intervals:
-            for config in configurations:
-                # Set configuration parameters
-                keep_only = config["keep_only_land_use_and_landscape"]
-                landscape = config["remove_landscape"]
-                land_use = config["remove_land_use"]
+for config in configurations:
+    # Set configuration parameters
+    keep_only = config["keep_only_land_use_and_landscape"]
+    landscape = config["remove_landscape"]
+    land_use = config["remove_land_use"]
 
-                datasource = f"{data_type}_{interval}"
-                results = run_model(
-                    datasource,
-                    {"XGBoost": models["XGBoost"]},
-                    {"XGBoost": param_grids["XGBoost"]},
-                    biome,
-                    remove_land_use=land_use,
-                    remove_landscape=landscape,
-                    keep_only_land_use_and_landscape=keep_only
-                )
+    # datasource = f"{data_type}_{interval}"
+    datasource = "~/Documents/data/mapbiomas_heinrich.csv"
 
-                # Append results and update progress
-                results_df = pd.concat([results_df, results], ignore_index=True)
-                current_iteration += 1
-                print(f"Progress: {current_iteration}/{total_iterations} "
-                      f"({(current_iteration / total_iterations) * 100:.2f}%) - "
-                      f"Saved to CSV for data type '{data_type}', interval '{interval}', biome '{biome}'.")
+    results = run_model(
+        datasource,
+        {"XGBoost": models["XGBoost"]},
+        {"XGBoost": param_grids["XGBoost"]},
+        1,
+        remove_land_use=land_use,
+        remove_landscape=landscape,
+        keep_only_land_use_and_landscape=keep_only
+    )
 
-                # Save CSV after each iteration
-                results_df.to_csv("./0_results/all_iters_2.csv", index=False)
-                print("Data saved to CSV.")
+    # Append results and update progress
+    results_df = pd.concat([results_df, results], ignore_index=True)
+    current_iteration += 1
+    print(f"Progress: {current_iteration}/{total_iterations} "
+            f"({(current_iteration / total_iterations) * 100:.2f}%) - "
+            f"Saved to CSV for data type '{data_type}', interval '{interval}', biome '{biome}'.")
+
+    # Save CSV after each iteration
+    results_df.to_csv("./0_results/all_iters_2.csv", index=False)
+    print("Data saved to CSV.")
