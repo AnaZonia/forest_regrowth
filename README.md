@@ -38,9 +38,10 @@ forest_regrowth
     - select only pixels with exclusively the desired land use histories (exclude all instances of land use types we are not interested in)
 
 - **gee_1_secondary.ipynb**:
-    - imports secondary forest age data
-    - imports and reprojects biomass data
-    - exports "secondary" to GEE assets
+    - imports secondary forest age data from TMF and Mapbiomas
+    - removes pixels with ages that don't match the IPCC estimates
+    - removes isolated pixels (keeps only)
+    - imports and reprojects GEDI L2A, GEDI L4A and ESA CCI Biomass data
 
 - **gee_2_categorical.ipynb**:
     - imports:
