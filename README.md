@@ -1,7 +1,7 @@
 ## Project Overview
 CapoERA (Computational Algorithm for Post-agricultural Ecosystem Regrowth Analysis) is a model that predicts the age of secondary forests in Brazil based on satellite data. This script imports and processes remote sensing data from Google Earth Engine, and compares different models to predict the biomass of secondary forests based on climate and previous land use.
 
-
+```
 forest_regrowth
 ├── 1_gee
 │   ├── gee_0_utils.py
@@ -25,25 +25,17 @@ forest_regrowth
 │   ├── model_utils.py
 │   ├── run.py
 │   └── tuners.py
-├── 4_stan_scripts
-│   ├── model.stan
-│   └── run_model_stan.R
-├── 5_testing_scripts
-│   ├── conceptualize_growth_curves.py
-│   ├── eu_mapbiomas_exploration.py
-│   ├── hyper_tune_bayes_skopt.py
-│   ├── investigate_mature_biomass.qmd
-│   ├── multicollinearity.py
-│   └── plot_histogram.py
 ├── methods.txt
 ├── README.md
 └── requirements.txt
-
+```
 
 ### 1_gee_scripts/
 - **gee_0_utils.py**:
+    - defines project date range (1985-2020) and imports region of interest
+    - defines export_image function
     - imports files for data processing (from Google Earth Engine)
-    - defines functions for data processing and visualization
+    - select only pixels with exclusively the desired land use histories (exclude all instances of land use types we are not interested in)
 
 - **gee_1_secondary.ipynb**:
     - imports secondary forest age data
@@ -51,6 +43,15 @@ forest_regrowth
     - exports "secondary" to GEE assets
 
 - **gee_2_categorical.ipynb**:
+    - imports:
+        - Indigenous Lands
+        - Protected Areas
+        - Ecoregions
+        - Biomes
+    - exports "categorical" to GEE assets
+    - imports:
+      - 
+
 - **gee_3_climate.ipynb**:
 - **gee_4_mature.ipynb**:
 - **gee_5_land_use.ipynb**:
