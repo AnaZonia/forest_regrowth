@@ -37,31 +37,35 @@ forest_regrowth
     - imports files for data processing (from Google Earth Engine)
     - select only pixels with exclusively the desired land use histories (exclude all instances of land use types we are not interested in)
 
-- **gee_1_secondary.ipynb**:
-    - imports secondary forest age data from TMF and Mapbiomas
-    - removes pixels with ages that don't match the IPCC estimates
-    - removes isolated pixels (keeps only)
-    - imports and reprojects GEDI L2A, GEDI L4A and ESA CCI Biomass data
-
 - **gee_2_categorical.ipynb**:
     - imports:
-        - Indigenous Lands
-        - Protected Areas
-        - Ecoregions
-        - Biomes
-    - exports "categorical" to GEE assets
-    - imports:
-      - 
+      - Indigenous Lands
+      - Protected Areas
+      - Ecoregions
+      - Biomes
+    - exports:
+      - "categorical" to GEE assets
+      - distance_to_border_mask (pixels within 10km of a biome boundary)
+
+
+- **gee_2_age_biomass.ipynb**:
+    - exports secondary forest age data from TMF and Mapbiomas
+      - removes pixels with ages that don't match the IPCC estimates
+      - removes isolated pixels (keeps only pixels within a patch of at least 1 hectare)
+      - removes pixels within 10km of a biome boundary (distance_to_border_mask)
+    - reprojects and exports GEDI L2A, GEDI L4A and ESA CCI Biomass data
+
 
 - **gee_3_climate.ipynb**:
+
 - **gee_4_mature.ipynb**:
+
+
 - **gee_5_land_use.ipynb**:
+
+
 - **gee_6_write_csv.ipynb**:
-- **test_scripts/**: 
-  - **gee_histogram.ipynb**:
-  - **gee_manage_assets.py**:
-  - **gee_visualize_Planet.ipynb**:
-  - **modis.py**:
+
 
 
 ### 2_R_scripts/
