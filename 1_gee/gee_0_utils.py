@@ -75,6 +75,21 @@ def export_image(img, name, region, folder=None, scale=None, crsTransform=None):
     task = ee.batch.Export.image.toAsset(**task_args)
     task.start()
 
+def export_feature_collection(fc, name, format):
+    to_remove = ['.geo', 'system:index']
+    all_properties = fc.bandNames().getInfo()
+    properties_to_export = [p for p in all_properties if p not in to_remove]
+
+    # Export task to Google Drive
+    task = ee.batch.Export.table.toDrive(
+        collection=fc,
+        description=name,
+        fileFormat=format
+    )
+    task.start()
+
+
+
 # ------------------------------ Land Use/Land Cover Data Processing ------------------------------
 
 # The MapBiomas Collection 9 land use/land cover data is mapped to the following classes:
@@ -117,12 +132,6 @@ def desired_lulc():
             .rename([str(year) for year in config.range_1985_2020])
             .updateMask(age))
 
-    fire = (ee.Image("projects/mapbiomas-public/assets/brazil/fire/collection3/mapbiomas_fire_collection3_annual_burned_coverage_v1")
-            .select([f"burned_coverage_{year}" for year in config.range_1985_2020])
-            .byte()
-            .rename([str(year) for year in config.range_1985_2020])
-            .updateMask(age))
-
     remapped_image = lulc.bandNames().map(lambda band_name: remap_band(band_name, lulc))
     remapped_image = ee.ImageCollection(remapped_image).toBands()
     # select only pixels with exclusively the desired land use histories (exclude all instances of land use types we are not interested in)
@@ -130,10 +139,8 @@ def desired_lulc():
 
     age = age.updateMask(desired_mask).rename("age")
     lulc = lulc.updateMask(desired_mask)
-    fire = fire.updateMask(desired_mask)
 
-    return age, lulc, fire
-
+    return age, lulc
 
 # ------------------------------ Map Visualization ------------------------------
 # The high-resolution NICFI basemap is used for visualization purposes.
