@@ -81,7 +81,6 @@ def export_image(img, name, region, folder=None, scale=None, crsTransform=None):
 
 # 3 <- Forest Formation
 # 6 <- Floodable Forest 
-# 9 <- Forest Plantation
 # 15 <- Pasture
 # 20 <- Sugar Cane
 # 21 <- Mosaic of Uses
@@ -94,11 +93,13 @@ def export_image(img, name, region, folder=None, scale=None, crsTransform=None):
 # 48 <- Other perennial crops
 # 62 <- Cotton
 
+# 9 <- Forest Plantation (excluded)
+
 # Note: These classes have different accuracies, and the accuracy is expected to decrease further in the past.
 
 def remap_band(band_name, img):
     """Remap a band to desired land use categories."""
-    desired_values = ee.List([3, 6, 9, 15, 20, 21, 35, 39, 40, 41, 46, 47, 48, 62])
+    desired_values = ee.List([3, 6, 15, 20, 21, 35, 39, 40, 41, 46, 47, 48, 62])
     mask_all_ones = ee.List.repeat(1, desired_values.size())
     band = img.select(ee.String(band_name))
     new_band = band.remap(desired_values, mask_all_ones, 0)
