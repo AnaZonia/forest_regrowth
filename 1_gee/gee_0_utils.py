@@ -53,7 +53,7 @@ class ProjectConfig:
 
 # ------------------------------ Image Export ------------------------------
 
-def export_image(img, name, region, folder=None, scale=None, crsTransform=None):
+def export_image(img, name, region, folder = None, scale = None, crsTransform = None):
     """Export an Earth Engine image to an asset."""
     config = ProjectConfig()
     path = f"{config.data_folder}/{folder}" if folder else config.data_folder
@@ -69,23 +69,28 @@ def export_image(img, name, region, folder=None, scale=None, crsTransform=None):
 
     if scale is not None:
         task_args['scale'] = scale
-    if crsTransform is not None:
+    elif crsTransform is not None:
         task_args['crsTransform'] = crsTransform
 
     task = ee.batch.Export.image.toAsset(**task_args)
     task.start()
 
-def export_feature_collection(fc, name, format):
+
+
+
+def export_csv(fc, name):
     to_remove = ['.geo', 'system:index']
     all_properties = fc.bandNames().getInfo()
     properties_to_export = [p for p in all_properties if p not in to_remove]
 
     # Export task to Google Drive
     task = ee.batch.Export.table.toDrive(
-        collection=fc,
-        description=name,
-        fileFormat=format
+        collection = fc,
+        description = name,
+        fileFormat = "CSV",
+        selectors = properties_to_export
     )
+
     task.start()
 
 
