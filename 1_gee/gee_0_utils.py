@@ -19,6 +19,8 @@ Date: 2024-08-29
 import ee
 import geemap
 
+# ------------------------------ Initialization ------------------------------
+
 def initialize():
     """Initialize and authenticate Earth Engine."""
     try:
@@ -26,6 +28,8 @@ def initialize():
     except Exception as e:
         ee.Authenticate()
         ee.Initialize()
+
+# ------------------------------ Project Configuration ------------------------------
 
 class ProjectConfig:
     """Singleton class to manage project configuration."""
@@ -47,7 +51,9 @@ class ProjectConfig:
         self.range_1985_2019 = range(self.first_year, self.last_year)
         self.range_1985_2020 = range(self.first_year, self.last_year + 1)
 
-def export_image(img, name, region, folder=None, scale=None, crsTransform=None):
+# ------------------------------ Image Export ------------------------------
+
+def export_image(img, name, region, folder = None, scale = None, crsTransform = None):
     """Export an Earth Engine image to an asset."""
     config = ProjectConfig()
     path = f"{config.data_folder}/{folder}" if folder else config.data_folder
@@ -63,11 +69,86 @@ def export_image(img, name, region, folder=None, scale=None, crsTransform=None):
 
     if scale is not None:
         task_args['scale'] = scale
-    if crsTransform is not None:
+    elif crsTransform is not None:
         task_args['crsTransform'] = crsTransform
 
     task = ee.batch.Export.image.toAsset(**task_args)
     task.start()
+
+
+
+
+def export_csv(fc, name):
+    to_remove = ['.geo', 'system:index']
+    all_properties = fc.bandNames().getInfo()
+    properties_to_export = [p for p in all_properties if p not in to_remove]
+
+    # Export task to Google Drive
+    task = ee.batch.Export.table.toDrive(
+        collection = fc,
+        description = name,
+        fileFormat = "CSV",
+        selectors = properties_to_export
+    )
+
+    task.start()
+
+
+
+# ------------------------------ Land Use/Land Cover Data Processing ------------------------------
+
+# The MapBiomas Collection 9 land use/land cover data is mapped to the following classes:
+
+# 3 <- Forest Formation
+# 6 <- Floodable Forest 
+# 15 <- Pasture
+# 20 <- Sugar Cane
+# 21 <- Mosaic of Uses
+# 35 <- Palm Oil
+# 39 <- Soybean
+# 40 <- Rice
+# 41 <- Other temporary crops
+# 46 <- Coffee
+# 47 <- Citrus
+# 48 <- Other perennial crops
+# 62 <- Cotton
+
+# 9 <- Forest Plantation (excluded)
+
+# Note: These classes have different accuracies, and the accuracy is expected to decrease further in the past.
+
+def remap_band(band_name, img):
+    """Remap a band to desired land use categories."""
+    desired_values = ee.List([3, 6, 15, 20, 21, 35, 39, 40, 41, 46, 47, 48, 62])
+    mask_all_ones = ee.List.repeat(1, desired_values.size())
+    band = img.select(ee.String(band_name))
+    new_band = band.remap(desired_values, mask_all_ones, 0)
+    return new_band.rename(ee.String(band_name))
+
+def desired_lulc():
+    """Process and return desired land use/land cover data."""
+    config = ProjectConfig()
+
+    age = ee.Image("projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_secondary_vegetation_age_v1").select("secondary_vegetation_age_2020")
+
+    lulc = (ee.Image("projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_integration_v1")
+            .select([f"classification_{year}" for year in config.range_1985_2020])
+            .byte()
+            .rename([str(year) for year in config.range_1985_2020])
+            .updateMask(age))
+
+    remapped_image = lulc.bandNames().map(lambda band_name: remap_band(band_name, lulc))
+    remapped_image = ee.ImageCollection(remapped_image).toBands()
+    # select only pixels with exclusively the desired land use histories (exclude all instances of land use types we are not interested in)
+    desired_mask = remapped_image.reduce("sum").eq(lulc.bandNames().size().getInfo())
+
+    age = age.updateMask(desired_mask).rename("age")
+    lulc = lulc.updateMask(desired_mask)
+
+    return age, lulc
+
+# ------------------------------ Map Visualization ------------------------------
+# The high-resolution NICFI basemap is used for visualization purposes.
 
 class MapManager:
     """Manage map visualization for Earth Engine data."""
@@ -95,39 +176,3 @@ class MapManager:
     def add_age_layer(self, map_obj, age_data):
         """Add an age layer to the map."""
         map_obj.addLayer(age_data, self.age_palette, 'Age')
-
-def remap_band(band_name, img):
-    """Remap a band to desired land use categories."""
-    desired_values = ee.List([3, 22, 6, 15, 39, 20, 40, 41, 46, 35, 48, 9, 21])
-    mask_all_ones = ee.List.repeat(1, desired_values.size())
-    band = img.select(ee.String(band_name))
-    new_band = band.remap(desired_values, mask_all_ones, 0)
-    return new_band.rename(ee.String(band_name))
-
-def desired_lulc():
-    """Process and return desired land use/land cover data."""
-    config = ProjectConfig()
-
-    age = ee.Image("projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_secondary_vegetation_age_v1").select("secondary_vegetation_age_2020")
-
-    lulc = (ee.Image("projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_integration_v1")
-            .select([f"classification_{year}" for year in config.range_1985_2020])
-            .byte()
-            .rename([str(year) for year in config.range_1985_2020])
-            .updateMask(age))
-
-    fire = (ee.Image("projects/mapbiomas-public/assets/brazil/fire/collection3/mapbiomas_fire_collection3_annual_burned_coverage_v1")
-            .select([f"burned_coverage_{year}" for year in config.range_1985_2020])
-            .byte()
-            .rename([str(year) for year in config.range_1985_2020])
-            .updateMask(age))
-
-    remapped_image = lulc.bandNames().map(lambda band_name: remap_band(band_name, lulc))
-    remapped_image = ee.ImageCollection(remapped_image).toBands()
-    desired_mask = remapped_image.reduce("sum").eq(lulc.bandNames().size().getInfo())
-
-    age = age.updateMask(desired_mask).rename("age")
-    lulc = lulc.updateMask(desired_mask)
-    fire = fire.updateMask(desired_mask)
-
-    return age, lulc, fire

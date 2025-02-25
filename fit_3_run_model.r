@@ -269,3 +269,8 @@ if (run_mode == "direct") {
 } else if (run_mode == "clustered") {
     clustered_optimization(iterations, n_clusters = 5, cluster_by = cluster_by)
 }
+
+
+
+
+# Export lat lon 
