@@ -49,7 +49,7 @@ library(fastDummies)
 import_data <- function(path, convert_to_dummy) {
     
     columns_to_remove <- c(
-        ".geo", "latitude", "longitude", "pr_", "si_", "aet_", "last_LU", "GEDI", "mean_si"
+        ".geo"
     )
 
     df <- read_csv(datafiles[[1]], show_col_types = FALSE) %>% # show_col_types = FALSE quiets a large message during import
@@ -66,9 +66,11 @@ import_data <- function(path, convert_to_dummy) {
 
     list_of_dfs <- lapply(list_of_dfs, function(df) {
         df <- df[, !names(df) %in% "biome"]
+        # remove columns with less than 100 non-zero values
         non_zero_counts <- colSums(df != 0, na.rm = TRUE)
         df <- df[, non_zero_counts > 100]
 
+        # remove columns with less than 50 unique values
         df <- df %>%
             group_by(across(all_of(categorical))) %>%
             filter(n() >= 50) %>%
