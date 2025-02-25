@@ -3,6 +3,7 @@ CapoERA (Computational Algorithm for Post-agricultural Ecosystem Regrowth Analys
 
 ```
 forest_regrowth
+├── 0_data
 ├── 1_gee
 │   ├── gee_0_utils.py
 │   ├── gee_1_secondary.ipynb

@@ -1,11 +1,13 @@
 # Load necessary libraries
 library(dplyr)
-library(raster)
+library(terra)
 library(tidyverse)
-library(sp)
+
+setwd("~/Documents/forest_regrowth")
 
 # Read the CSV files
-field <- read.csv("~/Documents/data/biomass_litter_CWD.csv")
+field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
+
 sites <- read.csv("~/Documents/data/sites.csv")
 
 # Filter the field data for aboveground biomass
@@ -50,7 +52,6 @@ field$field_biom <- field$mean_ha * 0.5
 # Load the second dataset
 field_biomass <- read.csv("~/Documents/data/field_biomass_with_biome.csv")
 field_biomass$field_biom <- field_biomass$field_biom * 0.5
-
 
 # Function to aggregate data based on age intervals
 aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {

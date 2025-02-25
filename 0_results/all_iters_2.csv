@@ -1,3 +1,0 @@
-datasource,biome,model,land_use,landscape,keep_only_land_use_and_landscape,r2_mean,r2_sd,r2_final
-aggregated_all,1,XGBoost,True,True,True,0.30438636894955085,0.01699341560488312,0.30438714808794953
-aggregated_all,1,XGBoost,False,False,False,0.4485783111150668,0.007197936713899526,0.44857828451978066
