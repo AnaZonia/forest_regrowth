@@ -78,23 +78,6 @@ def export_image(img, name, region, folder = None, scale = None, crsTransform = 
 
 
 
-def export_csv(fc, name):
-    to_remove = ['.geo', 'system:index']
-    all_properties = fc.bandNames().getInfo()
-    properties_to_export = [p for p in all_properties if p not in to_remove]
-
-    # Export task to Google Drive
-    task = ee.batch.Export.table.toDrive(
-        collection = fc,
-        description = name,
-        fileFormat = "CSV",
-        selectors = properties_to_export
-    )
-
-    task.start()
-
-
-
 # ------------------------------ Land Use/Land Cover Data Processing ------------------------------
 
 # The MapBiomas Collection 9 land use/land cover data is mapped to the following classes:
