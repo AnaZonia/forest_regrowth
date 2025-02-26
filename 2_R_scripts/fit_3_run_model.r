@@ -25,7 +25,6 @@ export_name <- import_name
 
 # number of rows to be included in analysis
 n_samples <- 10000
-re_base <- 0 # rnorm(10)
 
 # List of climatic parameters that change yearly
 climatic_pars <- c("srad", "soil", "temp", "vpd")
@@ -35,7 +34,7 @@ landscape <- c("distance", "sur_cover", "nearest_mature_biomass")
 
 # Define conditions for parameter constraints
 conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0', 'pars["k0"] < 0')
-non_data_pars <- c("k0", "B0", "theta", "m_base", "sd_base")
+non_data_pars <- c("k0", "B0", "theta", "lag")
 
 biomes <- c("amaz", "atla", "both")
 
@@ -110,7 +109,7 @@ data_pars_names <- c(
 basic_pars <- list(
     # c("age", "k0", "B0"), #age is fit as its own independent predictor
     c("k0", "B0"), # k is multiplied by the age column
-    c("m_base", "sd_base", "k0")
+    c("lag", "k0")
 )
 
 basic_pars_names <- c(
