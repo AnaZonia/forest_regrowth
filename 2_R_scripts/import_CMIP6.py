@@ -1,6 +1,8 @@
 
 # Tutorial at https://ecmwf-projects.github.io/copernicus-training-c3s/projections-cmip6.html
 
+# CMIP6 climate projections https://cds.climate.copernicus.eu/datasets/projections-cmip6?tab=download
+# Agroclimatic indicators derived https://cds.climate.copernicus.eu/datasets/sis-agroclimatic-indicators?tab=download
 
 
 # General libs for file paths, data extraction, etc
@@ -33,13 +35,14 @@ DATADIR = "./0_data/CMIP6"
 experiments = ['historical', 'ssp126', 'ssp245', 'ssp585']
 
 models = ['hadgem3_gc31_ll', 'inm_cm5_0', 'inm_cm4_8', 'ipsl_cm6a_lr', 
-          'miroc_es2l', 'mpi_esm1_2_lr', 'ukesm1_0_ll', 'miroc6']
+          'miroc_es2l', 'mpi_esm1_2_lr', 'ukesm1_0_ll', 'miroc6', 'canesm5']
 
-variables_models = {
-    "ta": "air_temperature",
-    "precipitation",
-    "surface_downwelling_shortwave_radiation",
-    "moisture_in_upper_portion_of_soil_column"
+variables = {
+    "pr": "precipitation",
+    "rsds": "surface_downwelling_shortwave_radiation",
+    "mrsos": "moisture_in_upper_portion_of_soil_column",
+    "tas": "near_surface_air_temperature"
+    # "huss": "near_surface_specific_humidity"
 }
 
 client = cdsapi.Client()
@@ -56,7 +59,7 @@ def download_data(experiment, start_year, end_year, models, variable="air_temper
                     "temporal_resolution": "monthly",
                     "experiment": experiment,
                     "variable": variable,
-                    "level": ["1000"],
+                    # "level": ["1000"],
                     "model": j,
                     "year": year_range,
                     "month": [f"{m:02d}" for m in range(1, 13)],  # All months
@@ -70,7 +73,7 @@ def download_data(experiment, start_year, end_year, models, variable="air_temper
 
 
 
-for variable, variable_short in variables:
+for variable_short, variable in variables.items():
     # DOWNLOAD DATA FOR HISTORICAL PERIOD
     download_data("historical", 1985, 2015, models, variable)
 
@@ -116,10 +119,10 @@ for variable, variable_short in variables:
     # Function to aggregate in geographical lat lon dimensions
 
     def geog_agg(fn):
-        ds = xr.open_dataset(f'{DATADIR}/{variable}/{fn}')
+        ds = xr.open_dataset(f'{DATADIR}/{variable}/{fn}', engine='netcdf4')
         exp = ds.attrs['experiment_id']
         mod = ds.attrs['source_id']
-        da = ds['ta']
+        da = ds[f'{variable_short}']
         weights = np.cos(np.deg2rad(da.lat))
         weights.name = "weights"
         da_weighted = da.weighted(weights)
@@ -131,17 +134,17 @@ for variable, variable_short in variables:
         da_yr = da_yr.expand_dims('model')
         da_yr = da_yr.assign_coords(experiment=exp)
         da_yr = da_yr.expand_dims('experiment')
-        da_yr.to_netcdf(path=f'{DATADIR}cmip6_agg_{exp}_{mod}_{str(da_yr.year[0].values)}.nc')
+        da_yr.to_netcdf(path=f'{DATADIR}/{variable}/agg_{exp}_{mod}_{str(da_yr.year[0].values)}.nc')
 
     for i in cmip6_nc:
         try:
             geog_agg(i)
         except: print(f'{i} failed')
 
-    data_ds = xr.open_mfdataset(f'{DATADIR}/{variable}/cmip6_agg*.nc')
+    data_ds = xr.open_mfdataset(f'{DATADIR}/{variable}/agg*.nc')
     data_ds.load()
-    data = data_ds['ta']
-    data = data.squeeze("plev")
+    data = data_ds[f'{variable_short}']
+    # data = data.squeeze("plev")
 
     data_90 = data.quantile(0.9, dim='model')
     data_10 = data.quantile(0.1, dim='model')
@@ -164,4 +167,4 @@ for variable, variable_short in variables:
     ax.legend(handles, labels)
     ax.grid(linestyle='--')
 
-    fig.savefig(f'{DATADIR}/figures/{variable}.png')
+    fig.savefig(f'{DATADIR}/plots/{variable}.png')
