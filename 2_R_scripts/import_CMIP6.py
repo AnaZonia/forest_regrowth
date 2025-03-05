@@ -35,13 +35,14 @@ DATADIR = "./0_data/CMIP6"
 experiments = ['historical', 'ssp126', 'ssp245', 'ssp585']
 
 models = ['hadgem3_gc31_ll', 'inm_cm5_0', 'inm_cm4_8', 'ipsl_cm6a_lr', 
-          'miroc_es2l', 'mpi_esm1_2_lr', 'ukesm1_0_ll', 'miroc6', 'canesm5']
+          'miroc_es2l', 'mpi_esm1_2_lr', 'ukesm1_0_ll']#, 'miroc6', 'canesm5']
 
 variables = {
-    "pr": "precipitation",
-    "rsds": "surface_downwelling_shortwave_radiation",
-    "mrsos": "moisture_in_upper_portion_of_soil_column",
-    "tas": "near_surface_air_temperature"
+    "ta": "air_temperature"
+    # "pr": "precipitation",
+    # "rsds": "surface_downwelling_shortwave_radiation",
+    # "mrsos": "moisture_in_upper_portion_of_soil_column"
+    # "tas": "near_surface_air_temperature"
     # "huss": "near_surface_specific_humidity"
 }
 
@@ -59,11 +60,11 @@ def download_data(experiment, start_year, end_year, models, variable="air_temper
                     "temporal_resolution": "monthly",
                     "experiment": experiment,
                     "variable": variable,
-                    # "level": ["1000"],
+                    "level": ["1000"],
                     "model": j,
                     "year": year_range,
-                    "month": [f"{m:02d}" for m in range(1, 13)],  # All months
-                    "area": [5.3, -74, -35, -34]
+                    "month": [f"{m:02d}" for m in range(1, 13)]  # All months
+                    # "area": [5.3, -74, -35, -34]
                 }).download(f'{DATADIR}/{variable}/{variable}_{experiment}_{start}-{end-1}_{j}.zip')
                 
                 print(f"✅ Successfully downloaded {variable} for {j} ({experiment}, {start}-{end-1})")
@@ -79,7 +80,7 @@ for variable_short, variable in variables.items():
 
     # DOWNLOAD DATA FOR FUTURE SCENARIOS
     for i in experiments[1:]:
-        download_data(i, 2015, 2050, models, variable)
+        download_data(i, 2015, 2100, models, variable)
 
     # Extract zip files
 
@@ -160,7 +161,7 @@ for variable_short, variable in variables.items():
                 label=f'{data_50.experiment[i].values} 10th and 90th quantile range')
 
     ax.set_xlim(1985,2050)
-    ax.set_title(f'CMIP6 annual {variable} for Brazil')
+    ax.set_title(f'CMIP6 annual global {variable}')
     ax.set_ylabel(f'{variable}')
     ax.set_xlabel('year')
     handles, labels = ax.get_legend_handles_labels()

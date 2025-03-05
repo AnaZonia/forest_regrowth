@@ -1,3 +1,7 @@
+# Data obtained from Global Reforestation Opportunity Assessment (GROA) https://github.com/forc-db/GROA/tree/master
+
+
+
 # Load necessary libraries
 library(dplyr)
 library(terra)
@@ -8,10 +12,10 @@ setwd("~/Documents/forest_regrowth")
 # Read the CSV files
 field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
 
-sites <- read.csv("~/Documents/data/sites.csv")
+sites <- read.csv("0_data/groa_field/sites.csv")
 
 # Filter the field data for aboveground biomass
-field <- subset(field, variables.name == "aboveground_biomass")
+aboveground_biomass <- subset(field, variables.name == "aboveground_biomass")
 
 # Merge lat, lon, and site.country from sites to field by matching site.id
 field <- field %>%

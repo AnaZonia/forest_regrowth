@@ -6,7 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 # Import the load_and_preprocess_data function from your existing script
-from data_utils import load_and_preprocess_data
+from fit_XGBoost import load_and_preprocess_data
 
 def calculate_correlation_matrix(df):
     """Calculate the correlation matrix for the dataframe."""

@@ -86,7 +86,29 @@ def print_feature_importance(perm_importance, feature_names):
     plot_feature_importance(feature_importance)
 
 
-def regression_cv(X, y, model, param_grid = None):
+
+
+def plot_feature_importance(feature_importance):
+    """
+    Plot feature importance with error bars.
+
+    Parameters:
+    - feature_importance: DataFrame containing features, importances, and std deviations.
+    """
+    plt.figure(figsize=(10, 6))
+    plt.barh(feature_importance['feature'], feature_importance['importance'], 
+             xerr=feature_importance['std'], color='skyblue', edgecolor='black')
+    
+    plt.xlabel('Importance')
+    plt.title('Feature Importance with Standard Deviation')
+    plt.gca().invert_yaxis()  # Invert y axis to have the most important feature on top
+    plt.grid(axis='x', linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.show()
+
+
+
+def cross_validation(X, y, model, param_grid = None):
     """
     Perform cross-validation for regression models.
 
@@ -183,23 +205,6 @@ def run_model(datasource, models, param_grids, filepath, pars = None):
     return rows
 
 
-def plot_feature_importance(feature_importance):
-    """
-    Plot feature importance with error bars.
-
-    Parameters:
-    - feature_importance: DataFrame containing features, importances, and std deviations.
-    """
-    plt.figure(figsize=(10, 6))
-    plt.barh(feature_importance['feature'], feature_importance['importance'], 
-             xerr=feature_importance['std'], color='skyblue', edgecolor='black')
-    
-    plt.xlabel('Importance')
-    plt.title('Feature Importance with Standard Deviation')
-    plt.gca().invert_yaxis()  # Invert y axis to have the most important feature on top
-    plt.grid(axis='x', linestyle='--', alpha=0.7)
-    plt.tight_layout()
-    plt.show()
 
 
 if __name__ == "__main__":
