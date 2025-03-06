@@ -1,14 +1,15 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, List
 
 from xgboost import XGBRegressor
 from sklearn.metrics import r2_score
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import KFold, cross_validate, GridSearchCV
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import KFold, GridSearchCV, cross_validate
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 from sklearn.inspection import permutation_importance
+from sklearn.compose import ColumnTransformer
 
 class XGBoostAnalyzer:
     """
@@ -22,11 +23,12 @@ class XGBoostAnalyzer:
         biome (int): Biome to analyze (1 for Amazon, 4 for Atlantic Forest).
         final_sample_size (int): Sample size after stratified sampling.
         columns_to_drop (Optional[List[str]]): Columns to drop from the data.
+        categorical_features (List[str]): List of categorical feature names.
 
     Example:
         >>> analyzer = XGBoostAnalyzer(
         ...     filepath="data.csv",
-        ...     final_sample_size=1000,
+        ...     final_sample_size = 1000,
         ...     feature_columns=["feature1", "feature2"]
         ... )
         >>> analyzer.load_and_preprocess()
@@ -41,20 +43,23 @@ class XGBoostAnalyzer:
         feature_columns: Optional[List[str]] = None,
         biome: int = 1,
         final_sample_size: int = 10000,
-        cols_to_drop: Optional[List[str]] = None
+        cols_to_drop: Optional[List[str]] = None,
+        categorical_features: Optional[List[str]] = None
     ):
 
         self.filepath = filepath
+        # xgb__ is necessary since XGBoost is part of a pipeline
         self.param_grid = param_grid or {
-            'learning_rate': [0.01, 0.1],
-            'n_estimators': [100, 500],
-            'max_depth': [3, 7],
-            'min_child_weight': [1, 5]
+            'xgb__learning_rate': [0.01, 0.1],
+            'xgb__n_estimators': [100, 500],
+            'xgb__max_depth': [3, 7],
+            'xgb__min_child_weight': [1, 5]
         }
         self.feature_columns = feature_columns
         self.biome = biome,
         self.final_sample_size = final_sample_size
         self.cols_to_drop = cols_to_drop
+        self.categorical_features = categorical_features or ['topography', 'ecoreg', 'indig', 'protec', 'last_LU']
         self.X = None
         self.y = None
         self.results = pd.DataFrame()
@@ -81,7 +86,7 @@ class XGBoostAnalyzer:
 
         # Sampling
         if self.final_sample_size and len(df) > self.final_sample_size:
-            df = df.sample(n=self.final_sample_size, random_state=42)
+            df = df.sample(n = self.final_sample_size, random_state = 42)
 
         # Identify columns with fewer than 100 non-zero values
         rare_columns = [col for col in df.columns if (df[col] != 0).sum() < 100]
@@ -91,7 +96,7 @@ class XGBoostAnalyzer:
         df = df[~(df[rare_columns] != 0).any(axis = 1)]
 
         # Convert categorical features and remove rare categories
-        for col in ['topography', 'ecoreg', 'indig', 'protec', 'last_LU']:
+        for col in self.categorical_features:
             if col in df.columns:
                 df[col] = df[col].astype('category')
                 # Identify rare categories (fewer than 50 occurrences)
@@ -110,72 +115,61 @@ class XGBoostAnalyzer:
 
     def train_model(self) -> None:
         """
-        Train and evaluate the XGBoost model.
-        Permutation Importance is used to assess feature importance - measures the increase in the model's prediction error after randomly shuffling the values of a feature.
+        Train and evaluate the XGBoost model using nested cross-validation.
+
+        This method performs the following steps:
+        1. Set up the preprocessing pipeline with MinMaxScaler and OneHotEncoder
+        2. Perform nested cross-validation with GridSearchCV
+        3. Calculate performance metrics
+        4. Compute feature importance using permutation importance
+
+        The best model and results are stored in the class attributes.
         """
+        numeric_features = [col for col in self.feature_columns if col not in self.categorical_features]
+        categorical_features = [col for col in self.feature_columns if col in self.categorical_features]
+
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('num', MinMaxScaler(), numeric_features),
+                ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features)
+            ])
+
         pipeline = Pipeline([
-            ('scaler', MinMaxScaler()),
-            ('xgb', XGBRegressor(random_state = 42))
+            ('preprocessor', preprocessor),
+            ('xgb', XGBRegressor(random_state = 42, use_label_encoder = False, eval_metric='rmse'))
         ])
-        # Define the inner cross-validation strategy (for hyperparameter tuning)
-        inner_cv = KFold(n_splits=4, shuffle=True, random_state=42)
-        # Define the outer cross-validation strategy (for performance evaluation)
-        outer_cv = KFold(n_splits=5, shuffle=True, random_state=42)
-        splits = list(outer_cv.split(self.X))
 
-        # Hyperparameter tuning
-        grid_search = GridSearchCV(pipeline, self.param_grid, cv = inner_cv,
-                                scoring = 'neg_mean_squared_error', refit = True)
+        inner_kf = KFold(n_splits = 5, shuffle = True, random_state = 42)
+        outer_kf = KFold(n_splits = 5, shuffle = True, random_state = 42)
 
-        # Cross-validation
-        cv_results = cross_validate(grid_search, self.X, self.y, cv = outer_cv,
-                                scoring = ['neg_mean_squared_error', 'r2'],
-                                return_estimator = True)
-        # mse_scores = -cv_results['test_neg_mean_squared_error']
-        r2_scores = cv_results['test_r2']
+        # Hyperparameter tuning and cross-validation
+        grid_search = GridSearchCV(pipeline, self.param_grid, cv = inner_kf,
+                                scoring = 'neg_mean_squared_error', refit = 'mse')
+        
+        cv_results = cross_validate(grid_search, self.X, self.y, cv = outer_kf,
+                            scoring = ['neg_mean_squared_error', 'r2'], return_estimator = True)
 
-        # # Permutation importance
-        # best_index = np.argmin(-cv_results['test_neg_mean_squared_error'])
-        # _, test_indices = splits[best_index]
-        # X_test = self.X.iloc[test_indices]
-        # X_test = self.X.iloc[kf.split(self.X)[best_index][1]] # Access test indices correctly
-        # y_test = self.y[test_indices]
-        # best_model = cv_results['estimator'][best_index]
-        # self.feature_importance = permutation_importance(best_model, X_test, y_test, n_repeats = 5, random_state = 42)
+        # Permutation Importance
+        best_model_index = np.argmax(cv_results['test_r2'])
+        best_model = cv_results['estimator'][best_model_index]
+        self.feature_importance = permutation_importance(best_model, self.X, self.y, n_repeats = 5, random_state = 42)
 
         # Store results
         self.results = pd.DataFrame([{
             'datasource': self.filepath,
-            'r2_mean': np.mean(r2_scores),
-            'r2_sd': np.std(r2_scores),
-            'r2_final': r2_score(self.y, self._collect_predictions(cv_results, splits))
+            'r2_mean': np.mean(cv_results['test_r2']),
+            'r2_sd': np.std(cv_results['test_r2'])
         }])
-
-
-
-    def _collect_predictions(self, cv_results: Dict, splits: List[Tuple[np.ndarray, np.ndarray]]) -> np.ndarray:
-        """Collect predictions from all cross-validation folds."""
-        # # Aggregate predictions from all cross-validation folds.
-        # predictions = np.empty(len(self.X))
-        # predictions[:] = np.nan
-        # for i, estimator in enumerate(cv_results['estimator']):
-        #     _, test_indices = list(kf.split(self.X))[i]
-        #     fold_predictions = estimator.predict(self.X.iloc[test_indices])
-        #     predictions[test_indices] = fold_predictions
-
-        predictions = np.empty(len(self.X))
-        predictions[:] = np.nan
-        for i, (train_index, test_index) in enumerate(splits):
-            fold_predictions = cv_results['estimator'][i].predict(self.X.iloc[test_index])
-            predictions[test_index] = fold_predictions
-        return predictions
-
 
 
     def report_results(self) -> None:
         """
-        Visualize results dataframe (R2 scores)
-        Visualize and plot feature importance
+        Visualize and print the results of the analysis.
+
+        This method performs the following steps:
+        1. Print regression results (R2 and RMSE)
+        2. Print feature importance
+        3. Plot feature importance
         """
         # Print numerical results
         print("\nRegression Results:")

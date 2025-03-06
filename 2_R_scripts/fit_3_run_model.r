@@ -28,18 +28,17 @@ n_samples <- 10000
 
 # List of climatic parameters that change yearly
 climatic_pars <- c("srad", "soil", "temp", "vpd")
-categorical <- c("ecoreg", "topography")
-land_use <- c("lulc", "LU", "fallow", "num_fires")
+categorical <- c("ecoreg", "topography", "last_LU")
+land_use <- c("lu", "fallow", "num_fires")
 landscape <- c("distance", "sur_cover", "nearest_mature_biomass")
 
 # Define conditions for parameter constraints
 conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0', 'pars["k0"] < 0')
 non_data_pars <- c("k0", "B0", "theta", "lag")
 
-biomes <- c("amaz", "atla", "both")
+# two biomes
+# four dataframes
 
-# Main control flow
-run_mode <- "direct" # Set to either "direct" or "clustered"
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------------------------- Import Data ----------------------------------------#
@@ -63,35 +62,34 @@ dataframe <- read.csv("~/Documents/data/mapbiomas_heinrich_field.csv")
 # and filter out non-predictors
 unique_colnames <- c()
 data_pars <- c()
-for (i in seq_along(biomes)){
 
-    colnames_lists <- lapply(dataframes, function(df_list) {
-        colnames(df_list[[i]])
-    })
+colnames_lists <- lapply(dataframes, function(df_list) {
+    colnames(df_list[[i]])
+})
 
-    # Step 2: Find the intersection of all column names
-    colnames_intersect <- Reduce(intersect, colnames_lists)
-    unique_colnames <- union(unique_colnames, colnames_intersect)
-    exclusion_pattern <- paste(c("age", "biomass", "nearest_mature_biomass", paste0(climatic_pars, "_")), collapse = "|")
-    # Filter colnames based on this pattern
-    colnames_filtered <- colnames_intersect[!grepl(exclusion_pattern, colnames_intersect)]
-    colnames_filtered_no_mean_climate <- colnames_filtered[!grepl(paste(paste0("mean_", climatic_pars), collapse = "|"), colnames_filtered)]
+# Step 2: Find the intersection of all column names
+colnames_intersect <- Reduce(intersect, colnames_lists)
+unique_colnames <- union(unique_colnames, colnames_intersect)
+exclusion_pattern <- paste(c("age", "biomass", "nearest_mature_biomass", paste0(climatic_pars, "_")), collapse = "|")
+# Filter colnames based on this pattern
+colnames_filtered <- colnames_intersect[!grepl(exclusion_pattern, colnames_intersect)]
+colnames_filtered_no_mean_climate <- colnames_filtered[!grepl(paste(paste0("mean_", climatic_pars), collapse = "|"), colnames_filtered)]
 
-    biome_pars <- list(
-        c(colnames_filtered[grepl(paste0(c(land_use, landscape), collapse = "|"), colnames_filtered)])
-    )
+biome_pars <- list(
+    c(colnames_filtered[grepl(paste0(c(land_use, landscape), collapse = "|"), colnames_filtered)])
+)
 
-    
-    # biome_pars <- list(
-    #     c(colnames_filtered[!grepl(paste0(c(land_use, landscape), collapse = "|"), colnames_filtered)]),
-    #     c(colnames_filtered[!grepl(paste0(land_use, collapse = "|"), colnames_filtered)]),
-    #     c(colnames_filtered[!grepl(paste0(landscape, collapse = "|"), colnames_filtered)]),
-    #     c(colnames_filtered),
-    #     c(colnames_filtered_no_mean_climate, climatic_pars)
-    # )
 
-    data_pars[[i]] <- biome_pars
-}
+# biome_pars <- list(
+#     c(colnames_filtered[!grepl(paste0(c(land_use, landscape), collapse = "|"), colnames_filtered)]),
+#     c(colnames_filtered[!grepl(paste0(land_use, collapse = "|"), colnames_filtered)]),
+#     c(colnames_filtered[!grepl(paste0(landscape, collapse = "|"), colnames_filtered)]),
+#     c(colnames_filtered),
+#     c(colnames_filtered_no_mean_climate, climatic_pars)
+# )
+
+data_pars[[i]] <- biome_pars
+
 
 data_pars_names <- c(
     "land_use"
@@ -124,9 +122,7 @@ basic_pars_names <- c(
 
 iterations <- expand.grid(
     basic_par = seq_along(basic_pars),
-    interval = seq_along(intervals),
-    data_par = seq_along(data_pars[[1]]),
-    biome = seq_along(biomes)
+    data_par = seq_along(data_pars[[1]])
 )
 
 # basic_pars_fit_age <- which(sapply(basic_pars, function(x) "age" %in% x))
@@ -145,8 +141,7 @@ direct_optimization <- function(iterations, batch_size = 20) {
     pars_iter_list <- list()
     for (iter in 1:nrow(iterations)) {
         i <- iterations$interval[iter]
-        k <- iterations$biome[iter]
-        data <- dataframes[[i]][[k]]
+        data <- dataframes[[i]]
         pars_iter <- find_combination_pars(iter, data)
         pars_iter_list[[iter]] <- pars_iter
         saveRDS(pars_iter_list, "./results/temp_pars_iter_list.rds")
@@ -218,58 +213,63 @@ export_predicted_df <- function(iter) {
 }
 
 
-# Function to perform clustered optimization
-# can cluster by anthropogenic, environmental, or both.
-clustered_optimization <- function(iterations, n_clusters = 5, cluster_by = "anthro") {
-    for (iter in 1:nrow(iterations)) {
-        r2_cluster <- numeric(n_clusters)
+# # Function to perform clustered optimization
+# # can cluster by anthropogenic, environmental, or both.
+# clustered_optimization <- function(iterations, n_clusters = 5, cluster_by = "anthro") {
+#     for (iter in 1:nrow(iterations)) {
+#         r2_cluster <- numeric(n_clusters)
 
-        i <- iterations$interval[iter]
-        j <- iterations$data_par[iter]
-        k <- iterations$biome[iter]
-        l <- iterations$basic_par[iter]
+#         i <- iterations$interval[iter]
+#         j <- iterations$data_par[iter]
+#         k <- iterations$biome[iter]
+#         l <- iterations$basic_par[iter]
 
-        data_iter <- dataframes[[i]][[k]]
-        data_pars_name <- data_pars_names[[j]]
-        biome_name <- biomes[[k]]
-        basic_pars_name <- basic_pars_names[[l]]
+#         data_iter <- dataframes[[i]][[k]]
+#         data_pars_name <- data_pars_names[[j]]
+#         biome_name <- biomes[[k]]
+#         basic_pars_name <- basic_pars_names[[l]]
 
-        data_iter$pred <- NA
-        if (cluster_by == "enviro") {
-            columns_cluster <- names(data_iter)[!grepl(paste0(c(land_use, landscape), collapse = "|"), names(data_iter))]
-        } else if (cluster_by == "anthro") {
-            columns_cluster <- names(data_iter)[grepl(paste0(c(land_use, landscape), collapse = "|"), names(data_iter))]
-        }
+#         data_iter$pred <- NA
+#         if (cluster_by == "enviro") {
+#             columns_cluster <- names(data_iter)[!grepl(paste0(c(land_use, landscape), collapse = "|"), names(data_iter))]
+#         } else if (cluster_by == "anthro") {
+#             columns_cluster <- names(data_iter)[grepl(paste0(c(land_use, landscape), collapse = "|"), names(data_iter))]
+#         }
 
-        data_norm <- data_iter[, names(data_iter) %in% columns_cluster]
-        data_norm <- normalize_independently(data_norm)$train_data
+#         data_norm <- data_iter[, names(data_iter) %in% columns_cluster]
+#         data_norm <- normalize_independently(data_norm)$train_data
 
-        pca <- PCA(data_norm, ncp = n_clusters, graph = FALSE)
-        data_norm_pca <- as.data.frame(pca$ind$coord)
-        kmeans_result <- kmeans(data_norm_pca, centers = n_clusters, nstart = 20)
-        data_iter$cluster <- kmeans_result$cluster
+#         pca <- PCA(data_norm, ncp = n_clusters, graph = FALSE)
+#         data_norm_pca <- as.data.frame(pca$ind$coord)
+#         kmeans_result <- kmeans(data_norm_pca, centers = n_clusters, nstart = 20)
+#         data_iter$cluster <- kmeans_result$cluster
 
-        for (cluster_id in 1:n_clusters) {
-            data_cluster <- subset(data_iter, cluster == cluster_id)
-            pars_iter <- find_combination_pars(iter, data_cluster)
-            optim_cv_output <- cross_valid(data_cluster, pars_iter, conditions)
-            r2_cluster[cluster_id] <- optim_cv_output$r2_final
-        }
-        # c(mean(r2_cluster), sd(r2_cluster))
-    }
+#         for (cluster_id in 1:n_clusters) {
+#             data_cluster <- subset(data_iter, cluster == cluster_id)
+#             pars_iter <- find_combination_pars(iter, data_cluster)
+#             optim_cv_output <- cross_valid(data_cluster, pars_iter, conditions)
+#             r2_cluster[cluster_id] <- optim_cv_output$r2_final
+#         }
+#         # c(mean(r2_cluster), sd(r2_cluster))
+#     }
 
-    return(c(mean(r2_cluster), sd(r2_cluster)))
-}
+#     return(c(mean(r2_cluster), sd(r2_cluster)))
+# }
 
 
 
-if (run_mode == "direct") {
-    direct_optimization(iterations)
-} else if (run_mode == "clustered") {
-    clustered_optimization(iterations, n_clusters = 5, cluster_by = cluster_by)
-}
+# if (run_mode == "direct") {
+#     direct_optimization(iterations)
+# } else if (run_mode == "clustered") {
+#     clustered_optimization(iterations, n_clusters = 5, cluster_by = cluster_by)
+# }
 
 
 
 
 # Export lat lon 
+
+
+# Main
+
+direct_optimization(iterations)
