@@ -80,14 +80,6 @@ biome_pars <- list(
 )
 
 
-# biome_pars <- list(
-#     c(colnames_filtered[!grepl(paste0(c(land_use, landscape), collapse = "|"), colnames_filtered)]),
-#     c(colnames_filtered[!grepl(paste0(land_use, collapse = "|"), colnames_filtered)]),
-#     c(colnames_filtered[!grepl(paste0(landscape, collapse = "|"), colnames_filtered)]),
-#     c(colnames_filtered),
-#     c(colnames_filtered_no_mean_climate, climatic_pars)
-# )
-
 data_pars[[i]] <- biome_pars
 
 
