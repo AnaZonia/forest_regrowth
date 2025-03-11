@@ -29,12 +29,23 @@ library(fastDummies)
 # Returns:
 #   df              : A dataframe filtered for the selected biome, cleaned, and optionally transformed with dummy variables.
 
-import_data <- function(path, convert_to_dummy, columns_to_remove, biome, n_samples = 10000) {
+import_data <- function(path, convert_to_dummy, biome, columns_to_remove = c(), n_samples = 10000) {
     
-    df <- read_csv(datafiles[[1]], show_col_types = FALSE) %>% # show_col_types = FALSE quiets a large message during import
+    df <- read.csv(path) %>%
         mutate(across(all_of(categorical), as.factor)) %>%
-        filter(biome == 4) %>%
-        select(-all_of(c(columns_to_remove, "biome")))
+        filter(biome == biome) %>%
+        select(-all_of(c(columns_to_remove, "biome"))) %>%
+        rename(biomass = ESA_CCI_2020) %>%
+        rename(nearest_biomass = first) %>%
+        filter(!is.na(nearest_biomass)) %>%
+            filter(!is.na(biomass)) # Remove rows where nearest_biomass is NA
+
+
+    # Remove columns containing 'si_yyyy' from 1985 to 2019 and 'mean_si'
+    si_columns <- grep("si_(19[89]\\d|20[01]\\d)", names(df), value = TRUE) # Matches si_yyyy from 1985 to 2019
+    mean_si_column <- "mean_si"
+    columns_to_drop <- c(si_columns, mean_si_column)
+    df <- df %>% select(-all_of(columns_to_drop))
 
     # remove columns with less than 100 non-zero values
     non_zero_counts <- colSums(df != 0, na.rm = TRUE)

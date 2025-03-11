@@ -12,12 +12,24 @@ calculate_correlation_matrix <- function(df) {
 
 # Function to plot correlation heatmap
 plot_correlation_heatmap <- function(corr_matrix) {
-    ggcorrplot(corr_matrix,
-        hc.order = TRUE, type = "lower",
-        lab = TRUE, lab_size = 3,
-        colors = c("blue", "white", "red"),
-        title = "Correlation Heatmap"
+    p <- ggcorrplot(corr_matrix,
+        hc.order = TRUE,
+        type = "lower",
+        lab = TRUE,
+        lab_size = 4, # Increase label size
+        colors = c("blue", "white", "red"), # Adjust color scheme
+        title = "Correlation Heatmap",
+        ggtheme = ggplot2::theme_minimal(base_size = 14), # Increase base font size
+        tl.cex = 1.2 # Increase text size for variable names
     )
+
+    # Save the plot as a high-resolution JPEG
+    jpeg("correlation_heatmap_legible.jpg", width = 1500, height = 1000, quality = 100)
+    print(p)
+    dev.off()
+
+    # Print the plot in a separate window (for RStudio or VSCode)
+    print(p)
 }
 
 # Function to calculate Variance Inflation Factor (VIF)
@@ -57,16 +69,16 @@ find_highly_correlated <- function(corr_matrix, threshold = 0.8) {
 
 # Main function to run the data preparation steps
 
-
 # Load and preprocess the dataset (modify the path as needed)
-data <- read_csv("./0_data/aggregated_all.csv") %>% na.omit()
+data <- read_csv("./0_data/unified_fc.csv") %>% na.omit()
 
 df <- data %>%
     filter(biome == 1) %>%
-    select(-matches("_19[8-9][0-9]|_20[0-2][0-9]"))
+    select(-matches("_19[8-9][0-9]|_20[0-2][0-9]")) %>%
+    select(-all_of(c('system:index', '.geo')))
+
 
 df <- df[, sapply(df, function(col) length(unique(col)) > 1)]
-
 
 # Calculate correlation matrix
 corr_matrix <- calculate_correlation_matrix(df)
@@ -80,4 +92,4 @@ print("Variance Inflation Factors:")
 print(vif_results)
 
 # Identify highly correlated features
-find_highly_correlated(corr_matrix, threshold = 0.7)
+find_highly_correlated(corr_matrix, threshold = 0.6)

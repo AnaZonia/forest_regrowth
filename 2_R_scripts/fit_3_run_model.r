@@ -1,3 +1,10 @@
+# Compares results for the fits with:
+
+
+# 2. Different land use aggregations
+
+
+
 
 library(foreach)
 library(doParallel)
@@ -7,12 +14,12 @@ library(factoextra) # Optional, for PCA visualization
 library(cluster) # For k-means clustering
 
 # Source external R scripts for data import and function definitions
-source("fit_1_import_data.r")
-source("fit_2_functions.r")
+source("./2_R_scripts/fit_1_import_data.r")
+source("./2_R_scripts/fit_2_functions.r")
 
 # Set up parallel processing
 set.seed(1)
-ncores <- 40
+ncores <- 4
 registerDoParallel(cores = ncores)
 
 
@@ -20,189 +27,150 @@ registerDoParallel(cores = ncores)
 # --------------------------------- Global Variables ------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-import_name <- "aggregated"
-export_name <- import_name
-
-# number of rows to be included in analysis
-n_samples <- 10000
-
 # List of climatic parameters that change yearly
-climatic_pars <- c("srad", "soil", "temp", "vpd")
-categorical <- c("ecoreg", "topography", "last_LU")
+climatic_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pdsi", "pr")
 land_use <- c("lu", "fallow", "num_fires")
-landscape <- c("distance", "sur_cover", "nearest_mature_biomass")
+landscape <- c("dist", "sur_cover", "nearest_mature_biomass")
+categorical <- c("ecoreg", "topography") # , "last_lu")
+# indig, protec and floodable_forests are already boolean
 
 # Define conditions for parameter constraints
 conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0', 'pars["k0"] < 0')
+
 non_data_pars <- c("k0", "B0", "theta", "lag")
 
-# two biomes
-# four dataframes
+columns_to_remove <- c("ecoreg_biomass", "quarter_biomass", "quarter", ".geo", "system.index")
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------------------------------- Switches ------------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+basic_pars_name <- "lag"
+# basic_pars_name <- "intercept_age_multiplicative"
+
+# interval <- "5yr", "10yr", "15yr", "all"
+# import_name <- "aggregated"
+# export_name <- import_name
+
+biome <- 1
+
+data_pars_names <- "all"
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------------------------- Import Data ----------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Define land-use history intervals to import four dataframes
-# intervals <- list("5yr", "10yr", "15yr", "all")
-intervals <- list("all")
 
-# datafiles <- paste0("./new_data/", name_import, "_", intervals, ".csv")
-# dataframes <- lapply(datafiles, import_data, convert_to_dummy = TRUE, process_climatic = FALSE)
-
-dataframe <- read.csv("~/Documents/data/mapbiomas_heinrich_field.csv")
+dataframe <- import_data("./0_data/unified_fc.csv", convert_to_dummy = TRUE, biome = biome, columns_to_remove = columns_to_remove, n_samples = 15000)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Define Parameters -----------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-# Identify common columns across all dataframes of the same biome (across intervals)
-# (avoids errors for parametesrs like last_LU, that not all dataframes may contain depending on how many rows were sampled)
-# and filter out non-predictors
-unique_colnames <- c()
-data_pars <- c()
-
-colnames_lists <- lapply(dataframes, function(df_list) {
-    colnames(df_list[[i]])
-})
-
-# Step 2: Find the intersection of all column names
-colnames_intersect <- Reduce(intersect, colnames_lists)
-unique_colnames <- union(unique_colnames, colnames_intersect)
-exclusion_pattern <- paste(c("age", "biomass", "nearest_mature_biomass", paste0(climatic_pars, "_")), collapse = "|")
-# Filter colnames based on this pattern
-colnames_filtered <- colnames_intersect[!grepl(exclusion_pattern, colnames_intersect)]
-colnames_filtered_no_mean_climate <- colnames_filtered[!grepl(paste(paste0("mean_", climatic_pars), collapse = "|"), colnames_filtered)]
-
-biome_pars <- list(
-    c(colnames_filtered[grepl(paste0(c(land_use, landscape), collapse = "|"), colnames_filtered)])
-)
-
-
-data_pars[[i]] <- biome_pars
-
-
-data_pars_names <- c(
-    "land_use"
-)
-
-# data_pars_names <- c(
-#     "only_land_use_no_landscape",
-#     "no_land_use",
-#     "no_landscape",
-#     "all",
-#     "all_yearly_clim"
-# )
-
 # Define basic parameter sets for modeling
-basic_pars <- list(
-    # c("age", "k0", "B0"), #age is fit as its own independent predictor
-    c("k0", "B0"), # k is multiplied by the age column
-    c("lag", "k0")
-)
+if (basic_pars_name == "lag") {
+    basic_pars <- c("lag", "k0", "theta")
+} else if (basic_pars_name == "intercept") {
+    basic_pars <- c("k0", "B0", "theta")
+    # age, unnormalized, multiplies over the entire linear combination k
+} else if (basic_pars_name == "intercept_age_multiplicative") {
+    basic_pars <- c("k0", "B0", "theta", "age")
+    # age is just one more parameter, treated like the others
+    # just for sanity check, should be pretty much the same as intercept
+}
 
-basic_pars_names <- c(
-    # "intercept_age",
-    "intercept",
-    "lag"
-)
 
+colnames <- colnames(dataframe)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Create grids of different combinations of model inputs
+exclusion_pattern <- paste(c("age", "biomass", "nearest_biomass", paste0(climatic_pars, "_")), collapse = "|")
 
-iterations <- expand.grid(
-    basic_par = seq_along(basic_pars),
-    data_par = seq_along(data_pars[[1]])
-)
+if (data_pars_names == "land_use_landscape_only") {
+    data_pars = c(colnames[grepl(paste0(c(land_use, landscape), collapse = "|"), colnames)])
+} else if (data_pars_names == "all") {
+    data_pars = colnames[!grepl(exclusion_pattern, colnames)]
+}
 
-# basic_pars_fit_age <- which(sapply(basic_pars, function(x) "age" %in% x))
-# data_pars_with_climatic <- which(sapply(data_pars[[1]], function(x) any(climatic_pars %in% x)))
-# Remove rows where both conditions are met
-# iterations <- iterations %>% filter(!(basic_par %in% basic_pars_fit_age & data_par %in% data_pars_with_climatic))
-# iterations
+print(data_pars)
+print(basic_pars)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Run Model ---------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ----------------------------- K-Fold Cross-Validation ---------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+# Function Description:
+#   This function performs k-fold cross-validation (with k=5) on the provided data.
+#   It splits the data into five folds, uses each fold as a test set once while training
+#   on the remaining folds, and then applies the specified `run_function` to train the model
+#   and calculate the R-squared values for each fold.
+#
+# Arguments:
+#   data        : The full dataset to be split into training and test sets for cross-validation.
+#   run_function: The function used to train the model and generate predictions (either "run_optim", "run_lm")
+#   pars_iter   : The parameters to be passed to `run_function` for model training.
+#   conditions  : Additional conditions or constraints to be passed to `run_function`
+#                 (optional, default is NULL).
+#
+# Returns:
+#   A list with the following elements:
+#     - `r2`     : The mean R-squared value across all folds.
+#     - `r2_sd`  : The standard deviation of the R-squared values across all folds.
+#     - `pars`    : The model parameters corresponding to the fold with the highest R-squared value.
+#
+# Notes:
+#   - The function uses random sampling to assign data points to each of the five folds.
+#   - The function assumes that `run_function` takes as input the training data, parameters,
+#     conditions, and test data, and returns the model output.
+#   - The R-squared values from each fold are stored in `r2_list`, and the best model
+#
 
-# Function to perform direct optimization
-direct_optimization <- function(iterations, batch_size = 20) {
-    pars_iter_list <- list()
-    for (iter in 1:nrow(iterations)) {
-        i <- iterations$interval[iter]
-        data <- dataframes[[i]]
-        pars_iter <- find_combination_pars(iter, data)
-        pars_iter_list[[iter]] <- pars_iter
-        saveRDS(pars_iter_list, "./results/temp_pars_iter_list.rds")
-    }
 
-    num_batches <- ceiling(nrow(iterations) / batch_size)
-    csv_files <- vector("list", num_batches)
+indices <- sample(c(1:5), nrow(data), replace = TRUE)
+data$pred_cv <- NA
+data$pred_final <- NA
+r2_list <- numeric(5)
 
-    for (batch in 1:num_batches) {
-        start <- (batch - 1) * batch_size + 1
-        end <- min(batch * batch_size, nrow(iterations))
 
-        results <- foreach(iter = start:end, .combine = rbind, .packages = "tidyverse") %dopar% {
-            i <- iterations$interval[iter]
-            j <- iterations$data_par[iter]
-            k <- iterations$biome[iter]
-            l <- iterations$basic_par[iter]
+for (index in 1:5) {
+    # Define the test and train sets
+    index = 1
+    test_data <- data[indices == index, -grep("pred", names(data))]
+    train_data <- data[indices != index, -grep("pred", names(data))]
+    # Normalize training and test sets independently, but using training data's min/max for both
+    norm_data <- normalize_independently(train_data, test_data)
 
-            pars_iter <- pars_iter_list[[iter]]
-            data <- dataframes[[i]][[k]]
-            pars_names <- data_pars_names[[j]]
-            biome_name <- biomes[[k]]
-            basic_pars_name <- basic_pars_names[[l]]
+    train_data <- norm_data$train_data
+    test_data <- norm_data$test_data
 
-            cv_output <- cross_valid(data, pars_iter, conditions)
-            row <- process_row(cv_output, basic_pars_name, intervals[[i]], pars_names, biome_name)
+    # Function to perform direct optimization
+    pars_init <- find_combination_pars(basic_pars, data_pars, train_data)
 
-            if (!any(climatic_pars %in% names(pars_iter))) {
-                data_lm <- dataframes_lm[[i]][[k]]
-                cv_output <- cross_valid(data_lm, pars_iter)
-                row_lm <- process_row(cv_output, "lm", intervals[[i]], pars_names, biome_name)
-                row <- rbind(row, row_lm)
-            }
-            row
-        }
+    # Run the model function on the training set and evaluate on the test set
+    model <- run_optim(train_data, pars_init, conditions)
+    pred_cv <- growth_curve(model$par, test_data)
 
-        batch_file <- paste0("./new_data_yearly/", export_name, "_batch_", batch, "_results.csv")
-        csv_files[[batch]] <- batch_file
-        write.csv(results, batch_file, row.names = FALSE)
-    }
-
-    all_results <- do.call(rbind, lapply(csv_files, read.csv))
-    final_file <- paste0("./new_data_yearly/", export_name, "lu_direct_results.csv")
-    write.csv(all_results, final_file, row.names = FALSE)
-    file.remove(unlist(csv_files)) # delete intermediate files
+    # save the predicted values of each iteration of the cross validation.
+    data$pred_cv[indices == index] <- pred_cv
+    r2 <- calc_r2(data[indices == index, ], pred_cv)
+    r2_list[index] <- r2
 }
 
 
-export_predicted_df <- function(iter) {
-    i <- iterations$interval[iter]
-    j <- iterations$data_par[iter]
-    k <- iterations$biome[iter]
-    l <- iterations$basic_par[iter]
+print(mean(r2_list))
 
-    data <- dataframes[[i]][[k]]
-    pars_names <- data_pars_names[[j]]
-    biome_name <- biomes[[k]]
-    basic_pars_name <- basic_pars_names[[l]]
-    pars_iter <- find_combination_pars(iter, data)
 
-    # Perform cross-validation and process results
-    cv_output <- cross_valid(data, pars_iter, conditions)
 
-    data[["pred"]] <- cv_output$pred
-    data[["pred_nolag"]] <- cv_output$pred_nolag
-    print(mean(data[["pred"]]))
-    print(mean(data[["pred_nolag"]]))
-    write.csv(data, paste0(c(import_name, biome_name, pars_names, "results.csv"), collapse = "_"), row.names = FALSE)
-}
+
+
+
+
+
+
+
+
 
 
 # # Function to perform clustered optimization
@@ -262,6 +230,3 @@ export_predicted_df <- function(iter) {
 # Export lat lon 
 
 
-# Main
-
-direct_optimization(iterations)

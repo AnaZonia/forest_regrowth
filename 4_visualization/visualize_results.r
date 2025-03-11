@@ -3,32 +3,25 @@ library(tidyverse)
 library(ggplot2)
 # library(reshape2)
 
-tst <- read.csv("./0_data/mapbiomas_GEDI.csv")
-# tst <- tst %>% filter(biome == 4)
-nrow(tst)
-
-# Set up the plotting area to have 1 row and 2 columns
-par(mfrow = c(1, 2))
-
-# Plot histogram for GEDI_biomass with restricted x-axis
-hist(tst$GEDI_biomass, main = "Histogram of GEDI_biomass", xlab = "GEDI_biomass", xlim = c(0, 500), col = "lightblue", border = "blue")
-
-# Plot histogram for biomass with restricted x-axis
-hist(tst$biomass, main = "Histogram of biomass", xlab = "biomass", xlim = c(0, 500), col = "lightgreen", border = "darkgreen")
-
-
-
-
-
-
-### Curve fit on medians and on the entire dataset
-# plot curves from the non-clustered data and the 10 fits
-
+data <- read.csv("./0_data/unified_fc_cleaned.csv") %>%
+    filter(biome == 1)
+data$biomass <- data$ESA_CCI_2020
 
 # Calculate median of `pred` by age group and define asymptote
-median_pred_per_age <- data %>%
+median_biomass_per_age <- data %>%
     group_by(age) %>%
-    summarize(median_pred = median(pred, na.rm = TRUE))
+    summarize(median_biomass = median(biomass, na.rm = TRUE))
+
+ggplot(median_biomass_per_age, aes(x = age, y = median_biomass)) +
+    geom_line() +
+    labs(
+        title = "Median Biomass per Age",
+        x = "Age",
+        y = "Median Biomass"
+    ) +
+    theme_minimal()
+
+
 asymptote <- median(data$nearest_mature_biomass, na.rm = TRUE)
 
 # Extend age range and join with `median_pred_per_age`
