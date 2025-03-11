@@ -1,15 +1,21 @@
+# Data obtained from Global Reforestation Opportunity Assessment (GROA) https://github.com/forc-db/GROA/tree/master
+
+
+
 # Load necessary libraries
 library(dplyr)
-library(raster)
+library(terra)
 library(tidyverse)
-library(sp)
+
+setwd("~/Documents/forest_regrowth")
 
 # Read the CSV files
-field <- read.csv("~/Documents/data/biomass_litter_CWD.csv")
-sites <- read.csv("~/Documents/data/sites.csv")
+field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
+
+sites <- read.csv("0_data/groa_field/sites.csv")
 
 # Filter the field data for aboveground biomass
-field <- subset(field, variables.name == "aboveground_biomass")
+aboveground_biomass <- subset(field, variables.name == "aboveground_biomass")
 
 # Merge lat, lon, and site.country from sites to field by matching site.id
 field <- field %>%
@@ -50,7 +56,6 @@ field$field_biom <- field$mean_ha * 0.5
 # Load the second dataset
 field_biomass <- read.csv("~/Documents/data/field_biomass_with_biome.csv")
 field_biomass$field_biom <- field_biomass$field_biom * 0.5
-
 
 # Function to aggregate data based on age intervals
 aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {

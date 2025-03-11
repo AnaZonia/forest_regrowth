@@ -56,9 +56,6 @@ run_optim <- function(train_data, pars, conditions) {
     if ("B0" %in% names(pars)) {
         conditions <- c(conditions, list('pars["B0"] < 0'))
     }
-    if ("sd_base" %in% names(pars)) {
-        conditions <- c(conditions, list('pars["sd_base"] < 0', 'pars["m_base"] < 0'))
-    }
 
     model <- optim(pars, likelihood, data = train_data, conditions = conditions)
 
@@ -96,7 +93,7 @@ growth_curve <- function(pars, data, lag = 0) {
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Calculate the growth rate k
-    if ("m_base" %in% names(pars)) {
+    if ("lag" %in% names(pars)) {
         k <- rep(pars[["k0"]], nrow(data))
         pars[["B0"]] <- 0
         if (length(non_clim_pars) > 0) {
@@ -158,12 +155,10 @@ growth_curve <- function(pars, data, lag = 0) {
 
 likelihood <- function(pars, data, conditions) {
 
-    if ("m_base" %in% names(pars)) {
+    if ("lag" %in% names(pars)) {
         # Calculate log-normal scaled base using re_base and parameters
-        scaled_base <- exp(re_base * pars["sd_base"] + pars["m_base"])
-        m_results <- matrix(0, nrow = nrow(data), ncol = length(scaled_base))
-        growth_curves <- sapply(scaled_base, function(lag) growth_curve(pars, data, lag))
-        residuals <- sweep(growth_curves, 1, data$biomass, "-")
+        growth_curves <- growth_curve(pars, data, exp(pars["lag"]))
+        residuals <- growth_curves - data$biomass
         result <- mean(residuals^2)
     } else {
         result <- mean((growth_curve(pars, data) - data$biomass)^2)
@@ -246,10 +241,10 @@ cross_valid <- function(data, pars_iter, conditions = NULL) {
     r2_list <- numeric(5)
 
     predict_growth <- function(model, data) {
-        if ("m_base" %in% names(pars_iter)) {
+        if ("lag" %in% names(pars_iter)) {
             growth_curve(
                 model$par, data,
-                exp(re_base * model$par["sd_base"] + model$par["m_base"])
+                exp(model$par["lag"])
             )
         } else {
             growth_curve(model$par, data)
@@ -317,7 +312,7 @@ cross_valid <- function(data, pars_iter, conditions = NULL) {
         pars = pars,
         pred = pred_final
     )
-    if ("m_base" %in% names(pars_iter)){
+    if ("lag" %in% names(pars_iter)){
         result[["pred_nolag"]] <- data$pred_cv
     }
 
@@ -525,9 +520,8 @@ find_combination_pars <- function(iter, data) {
         all_pars_iter["k0"] <- -log(1 - mean(data[["biomass"]]) / mean(data[["nearest_mature_biomass"]]))
     }
 
-    if ("m_base" %in% basic_pars_iter) {
-        all_pars_iter["m_base"] <- 0
-        all_pars_iter["sd_base"] <- 1
+    if ("lag" %in% basic_pars_iter) {
+        all_pars_iter["lag"] <- 0
     }
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
