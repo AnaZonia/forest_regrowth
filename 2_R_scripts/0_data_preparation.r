@@ -59,12 +59,11 @@ find_highly_correlated <- function(corr_matrix, threshold = 0.8) {
 
 
 # Load and preprocess the dataset (modify the path as needed)
-data <- read_csv("./0_data/old_data/non_aggregated_all.csv") %>% na.omit()
+data <- read_csv("./0_data/aggregated_all.csv") %>% na.omit()
+
 df <- data %>%
     filter(biome == 1) %>%
-    select(-matches("_19[8-9][0-9]|_20[0-2][0-9]")) %>%
-    select(-latitude, -longitude)
-
+    select(-matches("_19[8-9][0-9]|_20[0-2][0-9]"))
 
 df <- df[, sapply(df, function(col) length(unique(col)) > 1)]
 

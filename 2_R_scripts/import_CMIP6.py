@@ -29,7 +29,6 @@ import cartopy.crs as ccrs
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 import cartopy.feature as cfeature
 
-
 DATADIR = "./0_data/CMIP6"
 
 experiments = ['historical', 'ssp126', 'ssp245', 'ssp585']
