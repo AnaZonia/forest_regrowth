@@ -32,7 +32,6 @@ import_data <- function(path, biome, n_samples = 10000) {
     df <- read.csv(path) %>%
         mutate(across(all_of(categorical), as.factor)) %>%
         filter(biome == biome) %>%
-        select(-all_of(c(columns_to_remove, "biome"))) %>%
         rename(nearest_biomass = first) %>%
             na.omit() # some pixels are in areas where soilgrids, terraclim or ESA_CCI don't have perfect coverage. These are excluded
 

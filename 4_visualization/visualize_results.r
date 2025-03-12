@@ -3,9 +3,8 @@ library(tidyverse)
 library(ggplot2)
 # library(reshape2)
 
-data <- read.csv("./0_data/unified_fc_cleaned.csv") %>%
+data <- read.csv("./0_data/unified_fc.csv") %>%
     filter(biome == 1)
-data$biomass <- data$ESA_CCI_2020
 
 # Calculate median of `pred` by age group and define asymptote
 median_biomass_per_age <- data %>%

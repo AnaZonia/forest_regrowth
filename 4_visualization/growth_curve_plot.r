@@ -3,7 +3,8 @@ library(ggplot2)
 
 # Read and rename columns in each data frame
 # data <- read.csv("aggregated_amaz_all_results.csv")
-data <- read.csv("./results/non_aggregated_all_pred.csv")
+# data <- read.csv("./0_results/results/non_aggregated_all_pred.csv")
+data <- read.csv("./0_results/lagged_nolag_unified_data.csv")
 
 # Prepare plot data
 plot_data <- data %>%

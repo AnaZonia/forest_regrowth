@@ -90,23 +90,22 @@ growth_curve <- function(pars, data, lag = 0) {
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Calculate the growth rate k
-    if ("lag" %in% names(pars)) {
-        k <- rep(pars[["k0"]], nrow(data))
-        pars[["B0"]] <- 0
-        if (length(non_clim_pars) > 0) {
-            k <- k + rowSums(sapply(non_clim_pars, function(par) {
-                pars[[par]] * data[[par]]
-            }, simplify = TRUE)) * (data[["age"]] + lag)
-        }
-    } else {
-        # Define whether age is an explicit or implicit parameter (to multiply the other parameters by)
-        implicit_age <- if (!"age" %in% names(pars)) data[["age"]] else rep(1, nrow(data))
-        # Define whether the intercept k0 is to be included in the growth rate k
-        k <- pars[["k0"]] * implicit_age
-        if (length(non_clim_pars) > 0) {
-            k <- k + rowSums(sapply(non_clim_pars, function(par) pars[[par]] * data[[par]])) * implicit_age
-        }
+    k <- rep(pars[["k0"]], nrow(data))
+
+    if (length(non_clim_pars) > 0) {
+        k <- k + rowSums(sapply(non_clim_pars, function(par) {
+            pars[[par]] * data[[par]]
+        }, simplify = TRUE))
     }
+    
+    age <- data[["age"]]
+
+    if ("lag" %in% names(pars)) {
+        pars[["B0"]] <- 0
+        age <- age + lag
+    }
+    
+    k <- k * age
 
     # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
     for (clim_par in intersect(climatic_pars, names(pars))) {
@@ -199,64 +198,75 @@ calc_r2 <- function(data, pred) {
 }
 
 
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------------------- Prepare Dataframes Function --------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Function used in import_data to normalize numeric columns in dataframes.
 # Arguments:
-#   data             : The dataframe to be used for analysis
+#   train_data  : The training dataframe to be used for analysis
+#   test_data   : (Optional) The testing dataframe to be normalized using the same
+#                 parameters as train_data.
 # Returns:
-#   data             : A dataframe with normalized numerical values
+#   A list containing:
+#     - train_data : A dataframe with normalized numerical values
+#     - test_data  : (If provided) The test dataframe, normalized using train_data statistics
 
 normalize_independently <- function(train_data, test_data = NULL) {
-
-    # Select numeric columns for normalization, excluding specified ones
-    exclusion_list <- c(unlist(categorical), "biomass", "nearest_biomass")
-    # if k is multiplied by the age column, don't normalize age
-    exclusion_list <- c(exclusion_list, if (!"age" %in% names(basic_pars)) "age")
-
+    # Identify numeric columns to normalize (excluding those in exclusion_list)
+    exclusion_list <- c(unlist(categorical), "age", "biomass", "nearest_biomass")
     norm_cols <- c(names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))])
 
-    # Compute mean and standard deviation for normalization based on training data
+    # Compute the mean and standard deviation for each numeric column in train_data
     train_mean_sd <- train_data %>%
-        summarise(across(all_of(norm_cols), list(mean = ~ mean(., na.rm = TRUE), sd = ~ sd(., na.rm = TRUE))))
+        summarise(across(all_of(norm_cols), list(
+            mean = ~ mean(., na.rm = TRUE),
+            sd = ~ sd(., na.rm = TRUE)
+        )))
 
-    if (any(climatic_pars %in% names(data))){
-        # Compute global mean and standard deviation for each climatic parameter across all years
+    # If climatic variables are present in the dataset, calculate their global mean & sd
+    # This ensures yearly variations aren't removed by normalization.
+    if (any(climatic_pars %in% names(train_data))) {
         climatic_mean_sd <- lapply(climatic_pars, function(param) {
             all_years_values <- train_data %>%
-                select(matches(paste0("^", param, "_\\d{4}$"))) %>%
-                unlist(use.names = FALSE) # Flatten to a single vector
-            list(mean = mean(all_years_values, na.rm = TRUE), sd = sd(all_years_values, na.rm = TRUE))
+                select(matches(paste0("^", param, "_\\d{4}$"))) %>% # Select columns for each climatic variable
+                unlist(use.names = FALSE) # Flatten into a single numeric vector
+
+            # Store mean and standard deviation
+            list(
+                mean = mean(all_years_values, na.rm = TRUE),
+                sd = sd(all_years_values, na.rm = TRUE)
+            )
         })
-        names(climatic_mean_sd) <- climatic_pars # Name list elements by parameter
+        names(climatic_mean_sd) <- climatic_pars # Assign parameter names to the list
     }
 
-    # Function to normalize columns with mean and sd
+    # Function to normalize selected columns
     normalize <- function(train_data) {
         # Normalize non-climatic columns
         for (col in norm_cols) {
-            # Standardize data
+            # Standardize using mean and sd from train_data
             standardized <- (train_data[[col]] - train_mean_sd[[paste0(col, "_mean")]]) /
                 train_mean_sd[[paste0(col, "_sd")]]
-            # Shift and scale to make positive
+
+            # Shift and scale values to [0,1] range
             standardized_min <- min(standardized, na.rm = TRUE)
             standardized_max <- max(standardized, na.rm = TRUE)
             train_data[[col]] <- (standardized - standardized_min) / (standardized_max - standardized_min)
         }
-        
-        if (any(climatic_pars %in% names(data))) {
-            # Normalize climatic columns using the global mean and sd for each parameter
+
+        # Normalize climatic variables using global mean & sd
+        if (any(climatic_pars %in% names(train_data))) {
             for (param in climatic_pars) {
-                # Get column names for all years related to the parameter (e.g., srad_1985, srad_1986, etc.)
+                # Find all columns corresponding to the given climatic parameter (e.g., srad_1985, srad_1986, etc.)
                 param_cols <- grep(paste0("^", param, "_\\d{4}$"), names(train_data), value = TRUE)
 
-                # Apply normalization for each column
+                # Normalize each of these columns
                 for (col in param_cols) {
                     standardized <- (train_data[[col]] - climatic_mean_sd[[param]]$mean) /
                         climatic_mean_sd[[param]]$sd
 
-                    # Shift and scale to make positive
+                    # Shift and scale to [0,1] range
                     standardized_min <- min(standardized, na.rm = TRUE)
                     standardized_max <- max(standardized, na.rm = TRUE)
                     train_data[[col]] <- (standardized - standardized_min) / (standardized_max - standardized_min)
@@ -266,17 +276,24 @@ normalize_independently <- function(train_data, test_data = NULL) {
         return(train_data)
     }
 
+    # Normalize the training dataset
     train_data_norm <- normalize(train_data)
+    # Remove columns that became entirely NA after normalization
     train_data_norm <- train_data_norm %>% select(where(~ sum(is.na(.)) < nrow(train_data_norm)))
 
+    # If no test dataset is provided, return only the normalized training dataset
     if (is.null(test_data)) {
         return(list(train_data = train_data_norm))
     } else {
+        # Normalize the test dataset using the same parameters from train_data
         test_data_norm <- normalize(test_data)
+        # Remove columns that became entirely NA
         test_data_norm <- test_data_norm %>% select(where(~ sum(is.na(.)) < nrow(test_data_norm)))
         return(list(train_data = train_data_norm, test_data = test_data_norm))
     }
 }
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------- Identify Optimal Parameter Combination -------------------#
@@ -313,7 +330,7 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
     ))
 
     all_pars[["theta"]] <- 1
-    all_pars["k0"] <- -log(1 - mean(data[["biomass"]]) / mean(data[["nearest_biomass"]]))
+    all_pars["k0"] <- 1 #-log(1 - mean(data[["biomass"]]) / mean(data[["nearest_biomass"]]))
 
     if ("lag" %in% basic_pars) {
         all_pars["lag"] <- 0
@@ -353,9 +370,11 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
         iter_df <- foreach(j = remaining[-taken]) %dopar% {
         # for (j in remaining[-taken]) {
             # print(j)
-            # check for categorical variables (to be included as a group)
+            # check for categorical variables or yearly climatic variables (to be included as a group)
             if (data_pars[j] %in% categorical) {
                 inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
+            # } else if (data_pars[j] %in% climatic) {}
+                # inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
             } else {
                 # as starting point, take the best values from last time
                 inipar <- c(best$par, all_pars[data_pars[j]])
@@ -364,7 +383,7 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
             model <- run_optim(data, inipar, conditions)
             iter_row <- base_row
             iter_row[names(inipar)] <- model$par
-            iter_row["likelihood"] <- model$value
+            iter_row["likelihood"] <- model$value 
 
             # iter_df <- bind_rows(iter_df, iter_row)
             return(iter_row)
@@ -389,4 +408,69 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
         }
     }
     return(best$par)
+}
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ----------------------------- K-Fold Cross-Validation ---------------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# Function Description:
+#   This function performs k-fold cross-validation (with k=5) on the provided data.
+#   It splits the data into five folds, uses each fold as a test set once while training
+#   on the remaining folds, and then applies the specified `run_function` to train the model
+#   and calculate the R-squared values for each fold.
+#
+# Arguments:
+#   data        : The full dataset to be split into training and test sets for cross-validation.
+#   run_function: The function used to train the model and generate predictions (either "run_optim", "run_lm")
+#   pars_iter   : The parameters to be passed to `run_function` for model training.
+#   conditions  : Additional conditions or constraints to be passed to `run_function`
+#                 (optional, default is NULL).
+#
+# Returns:
+#   A list with the following elements:
+#     - `r2`     : The mean R-squared value across all folds.
+#     - `r2_sd`  : The standard deviation of the R-squared values across all folds.
+#     - `pars`    : The model parameters corresponding to the fold with the highest R-squared value.
+#
+# Notes:
+#   - The function uses random sampling to assign data points to each of the five folds.
+#   - The function assumes that `run_function` takes as input the training data, parameters,
+#     conditions, and test data, and returns the model output.
+#   - The R-squared values from each fold are stored in `r2_list`, and the best model
+#
+
+
+cross_validate <- function(dataframe, basic_pars, data_pars, conditions){
+    indices <- sample(c(1:5), nrow(dataframe), replace = TRUE)
+    dataframe$pred_cv <- NA
+    dataframe$pred_final <- NA
+    r2_list <- numeric(5)
+
+    for (index in 1:5) {
+        # Define the test and train sets
+        test_data <- dataframe[indices == index, -grep("pred", names(dataframe))]
+        train_data <- dataframe[indices != index, -grep("pred", names(dataframe))]
+        # Normalize training and test sets independently, but using training data's min/max for both
+        norm_data <- normalize_independently(train_data, test_data)
+
+        train_data <- norm_data$train_data
+        test_data <- norm_data$test_data
+
+        # Function to perform direct optimization
+        pars_init <- find_combination_pars(basic_pars, data_pars, train_data)
+
+        # Run the model function on the training set and evaluate on the test set
+        model <- run_optim(train_data, pars_init, conditions)
+        pred_cv <- growth_curve(model$par, test_data)
+
+        # save the predicted values of each iteration of the cross validation.
+        dataframe$pred_cv[indices == index] <- pred_cv
+        r2 <- calc_r2(dataframe[indices == index, ], pred_cv)
+        r2_list[index] <- r2
+        print(r2)
+    }
+
+    return(r2_list)
+
 }

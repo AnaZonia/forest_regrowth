@@ -3,14 +3,15 @@ library(tidyverse)
 library(ggplot2)
 
 # Load data
-new_model_data <- read.csv("~/Documents/data/mapbiomas_amaz_all_results_NEW_2.csv")
+new_model_data <- read.csv("mapbiomas_amaz_all_results_NEW.csv")
+# new_model_data <- read.csv("./0_results/lagged_nolag_unified_data.csv")
 
 # Compute mean values and standard deviations per age
 mean_biomass_data <- new_model_data %>%
     group_by(age) %>%
     summarise(
-        mean_pred = mean(pred, na.rm = TRUE),
-        sd_pred = sd(pred, na.rm = TRUE),
+        mean_pred = mean(pred_lagged, na.rm = TRUE),
+        sd_pred = sd(pred_lagged, na.rm = TRUE),
         mean_pred_nolag = mean(pred_nolag, na.rm = TRUE),
         sd_pred_nolag = sd(pred_nolag, na.rm = TRUE),
         mean_biomass = mean(biomass, na.rm = TRUE),
@@ -116,7 +117,6 @@ p <- ggplot(mean_biomass_data, aes(x = plot_age, y = value, color = biomass_type
 
 # Print the plot
 print(p)
-
 
 png("biomass_with_scatter.png", width = 10, height = 5, units = "in", res = 900)
 
