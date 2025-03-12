@@ -213,7 +213,7 @@ normalize_independently <- function(train_data, test_data = NULL) {
     # Select numeric columns for normalization, excluding specified ones
     exclusion_list <- c(unlist(categorical), "biomass", "nearest_biomass")
     # if k is multiplied by the age column, don't normalize age
-    exclusion_list <- c(exclusion_list, if (!"age" %in% names(pars)) "age")
+    exclusion_list <- c(exclusion_list, if (!"age" %in% names(basic_pars)) "age")
 
     norm_cols <- c(names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))])
 

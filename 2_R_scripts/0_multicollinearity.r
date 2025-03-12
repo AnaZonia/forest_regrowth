@@ -24,7 +24,7 @@ plot_correlation_heatmap <- function(corr_matrix) {
     )
 
     # Save the plot as a high-resolution JPEG
-    jpeg("correlation_heatmap_legible.jpg", width = 1500, height = 1000, quality = 100)
+    jpeg("0_results/correlation_heatmap.jpg", width = 1500, height = 1000, quality = 100)
     print(p)
     dev.off()
 

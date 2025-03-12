@@ -15,7 +15,7 @@ source("./2_R_scripts/fit_2_functions.r")
 
 # Set up parallel processing
 set.seed(1)
-ncores <- 4
+ncores <- 35
 registerDoParallel(cores = ncores)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -34,13 +34,13 @@ conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0', 'pars["k0"] < 0')
 
 non_data_pars <- c("k0", "B0", "theta", "lag")
 
-columns_to_remove <- c("ecoreg_biomass", "quarter_biomass", "quarter", ".geo", "system.index")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Switches ------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-basic_pars_name <- "lag"
+# basic_pars_name <- "lag"
+basic_pars_name <- "intercept"
 # basic_pars_name <- "intercept_age_multiplicative"
 
 # interval <- "5yr", "10yr", "15yr", "all"
@@ -49,15 +49,14 @@ basic_pars_name <- "lag"
 
 biome <- 1
 
-data_pars_names <- "land_use_landscape_only"
+# data_pars_names <- "land_use_landscape_only"
 data_pars_names <- "all"
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------------------------- Import Data ----------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-dataframe <- import_data("./0_data/unified_fc_reprojected.csv", convert_to_dummy = TRUE, biome = biome, columns_to_remove = columns_to_remove, n_samples = 15000)
-
+dataframe <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = 15000)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Define Parameters -----------------------------------#
@@ -84,6 +83,15 @@ if (data_pars_names == "land_use_landscape_only") {
 } else if (data_pars_names == "all") {
     data_pars = colnames[!grepl(paste0(c(exclusion_pattern, categorical, landscape, land_use), collapse = "|"), colnames)]
 }
+
+c(colnames_filtered[!grepl(paste0(c(land_use, landscape, "protec", "indig", "nitro", "sand"), collapse = "|"), colnames_filtered)]), #only climatic
+c(colnames_filtered[!grepl(paste0(c(land_use, landscape), collapse = "|"), colnames_filtered)]), #climatic, ecoregion, topography, soil type
+c(colnames_filtered[!grepl(paste0(land_use, collapse = "|"), colnames_filtered)]), #climatic, distance, sur_cover
+c(colnames_filtered[!grepl(paste0(land_use, collapse = "|"), colnames_filtered)], 'num_fires'), #climatic, distance, sur_cover
+c(colnames_filtered[!grepl("ecoreg", colnames_filtered)])
+# c(colnames_filtered_no_mean_climate, climatic_pars)
+
+
 
 print(data_pars)
 print(basic_pars)
