@@ -35,11 +35,8 @@ import_data <- function(path, convert_to_dummy, biome, columns_to_remove = c(), 
         mutate(across(all_of(categorical), as.factor)) %>%
         filter(biome == biome) %>%
         select(-all_of(c(columns_to_remove, "biome"))) %>%
-        rename(biomass = ESA_CCI_2020) %>%
         rename(nearest_biomass = first) %>%
-        filter(!is.na(nearest_biomass)) %>%
-            filter(!is.na(biomass)) # Remove rows where nearest_biomass is NA
-
+            na.omit() # some pixels are in areas where soilgrids, terraclim or ESA_CCI don't have perfect coverage. These are excluded
 
     # Remove columns containing 'si_yyyy' from 1985 to 2019 and 'mean_si'
     si_columns <- grep("si_(19[89]\\d|20[01]\\d)", names(df), value = TRUE) # Matches si_yyyy from 1985 to 2019

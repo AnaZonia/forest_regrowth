@@ -85,8 +85,6 @@ run_optim <- function(train_data, pars, conditions) {
 #   - Incorporates yearly-changing climatic parameters if provided.
 
 growth_curve <- function(pars, data, lag = 0) {
-
-    # pars = inipar
     # Define parameters that are not expected to change yearly (not prec or si)
     non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
 
@@ -246,6 +244,7 @@ normalize_independently <- function(train_data, test_data = NULL) {
             standardized_max <- max(standardized, na.rm = TRUE)
             train_data[[col]] <- (standardized - standardized_min) / (standardized_max - standardized_min)
         }
+        
         if (any(climatic_pars %in% names(data))) {
             # Normalize climatic columns using the global mean and sd for each parameter
             for (param in climatic_pars) {
@@ -306,6 +305,7 @@ normalize_independently <- function(train_data, test_data = NULL) {
 
 find_combination_pars <- function(basic_pars, data_pars, data) {
 
+    # data <- train_data
     # Initialize parameter vector with data parameters
     all_pars <- c(setNames(
         rep(0, length(data_pars)),
@@ -349,7 +349,7 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
     for (i in 1:length(data_pars)) {
         if (!should_continue) break
 
-        iter_df <- tibble()
+        # iter_df <- tibble()
         iter_df <- foreach(j = remaining[-taken]) %dopar% {
         # for (j in remaining[-taken]) {
             # print(j)

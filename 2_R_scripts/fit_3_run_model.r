@@ -1,10 +1,6 @@
 # Compares results for the fits with:
 
-
 # 2. Different land use aggregations
-
-
-
 
 library(foreach)
 library(doParallel)
@@ -21,7 +17,6 @@ source("./2_R_scripts/fit_2_functions.r")
 set.seed(1)
 ncores <- 4
 registerDoParallel(cores = ncores)
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Global Variables ------------------------------------#
@@ -54,18 +49,19 @@ basic_pars_name <- "lag"
 
 biome <- 1
 
+data_pars_names <- "land_use_landscape_only"
 data_pars_names <- "all"
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------------------------- Import Data ----------------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-dataframe <- import_data("./0_data/unified_fc.csv", convert_to_dummy = TRUE, biome = biome, columns_to_remove = columns_to_remove, n_samples = 15000)
+dataframe <- import_data("./0_data/unified_fc_reprojected.csv", convert_to_dummy = TRUE, biome = biome, columns_to_remove = columns_to_remove, n_samples = 15000)
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------------- Define Parameters -----------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
 
 # Define basic parameter sets for modeling
 if (basic_pars_name == "lag") {
@@ -79,7 +75,6 @@ if (basic_pars_name == "lag") {
     # just for sanity check, should be pretty much the same as intercept
 }
 
-
 colnames <- colnames(dataframe)
 
 exclusion_pattern <- paste(c("age", "biomass", "nearest_biomass", paste0(climatic_pars, "_")), collapse = "|")
@@ -87,11 +82,12 @@ exclusion_pattern <- paste(c("age", "biomass", "nearest_biomass", paste0(climati
 if (data_pars_names == "land_use_landscape_only") {
     data_pars = c(colnames[grepl(paste0(c(land_use, landscape), collapse = "|"), colnames)])
 } else if (data_pars_names == "all") {
-    data_pars = colnames[!grepl(exclusion_pattern, colnames)]
+    data_pars = colnames[!grepl(paste0(c(exclusion_pattern, categorical, landscape, land_use), collapse = "|"), colnames)]
 }
 
 print(data_pars)
 print(basic_pars)
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------------- Run Model ---------------------------------------#
@@ -100,7 +96,7 @@ print(basic_pars)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ----------------------------- K-Fold Cross-Validation ---------------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
+
 # Function Description:
 #   This function performs k-fold cross-validation (with k=5) on the provided data.
 #   It splits the data into five folds, uses each fold as a test set once while training
@@ -128,17 +124,16 @@ print(basic_pars)
 #
 
 
-indices <- sample(c(1:5), nrow(data), replace = TRUE)
-data$pred_cv <- NA
-data$pred_final <- NA
+indices <- sample(c(1:5), nrow(dataframe), replace = TRUE)
+dataframe$pred_cv <- NA
+dataframe$pred_final <- NA
 r2_list <- numeric(5)
 
 
 for (index in 1:5) {
     # Define the test and train sets
-    index = 1
-    test_data <- data[indices == index, -grep("pred", names(data))]
-    train_data <- data[indices != index, -grep("pred", names(data))]
+    test_data <- dataframe[indices == index, -grep("pred", names(dataframe))]
+    train_data <- dataframe[indices != index, -grep("pred", names(dataframe))]
     # Normalize training and test sets independently, but using training data's min/max for both
     norm_data <- normalize_independently(train_data, test_data)
 
@@ -153,9 +148,10 @@ for (index in 1:5) {
     pred_cv <- growth_curve(model$par, test_data)
 
     # save the predicted values of each iteration of the cross validation.
-    data$pred_cv[indices == index] <- pred_cv
-    r2 <- calc_r2(data[indices == index, ], pred_cv)
+    dataframe$pred_cv[indices == index] <- pred_cv
+    r2 <- calc_r2(dataframe[indices == index, ], pred_cv)
     r2_list[index] <- r2
+    print(r2)
 }
 
 
@@ -217,7 +213,6 @@ print(mean(r2_list))
 # }
 
 
-
 # if (run_mode == "direct") {
 #     direct_optimization(iterations)
 # } else if (run_mode == "clustered") {
@@ -225,8 +220,4 @@ print(mean(r2_list))
 # }
 
 
-
-
 # Export lat lon 
-
-
