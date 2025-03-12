@@ -31,22 +31,6 @@
 #   train_data : Data frame containing the training dataset.
 #   pars       : Named vector of initial parameter values for optimization.
 #   conditions : List of parameter constraints expressed as character strings.
-#   test_data  : Optional. Data frame containing the test dataset for R-squared calculation.
-#
-# Returns:
-#   If test_data is NULL:
-#     Returns the full optimization result from optim().
-#   If test_data is provided:
-#     Returns a list containing:
-#       model_par : Optimized parameter values.
-#       r2       : R-squared value of model predictions on filtered test data.
-#
-# External Functions:
-#   likelihood()
-#   growth_curve()
-#   calc_r2()
-#   filtered_data()
-
 
 
 run_optim <- function(train_data, pars, conditions) {
@@ -68,21 +52,6 @@ run_optim <- function(train_data, pars, conditions) {
 # Function Description:
 #   Calculates the Chapman-Richards growth curve based on provided parameters and data.
 #   Incorporates yearly-changing climatic parameters, intercept terms, and forest age.
-#
-# Arguments:
-#   pars : Named vector of parameters for the growth curve.
-#   data : Dataframe containing predictor variables and forest attributes
-#
-# Returns:
-#   Vector of predicted aboveground biomass density (biomass) values.
-#
-# Notes:
-#   - Supports both logistic and exponential growth models.
-#   - Handles forest age as either an explicit parameter (part of "pars")
-#       or as an implicit parameter (multiplying all non-yearly predictors by age)
-#   - The intercept term can be defined either as B0 or B0_exp (out or in of the exponential)
-#   - Incorporates growth rate intercept term k0 if provided
-#   - Incorporates yearly-changing climatic parameters if provided.
 
 growth_curve <- function(pars, data, lag = 0) {
     # Define parameters that are not expected to change yearly (not prec or si)
@@ -473,4 +442,112 @@ cross_validate <- function(dataframe, basic_pars, data_pars, conditions){
 
     return(r2_list)
 
+}
+
+
+
+
+
+calculate_permutation_importance <- function(model, data, data_pars) {
+  # Get baseline performance
+  baseline_pred <- growth_curve(model$par, data)
+  baseline_r2 <- calc_r2(data, baseline_pred)
+  
+  # Calculate importance for each variable
+  importance <- numeric(length(data_pars))
+  names(importance) <- data_pars
+  
+  for (i in seq_along(data_pars)) {
+    var_name <- data_pars[i]
+    
+    # Create permuted dataset
+    data_permuted <- data
+    data_permuted[[var_name]] <- sample(data[[var_name]])
+    
+    # Get performance with permuted variable
+    permuted_pred <- growth_curve(model$par, data_permuted)
+    permuted_r2 <- calc_r2(data_permuted, permuted_pred)
+    
+    # Importance = decrease in performance
+    importance[i] <- baseline_r2 - permuted_r2
+  }
+  
+  # Create dataframe for plotting
+  importance_df <- data.frame(
+    variable = names(importance),
+    importance = importance,
+    importance_pct = 100 * importance / sum(importance)
+  )
+  
+  # Sort by importance
+  importance_df <- importance_df[order(-importance_df$importance), ]
+  
+  return(importance_df)
+}
+
+
+# Coefficient based approach
+analyze_variable_importance <- function(model_results, data_pars) {
+  # Extract coefficients from model results
+  coeffs <- model_results$par[data_pars]
+  
+  # Get absolute values to measure magnitude of impact
+  importance <- abs(coeffs)
+  
+  # Normalize to percentage if desired
+  importance_pct <- 100 * importance / sum(importance)
+  
+  # Create dataframe for plotting
+  importance_df <- data.frame(
+    variable = names(importance),
+    importance = importance,
+    importance_pct = importance_pct
+  )
+  
+  # Sort by importance
+  importance_df <- importance_df[order(-importance_df$importance), ]
+  
+  return(importance_df)
+}
+
+
+# Leave one variable out
+
+calculate_loocv_importance <- function(data, basic_pars, data_pars, conditions) {
+  # Get baseline model with all variables
+  full_data_pars <- data_pars
+  pars_init <- find_combination_pars(basic_pars, full_data_pars, data)
+  full_model <- run_optim(data, pars_init, conditions)
+  full_pred <- growth_curve(full_model$par, data)
+  full_r2 <- calc_r2(data, full_pred)
+  
+  # Calculate importance for each variable
+  importance <- numeric(length(data_pars))
+  names(importance) <- data_pars
+  
+  for (i in seq_along(data_pars)) {
+    var_to_exclude <- data_pars[i]
+    reduced_data_pars <- data_pars[data_pars != var_to_exclude]
+    
+    # Fit model without this variable
+    reduced_pars_init <- find_combination_pars(basic_pars, reduced_data_pars, data)
+    reduced_model <- run_optim(data, reduced_pars_init, conditions)
+    reduced_pred <- growth_curve(reduced_model$par, data)
+    reduced_r2 <- calc_r2(data, reduced_pred)
+    
+    # Importance = decrease in performance
+    importance[i] <- full_r2 - reduced_r2
+  }
+  
+  # Create dataframe for plotting
+  importance_df <- data.frame(
+    variable = names(importance),
+    importance = importance,
+    importance_pct = 100 * importance / sum(importance)
+  )
+  
+  # Sort by importance
+  importance_df <- importance_df[order(-importance_df$importance), ]
+  
+  return(importance_df)
 }
