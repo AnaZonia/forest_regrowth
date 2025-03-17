@@ -7,12 +7,12 @@ library(dplyr)
 library(terra)
 library(tidyverse)
 
-setwd("~/Documents/forest_regrowth")
-
 # Read the CSV files
 field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
 
 sites <- read.csv("0_data/groa_field/sites.csv")
+
+
 
 # Filter the field data for aboveground biomass
 aboveground_biomass <- subset(field, variables.name == "aboveground_biomass")

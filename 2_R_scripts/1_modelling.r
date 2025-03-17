@@ -37,6 +37,8 @@ run_optim <- function(train_data, pars, conditions) {
 
     if ("B0" %in% names(pars)) {
         conditions <- c(conditions, list('pars["B0"] < 0'))
+    } else {
+        conditions <- c(conditions, list('pars["lag"] < 0'))
     }
 
     model <- optim(pars, likelihood, data = train_data, conditions = conditions)
@@ -54,6 +56,7 @@ run_optim <- function(train_data, pars, conditions) {
 #   Incorporates yearly-changing climatic parameters, intercept terms, and forest age.
 
 growth_curve <- function(pars, data, lag = 0) {
+
     # Define parameters that are not expected to change yearly (not prec or si)
     non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
 
@@ -61,20 +64,20 @@ growth_curve <- function(pars, data, lag = 0) {
     # Calculate the growth rate k
     k <- rep(pars[["k0"]], nrow(data))
 
-    if (length(non_clim_pars) > 0) {
-        k <- k + rowSums(sapply(non_clim_pars, function(par) {
-            pars[[par]] * data[[par]]
-        }, simplify = TRUE))
-    }
-    
     age <- data[["age"]]
 
     if ("lag" %in% names(pars)) {
         pars[["B0"]] <- 0
         age <- age + lag
     }
-    
-    k <- k * age
+
+    if (length(non_clim_pars) > 0) {
+        k <- (k + rowSums(sapply(non_clim_pars, function(par) {
+            pars[[par]] * data[[par]]
+        }, simplify = TRUE))) * (age)
+    }
+
+    # keep original_age column to calculate clim_par
 
     # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
     for (clim_par in intersect(climatic_pars, names(pars))) {
@@ -96,7 +99,6 @@ growth_curve <- function(pars, data, lag = 0) {
 
     return(pars[["B0"]] + (data[["nearest_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
 }
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------ Likelihood Function for Optimization -------------------------#
@@ -121,8 +123,7 @@ growth_curve <- function(pars, data, lag = 0) {
 likelihood <- function(pars, data, conditions) {
 
     if ("lag" %in% names(pars)) {
-        # Calculate log-normal scaled base using re_base and parameters
-        growth_curves <- growth_curve(pars, data, exp(pars["lag"]))
+        growth_curves <- growth_curve(pars, data, exp(pars[["lag"]]))
         residuals <- growth_curves - data$biomass
         result <- mean(residuals^2)
     } else {
@@ -183,7 +184,7 @@ calc_r2 <- function(data, pred) {
 
 normalize_independently <- function(train_data, test_data = NULL) {
     # Identify numeric columns to normalize (excluding those in exclusion_list)
-    exclusion_list <- c(unlist(categorical), "age", "biomass", "nearest_biomass")
+    exclusion_list <- c(unlist(categorical), "biomass", "nearest_biomass", "age")
     norm_cols <- c(names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))])
 
     # Compute the mean and standard deviation for each numeric column in train_data
@@ -263,6 +264,67 @@ normalize_independently <- function(train_data, test_data = NULL) {
 }
 
 
+normalize_independently <- function(train_data, test_data = NULL) {
+
+    train_data = data
+    # Identify numeric columns to normalize (excluding those in exclusion_list)
+    exclusion_list <- c(unlist(categorical), "biomass", "nearest_biomass")
+    norm_cols <- names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))]
+
+    # Compute normalization statistics for each climatic variable across all years
+    train_stats <- lapply(climatic_vars, function(var) {
+        cols <- grep(paste0("^", var, "_"), norm_cols, value = TRUE)
+        data_subset <- train_data[, cols, drop = FALSE]
+
+        list(
+            mean = apply(data_subset, 1, mean, na.rm = TRUE),
+            sd = apply(data_subset, 1, sd, na.rm = TRUE)
+        )
+    })
+
+    # Assign names to the list for easy access
+    names(train_stats) <- climatic_vars
+
+
+    # Compute mean, sd, min, and max for each numeric column in train_data
+    train_stats <- train_data %>%
+        summarise(across(all_of(norm_cols), list(
+            mean = ~ mean(., na.rm = TRUE),
+            sd = ~ sd(., na.rm = TRUE),
+            min = ~ min(., na.rm = TRUE),
+            max = ~ max(., na.rm = TRUE)
+        ))) %>%
+        pivot_longer(everything(), names_to = c("variable", ".value"), names_sep = "_")
+
+    # Store normalization parameters
+    norm_constants <- train_stats %>% select(variable, mean, sd, min, max)
+
+    # Normalize function
+    normalize <- function(data, norm_constants) {
+        for (i in seq_len(nrow(norm_constants))) {
+            var <- norm_constants$variable[i]
+            data[[var]] <- (data[[var]] - norm_constants$mean[i]) / norm_constants$sd[i] # Standardization
+            data[[var]] <- (data[[var]] - min(data[[var]], na.rm = TRUE)) /
+                (max(data[[var]], na.rm = TRUE) - min(data[[var]], na.rm = TRUE)) # Min-max scaling
+        }
+        return(data)
+    }
+
+    # Normalize train and test data
+    train_data_norm <- normalize(train_data, norm_constants)
+    train_data_norm <- train_data_norm %>% select(where(~ sum(is.na(.)) < nrow(train_data_norm)))
+
+    if (is.null(test_data)) {
+        return(list(train_data = train_data_norm, norm_constants = norm_constants))
+    } else {
+        test_data_norm <- normalize(test_data, norm_constants)
+        test_data_norm <- test_data_norm %>% select(where(~ sum(is.na(.)) < nrow(test_data_norm)))
+        return(list(train_data = train_data_norm, test_data = test_data_norm, norm_constants = norm_constants))
+    }
+}
+
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------------------- Identify Optimal Parameter Combination -------------------#
@@ -291,6 +353,7 @@ normalize_independently <- function(train_data, test_data = NULL) {
 
 find_combination_pars <- function(basic_pars, data_pars, data) {
 
+
     # data <- train_data
     # Initialize parameter vector with data parameters
     all_pars <- c(setNames(
@@ -299,10 +362,10 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
     ))
 
     all_pars[["theta"]] <- 1
-    all_pars["k0"] <- 1 #-log(1 - mean(data[["biomass"]]) / mean(data[["nearest_biomass"]]))
+    all_pars["k0"] <- 1
 
     if ("lag" %in% basic_pars) {
-        all_pars["lag"] <- 0
+        all_pars["lag"] <- 2.5
     } else {
         all_pars[["B0"]] <- mean(data[["biomass"]])
     }
@@ -339,6 +402,7 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
         iter_df <- foreach(j = remaining[-taken]) %dopar% {
         # for (j in remaining[-taken]) {
             # print(j)
+            # j = 1
             # check for categorical variables or yearly climatic variables (to be included as a group)
             if (data_pars[j] %in% categorical) {
                 inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])

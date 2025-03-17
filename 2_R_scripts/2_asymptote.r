@@ -6,7 +6,9 @@
 library(tidyverse)
 library(ggplot2)
 
-data <- read_csv("./0_data/unified_fc.csv") %>% na.omit()
+# data <- ("./0_data/unified_fc.csv") %>% na.omit()
+data <- read_csv("./0_data/unified_fc_old_biomass.csv") %>%
+    rename(biomass = b1) %>% na.omit()
 
 calc_r2 <- function(data, pred) {
     obs_pred <- lm(data$biomass ~ pred)
@@ -62,7 +64,6 @@ for (q in c(1, 2, 3, 4, NA)) {
             if (!is.na(q)) filter(., quarter == q) else .
         }
 
-    df$biomass <- df$ESA_CCI_2020
     # Initialize variables to store R2 values for each biomass column
     r2_quarter <- NA
     r2_ecoreg <- NA
@@ -87,9 +88,9 @@ for (q in c(1, 2, 3, 4, NA)) {
     # Bind the results to the tibble
     results <- bind_rows(results, tibble(quarter = q, r2_quarter = r2_quarter, r2_ecoreg = r2_ecoreg, r2_first = r2_first))
 
-    if (is.na(q)) {
-        df_last <- df %>% mutate(pred = pred_ecoreg)
-    }
+    # if (is.na(q)) {
+    #     df_last <- df %>% mutate(pred = pred_ecoreg)
+    # }
 }
 
 print(results)

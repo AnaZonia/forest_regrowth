@@ -18,7 +18,7 @@ n_samples <- 15000
 
 # Set up parallel processing
 set.seed(1)
-registerDoParallel(cores = 40)
+registerDoParallel(cores = 4)
 
 # Load data
 data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
@@ -75,17 +75,25 @@ for (name in names(basic_pars_options)) {
 
 
 # get data for plotting
+source("2_R_scripts/1_modelling.r")
+# Load data
+data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
 
 # Fit the model on the full data
 norm_data <- normalize_independently(data)$train_data
-pars_init <- find_combination_pars(basic_pars = basic_pars_options[["lag"]], "data_pars" = data_pars_options(colnames(data))[["all_mean_climate"]], norm_data)
+pars_init <- find_combination_pars(basic_pars = basic_pars_options[["lag"]], "data_pars" = data_pars_options(colnames(data))[["land_use_landscape_only"]], norm_data)
 
 final_model <- run_optim(norm_data, pars_init, conditions)
-data[["pred_lagged"]] <- growth_curve(final_model$par, norm_data, exp(final_model$par["lag"]))
-data[["pred_nolag"]] <- growth_curve(final_model$par, norm_data) # with no lag, to give the expected values at low ages
 
-# print(mean(data[["pred_lagged"]]))
-# print(mean(data[["pred_nolag"]]))
+
+data[["pred_lagged"]] <- growth_curve(final_model$par, norm_data, exp(final_model$par[["lag"]]))
+data[["pred_nolag"]] <- growth_curve(final_model$par, norm_data) # with no lag, to give the expected values at low ages
+data[["pred_future"]] <- growth_curve(final_model$par, norm_data, exp(final_model$par[["lag"]])+35) # with no lag, to give the expected values at low ages
+
+print(mean(data[["pred_lagged"]]))
+print(mean(data[["pred_nolag"]]))
+print(mean(data[["pred_future"]]))
+
 
 
 write.csv(data, paste0(c("0_results/lagged_nolag_unified_data.csv"), collapse = "_"), row.names = FALSE)

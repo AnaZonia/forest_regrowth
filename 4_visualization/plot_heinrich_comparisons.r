@@ -158,3 +158,5 @@ Rsquared <- 1 - (SSE / SST)
 
 # Print R-squared
 print(Rsquared)
+
+
