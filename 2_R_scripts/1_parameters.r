@@ -1,10 +1,11 @@
 # parameters.R - Define all parameter sets and configurations
 
 # Global Variables
-climatic_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pdsi", "pr")
+climatic_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pr") # , "pdsi"
 land_use <- c("lu", "fallow", "num_fires")
 landscape <- c("dist", "sur_cover")
 categorical <- c("ecoreg", "topography") # , "last_lu")
+binary <- c("floodable_forests", "protec", "indig")
 non_data_pars <- c("k0", "B0", "theta", "lag")
 interval <- c("5yr", "10yr", "15yr", "all")
 

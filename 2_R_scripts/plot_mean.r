@@ -4,6 +4,8 @@ library(ggplot2)
 # get data for plotting
 source("2_R_scripts/1_modelling.r")
 source("2_R_scripts/1_data_processing.r")
+source("2_R_scripts/1_parameters.r")
+
 biome = 1
 n_samples = 10000
 # Load data
@@ -11,7 +13,9 @@ n_samples = 10000
 
 
 data <- import_data("./0_data/unified_fc_old_biomass.csv", biome = biome, n_samples = n_samples) %>%
-    rename(biomass = b1)
+    rename(biomass = b1) %>%
+    # remove mean_pdsi column
+    select(-mean_pdsi)
 
 # Fit the model on the full data
 norm_data <- normalize_independently(data)$train_data

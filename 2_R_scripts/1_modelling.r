@@ -267,59 +267,65 @@ normalize_independently <- function(train_data, test_data = NULL) {
 normalize_independently <- function(train_data, test_data = NULL) {
 
     train_data = data
+
     # Identify numeric columns to normalize (excluding those in exclusion_list)
-    exclusion_list <- c(unlist(categorical), "biomass", "nearest_biomass")
+    exclusion_list <- c(unlist(categorical), unlist(paste0(climatic_pars, "_")), unlist(binary), "biomass", "nearest_biomass")
     norm_cols <- names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))]
 
-    # Compute normalization statistics for each climatic variable across all years
-    train_stats <- lapply(climatic_vars, function(var) {
-        cols <- grep(paste0("^", var, "_"), norm_cols, value = TRUE)
-        data_subset <- train_data[, cols, drop = FALSE]
+    # Select numeric columns from norm_cols
+    norm_data <- train_data[norm_cols]
 
-        list(
-            mean = apply(data_subset, 1, mean, na.rm = TRUE),
-            sd = apply(data_subset, 1, sd, na.rm = TRUE)
-        )
-    })
+    # Compute summary statistics
+    train_stats <- data.frame(
+        variable = names(norm_data)
+    )
 
-    # Assign names to the list for easy access
-    names(train_stats) <- climatic_vars
-
-
-    # Compute mean, sd, min, and max for each numeric column in train_data
-    train_stats <- train_data %>%
-        summarise(across(all_of(norm_cols), list(
-            mean = ~ mean(., na.rm = TRUE),
-            sd = ~ sd(., na.rm = TRUE),
-            min = ~ min(., na.rm = TRUE),
-            max = ~ max(., na.rm = TRUE)
-        ))) %>%
-        pivot_longer(everything(), names_to = c("variable", ".value"), names_sep = "_")
-
-    # Store normalization parameters
-    norm_constants <- train_stats %>% select(variable, mean, sd, min, max)
-
-    # Normalize function
-    normalize <- function(data, norm_constants) {
-        for (i in seq_len(nrow(norm_constants))) {
-            var <- norm_constants$variable[i]
-            data[[var]] <- (data[[var]] - norm_constants$mean[i]) / norm_constants$sd[i] # Standardization
-            data[[var]] <- (data[[var]] - min(data[[var]], na.rm = TRUE)) /
-                (max(data[[var]], na.rm = TRUE) - min(data[[var]], na.rm = TRUE)) # Min-max scaling
-        }
-        return(data)
+    for (var in norm_cols) {
+\       train_stats$min[i] <- min(train_data[[var]], na.rm = TRUE)
+        train_stats$max[i] <- max(train_data[[var]], na.rm = TRUE)
+        train_data[[var]] <- (train_data[[var]] - min(train_data[[var]], na.rm = TRUE)) /
+            (max(train_data[[var]], na.rm = TRUE) - min(train_data[[var]], na.rm = TRUE)) # Min-max scaling
     }
 
-    # Normalize train and test data
-    train_data_norm <- normalize(train_data, norm_constants)
-    train_data_norm <- train_data_norm %>% select(where(~ sum(is.na(.)) < nrow(train_data_norm)))
+
+    # # Initialize dataframe to store climatic variable statistics
+    # train_clim_stats <- data.frame()
+    clim_norm_data <- data.frame(nrow = nrow(train_data))
+    # Compute normalization statistics for each climatic variable across all years
+    for (clim_par in climatic_pars) {
+        clim_par = "srad"
+        clim_cols <- names(train_data)[grepl(paste0(clim_par, "_"), names(train_data))]
+        clim_data <- train_data[clim_cols]
+
+        # Compute summary statistics
+        clim_stats <- data.frame(
+            variable = paste0(clim_par, "_"),
+            mean = mean(as.matrix(clim_data), na.rm = TRUE),
+            sd = sd(as.matrix(clim_data), na.rm = TRUE)
+        )
+
+        # Normalize clim_data using global mean and sd
+        clim_data <- (clim_data - clim_stats$mean) / clim_stats$sd
+        clim_stats$min <- min(clim_data)
+        clim_stats$max <- max(clim_data)
+        clim_data <- (clim_data - min(clim_data)) / (max(clim_data) -  min(clim_data))
+
+        # Append results to the final dataframe
+        clim_norm_data <- cbind(clim_norm_data, clim_data)
+    }
+
+    clim_norm_data <- clim_norm_data %>% select(-nrow)
+
+
+    norm_data <- cbind(norm_data, clim_norm_data)
+    # train_data_norm <- train_data_norm %>% select(where(~ sum(is.na(.)) < nrow(train_data_norm)))
 
     if (is.null(test_data)) {
-        return(list(train_data = train_data_norm, norm_constants = norm_constants))
+        return(list(train_data = train_data_norm, train_stats = train_stats))
     } else {
-        test_data_norm <- normalize(test_data, norm_constants)
+        test_data_norm <- normalize(test_data, train_stats)
         test_data_norm <- test_data_norm %>% select(where(~ sum(is.na(.)) < nrow(test_data_norm)))
-        return(list(train_data = train_data_norm, test_data = test_data_norm, norm_constants = norm_constants))
+        return(list(train_data = train_data_norm, test_data = test_data_norm, train_stats = train_stats))
     }
 }
 
