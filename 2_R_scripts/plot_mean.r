@@ -1,24 +1,58 @@
 # Load necessary libraries
+library(foreach)
+library(doParallel)
 library(tidyverse)
-library(ggplot2)
+library(FactoMineR)
+library(factoextra)
+library(cluster)
+
 # get data for plotting
 source("2_R_scripts/1_modelling.r")
 source("2_R_scripts/1_data_processing.r")
 source("2_R_scripts/1_parameters.r")
 
 biome = 1
-n_samples = 10000
+n_samples = 15000
 # Load data
 # data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
+set.seed(1)
+registerDoParallel(cores = 4)
 
+climatic_vars <- climatic_pars
+
+# tst <- read.csv("./0_data/unified_fc_old_biomass.csv")
+# nrow(tst)
 
 data <- import_data("./0_data/unified_fc_old_biomass.csv", biome = biome, n_samples = n_samples) %>%
-    rename(biomass = b1) %>%
-    # remove mean_pdsi column
-    select(-mean_pdsi)
+        rename(biomass = b1) %>%
+        # remove mean_pdsi column
+        select(-mean_pdsi)
+
+
+for (i in 1:30) {
+
+    # Fit the model on the full data
+    norm <- normalize_independently(data)
+    norm_data <- norm$train_data
+    # norm_stats <- norm$train_stats
+    print(nrow(data))
+
+    head(norm_data[, c("age", "num_fires", "sur_cover", "nearest_biomass", "biomass")])
+
+    pars_init <- find_combination_pars(basic_pars = c("lag", "k0", "theta"), "data_pars" = c("num_fires", "sur_cover"), norm_data)
+
+    final_model <- run_optim(norm_data, pars_init, conditions)
+
+    print(final_model$par)
+    print(nrow(data))
+    
+}
 
 # Fit the model on the full data
-norm_data <- normalize_independently(data)$train_data
+norm <- normalize_independently(data)
+norm_data <- norm$train_data
+# norm_stats <- norm$train_stats
+
 head(norm_data[, c("age", "num_fires", "sur_cover", "nearest_biomass", "biomass")])
 
 pars_init <- find_combination_pars(basic_pars = c("lag", "k0", "theta"), "data_pars" = c("num_fires", "sur_cover"), norm_data)
@@ -26,6 +60,11 @@ pars_init <- find_combination_pars(basic_pars = c("lag", "k0", "theta"), "data_p
 final_model <- run_optim(norm_data, pars_init, conditions)
 
 final_model$par
+
+# final_model$par * (norm_stats["age", "max"] - norm_stats["age", "min"]) + norm_stats["age", "min"]
+
+
+
 
 unnormalize_lag <- function(normalized_lag, original_data) {
     # Get age statistics from original data
@@ -169,6 +208,26 @@ colors <- c(
     "mean_future" = "purple"
 )
 
+
+# Load the second dataset and modify as needed
+field_biomass <- read.csv("0_data/groa_field/field_biomass_with_biome.csv")
+field_biomass <- subset(field_biomass, biome == 1) # Filter for specific biome
+
+# field_biomass$field_biom <- field_biomass$field_biom * 0.5
+
+# Aggregate field biomass data by age
+aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {
+    data %>%
+        mutate(age_interval = floor({{ age_col }} + 0.5)) %>% # Group into integer intervals
+        group_by(age_interval) %>%
+        summarise(mean_biomass = mean({{ biomass_col }} * (0.5), na.rm = TRUE)) %>%
+        rename(age = age_interval)
+}
+
+field_aggregated <- aggregate_biomass(field_biomass, field_age, field_biom)
+
+
+
 p <- ggplot(mean_biomass_data_long, aes(x = plot_age, y = mean_value, color = biomass_type)) +
     geom_line(size = 1.5) +
     geom_ribbon(aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value, fill = biomass_type),
@@ -200,3 +259,4 @@ p <- ggplot(mean_biomass_data_long, aes(x = plot_age, y = mean_value, color = bi
     )
 
 p
+

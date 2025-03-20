@@ -62,5 +62,6 @@ import_data <- function(path, biome, n_samples = 10000) {
 
 
     print("Imported!")
+    print(nrow(df))
     return(df)
 }
