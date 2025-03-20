@@ -65,12 +65,14 @@ growth_curve <- function(pars, data, lag = 0) {
     k <- rep(pars[["k0"]], nrow(data))
 
     age <- data[["age"]]
+    age <- (age - 1)/(65-1)
 
     if ("lag" %in% names(pars)) {
         pars[["B0"]] <- 0
         age <- age + lag
+        age <- pmin(age, 1)
     }
-
+    
     if (length(non_clim_pars) > 0) {
         k <- (k + rowSums(sapply(non_clim_pars, function(par) {
             pars[[par]] * data[[par]]
@@ -123,7 +125,7 @@ growth_curve <- function(pars, data, lag = 0) {
 likelihood <- function(pars, data, conditions) {
 
     if ("lag" %in% names(pars)) {
-        growth_curves <- growth_curve(pars, data, exp(pars[["lag"]]))
+        growth_curves <- growth_curve(pars, data, pars[["lag"]])
         residuals <- growth_curves - data$biomass
         result <- mean(residuals^2)
     } else {
@@ -185,7 +187,7 @@ calc_r2 <- function(data, pred) {
 normalize_independently <- function(train_data, test_data = NULL) {
 
     # Identify numeric columns to normalize (excluding those in exclusion_list)
-    exclusion_list <- c(unlist(categorical), unlist(paste0(climatic_pars, "_")), unlist(binary), "biomass", "nearest_biomass")
+    exclusion_list <- c(unlist(categorical), unlist(paste0(climatic_pars, "_")), unlist(binary), "biomass", "nearest_biomass", "age")
     norm_cols <- names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))]
 
     # Compute summary statistics

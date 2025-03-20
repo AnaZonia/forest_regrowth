@@ -12,7 +12,7 @@ source("2_R_scripts/1_data_processing.r")
 source("2_R_scripts/1_parameters.r")
 
 biome = 1
-n_samples = 15000
+n_samples = 10000
 # Load data
 # data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
 set.seed(1)
@@ -23,77 +23,39 @@ climatic_vars <- climatic_pars
 # tst <- read.csv("./0_data/unified_fc_old_biomass.csv")
 # nrow(tst)
 
-data <- import_data("./0_data/unified_fc_old_biomass.csv", biome = biome, n_samples = n_samples) %>%
+for (i in 1:30) {
+    data <- import_data("./0_data/unified_fc_old_biomass.csv", biome = biome, n_samples = n_samples) %>%
         rename(biomass = b1) %>%
         # remove mean_pdsi column
         select(-mean_pdsi)
 
-
-for (i in 1:30) {
-
     # Fit the model on the full data
     norm <- normalize_independently(data)
     norm_data <- norm$train_data
-    # norm_stats <- norm$train_stats
-    print(nrow(data))
+    norm_stats <- norm$train_stats
+    # print(norm_stats)
 
     head(norm_data[, c("age", "num_fires", "sur_cover", "nearest_biomass", "biomass")])
 
     pars_init <- find_combination_pars(basic_pars = c("lag", "k0", "theta"), "data_pars" = c("num_fires", "sur_cover"), norm_data)
 
+    print(pars_init)
+
     final_model <- run_optim(norm_data, pars_init, conditions)
 
     print(final_model$par)
-    print(nrow(data))
-    
+
 }
 
-# Fit the model on the full data
-norm <- normalize_independently(data)
-norm_data <- norm$train_data
-# norm_stats <- norm$train_stats
 
-head(norm_data[, c("age", "num_fires", "sur_cover", "nearest_biomass", "biomass")])
-
-pars_init <- find_combination_pars(basic_pars = c("lag", "k0", "theta"), "data_pars" = c("num_fires", "sur_cover"), norm_data)
-
-final_model <- run_optim(norm_data, pars_init, conditions)
-
-final_model$par
-
-# final_model$par * (norm_stats["age", "max"] - norm_stats["age", "min"]) + norm_stats["age", "min"]
-
-
-
-
-unnormalize_lag <- function(normalized_lag, original_data) {
-    # Get age statistics from original data
-    age_mean <- mean(original_data$age, na.rm = TRUE)
-    age_sd <- sd(original_data$age, na.rm = TRUE)
-
-    # Calculate standardized min and max
-    standardized_age <- (original_data$age - age_mean) / age_sd
-    standardized_min <- min(standardized_age, na.rm = TRUE)
-    standardized_max <- max(standardized_age, na.rm = TRUE)
-
-    # Unnormalize in two steps
-    lag_standardized <- normalized_lag * (standardized_max - standardized_min) + standardized_min
-    lag_years <- lag_standardized * age_sd + age_mean
-
-    return(lag_years)
-}
-
-# Usage
-lag_normalized <- exp(final_model$par[["lag"]])
-actual_lag_years <- unnormalize_lag(lag_normalized, data)
-print(actual_lag_years)
-
+actual_lag_years <- 0.77*64+1
+# actual_lag_years
 
 # ages 1 - 35
 data[["pred_lag"]] <- growth_curve(final_model$par, norm_data) # with no lag, to give the expected values at low ages
 
 # intermediary ages
-data[["pred"]] <- growth_curve(final_model$par, norm_data, exp(final_model$par[["lag"]]))
+data[["pred"]] <- growth_curve(final_model$par, norm_data, final_model$par[["lag"]])
 
 
 growth_curve_future <- function(pars, data, lag = 0) {
@@ -140,11 +102,13 @@ growth_curve_future <- function(pars, data, lag = 0) {
     return(pars[["B0"]] + (data[["nearest_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
 }
 
-# future forecast
+#future forecast
 data[["pred_future"]] <- growth_curve_future(final_model$par, norm_data, exp(final_model$par[["lag"]])) # with no lag, to give the expected values at low ages
 
 print(mean(data[["pred_lag"]]))
 print(mean(data[["pred"]]))
+
+
 print(mean(data[["pred_future"]]))
 
 
