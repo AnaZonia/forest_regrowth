@@ -65,12 +65,11 @@ growth_curve <- function(pars, data, lag = 0) {
     k <- rep(pars[["k0"]], nrow(data))
 
     age <- data[["age"]]
-    age <- (age - 1)/(65-1)
 
     if ("lag" %in% names(pars)) {
         pars[["B0"]] <- 0
         age <- age + lag
-        age <- pmin(age, 1)
+        # age <- pmin(age, 1)
     }
     
     if (length(non_clim_pars) > 0) {
@@ -266,7 +265,6 @@ normalize_independently <- function(train_data, test_data = NULL) {
 
 find_combination_pars <- function(basic_pars, data_pars, data) {
 
-
     # data <- train_data
     # Initialize parameter vector with data parameters
     all_pars <- c(setNames(
@@ -275,10 +273,10 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
     ))
 
     all_pars[["theta"]] <- 1
-    all_pars["k0"] <- 1
+    all_pars[["k0"]] <- 1
 
     if ("lag" %in% basic_pars) {
-        all_pars["lag"] <- 2.5
+        all_pars[["lag"]] <- 2.5
     } else {
         all_pars[["B0"]] <- mean(data[["biomass"]])
     }
@@ -427,7 +425,9 @@ cross_validate <- function(dataframe, basic_pars, data_pars, conditions){
 
 calculate_permutation_importance <- function(model, data, data_pars) {
   # Get baseline performance
-  baseline_pred <- growth_curve(model$par, data)
+  data_pars <- c("sur_cover", "num_fires")
+  data <- norm_data
+  baseline_pred <- growth_curve(final_model$par, data)
   baseline_r2 <- calc_r2(data, baseline_pred)
   
   # Calculate importance for each variable
@@ -435,6 +435,7 @@ calculate_permutation_importance <- function(model, data, data_pars) {
   names(importance) <- data_pars
   
   for (i in seq_along(data_pars)) {
+    i = 1
     var_name <- data_pars[i]
     
     # Create permuted dataset

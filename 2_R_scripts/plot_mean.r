@@ -18,10 +18,21 @@ n_samples = 10000
 set.seed(1)
 registerDoParallel(cores = 4)
 
-climatic_vars <- climatic_pars
+data <- import_data("./0_data/unified_fc_old_biomass.csv", biome = biome, n_samples = n_samples) %>%
+        rename(biomass = b1) %>%
+        # remove mean_pdsi column
+        select(-c(mean_pdsi))
 
-# tst <- read.csv("./0_data/unified_fc_old_biomass.csv")
-# nrow(tst)
+norm <- normalize_independently(data)
+norm_data <- norm$train_data
+norm_stats <- norm$train_stats
+
+pars_init <- find_combination_pars(basic_pars = c("B0", "k0", "theta"), "data_pars" = c("num_fires", "sur_cover"), norm_data)
+
+final_model <- run_optim(norm_data, pars_init, conditions)
+
+
+
 
 for (i in 1:30) {
     data <- import_data("./0_data/unified_fc_old_biomass.csv", biome = biome, n_samples = n_samples) %>%
@@ -37,6 +48,8 @@ for (i in 1:30) {
 
     head(norm_data[, c("age", "num_fires", "sur_cover", "nearest_biomass", "biomass")])
 
+    # use optim GA
+
     pars_init <- find_combination_pars(basic_pars = c("lag", "k0", "theta"), "data_pars" = c("num_fires", "sur_cover"), norm_data)
 
     print(pars_init)
@@ -44,8 +57,19 @@ for (i in 1:30) {
     final_model <- run_optim(norm_data, pars_init, conditions)
 
     print(final_model$par)
+    pred <- growth_curve(final_model$par, norm_data, final_model$par[["lag"]])
+    print(calc_r2(norm_data, pred))
 
 }
+
+
+# check R sauqred values for each
+
+# check whether unnormalized age changes anything wiht B0
+
+# constrain theta
+
+
 
 
 actual_lag_years <- 0.77*64+1
