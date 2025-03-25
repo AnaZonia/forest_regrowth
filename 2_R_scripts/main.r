@@ -14,11 +14,11 @@ source("2_R_scripts/1_data_processing.r")
 source("2_R_scripts/1_modelling.r")
 
 # Get configuration
-n_samples <- 15000
+n_samples <- 10000
 
 # Set up parallel processing
 set.seed(1)
-registerDoParallel(cores = 4)
+registerDoParallel(cores = 10)
 
 # Load data
 data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
@@ -110,9 +110,6 @@ source("2_R_scripts/1_parameters.r")
 biome <- 1
 n_samples <- 10000
 # Load data
-# data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
-set.seed(1)
-registerDoParallel(cores = 4)
 
 data <- import_data("./0_data/unified_fc_old_biomass.csv", biome = biome, n_samples = n_samples) %>%
     rename(biomass = b1) %>%
@@ -120,14 +117,14 @@ data <- import_data("./0_data/unified_fc_old_biomass.csv", biome = biome, n_samp
     select(-c(mean_pdsi))
 
 options <- data_pars_options(colnames(data))
-
+options
 
 
 norm <- normalize_independently(data)
 norm_data <- norm$train_data
 norm_stats <- norm$train_stats
 
-pars_init <- find_combination_pars(basic_pars = c("B0", "k0", "theta"), "data_pars" = options$all_mean_data, norm_data)
+pars_init <- find_combination_pars(basic_pars = c("B0", "k0", "theta"), "data_pars" = options[["all_no_categorical"]], norm_data)
 pars_init
 
 
@@ -135,3 +132,81 @@ final_model <- run_optim(norm_data, pars_init, conditions)
 final_model$par
 
 
+
+permutation_importance <- calculate_permutation_importance(final_model, norm_data, options[["all_no_categorical"]])
+
+library(ggplot2)
+
+# Create a mapping of short variable names to their full names
+variable_names <- c(
+  age = "Age",
+  sur_cover = "Surface Cover",
+  mean_srad = "Mean Solar Radiation",
+  mean_def = "Mean Deficit",
+  num_fires = "Number of Fires",
+  phh2o = "Soil pH",
+  mean_vpd = "Mean Vapor Pressure Deficit",
+  mean_aet = "Mean Actual Evapotranspiration",
+  floodable_forests = "Floodable Forests",
+  sand = "Sand Content",
+  mean_soil = "Mean Soil Moisture",
+  protec = "Protected Area",
+  ocs = "Organic Carbon Stock",
+  ocd = "Organic Carbon Density",
+  cfvo = "Coarse Fragments Volume",
+  nitro = "Soil Nitrogen",
+  dist = "Distance",
+  indig = "Indigenous Area",
+  cec = "Cation Exchange Capacity",
+  clay = "Clay Content",
+  mean_pr = "Mean Precipitation",
+  mean_temp = "Mean Temperature",
+  soc = "Soil Organic Carbon"
+)
+
+# Add full names to the importance dataframe
+tst$full_name <- variable_names[tst$variable]
+
+# Create the plot
+importance_plot <- ggplot(tst, aes(x = reorder(full_name, importance), y = importance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Variable Importance Scores",
+    x = "Variables",
+    y = "Importance Score"
+  ) +
+  theme_minimal()
+
+# Print the plot
+print(importance_plot)
+
+# Optionally, save the plot to a file
+ggsave("variable_importance_plot.png", plot = importance_plot, width = 10, height = 8)
+
+analyze_variable_importance(final_model, options[["all_no_categorical"]])
+
+
+
+
+library(ggplot2)
+
+# Create a simple dataframe
+test_data <- data.frame(
+  x = 1:10,
+  y = rnorm(10)
+)
+
+# Create a simple plot
+test_plot <- ggplot(test_data, aes(x = x, y = y)) +
+  geom_point() +
+  labs(
+    title = "Test Plot",
+    x = "X Axis",
+    y = "Y Axis"
+  ) +
+  theme_minimal()
+
+# Print the plot
+print(test_plot)
+coeffs
