@@ -139,53 +139,48 @@ library(ggplot2)
 
 
 tst <- readRDS("tst.rds")
+
+# ------------------------------------------------- #
+# Plot the variable importance scores
+# ------------------------------------------------- #
+tst <- tst[tst$importance_pct > 0.5, ]
+# tst <- tst[tst$variable != "age", ]
 tst
 
-# Define category mapping
-variable_categories <- c(
-    sur_cover = "Landscape",
-    dist = "Landscape",
-    mean_srad = "Climate",
-    mean_def = "Climate",
-    mean_vpd = "Climate",
-    mean_aet = "Climate",
-    mean_pr = "Climate",
-    mean_temp = "Climate",
-    num_fires = "Disturbance",
-    floodable_forests = "Vegetation",
-    protec = "Protected Area",
-    indig = "Protected Area",
-    phh2o = "Soil",
-    sand = "Soil",
-    clay = "Soil",
-    soc = "Soil",
-    ocs = "Soil",
-    ocd = "Soil",
-    cfvo = "Soil",
-    nitro = "Soil",
-    cec = "Soil",
-    mean_soil = "Soil",
-    age = "Landscape"
-)
+# Define separate lists for each category
+landscape_vars <- c("sur_cover", "dist", "age")
+climate_vars <- c("mean_srad", "mean_def", "mean_vpd", "mean_aet", "mean_pr", "mean_temp")
+disturbance_vars <- c("num_fires")
+vegetation_vars <- c("floodable_forests")
+protected_vars <- c("protec", "indig")
+soil_vars <- c("phh2o", "sand", "clay", "soc", "ocs", "ocd", "cfvo", "nitro", "cec", "mean_soil")
 
-# Add full names and categories to the dataframe
-tst$full_name <- variable_names[tst$variable]
-tst$category <- variable_categories[tst$variable]
+# Create a column to store the category for each variable
+tst <- tst %>%
+    mutate(category = case_when(
+        variable %in% landscape_vars ~ "Landscape",
+        variable %in% climate_vars ~ "Climate",
+        variable %in% disturbance_vars ~ "Disturbance",
+        variable %in% vegetation_vars ~ "Vegetation",
+        variable %in% protected_vars ~ "Protected Area",
+        variable %in% soil_vars ~ "Soil",
+        TRUE ~ "Other" # Fallback if variable doesn't match
+    ))
 
 # Define custom colors for each category
 category_colors <- c(
-    "Landscape" = "yellow",
-    "Climate" = "green",
-    "Disturbance" = "red",
-    "Vegetation" = "blue",
-    "Protected Area" = "purple",
-    "Soil" = "brown"
+    "Landscape" = "#F0E442",
+    "Climate" = "#0072B2",
+    "Disturbance" = "#CC79A7",
+    "Vegetation" = "#009E73",
+    "Protected Area" = "#E69F00",
+    "Soil" = "#D55E00"
 )
 
 # Create a mapping of short variable names to their full names
 variable_names <- c(
   age = "Age",
-  sur_cover = "Surface Mature Forest Cover",
+  sur_cover = "Surrounding Mature Forest Cover",
   mean_srad = "Mean Solar Radiation",
   mean_def = "Mean Climatic Water Deficit",
   num_fires = "Number of Fires",
@@ -214,7 +209,7 @@ tst$full_name <- variable_names[tst$variable]
 
 # Create the plot with color-coded categories
 importance_plot <- ggplot(tst, aes(x = reorder(full_name, importance), y = importance, fill = category)) +
-    geom_bar(stat = "identity") +
+    geom_col(width = 0.9) +  # Reduce bar spacing
     scale_fill_manual(values = category_colors) + # Apply custom colors
     coord_flip() +
     labs(
@@ -223,14 +218,26 @@ importance_plot <- ggplot(tst, aes(x = reorder(full_name, importance), y = impor
         y = "Importance Score",
         fill = "Category"
     ) +
-    theme_minimal()
+    theme_minimal(base_size = 16) + # Increases overall text size
+    theme(
+        plot.title = element_text(size = 22, face = "bold", hjust = 0.5), # Big, bold title, centered
+        axis.title.x = element_text(size = 18, face = "bold"), # Bigger X-axis title
+        axis.title.y = element_text(size = 18, face = "bold"), # Bigger Y-axis title
+        axis.text.x = element_text(size = 14), # Increase X-axis text size
+        axis.text.y = element_text(size = 14), # Increase Y-axis text size
+        legend.title = element_text(size = 16, face = "bold"), # Bigger legend title
+        legend.text = element_text(size = 14), # Bigger legend text
+        panel.grid.major.y = element_blank(),  # Remove horizontal gridlines
+        panel.grid.minor.y = element_blank()
+    )
+
 
 # Print the plot
-print(importance_plot)
+# print(importance_plot)
 
 
 # Optionally, save the plot to a file
-ggsave("variable_importance_plot.png", plot = importance_plot, width = 10, height = 8)
+ggsave("variable_importance_plot.png", plot = importance_plot, width = 10, height = 7)
 
 
 
