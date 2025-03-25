@@ -186,7 +186,7 @@ calc_r2 <- function(data, pred) {
 normalize_independently <- function(train_data, test_data = NULL) {
 
     # Identify numeric columns to normalize (excluding those in exclusion_list)
-    exclusion_list <- c(unlist(categorical), unlist(paste0(climatic_pars, "_")), unlist(binary), "biomass", "nearest_biomass", "age")
+    exclusion_list <- c(unlist(categorical), unlist(paste0(climatic_pars, "_")), unlist(binary), "biomass", "nearest_biomass")
     norm_cols <- names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))]
 
     # Compute summary statistics
@@ -425,27 +425,27 @@ cross_validate <- function(dataframe, basic_pars, data_pars, conditions){
 
 calculate_permutation_importance <- function(model, data, data_pars) {
   # Get baseline performance
-  data_pars <- c("sur_cover", "num_fires")
-  data <- norm_data
   baseline_pred <- growth_curve(final_model$par, data)
   baseline_r2 <- calc_r2(data, baseline_pred)
-  
+
   # Calculate importance for each variable
   importance <- numeric(length(data_pars))
   names(importance) <- data_pars
   
   for (i in seq_along(data_pars)) {
-    i = 1
     var_name <- data_pars[i]
     
     # Create permuted dataset
     data_permuted <- data
     data_permuted[[var_name]] <- sample(data[[var_name]])
-    
+
+    # pars_init <- find_combination_pars(basic_pars = c("B0", "k0", "theta"), "data_pars" = c("num_fires", "sur_cover"), data_permuted)
+    # model_iter <- run_optim(data_permuted, pars_init, conditions)
+
     # Get performance with permuted variable
     permuted_pred <- growth_curve(model$par, data_permuted)
     permuted_r2 <- calc_r2(data_permuted, permuted_pred)
-    
+
     # Importance = decrease in performance
     importance[i] <- baseline_r2 - permuted_r2
   }

@@ -28,9 +28,14 @@ norm_data <- norm$train_data
 norm_stats <- norm$train_stats
 
 pars_init <- find_combination_pars(basic_pars = c("B0", "k0", "theta"), "data_pars" = c("num_fires", "sur_cover"), norm_data)
+pars_init
+
 
 final_model <- run_optim(norm_data, pars_init, conditions)
+final_model$par
 
+baseline_pred <- growth_curve(final_model$par, norm_data)
+calc_r2(norm_data, baseline_pred)
 
 
 

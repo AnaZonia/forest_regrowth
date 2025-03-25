@@ -97,3 +97,41 @@ print(mean(data[["pred_future"]]))
 
 
 write.csv(data, paste0(c("0_results/lagged_nolag_unified_data.csv"), collapse = "_"), row.names = FALSE)
+
+
+
+# --------------------------------- Plotting ---------------------------------#
+
+# get data for plotting
+source("2_R_scripts/1_modelling.r")
+source("2_R_scripts/1_data_processing.r")
+source("2_R_scripts/1_parameters.r")
+
+biome <- 1
+n_samples <- 10000
+# Load data
+# data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
+set.seed(1)
+registerDoParallel(cores = 4)
+
+data <- import_data("./0_data/unified_fc_old_biomass.csv", biome = biome, n_samples = n_samples) %>%
+    rename(biomass = b1) %>%
+    # remove mean_pdsi column
+    select(-c(mean_pdsi))
+
+options <- data_pars_options(colnames(data))
+
+
+
+norm <- normalize_independently(data)
+norm_data <- norm$train_data
+norm_stats <- norm$train_stats
+
+pars_init <- find_combination_pars(basic_pars = c("B0", "k0", "theta"), "data_pars" = options$all_mean_data, norm_data)
+pars_init
+
+
+final_model <- run_optim(norm_data, pars_init, conditions)
+final_model$par
+
+
