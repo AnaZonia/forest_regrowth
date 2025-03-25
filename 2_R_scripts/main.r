@@ -210,3 +210,7 @@ test_plot <- ggplot(test_data, aes(x = x, y = y)) +
 # Print the plot
 print(test_plot)
 coeffs
+
+tst
+
+saveRDS(tst, "tst.rds")
