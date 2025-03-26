@@ -213,7 +213,7 @@ importance_plot <- ggplot(tst, aes(x = reorder(full_name, importance), y = impor
     scale_fill_manual(values = category_colors) + # Apply custom colors
     coord_flip() +
     labs(
-        title = "Variable Importance Scores",
+        title = "Permutation Importance Scores",
         x = "Variables",
         y = "Importance Score",
         fill = "Category"
