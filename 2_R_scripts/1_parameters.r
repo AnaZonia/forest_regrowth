@@ -13,7 +13,7 @@ interval <- c("5yr", "10yr", "15yr", "all")
 permut_check <- c("ecoreg", "num_fires", "dist", "sur_cover", "mean_srad", "mean_temp", "mean_aet")
 
 # Conditions for parameter constraints
-conditions <- list('pars["theta"] > 10', 'pars["theta"] < 0', 'pars["k0"] < 0')
+conditions <- list('pars["theta"] > 10', 'pars["theta"] < 1', 'pars["k0"] < 0')
 
 excluded_columns <- c("age", "biomass", "nearest_biomass")
 

@@ -213,19 +213,13 @@ importance_plot <- ggplot(tst, aes(x = reorder(full_name, importance), y = impor
     scale_fill_manual(values = category_colors) + # Apply custom colors
     coord_flip() +
     labs(
-        title = "Permutation Importance Scores",
-        x = "Variables",
         y = "Importance Score",
         fill = "Category"
     ) +
     theme_minimal(base_size = 16) + # Increases overall text size
     theme(
         plot.title = element_text(size = 22, face = "bold", hjust = 0.5), # Big, bold title, centered
-        axis.title.x = element_text(size = 18, face = "bold"), # Bigger X-axis title
-        axis.title.y = element_text(size = 18, face = "bold"), # Bigger Y-axis title
-        axis.text.x = element_text(size = 14), # Increase X-axis text size
-        axis.text.y = element_text(size = 14), # Increase Y-axis text size
-        legend.title = element_text(size = 16, face = "bold"), # Bigger legend title
+        # axis.text.y = element_text(size = 14), # Increase Y-axis text size
         legend.text = element_text(size = 14), # Bigger legend text
         panel.grid.major.y = element_blank(),  # Remove horizontal gridlines
         panel.grid.minor.y = element_blank()
@@ -233,11 +227,11 @@ importance_plot <- ggplot(tst, aes(x = reorder(full_name, importance), y = impor
 
 
 # Print the plot
-# print(importance_plot)
+print(importance_plot)
 
 
 # Optionally, save the plot to a file
-ggsave("variable_importance_plot.png", plot = importance_plot, width = 10, height = 7)
+ggsave("variable_importance_plot.png", plot = importance_plot, width = 10, height = 6)
 
 
 

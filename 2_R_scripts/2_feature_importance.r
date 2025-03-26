@@ -21,7 +21,6 @@ plot_variable_importance <- function(importance_df, title = "Variable Importance
   p <- ggplot(importance_df, aes(x = variable, y = !!sym(y_col))) +
     geom_bar(stat = "identity", fill = "steelblue") +
     labs(title = title,
-         x = "Variables",
          y = y_lab) +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))

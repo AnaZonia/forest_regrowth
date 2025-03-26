@@ -98,7 +98,7 @@ growth_curve <- function(pars, data, lag = 0) {
     k[which(k < 1e-10)] <- 1e-10
     k[which(k > 7)] <- 7 # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
 
-    return(pars[["B0"]] + (data[["nearest_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
+    return(pars[["B0"]] + (data[["nearest_biomass"]] - pars[["B0"]]) * (1 - exp(-k))) # ^pars[["theta"]])
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -186,7 +186,7 @@ calc_r2 <- function(data, pred) {
 normalize_independently <- function(train_data, test_data = NULL) {
 
     # Identify numeric columns to normalize (excluding those in exclusion_list)
-    exclusion_list <- c(unlist(categorical), unlist(paste0(climatic_pars, "_")), unlist(binary), "biomass", "nearest_biomass")
+    exclusion_list <- c(unlist(categorical), unlist(paste0(climatic_pars, "_")), unlist(binary), "biomass", "nearest_biomass", "age")
     norm_cols <- names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))]
 
     # Compute summary statistics
@@ -272,7 +272,7 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
         c(data_pars)
     ))
 
-    all_pars[["theta"]] <- 1
+    # all_pars[["theta"]] <- 1.5
     all_pars[["k0"]] <- 1
 
     if ("lag" %in% basic_pars) {

@@ -7,55 +7,52 @@ library(dplyr)
 library(terra)
 library(tidyverse)
 
-# Read the CSV files
-field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
+# # Read the CSV files
+# field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
+# sites <- read.csv("0_data/groa_field/sites.csv")
 
-sites <- read.csv("0_data/groa_field/sites.csv")
+# # Clean up duplicates in sites
+# sites <- sites %>%
+#     dplyr::distinct(site.id, .keep_all = TRUE)
 
+# # Merge lat, lon, and site.country from sites to field by matching site.id
+# field <- field %>%
+#     left_join(sites %>% dplyr::select(site.id, lat_dec, long_dec, site.country), by = "site.id")
 
+# # Filter the field data for aboveground biomass and site.country == Brazil
+# field <- subset(field, variables.name == "aboveground_biomass" & site.country == "Brazil")
 
-# Filter the field data for aboveground biomass
-aboveground_biomass <- subset(field, variables.name == "aboveground_biomass")
+# # Rename and select relevant columns
+# field <- field %>%
+#     dplyr::rename(field_biomass = mean_ha, field_age = stand.age) %>%
+#     dplyr::select(c(field_age, field_biomass, lat_dec, long_dec))
 
-# Merge lat, lon, and site.country from sites to field by matching site.id
-field <- field %>%
-    left_join(sites %>% dplyr::select(site.id, lat_dec, long_dec, site.country), by = "site.id")
+# # Create a SpatVector (terra object) using lat_dec and long_dec for coordinates
+# field_spat <- vect(field, geom = c("long_dec", "lat_dec"))
 
-# Keep only rows where site.country is Brazil
-field_brazil <- subset(field, site.country == "Brazil")
+# # Set the CRS (assuming WGS84)
+# crs(field_spat) <- "+proj=longlat +datum=WGS84"
 
-# Step 1: Keep only entries with mean_ha less than 1000
-field_brazil <- subset(field_brazil, mean_ha < 1000)
+# # Export as a shapefile
+# writeVector(field_spat, "0_data/groa_field/field_biomass.shp", overwrite = TRUE)
 
-# Step 2: Remove entries where stand.age is 1 and mean_ha is greater than 100
-field_brazil <- subset(field_brazil, !(stand.age == 1 & mean_ha > 100))
-
-field_brazil <- field_brazil %>%
-    dplyr::rename(field_biomass = mean_ha, field_age = stand.age) %>%
-    dplyr::select(c(field_age, field_biomass, lat_dec, long_dec))
-
-
-# Convert the data to a SpatialPointsDataFrame
-coordinates(field_brazil) <- ~ long_dec + lat_dec # Assuming lat_dec and long_dec are the columns for coordinates
-
-# Set the CRS (assuming WGS84)
-proj4string(field_brazil) <- CRS("+proj=longlat +datum=WGS84")
-
-# Export as a shapefile
-shapefile(field_brazil, "~/Documents/data/field_biomass.shp", overwrite = TRUE)
 
 
 # -----------------------------------------------------
-# Load necessary libraries
+field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
+sites <- read.csv("0_data/groa_field/sites.csv")
 
-# Load your data
-field <- read.csv("~/Documents/data/biomass_litter_CWD.csv")
-field <- subset(field, variables.name == "aboveground_biomass")
-field$field_biom <- field$mean_ha * 0.5
+# Clean up duplicates in sites
+sites <- sites %>%
+    dplyr::distinct(site.id, .keep_all = TRUE)
 
-# Load the second dataset
-field_biomass <- read.csv("~/Documents/data/field_biomass_with_biome.csv")
-field_biomass$field_biom <- field_biomass$field_biom * 0.5
+sites <- subset(sites, site.state %in% c("Acre", "Amazonas", "Amapá", "Pará", "Rondônia", "Roraima", "Tocantins"))
+
+field <- field %>%
+    filter(site.id %in% sites$site.id)
+head(field)
+mean(field$mean_ha)
+
 
 # Function to aggregate data based on age intervals
 aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {
