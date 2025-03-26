@@ -228,7 +228,6 @@ p <- ggplot(pred_data, aes(x = age)) +
         axis.title.y = element_text(color = "black", family = "Helvetica"), # Set y-axis title to black, Helvetica font
         axis.text.x = element_text(color = "black", size = 14, family = "Helvetica"), # Set x-axis labels to black, Helvetica font
         axis.text.y = element_text(color = "black", size = 14, family = "Helvetica"), # Set y-axis labels to black, Helvetica font
-        plot.title = element_text(hjust = 0.5, face = "bold", family = "Helvetica") # Set title to Helvetica font
     ) +
     scale_y_continuous(limits = c(0, 310)) + # Set y-axis limits
     geom_vline(xintercept = 35, linetype = "dotted", color = "black", size = 1) + # Vertical dashed line at x = 34

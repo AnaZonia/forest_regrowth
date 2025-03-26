@@ -218,12 +218,18 @@ importance_plot <- ggplot(tst, aes(x = reorder(full_name, importance), y = impor
     ) +
     theme_minimal(base_size = 16) + # Increases overall text size
     theme(
-        plot.title = element_text(size = 22, face = "bold", hjust = 0.5), # Big, bold title, centered
-        # axis.text.y = element_text(size = 14), # Increase Y-axis text size
-        legend.text = element_text(size = 14), # Bigger legend text
-        panel.grid.major.y = element_blank(),  # Remove horizontal gridlines
-        panel.grid.minor.y = element_blank()
-    )
+        legend.text = element_text(size = 16, family = "Helvetica"),
+        legend.title = element_blank(), # Remove legend title
+        legend.position = c(0.75, 0.25),
+        panel.grid.major = element_blank(), # Remove major grid lines
+        panel.grid.minor = element_blank(), # Remove minor grid lines
+        axis.line = element_line(color = "black"), # Keep simple x and y axis lines
+        axis.title.y = element_blank(), # Bigger X-axis title
+        axis.text.x = element_text(color = "black", size = 14, family = "Helvetica"), # Set x-axis labels to black, Helvetica font
+        axis.text.y = element_text(color = "black", size = 14, family = "Helvetica"), # Set y-axis labels to black, Helvetica font
+    ) +
+    scale_y_continuous(expand = c(0, 0))  # Remove space between bars and y-axis
+
 
 
 # Print the plot
