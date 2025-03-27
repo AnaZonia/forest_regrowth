@@ -13,7 +13,8 @@ source("2_R_scripts/1_parameters.r")
 
 biome = 1
 n_samples = 10000
-
+set.seed(1)
+registerDoParallel(cores = 4)
 
 
 # --------------------------------- Plotting ---------------------------------#
@@ -46,44 +47,13 @@ aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {
 field_aggregated <- aggregate_biomass(field_biomass, field_age, field_biom)
 
 
-# # Load the second dataset and modify as needed
-# field_biomass <- read.csv("0_data/groa_field/field_biomass_with_biome.csv")
-# field_biomass <- subset(field_biomass, biome == 1) # Filter for specific biome
 
-# # field_biomass$field_biom <- field_biomass$field_biom * 0.5
-
-# # Aggregate field biomass data by age
-# aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {
-#     data %>%
-#         mutate(age_interval = floor({{ age_col }} + 0.5)) %>% # Group into integer intervals
-#         group_by(age_interval) %>%
-#         summarise(mean_biomass = mean({{ biomass_col }} * (0.5), na.rm = TRUE)) %>%
-#         rename(age = age_interval)
-# }
-
-# field_aggregated <- aggregate_biomass(field_biomass, field_age, field_biom)
+# --------------------------------- Plotting ---------------------------------#
 
 
-
-
-
-
-
-conditions <- list('pars["k0"] < 0')
-
-# get data for plotting
-source("2_R_scripts/1_modelling.r")
-source("2_R_scripts/1_data_processing.r")
-source("2_R_scripts/1_parameters.r")
-
-# Load data
-# data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
-set.seed(1)
-registerDoParallel(cores = 4)
 
 data <- import_data("./0_data/unified_fc_old_biomass.csv", biome = biome, n_samples = n_samples) %>%
         rename(biomass = b1) %>%
-        # remove mean_pdsi column
         select(-c(mean_pdsi))
 
 norm <- normalize_independently(data)
@@ -100,49 +70,10 @@ baseline_pred <- growth_curve(final_model$par, norm_data)
 calc_r2(norm_data, baseline_pred)
 
 
-
-# for (i in 1:30) {
-#     data <- import_data("./0_data/unified_fc_old_biomass.csv", biome = biome, n_samples = n_samples) %>%
-#         # rename(biomass = b1) %>%
-#         # remove mean_pdsi column
-#         select(-mean_pdsi)
-
-#     # Fit the model on the full data
-#     norm <- normalize_independently(data)
-#     norm_data <- norm$train_data
-#     norm_stats <- norm$train_stats
-#     # print(norm_stats)
-
-#     head(norm_data[, c("age", "num_fires", "sur_cover", "nearest_biomass", "biomass")])
-
-#     # use optim GA
-
-#     pars_init <- find_combination_pars(basic_pars = c("lag", "k0", "theta"), "data_pars" = c("num_fires", "sur_cover"), norm_data)
-
-#     print(pars_init)
-
-#     final_model <- run_optim(norm_data, pars_init, conditions)
-
-#     print(final_model$par)
-#     pred <- growth_curve(final_model$par, norm_data, final_model$par[["lag"]])
-#     print(calc_r2(norm_data, pred))
-
-# }
-
-
-# check R sauqred values for each
-
-# check whether unnormalized age changes anything wiht B0
-
-# constrain theta
-
-# ages 1 - 35
-data[["pred_lag"]] <- growth_curve(final_model$par, norm_data) # with no lag, to give the expected values at low ages
-
+# with no lag, to give the expected values at low ages (1-35)
+data[["pred_lag"]] <- growth_curve(final_model$par, norm_data)
 # intermediary ages
 data[["pred"]] <- growth_curve(final_model$par, norm_data, final_model$par[["lag"]])
-
-
 
 mean(data[["pred_lag"]])
 mean(data[["pred"]])
@@ -151,7 +82,6 @@ mean(data[["pred"]])
 # ---------------------------- Plotting ----------------------------
 
 
-# write.csv(data, paste0(c("0_results/lagged_nolag_unified_data.csv"), collapse = "_"), row.names = FALSE)
 
 # Compute mean values and standard deviations per age
 # Restructure the data to have separate columns for each biomass type

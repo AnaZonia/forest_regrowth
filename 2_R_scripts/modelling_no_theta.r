@@ -34,7 +34,6 @@
 
 
 run_optim <- function(train_data, pars, conditions) {
-
     if ("B0" %in% names(pars)) {
         conditions <- c(conditions, list('pars["B0"] < 0'))
     } else {
@@ -56,7 +55,6 @@ run_optim <- function(train_data, pars, conditions) {
 #   Incorporates yearly-changing climatic parameters, intercept terms, and forest age.
 
 growth_curve <- function(pars, data, lag = 0) {
-
     # Define parameters that are not expected to change yearly (not prec or si)
     non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
 
@@ -71,7 +69,7 @@ growth_curve <- function(pars, data, lag = 0) {
         age <- age + lag
         # age <- pmin(age, 1)
     }
-    
+
     if (length(non_clim_pars) > 0) {
         k <- (k + rowSums(sapply(non_clim_pars, function(par) {
             pars[[par]] * data[[par]]
@@ -98,7 +96,7 @@ growth_curve <- function(pars, data, lag = 0) {
     k[which(k < 1e-10)] <- 1e-10
     k[which(k > 7)] <- 7 # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
 
-    return(pars[["B0"]] + (data[["nearest_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
+    return(pars[["B0"]] + (data[["nearest_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^{1}) # ^pars[["theta"]])
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -122,7 +120,6 @@ growth_curve <- function(pars, data, lag = 0) {
 #   growth_curve()
 
 likelihood <- function(pars, data, conditions) {
-
     if ("lag" %in% names(pars)) {
         growth_curves <- growth_curve(pars, data, pars[["lag"]])
         residuals <- growth_curves - data$biomass
@@ -133,13 +130,12 @@ likelihood <- function(pars, data, conditions) {
 
     # Check whether any of the parameters is breaking the conditions (e.g. negative values)
     if (any(sapply(conditions, function(cond) eval(parse(text = cond))))) {
-    return(-Inf)
+        return(-Inf)
     } else if (is.na(result) || result == 0) {
-    return(-Inf)
+        return(-Inf)
     } else {
-    return(result)
+        return(result)
     }
-
 }
 
 
@@ -184,7 +180,6 @@ calc_r2 <- function(data, pred) {
 #     - test_data  : (If provided) The test dataframe, normalized using train_data statistics
 
 normalize_independently <- function(train_data, test_data = NULL) {
-
     # Identify numeric columns to normalize (excluding those in exclusion_list)
     exclusion_list <- c(unlist(categorical), unlist(paste0(climatic_pars, "_")), unlist(binary), "biomass", "nearest_biomass", "age")
     norm_cols <- names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))]
@@ -211,7 +206,7 @@ normalize_independently <- function(train_data, test_data = NULL) {
     # Compute normalization statistics for each climatic variable across all years
     for (clim_par in climatic_pars) {
         clim_cols <- names(train_data)[grepl(paste0(clim_par, "_"), names(train_data))]
-        
+
         # Compute summary statistics
         clim_stats <- data.frame(
             variable = paste0(clim_par, "_"),
@@ -220,7 +215,7 @@ normalize_independently <- function(train_data, test_data = NULL) {
         )
 
         train_data[clim_cols] <- (train_data[clim_cols] - clim_stats$min) / (clim_stats$max - clim_stats$min)
-        
+
         if (!is.null(test_data)) {
             test_data[clim_cols] <- (test_data[clim_cols] - clim_stats$min) / (clim_stats$max - clim_stats$min)
         }
@@ -264,7 +259,6 @@ normalize_independently <- function(train_data, test_data = NULL) {
 
 
 find_combination_pars <- function(basic_pars, data_pars, data) {
-
     # data <- train_data
     # Initialize parameter vector with data parameters
     all_pars <- c(setNames(
@@ -272,7 +266,7 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
         c(data_pars)
     ))
 
-    all_pars[["theta"]] <- 1.5
+    # all_pars[["theta"]] <- 1.5
     all_pars[["k0"]] <- 1
 
     if ("lag" %in% basic_pars) {
@@ -311,13 +305,13 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
 
         # iter_df <- tibble()
         iter_df <- foreach(j = remaining[-taken]) %dopar% {
-        # for (j in remaining[-taken]) {
+            # for (j in remaining[-taken]) {
             # print(j)
             # j = 1
             # check for categorical variables or yearly climatic variables (to be included as a group)
             if (data_pars[j] %in% categorical) {
                 inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
-            # } else if (data_pars[j] %in% climatic) {}
+                # } else if (data_pars[j] %in% climatic) {}
                 # inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
             } else {
                 # as starting point, take the best values from last time
@@ -327,12 +321,12 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
             model <- run_optim(data, inipar, conditions)
             iter_row <- base_row
             iter_row[names(inipar)] <- model$par
-            iter_row["likelihood"] <- model$value 
+            iter_row["likelihood"] <- model$value
 
             # iter_df <- bind_rows(iter_df, iter_row)
             return(iter_row)
         }
-        
+
         iter_df <- as.data.frame(do.call(rbind, iter_df))
 
         best_model <- which.min(iter_df$likelihood)
@@ -385,7 +379,7 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
 #
 
 
-cross_validate <- function(dataframe, basic_pars, data_pars, conditions){
+cross_validate <- function(dataframe, basic_pars, data_pars, conditions) {
     indices <- sample(c(1:5), nrow(dataframe), replace = TRUE)
     dataframe$pred_cv <- NA
     dataframe$pred_final <- NA
@@ -416,7 +410,6 @@ cross_validate <- function(dataframe, basic_pars, data_pars, conditions){
     }
 
     return(r2_list)
-
 }
 
 
@@ -431,12 +424,12 @@ cross_validate <- function(dataframe, basic_pars, data_pars, conditions){
 #   # Calculate importance for each variable
 #   importance <- numeric(length(data_pars))
 #   names(importance) <- data_pars
-  
+
 
 
 #   for (i in seq_along(data_pars)) {
 #     var_name <- data_pars[i]
-    
+
 #     # Create permuted dataset
 #     data_permuted <- data
 #     data_permuted[[var_name]] <- sample(data[[var_name]])
@@ -451,17 +444,17 @@ cross_validate <- function(dataframe, basic_pars, data_pars, conditions){
 #     # Importance = decrease in performance
 #     importance[i] <- baseline_r2 - permuted_r2
 #   }
-  
+
 #   # Create dataframe for plotting
 #   importance_df <- data.frame(
 #     variable = names(importance),
 #     importance = importance,
 #     importance_pct = 100 * importance / sum(importance)
 #   )
-  
+
 #   # Sort by importance
 #   importance_df <- importance_df[order(-importance_df$importance), ]
-  
+
 #   return(importance_df)
 # }
 
@@ -536,68 +529,68 @@ calculate_permutation_importance <- function(model, data, data_pars) {
 
 # Coefficient based approach
 analyze_variable_importance <- function(model, data_pars) {
-  # Extract coefficients from model results
-  data_pars <- options[["all_no_categorical"]]
-  model <- final_model
-  coeffs <- model$par[names(model$par) %in% data_pars]
-  
-  # Get absolute values to measure magnitude of impact
-  importance <- abs(coeffs)
-  
-  # Normalize to percentage if desired
-  importance_pct <- 100 * importance / sum(importance)
-  
-  # Create dataframe for plotting
-  importance_df <- data.frame(
-    variable = names(importance),
-    importance = importance,
-    importance_pct = importance_pct
-  )
-  
-  # Sort by importance
-  importance_df <- importance_df[order(-importance_df$importance), ]
-  
-  return(importance_df)
+    # Extract coefficients from model results
+    data_pars <- options[["all_no_categorical"]]
+    model <- final_model
+    coeffs <- model$par[names(model$par) %in% data_pars]
+
+    # Get absolute values to measure magnitude of impact
+    importance <- abs(coeffs)
+
+    # Normalize to percentage if desired
+    importance_pct <- 100 * importance / sum(importance)
+
+    # Create dataframe for plotting
+    importance_df <- data.frame(
+        variable = names(importance),
+        importance = importance,
+        importance_pct = importance_pct
+    )
+
+    # Sort by importance
+    importance_df <- importance_df[order(-importance_df$importance), ]
+
+    return(importance_df)
 }
 
 
 # Leave one variable out
 
 calculate_loocv_importance <- function(data, basic_pars, data_pars, conditions) {
-  # Get baseline model with all variables
-  full_data_pars <- data_pars
-  pars_init <- find_combination_pars(basic_pars, full_data_pars, data)
-  full_model <- run_optim(data, pars_init, conditions)
-  full_pred <- growth_curve(full_model$par, data)
-  full_r2 <- calc_r2(data, full_pred)
-  
-  # Calculate importance for each variable
-  importance <- numeric(length(data_pars))
-  names(importance) <- data_pars
-  
-  for (i in seq_along(data_pars)) {
-    var_to_exclude <- data_pars[i]
-    reduced_data_pars <- data_pars[data_pars != var_to_exclude]
-    
-    # Fit model without this variable
-    reduced_pars_init <- find_combination_pars(basic_pars, reduced_data_pars, data)
-    reduced_model <- run_optim(data, reduced_pars_init, conditions)
-    reduced_pred <- growth_curve(reduced_model$par, data)
-    reduced_r2 <- calc_r2(data, reduced_pred)
-    
-    # Importance = decrease in performance
-    importance[i] <- full_r2 - reduced_r2
-  }
-  
-  # Create dataframe for plotting
-  importance_df <- data.frame(
-    variable = names(importance),
-    importance = importance,
-    importance_pct = 100 * importance / sum(importance)
-  )
-  
-  # Sort by importance
-  importance_df <- importance_df[order(-importance_df$importance), ]
-  
-  return(importance_df)
+    # Get baseline model with all variables
+    full_data_pars <- data_pars
+    pars_init <- find_combination_pars(basic_pars, full_data_pars, data)
+    full_model <- run_optim(data, pars_init, conditions)
+    full_pred <- growth_curve(full_model$par, data)
+    full_r2 <- calc_r2(data, full_pred)
+
+    # Calculate importance for each variable
+    importance <- numeric(length(data_pars))
+    names(importance) <- data_pars
+
+    for (i in seq_along(data_pars)) {
+        var_to_exclude <- data_pars[i]
+        reduced_data_pars <- data_pars[data_pars != var_to_exclude]
+
+        # Fit model without this variable
+        reduced_pars_init <- find_combination_pars(basic_pars, reduced_data_pars, data)
+        reduced_model <- run_optim(data, reduced_pars_init, conditions)
+        reduced_pred <- growth_curve(reduced_model$par, data)
+        reduced_r2 <- calc_r2(data, reduced_pred)
+
+        # Importance = decrease in performance
+        importance[i] <- full_r2 - reduced_r2
+    }
+
+    # Create dataframe for plotting
+    importance_df <- data.frame(
+        variable = names(importance),
+        importance = importance,
+        importance_pct = 100 * importance / sum(importance)
+    )
+
+    # Sort by importance
+    importance_df <- importance_df[order(-importance_df$importance), ]
+
+    return(importance_df)
 }
