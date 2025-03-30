@@ -7,7 +7,8 @@ library(factoextra)
 library(cluster)
 
 # get data for plotting
-source("2_R_scripts/1_modelling.r")
+# source("2_R_scripts/1_modelling.r")
+source("2_R_scripts/modelling_no_theta.r")
 source("2_R_scripts/1_data_processing.r")
 source("2_R_scripts/1_parameters.r")
 
@@ -15,7 +16,6 @@ biome = 1
 n_samples = 10000
 set.seed(1)
 registerDoParallel(cores = 4)
-
 
 # --------------------------------- Plotting ---------------------------------#
 
@@ -30,45 +30,35 @@ sites <- subset(sites, site.state %in% c("Acre", "Amazonas", "Amapá", "Pará", 
 
 field <- field %>%
     filter(site.id %in% sites$site.id)
-head(field)
-mean(field$mean_ha)
 
-
-# Function to aggregate data based on age intervals
-aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {
-    data %>%
-        mutate(age_interval = floor({{ age_col }} + 0.5)) %>% # Group into integer intervals
+field_aggregated <- field %>%
+        mutate(age_interval = floor(stand.age + 0.5)) %>% # Group into integer intervals
         group_by(age_interval) %>%
-        summarise(mean_biomass = mean({{ biomass_col }}, na.rm = TRUE)) %>%
+        summarise(mean_biomass = mean(mean_ha, na.rm = TRUE)) %>%
         rename(age = age_interval)
-}
-
-
-field_aggregated <- aggregate_biomass(field_biomass, field_age, field_biom)
-
 
 
 # --------------------------------- Plotting ---------------------------------#
 
 
+conditions <- list('pars["k0"] < 0')
 
-data <- import_data("./0_data/unified_fc_old_biomass.csv", biome = biome, n_samples = n_samples) %>%
-        rename(biomass = b1) %>%
+data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples) %>%
+        # rename(biomass = b1) %>%
         select(-c(mean_pdsi))
 
 norm <- normalize_independently(data)
 norm_data <- norm$train_data
 norm_stats <- norm$train_stats
 
-pars_init <- find_combination_pars(basic_pars = c("lag", "k0", "theta"), "data_pars" = c("num_fires", "sur_cover"), norm_data)
+pars_init <- find_combination_pars(basic_pars = c("B0", "k0"), "data_pars" = c("protec", "indig", "sur_cover"), norm_data)
 pars_init
 
 final_model <- run_optim(norm_data, pars_init, conditions)
 final_model$par
 
-baseline_pred <- growth_curve(final_model$par, norm_data)
+baseline_pred <- growth_curve(final_model$par, norm_data, final_model$par[["lag"]])
 calc_r2(norm_data, baseline_pred)
-
 
 # with no lag, to give the expected values at low ages (1-35)
 data[["pred_lag"]] <- growth_curve(final_model$par, norm_data)
@@ -78,6 +68,7 @@ data[["pred"]] <- growth_curve(final_model$par, norm_data, final_model$par[["lag
 mean(data[["pred_lag"]])
 mean(data[["pred"]])
 
+lag = round(final_model$par[["lag"]])
 
 # ---------------------------- Plotting ----------------------------
 
@@ -93,19 +84,20 @@ mean_biomass_data <- data %>%
         mean_biomass = median(biomass, na.rm = TRUE),
         sd_biomass = sd(biomass, na.rm = TRUE)
     ) %>%
-    mutate(age = age + 34)
+    mutate(age = age + lag) # Adjust age by lag
 
 pred_data <- data %>%
     group_by(age) %>%
     summarise(
         mean_pred_lag = median(pred_lag, na.rm = TRUE),
         sd_pred_lag = sd(pred_lag, na.rm = TRUE),
-    )
+    ) %>%
+    filter(age <= (lag + 1))
 
 # Merge the data frames based on age using full_join
 pred_data <- full_join(pred_data, mean_biomass_data, by = "age")
 
-# Define colors
+print(pred_data, n = 50)
 
 colors <- c(
     "mean_pred_lag" = "blue",
@@ -160,7 +152,7 @@ p <- ggplot(pred_data, aes(x = age)) +
         axis.text.y = element_text(color = "black", size = 14, family = "Helvetica"), # Set y-axis labels to black, Helvetica font
     ) +
     scale_y_continuous(limits = c(0, 310)) + # Set y-axis limits
-    geom_vline(xintercept = 35, linetype = "dotted", color = "black", size = 1) + # Vertical dashed line at x = 34
-    annotate("text", x = 35, y = 280, label = "34 years", hjust = -0.1, size = 6, color = "black", family = "Helvetica") # Add label with annotate()
+    geom_vline(xintercept = (lag+1), linetype = "dotted", color = "black", size = 1) + # Vertical dashed line at x = 34
+    annotate("text", x = (lag + 2), y = 280, label = "34 years", hjust = -0.1, size = 6, color = "black", family = "Helvetica") # Add label with annotate()
 
 p

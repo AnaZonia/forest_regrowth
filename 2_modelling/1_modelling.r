@@ -41,6 +41,10 @@ run_optim <- function(train_data, pars, conditions) {
         conditions <- c(conditions, list('pars["lag"] < 0'))
     }
 
+    if ("theta" %in% names(pars)) {
+        conditions <- c(conditions, list('pars["theta"] > 10', 'pars["theta"] < 1'))
+    }
+
     model <- optim(pars, likelihood, data = train_data, conditions = conditions)
 
     return(model)
@@ -94,11 +98,17 @@ growth_curve <- function(pars, data, lag = 0) {
         }
     }
 
+    if ("theta" %in% names(pars)) {
+        theta_val <- pars[["theta"]]
+    } else {
+       theta_val <- 1
+    }
+
     # Constrains k to avoid negative values
     k[which(k < 1e-10)] <- 1e-10
     k[which(k > 7)] <- 7 # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
 
-    return(pars[["B0"]] + (data[["nearest_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^pars[["theta"]])
+    return(pars[["B0"]] + (data[["nearest_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^theta_val)
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -183,10 +193,15 @@ calc_r2 <- function(data, pred) {
 #     - train_data : A dataframe with normalized numerical values
 #     - test_data  : (If provided) The test dataframe, normalized using train_data statistics
 
-normalize_independently <- function(train_data, test_data = NULL) {
+normalize_independently <- function(train_data, raw_age, test_data = NULL) {
 
     # Identify numeric columns to normalize (excluding those in exclusion_list)
-    exclusion_list <- c(unlist(categorical), unlist(paste0(climatic_pars, "_")), unlist(binary), "biomass", "nearest_biomass", "age")
+    exclusion_list <- c(categorical, paste0(climatic_pars, "_"), binary, "biomass", "nearest_biomass")
+    
+    if (raw_age) {
+        exclusion_list <- c(exclusion_list, "age")
+    }
+
     norm_cols <- names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))]
 
     # Compute summary statistics
@@ -272,7 +287,10 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
         c(data_pars)
     ))
 
-    all_pars[["theta"]] <- 1.5
+    if ("theta" %in% basic_pars) {
+        all_pars[["theta"]] <- 1
+    }
+
     all_pars[["k0"]] <- 1
 
     if ("lag" %in% basic_pars) {
