@@ -3,53 +3,93 @@ library(tidyverse)
 library(ggplot2)
 
 # Load data
-new_model_data <- read.csv("~/Documents/data/mapbiomas_amaz_all_results_NEW_2.csv")
+# new_model_data <- read.csv("./0_results/lagged_nolag_unified_data.csv")
+new_model_data <- read.csv("0_data/old_data/mapbiomas_amaz_all_results_NEW_2.csv") %>%
+    rename(pred_lagged = pred)
 
 # Compute mean values and standard deviations per age
+# Restructure the data to have separate columns for each biomass type
 mean_biomass_data <- new_model_data %>%
     group_by(age) %>%
     summarise(
-        mean_pred = mean(pred, na.rm = TRUE),
-        sd_pred = sd(pred, na.rm = TRUE),
-        mean_pred_nolag = mean(pred_nolag, na.rm = TRUE),
+        mean_pred = median(pred_lagged, na.rm = TRUE),
+        sd_pred = sd(pred_lagged, na.rm = TRUE),
+        mean_pred_nolag = median(pred_nolag, na.rm = TRUE),
         sd_pred_nolag = sd(pred_nolag, na.rm = TRUE),
-        mean_biomass = mean(biomass, na.rm = TRUE),
-        sd_biomass = sd(biomass, na.rm = TRUE)
+        mean_biomass = median(biomass, na.rm = TRUE),
+        sd_biomass = sd(biomass, na.rm = TRUE),
+        # mean_future = median(pred_future, na.rm = TRUE),
+        # sd_future = sd(pred_future, na.rm = TRUE)
     ) %>%
-    mutate(age_nolag = age + 20) %>% # Shift the ages for mean_pred_nolag
+    mutate(age_nolag = age + 20) # exp(final_model$par[["lag"]])) %>%
+    # mutate(age_future = age + (exp(final_model$par[["lag"]]) + 35))
+print(mean_biomass_data, n = 35)
+
+# Reshape data to long format
+mean_biomass_data_long <- mean_biomass_data %>%
     pivot_longer(
-        cols = c(mean_pred, mean_pred_nolag, mean_biomass),
+        cols = c(mean_pred, mean_pred_nolag, mean_biomass),# mean_future),
         names_to = "biomass_type",
-        values_to = "value"
+        values_to = "mean_value"
     ) %>%
     mutate(
-        sd = case_when(
+        sd_value = case_when(
             biomass_type == "mean_pred" ~ sd_pred,
             biomass_type == "mean_pred_nolag" ~ sd_pred_nolag,
-            biomass_type == "mean_biomass" ~ sd_biomass
+            biomass_type == "mean_biomass" ~ sd_biomass,
+            # biomass_type == "mean_future" ~ sd_future,
+            TRUE ~ NA_real_
         ),
-        plot_age = if_else(biomass_type != "mean_pred", age_nolag, age) # Apply shift only for no lag
+        plot_age = ifelse(biomass_type == "mean_pred", age, age_nolag)
+        # plot_age = case_when(
+        #     biomass_type == "mean_pred_nolag" ~ age,
+        #     biomass_type == "mean_future" ~ age_future,
+        #     TRUE ~ age_nolag
+        # )
     )
+print(mean_biomass_data_long, n = 35)
 
-# Define colors (consistent with previous plot)
+# Define colors
 colors <- c(
     "mean_pred" = "green",
     "mean_pred_nolag" = "red",
-    "mean_biomass" = "blue"
+    "mean_biomass" = "blue",
+    "mean_future" = "purple"
 )
 
-# Plot the curves with updated title and legend position
-p <- ggplot(mean_biomass_data, aes(x = plot_age, y = value, color = biomass_type)) +
+# Load the second dataset and modify as needed
+field_biomass <- read.csv("0_data/groa_field/field_biomass_with_biome.csv")
+field_biomass <- subset(field_biomass, biome == 1) # Filter for specific biome
+
+# field_biomass$field_biom <- field_biomass$field_biom * 0.5
+
+# Aggregate field biomass data by age
+aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {
+    data %>%
+        mutate(age_interval = floor({{ age_col }} + 0.5)) %>% # Group into integer intervals
+        group_by(age_interval) %>%
+        summarise(mean_biomass = mean({{ biomass_col }} * (0.5), na.rm = TRUE)) %>%
+        rename(age = age_interval)
+}
+
+field_aggregated <- aggregate_biomass(field_biomass, field_age, field_biom)
+
+
+# Plot
+p <- ggplot(mean_biomass_data_long, aes(x = plot_age, y = mean_value, color = biomass_type)) +
     geom_line(size = 1.5) + # Main lines
-    geom_ribbon(aes(ymin = value - sd, ymax = value + sd, fill = biomass_type), alpha = 0.2, color = NA) + # SD ribbons
-    scale_color_manual(values = colors, labels = c("Predicted", "Predicted (No Lag, Shifted)", "Observed Biomass")) +
+    geom_ribbon(aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value, fill = biomass_type),
+        alpha = 0.2, color = NA
+    ) + # SD ribbons
+    scale_color_manual(values = colors, labels = c("Predicted", "Predicted (No Lag, Shifted)", "Observed Biomass"))  +# "Future")) +
     scale_fill_manual(values = colors, guide = "none") + # Match ribbon colors but remove legend
     labs(
         title = "Mean Biomass Predictions and Observations",
         x = "Forest Age (years)",
         y = "Biomass (Mg/ha)",
         color = "Legend"
-    ) +
+
+    ) + geom_point(data = field_aggregated, aes(x = age, y = mean_biomass), color = "purple", size = 2, alpha = 0.7) + # Field data points 
     theme_minimal(base_size = 20) + # Larger font size
     theme(
         plot.title = element_text(hjust = 0.5, face = "bold"), # Centered title
@@ -62,19 +102,23 @@ p <- ggplot(mean_biomass_data, aes(x = plot_age, y = value, color = biomass_type
         aspect.ratio = 1 / 2 # Makes the plot twice as wide as it is tall
     )
 
+p
+
 
 # Assuming `mean_biomass_data` already exists and is being used for the main curves
 
 # Load the second dataset and modify as needed
-field_biomass <- read.csv("~/Documents/data/field_biomass_with_biome.csv")
-field_biomass$field_biom <- field_biomass$field_biom * 0.5
+field_biomass <- read.csv("0_data/groa_field/field_biomass_with_biome.csv")
+field_biomass <- subset(field_biomass, biome == 1) # Filter for specific biome
+
+# field_biomass$field_biom <- field_biomass$field_biom * 0.5
 
 # Aggregate field biomass data by age
 aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {
     data %>%
         mutate(age_interval = floor({{ age_col }} + 0.5)) %>% # Group into integer intervals
         group_by(age_interval) %>%
-        summarise(mean_biomass = mean({{ biomass_col }}, na.rm = TRUE)) %>%
+        summarise(mean_biomass = mean({{ biomass_col }} * (0.5), na.rm = TRUE)) %>%
         rename(age = age_interval)
 }
 
@@ -116,7 +160,6 @@ p <- ggplot(mean_biomass_data, aes(x = plot_age, y = value, color = biomass_type
 
 # Print the plot
 print(p)
-
 
 png("biomass_with_scatter.png", width = 10, height = 5, units = "in", res = 900)
 
