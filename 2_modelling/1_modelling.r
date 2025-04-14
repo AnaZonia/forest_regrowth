@@ -41,10 +41,6 @@ run_optim <- function(train_data, pars, conditions) {
         conditions <- c(conditions, list('pars["lag"] < 0'))
     }
 
-    if ("theta" %in% names(pars)) {
-        conditions <- c(conditions, list('pars["theta"] > 10', 'pars["theta"] < 1'))
-    }
-
     model <- optim(pars, likelihood, data = train_data, conditions = conditions)
 
     return(model)
@@ -73,7 +69,6 @@ growth_curve <- function(pars, data, lag = 0) {
     if ("lag" %in% names(pars)) {
         pars[["B0"]] <- 0
         age <- age + lag
-        # age <- pmin(age, 1)
     }
     
     if (length(non_clim_pars) > 0) {
@@ -81,8 +76,6 @@ growth_curve <- function(pars, data, lag = 0) {
             pars[[par]] * data[[par]]
         }, simplify = TRUE))) * (age)
     }
-
-    # keep original_age column to calculate clim_par
 
     # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
     for (clim_par in intersect(climatic_pars, names(pars))) {
@@ -98,17 +91,11 @@ growth_curve <- function(pars, data, lag = 0) {
         }
     }
 
-    if ("theta" %in% names(pars)) {
-        theta_val <- pars[["theta"]]
-    } else {
-       theta_val <- 1
-    }
-
     # Constrains k to avoid negative values
     k[which(k < 1e-10)] <- 1e-10
     k[which(k > 7)] <- 7 # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
 
-    return(pars[["B0"]] + (data[["nearest_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^theta_val)
+    return(pars[["B0"]] + (data[["nearest_biomass"]] - pars[["B0"]]) * (1 - exp(-k)))
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -286,10 +273,6 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
         rep(0, length(data_pars)),
         c(data_pars)
     ))
-
-    if ("theta" %in% basic_pars) {
-        all_pars[["theta"]] <- 1
-    }
 
     all_pars[["k0"]] <- 1
 
