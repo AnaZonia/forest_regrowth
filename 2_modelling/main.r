@@ -9,16 +9,19 @@ library(factoextra)
 library(cluster)
 
 # Source other scripts
-source("2_R_scripts/1_parameters.r")
-source("2_R_scripts/1_data_processing.r")
-source("2_R_scripts/1_modelling.r")
+source("2_modelling/1_parameters.r")
+source("2_modelling/1_data_processing.r")
+source("2_modelling/2_modelling.r")
+source("2_modelling/2_normalize_cross_validate.r")
+source("2_modelling/2_feature_selection_ga.R")
+source("2_modelling/2_perm_importance.r")
 
 # Get configuration
 n_samples <- 10000
 
 # Set up parallel processing
 set.seed(1)
-registerDoParallel(cores = 10)
+registerDoParallel(cores = 4)
 
 # Load data
 data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
