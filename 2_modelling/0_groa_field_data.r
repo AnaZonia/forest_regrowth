@@ -12,15 +12,10 @@ library(tidyverse)
 field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
 sites <- read.csv("0_data/groa_field/sites.csv")
 
-# Clean up duplicates in sites
-sites <- sites %>%
-    dplyr::distinct(site.id, .keep_all = TRUE)
-
-
 # Merge lat, lon, and site.country from sites to field by matching site.id
 field <- field %>%
     filter(site.id %in% sites$site.id) %>%
-        left_join(sites %>% dplyr::select(site.id, site.country, lat_dec, long_dec), by = "site.id")
+        left_join(sites %>% dplyr::select(site.id, site.country, site.state, lat_dec, long_dec), by = "site.id")
 
 # Filter the field data for aboveground biomass
 field <- subset(field, variables.name == "aboveground_biomass" & site.country == "Brazil")
@@ -28,11 +23,7 @@ field <- subset(field, variables.name == "aboveground_biomass" & site.country ==
 # Rename and select relevant columns
 field <- field %>%
     dplyr::rename(field_biomass = mean_ha, field_age = stand.age) %>%
-    dplyr::select(c(field_age, field_biomass, lat_dec, long_dec, date))
-
-# select only rows with non NA date
-field <- field %>%
-    filter(!is.na(date))
+    dplyr::select(c(field_age, field_biomass, date, lat_dec, long_dec))
 
 # Create a SpatVector (terra object) using lat_dec and long_dec for coordinates
 field_spat <- vect(field, geom = c("long_dec", "lat_dec"))
