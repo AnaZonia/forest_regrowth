@@ -12,6 +12,13 @@ library(tidyverse)
 field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
 sites <- read.csv("0_data/groa_field/sites.csv")
 
+head(sites)
+
+# get the ones that have more precise coordinates
+# 1km is the worst precision they get
+# buffer around that region
+
+
 # Merge lat, lon, and site.country from sites to field by matching site.id
 field <- field %>%
     filter(site.id %in% sites$site.id) %>%
@@ -34,6 +41,9 @@ crs(field_spat) <- "+proj=longlat +datum=WGS84"
 # Export as a shapefile
 writeVector(field_spat, "0_data/groa_field/field_biomass.shp", overwrite = TRUE)
 
+# ------------------------------------------------------
+# 
+
 
 
 
@@ -52,17 +62,8 @@ field_biomass_aggregated <- aggregate_biomass(field_biomass, field_age, field_bi
 
 # Combine the aggregated data
 combined_data <- left_join(field_aggregated, field_biomass_aggregated, by = "age")
-combined_data
 
 
-
-# # Calculate mean biomass per field_age
-# mean_field_biomass <- field_biomass %>%
-#     group_by(field_age) %>%
-#     summarise(
-#         mean_field_biomass = mean(field_biom, na.rm = TRUE)
-#     )
-# mean_field_biomass
 
 # # Calculate mean biomass per field_age
 # mean_field_biomass <- field %>%
@@ -72,42 +73,44 @@ combined_data
 #     )
 # mean_field_biomass
 
+field <- read.csv("./0_data/groa_field/field_biomass.csv") %>%
+    # remove columns system.index and .geo
+    select(-c(system.index, .geo)) %>%
+    # make all values < 0 in column data NA
+    mutate(across(everything(), ~ ifelse(. < 0, NA, .)))
 
-# Calculate mean biomass and mean heinrich_biomass per mapbiomas_age
-mean_biomass_neotropics <- field %>%
-    group_by(stand.age) %>%
-    summarise(
-        mean_biomass_neotropics = mean(mean_ha, na.rm = TRUE)
-    )
+field
 
-# Calculate mean biomass per field_age
-mean_biomass_amazon <- field_biomass %>%
-    group_by(field_age) %>%
-    summarise(
-        mean_biomass_amazon = mean(field_biom, na.rm = TRUE)
-    )
 
-# Combine the datasets for plotting
-combined_data <- bind_rows(
-    mean_biomass_neotropics %>%
-        rename(age = stand.age, biomass_type = "mean_biomass_neotropics") %>%
-        mutate(value = mean_biomass_neotropics),
-    mean_biomass_amazon %>%
-        rename(age = field_age, biomass_type = "mean_biomass_amazon") %>%
-        mutate(value = mean_biomass_amazon)
-)
 
-# Create the combined plot
-ggplot(combined_data) +
-    geom_line(aes(x = age, y = value, color = biomass_type), size = 1) +
-    labs(
-        title = "Mean Biomass in Neotropics and Amazon",
-        x = "Age",
-        y = "Biomass",
-        color = "Biomass Type"
-    ) +
-    scale_color_manual(values = c(
-        "mean_biomass_neotropics" = "blue",
-        "mean_biomass_amazon" = "red"
-    )) +
-    theme_minimal()
+field_age_lulc <- read.csv("./0_data/groa_field/field_age_lulc.csv") %>%
+    # remove columns system.index and .geo
+    select(-c(system.index, .geo)) %>%
+    # keep only those with date > 0
+    filter(date > 0)
+
+nrow(field_age_lulc)
+
+# how many rows in field_age_lulc have all column values between the 1985 and 2020 column be exactly the same
+field_age_lulc_same <- field_age_lulc %>%
+    filter(apply(select(., 1:36), 1, function(x) length(unique(x)) > 1))
+
+head(field_age_lulc_same)
+
+
+unified_field <- read.csv("./0_data/groa_field/unified_field.csv") %>%
+    # remove columns system.index and .geo
+    select(-c(system.index, .geo)) %>%
+    # make all values < 0 in column data NA
+    mutate(across(everything(), ~ ifelse(. < 0, NA, .)))
+
+nrow(unified_field)
+
+unified_field_date <- unified_field %>%
+    # keep only those with date > 0
+    filter(date > 0)
+
+colnames(unified_field_date)
+
+
+# identify which ones are in the same site

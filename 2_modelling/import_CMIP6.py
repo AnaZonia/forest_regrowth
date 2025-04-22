@@ -118,6 +118,11 @@ for variable_short, variable in variables.items():
     # Load and prepare data
     # Function to aggregate in geographical lat lon dimensions
 
+
+
+
+
+
     def geog_agg(fn):
         ds = xr.open_dataset(f'{DATADIR}/{variable}/{fn}', engine='netcdf4')
         exp = ds.attrs['experiment_id']
@@ -168,3 +173,46 @@ for variable_short, variable in variables.items():
     ax.grid(linestyle='--')
 
     fig.savefig(f'{DATADIR}/plots/{variable}.png')
+
+
+
+
+import xarray as xr
+import pandas as pd
+import os
+from glob import glob
+
+for variable_short, variable in variables.items():
+    cmip6_nc_rel = glob(f'{DATADIR}/{variable}/*merged.nc')
+
+    for nc_file in cmip6_nc_rel:
+        # Load dataset
+        ds = xr.open_dataset(nc_file)
+
+        # Convert to DataFrame
+        df = ds.to_dataframe().reset_index()
+
+        # Drop columns with all NaNs (optional)
+        df = df.dropna(axis=1, how='all')
+
+        # Output CSV path
+        base_name = os.path.splitext(os.path.basename(nc_file))[0]
+        csv_path = os.path.join(DATADIR, variable, f"{base_name}.csv")
+
+        # Save as CSV
+        df.to_csv(csv_path, index=False)
+        print(f"Saved CSV: {csv_path}")
+
+
+def pixelwise_agg(fn):
+    ds = xr.open_dataset(f'{DATADIR}/{variable}/{fn}', engine='netcdf4')
+    exp = ds.attrs['experiment_id']
+    mod = ds.attrs['source_id']
+    da = ds[f'{variable_short}']
+
+    if variable in ['air_temperature', 'daily_maximum_near_surface_air_temperature']:
+        da = da - 273.15
+
+    # Add model and experiment labels
+    da = da.expand_dims(dim={"model": [mod], "experiment": [exp]})
+    da.to_netcdf(f'{DATADIR}/{variable}/agg_{exp}_{mod}.nc')

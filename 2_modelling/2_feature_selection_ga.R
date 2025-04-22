@@ -116,6 +116,24 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
 
 
 
+# OPTIM GA ----------------------------------------------------------------------
+
+# ini_par <- data.frame(B0 = 80, k0 = 1, theta = 2)
+
+# for (j in 2:ncore){
+#     ini_par[j, ] <- c(
+#         ini_par[1, "B0"] * (1.5 * runif(1) + .5),
+#         ini_par[1, "k0"] * (1.5 * runif(1) + .5),
+#         ini_par[1, "theta"] * (1.5 * runif(1) + 0.5)
+#     )
+# }
+
+# conditions <- list('pars[["theta"]] > 10', 'pars[["theta"]] < 0', 'pars[["k0"]] < 0')
+
+# optim_ga(ini_par, norm_data)
+
+# --------------------------------------------------------------------------------
+
 
 
 # Genetic Algorithm integrated with optim to reduce the local minima problem by Brian Leung - March 2025.

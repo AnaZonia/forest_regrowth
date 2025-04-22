@@ -6,7 +6,7 @@ land_use <- c("lu", "fallow", "num_fires")
 landscape <- c("dist", "sur_cover")
 categorical <- c("ecoreg", "topography") # , "last_lu")
 binary <- c("floodable_forests", "protec", "indig")
-non_data_pars <- c("k0", "B0", "theta", "lag")
+non_data_pars <- c("k0", "B0", "lag")
 interval <- c("5yr", "10yr", "15yr", "all")
 
 # check permutation of

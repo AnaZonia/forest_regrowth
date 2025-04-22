@@ -36,8 +36,8 @@ calc_r2 <- function(data, pred) {
 #     - test_data  : (If provided) The test dataframe, normalized using train_data statistics
 
 normalize_independently <- function(train_data, test_data = NULL) {
-    train_data = tst
-    test_data = NULL
+    # train_data = tst
+    # test_data = NULL
     # Identify numeric columns to normalize (excluding those in exclusion_list)
     exclusion_list <- c(categorical, paste0(climatic_pars, "_"), binary, "biomass", "nearest_biomass", "age")
 
@@ -87,7 +87,7 @@ normalize_independently <- function(train_data, test_data = NULL) {
         # keep in test_data only rows with values greater than zero (those with values in the range of the training data)
         test_data <- test_data %>% filter(rowSums(test_data[clim_cols]) > 0)
         # test_data <- test_data %>% select(where(~ sum(is.na(.)) < nrow(test_data)))
-        return(list(train_data = train_data_norm, test_data = test_data, train_stats = train_stats))
+        return(list(train_data = train_data, test_data = test_data, train_stats = train_stats))
     }
 }
 
