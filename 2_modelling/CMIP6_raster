@@ -1,0 +1,167 @@
+# library(raster)
+library(terra)
+library(utils)
+library(dplyr)
+library(ggplot2)
+
+# Settings
+experiments <- c("historical", "ssp126", "ssp245", "ssp585")
+
+models <- c(
+    "hadgem3_gc31_ll", "inm_cm5_0", "inm_cm4_8",
+    "ipsl_cm6a_lr", "miroc_es2l", "mpi_esm1_2_lr"#, "ukesm1_0_ll"
+)
+
+
+cmip6_dir <- "./0_data/CMIP6/"
+
+variables <- list(
+    "ta" = "air_temperature",
+    "pr" = "precipitation",
+    "rsds" = "surface_downwelling_shortwave_radiation",
+    "mrsos" = "moisture_in_upper_portion_of_soil_column",
+    "huss" = "near_surface_specific_humidity"
+)
+    # "tas" = "near_surface_air_temperature"
+
+# Function to process .nc files and create a yearly-averaged raster
+process_model_experiment <- function(experiment, model, var_dir, var_short) {
+    model_dir <- file.path(var_dir, model)
+
+    # List all relevant .nc files
+    nc_files <- list.files(
+        path = model_dir,
+        pattern = paste0(".*", experiment, ".*\\.nc$"),
+        full.names = TRUE
+    )
+
+    combined_raster <- NULL
+
+    for (nc_file in nc_files) {
+        r <- rast(nc_file)
+        message("Loaded: ", nc_file)
+
+        num_layers <- nlyr(r)
+        num_chunks <- ceiling(num_layers / 12)
+        yearly_rasters <- list()
+
+        for (i in seq_len(num_chunks)) {
+            start_layer <- ((i - 1) * 12) + 1
+            end_layer <- min(i * 12, num_layers)
+            chunk <- r[[start_layer:end_layer]]
+            mean_layer <- app(chunk, fun = mean, na.rm = TRUE)
+            yearly_rasters[[i]] <- mean_layer
+        }
+
+        # Remove first year if it's a historical file not ending in 2014 or 2049
+        if (!grepl("2014|2049", basename(nc_file))) {
+            yearly_rasters <- yearly_rasters[-1]
+        }
+
+        yearly_stack <- do.call(c, yearly_rasters)
+
+        if (is.null(combined_raster)) {
+            combined_raster <- yearly_stack
+        } else {
+            combined_raster <- c(combined_raster, yearly_stack)
+        }
+    }
+
+    # Name bands based on the year range
+    if (grepl("historical", basename(nc_files[[1]]))) {
+        names(combined_raster) <- seq(1985, 2014)
+    } else {
+        names(combined_raster) <- seq(2015, 2049)
+    }
+
+    # Output file path
+    output_file <- file.path(model_dir, paste0(var_short, "_", experiment, "_", model, ".tif"))
+
+    writeRaster(
+        combined_raster,
+        filename = output_file,
+        filetype = "GTiff",
+        overwrite = TRUE
+    )
+    message("Saved: ", output_file)
+}
+
+
+
+# Main loop to process everything
+for (var_short in names(variables)) {
+    var_full <- variables[[var_short]]
+    var_dir <- file.path(cmip6_dir, var_full)
+
+    for (model in models) {
+        model_dir <- file.path(var_dir, model)
+        dir.create(model_dir, showWarnings = FALSE)
+
+        # Unzip model-specific files
+        zip_files <- list.files(
+            path = var_dir,
+            pattern = paste0(".*", model, ".*\\.zip$"),
+            full.names = TRUE
+        )
+
+        for (zip_file in zip_files) {
+            unzip(zipfile = zip_file, exdir = model_dir)
+            message("Unzipped: ", zip_file)
+        }
+
+        # Process each experiment
+        for (experiment in experiments) {
+            process_model_experiment(experiment, model, var_dir, var_short)
+        }
+    }
+
+    for (experiment in experiments) {
+        experiment_list <- c()
+
+        for (model in models) {
+            # Combine all models for each experiment
+            model_files <- list.files(
+                path = file.path(var_dir, model),
+                pattern = paste0(var_short, "_", experiment, "_.*\\.tif$"),
+                full.names = TRUE
+            )
+            experiment_list <- c(experiment_list, model_files)
+        }
+
+        experiment_rasters <- lapply(experiment_list, rast)
+
+        extents <- lapply(experiment_rasters, ext)
+
+        xmin_ref <- max(unlist(lapply(extents, function(x) x$xmin)))
+        xmax_ref <- min(unlist(lapply(extents, function(x) x$xmax)))
+        ymin_ref <- max(unlist(lapply(extents, function(x) x$ymin)))
+        ymax_ref <- min(unlist(lapply(extents, function(x) x$ymax)))
+
+        min_extent <- ext(xmin_ref, xmax_ref, ymin_ref, ymax_ref)
+        ref_raster <- experiment_rasters[[1]]
+
+        # Reproject and crop all rasters to the smallest extent
+        experiment_rasters_aligned <- lapply(experiment_rasters, function(r) {
+            r <- resample(r, ref_raster) # resample to a common resolution
+            r <- project(r, crs(ref_raster)) # reproject to the same CRS
+            r <- crop(r, min_extent) # crop to the smallest extent
+            return(r)
+        })
+
+        s <- sds(experiment_rasters_aligned)
+        app(s, mean)
+
+
+        output_file <- paste0(var_dir, var_short, "_", experiment, ".tif")
+
+        writeRaster(
+            combined_raster,
+            filename = output_file,
+            filetype = "GTiff",
+            overwrite = TRUE
+        )
+        message("Saved: ", output_file)
+    }
+
+}
+
