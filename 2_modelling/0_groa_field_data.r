@@ -12,8 +12,6 @@ library(tidyverse)
 field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
 sites <- read.csv("0_data/groa_field/sites.csv")
 
-head(sites)
-
 # get the ones that have more precise coordinates
 # 1km is the worst precision they get
 # buffer around that region
@@ -27,6 +25,24 @@ field <- field %>%
 # Filter the field data for aboveground biomass
 field <- subset(field, variables.name == "aboveground_biomass" & site.country == "Brazil")
 
+nrow(field)
+
+
+plot_nums <- field %>%
+    group_by(plot.id) %>%
+    summarise(n = n()) %>%
+    filter(n > 1) %>%
+    arrange(desc(n))
+# print all the plot.id that have more than one row
+table(plot_nums$n)
+
+# select only rows with plot.id that show up more than once
+field <- field %>%
+    group_by(plot.id) %>%
+    filter(n() > 1) %>%
+    ungroup()
+nrow(field)
+
 # Rename and select relevant columns
 field <- field %>%
     dplyr::rename(field_biomass = mean_ha, field_age = stand.age) %>%
@@ -38,16 +54,15 @@ field_spat <- vect(field, geom = c("long_dec", "lat_dec"))
 # Set the CRS (assuming WGS84)
 crs(field_spat) <- "+proj=longlat +datum=WGS84"
 
-# Export as a shapefile
-writeVector(field_spat, "0_data/groa_field/field_biomass.shp", overwrite = TRUE)
+# # Export as a shapefile
+# writeVector(field_spat, "0_data/groa_field/field_biomass.shp", overwrite = TRUE)
 
 # ------------------------------------------------------
 # 
 
 
 
-
-# Function to aggregate data based on age intervals
+# Calculate mean biomass per field_age
 aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {
     data %>%
         mutate(age_interval = floor({{ age_col }} + 0.5)) %>% # Group into integer intervals
@@ -57,60 +72,16 @@ aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {
 }
 
 # Apply the function to both dataframes
-field_aggregated <- aggregate_biomass(field, stand.age, mean_ha)
-field_biomass_aggregated <- aggregate_biomass(field_biomass, field_age, field_biom)
+field_aggregated <- aggregate_biomass(field, field_age, field_biomass)
 
-# Combine the aggregated data
-combined_data <- left_join(field_aggregated, field_biomass_aggregated, by = "age")
+#plot field raw data scatterplot and averages from field_aggregated overlapping
+plot(field$field_age, field$field_biomass, xlab = "Field Age", ylab = "Field Biomass", main = "Field Age vs Field Biomass")
+points(field_aggregated$age, field_aggregated$mean_biomass, col = "red", pch = 19)
 
-
-
-# # Calculate mean biomass per field_age
-# mean_field_biomass <- field %>%
-#     group_by(stand.age) %>%
-#     summarise(
-#         mean_field_biomass = mean(mean_ha, na.rm = TRUE)
-#     )
-# mean_field_biomass
-
-field <- read.csv("./0_data/groa_field/field_biomass.csv") %>%
-    # remove columns system.index and .geo
-    select(-c(system.index, .geo)) %>%
-    # make all values < 0 in column data NA
-    mutate(across(everything(), ~ ifelse(. < 0, NA, .)))
-
-field
-
-
-
-field_age_lulc <- read.csv("./0_data/groa_field/field_age_lulc.csv") %>%
-    # remove columns system.index and .geo
-    select(-c(system.index, .geo)) %>%
-    # keep only those with date > 0
-    filter(date > 0)
-
-nrow(field_age_lulc)
-
-# how many rows in field_age_lulc have all column values between the 1985 and 2020 column be exactly the same
-field_age_lulc_same <- field_age_lulc %>%
-    filter(apply(select(., 1:36), 1, function(x) length(unique(x)) > 1))
-
-head(field_age_lulc_same)
-
-
+# identify which ones are in the same site
 unified_field <- read.csv("./0_data/groa_field/unified_field.csv") %>%
     # remove columns system.index and .geo
     select(-c(system.index, .geo)) %>%
-    # make all values < 0 in column data NA
-    mutate(across(everything(), ~ ifelse(. < 0, NA, .)))
+    mutate(date = if_else(date < 0, NA_real_, date))
 
-nrow(unified_field)
-
-unified_field_date <- unified_field %>%
-    # keep only those with date > 0
-    filter(date > 0)
-
-colnames(unified_field_date)
-
-
-# identify which ones are in the same site
+plot(unified_field$field_age, field$field_biom, xlab = "Field Age", ylab = "Field Biomass", main = "Field Age vs Field Biomass")
