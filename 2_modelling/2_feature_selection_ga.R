@@ -64,52 +64,57 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
 
     should_continue <- TRUE
     # Iteratively add parameters and evaluate the model. Keep only AIC improvements.
-    for (i in 1:length(data_pars)) {
-        if (!should_continue) break
+    if (length(data_pars) == 0) {
+        return(best$par)
+    } else {
+        for (i in 1:length(data_pars)) {
+            if (!should_continue) break
 
-        # iter_df <- tibble()
-        iter_df <- foreach(j = remaining[-taken]) %dopar% {
-            # for (j in remaining[-taken]) {
-            # print(j)
-            # j = 1
-            # check for categorical variables or yearly climatic variables (to be included as a group)
-            if (data_pars[j] %in% categorical) {
-                inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
-                # } else if (data_pars[j] %in% climatic) {}
-                # inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
-            } else {
-                # as starting point, take the best values from last time
-                inipar <- c(best$par, all_pars[data_pars[j]])
+            # iter_df <- tibble()
+            iter_df <- foreach(j = remaining[-taken]) %dopar% {
+                # for (j in remaining[-taken]) {
+                # print(j)
+                # j = 1
+                # check for categorical variables or yearly climatic variables (to be included as a group)
+                if (data_pars[j] %in% categorical) {
+                    inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
+                    # } else if (data_pars[j] %in% climatic) {}
+                    # inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
+                } else {
+                    # as starting point, take the best values from last time
+                    inipar <- c(best$par, all_pars[data_pars[j]])
+                }
+
+                model <- run_optim(data, inipar, conditions)
+                iter_row <- base_row
+                iter_row[names(inipar)] <- model$par
+                iter_row["likelihood"] <- model$value
+
+                # iter_df <- bind_rows(iter_df, iter_row)
+                return(iter_row)
             }
 
-            model <- run_optim(data, inipar, conditions)
-            iter_row <- base_row
-            iter_row[names(inipar)] <- model$par
-            iter_row["likelihood"] <- model$value
+            iter_df <- as.data.frame(do.call(rbind, iter_df))
 
-            # iter_df <- bind_rows(iter_df, iter_row)
-            return(iter_row)
+            best_model <- which.min(iter_df$likelihood)
+            best_model_AIC <- 2 * iter_df$likelihood[best_model] + 2 * (i + val + 1)
+            # best_model_AIC <- iter_df$likelihood[best_model]
+
+            print(best_model_AIC)
+            if (best$AIC == 0 | best_model_AIC < best$AIC) {
+                best$AIC <- best_model_AIC
+                best$par <- iter_df[best_model, names(all_pars)]
+                best$par <- Filter(function(x) !is.na(x), best$par)
+                taken <- which(sapply(data_pars, function(x) any(grepl(x, names(best$par)))))
+                print(paste0("num parameters included: ", i, "parameters taken: ", toString(data_pars[taken])))
+            } else {
+                not_taken <- data_pars[!data_pars %in% names(best$par)]
+                print(paste("No improvement. Exiting loop. Parameters not taken:", toString(not_taken)))
+                should_continue <- FALSE
+            }
         }
-
-        iter_df <- as.data.frame(do.call(rbind, iter_df))
-
-        best_model <- which.min(iter_df$likelihood)
-        # best_model_AIC <- 2 * iter_df$likelihood[best_model] + 2 * (i + val + 1)
-        best_model_AIC <- iter_df$likelihood[best_model]
-        print(best_model_AIC)
-        if (best$AIC == 0 | best_model_AIC < best$AIC) {
-            best$AIC <- best_model_AIC
-            best$par <- iter_df[best_model, names(all_pars)]
-            best$par <- Filter(function(x) !is.na(x), best$par)
-            taken <- which(sapply(data_pars, function(x) any(grepl(x, names(best$par)))))
-            print(paste0("num parameters included: ", i, "parameters taken: ", toString(data_pars[taken])))
-        } else {
-            not_taken <- data_pars[!data_pars %in% names(best$par)]
-            print(paste("No improvement. Exiting loop. Parameters not taken:", toString(not_taken)))
-            should_continue <- FALSE
-        }
+        return(best$par)
     }
-    return(best$par)
 }
 
 

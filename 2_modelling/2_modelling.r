@@ -56,7 +56,7 @@ run_optim <- function(train_data, pars, conditions) {
 growth_curve <- function(pars, data, lag = 0) {
 
     # Define parameters that are not expected to change yearly (not prec or si)
-    non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars))
+    non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars, "age"))
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Calculate the growth rate k
@@ -68,11 +68,13 @@ growth_curve <- function(pars, data, lag = 0) {
         pars[["B0"]] <- 0
         age <- age + lag
     }
-    
+
     if (length(non_clim_pars) > 0) {
         k <- (k + rowSums(sapply(non_clim_pars, function(par) {
             pars[[par]] * data[[par]]
         }, simplify = TRUE))) * (age)
+    } else {
+        k <- k * age
     }
 
     # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)

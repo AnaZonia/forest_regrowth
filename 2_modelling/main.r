@@ -26,8 +26,8 @@ registerDoParallel(cores = ncore)
 # Load data
 biome = 1
 n_samples = 10000
-data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
 
+data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
 
 # Fit the model on the full data
 norm_data <- normalize_independently(data)$train_data
@@ -55,6 +55,7 @@ results <- data.frame()
 
 
 
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------------------------------- Check Importance of parameters included
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -69,9 +70,9 @@ for (name in names(data_pars_options(colnames(data)))) {
     result <- run_experiment("intercept", name, 1)
     print(result)
     results <- rbind(result)
-    write.csv(results, file = "results.csv", row.names = FALSE)
 }
 
+write.csv(results, file = "results.csv", row.names = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------------------------------- Check Model Forms
