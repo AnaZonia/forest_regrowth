@@ -146,7 +146,8 @@ cross_validate <- function(dataframe, basic_pars, data_pars, conditions) {
 
         # Run the model function on the training set and evaluate on the test set
         model <- run_optim(train_data, pars_init, conditions)
-        pred_cv <- growth_curve(model$par, test_data)
+        
+        pred_cv <- growth_curve(model$par, test_data, lag = model$par["lag"])
 
         # save the predicted values of each iteration of the cross validation.
         dataframe$pred_cv[indices == index] <- pred_cv
