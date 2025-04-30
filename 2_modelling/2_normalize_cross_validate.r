@@ -36,8 +36,7 @@ calc_r2 <- function(data, pred) {
 #     - test_data  : (If provided) The test dataframe, normalized using train_data statistics
 
 normalize_independently <- function(train_data, test_data = NULL) {
-    # train_data = tst
-    # test_data = NULL
+
     # Identify numeric columns to normalize (excluding those in exclusion_list)
     exclusion_list <- c(categorical, paste0(climatic_pars, "_"), binary, "biomass", "nearest_biomass", "age")
 

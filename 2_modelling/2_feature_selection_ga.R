@@ -24,7 +24,10 @@
 
 
 find_combination_pars <- function(basic_pars, data_pars, data) {
-    # data <- train_data
+    # basic_pars = c(basic_pars_options[["lag"]], "theta")
+    # data <- norm_field
+    # data_pars = c("num_fires", "dist")
+    
     # Initialize parameter vector with data parameters
     all_pars <- c(setNames(
         rep(0, length(data_pars)),
@@ -37,6 +40,10 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
         all_pars[["lag"]] <- 2.5
     } else {
         all_pars[["B0"]] <- mean(data[["biomass"]])
+    }
+
+    if ("theta" %in% basic_pars) {
+        all_pars[["theta"]] <- 1
     }
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -68,13 +75,13 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
         return(best$par)
     } else {
         for (i in 1:length(data_pars)) {
+            
             if (!should_continue) break
 
             # iter_df <- tibble()
             iter_df <- foreach(j = remaining[-taken]) %dopar% {
-                # for (j in remaining[-taken]) {
-                # print(j)
-                # j = 1
+            # for (j in remaining[-taken]) {
+
                 # check for categorical variables or yearly climatic variables (to be included as a group)
                 if (data_pars[j] %in% categorical) {
                     inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
@@ -98,7 +105,6 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
 
             best_model <- which.min(iter_df$likelihood)
             best_model_AIC <- 2 * iter_df$likelihood[best_model] + 2 * (i + val + 1)
-            # best_model_AIC <- iter_df$likelihood[best_model]
 
             print(best_model_AIC)
             if (best$AIC == 0 | best_model_AIC < best$AIC) {

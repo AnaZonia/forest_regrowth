@@ -40,6 +40,9 @@ run_optim <- function(train_data, pars, conditions) {
     } else {
         conditions <- c(conditions, list('pars["lag"] < 0'))
     }
+    if ("theta" %in% names(pars)) {
+        conditions <- c(conditions, list('pars["theta"] < 0'))
+    }
 
     return(optim(pars, likelihood, data = train_data, conditions = conditions))
 }
@@ -95,7 +98,13 @@ growth_curve <- function(pars, data, lag = 0) {
     k[which(k < 1e-10)] <- 1e-10
     k[which(k > 7)] <- 7 # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
 
-    return(pars[["B0"]] + (data[["nearest_biomass"]] - pars[["B0"]]) * (1 - exp(-k)))
+    if ("theta" %in% names(pars)) {
+        theta <- pars[["theta"]]
+    } else {
+        theta <- 1
+    }
+
+    return(pars[["B0"]] + (data[["nearest_biomass"]] - pars[["B0"]]) * (1 - exp(-k))^theta)
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

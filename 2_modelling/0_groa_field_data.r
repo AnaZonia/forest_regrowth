@@ -2,12 +2,6 @@
 
 
 
-# Load necessary libraries
-library(dplyr)
-library(terra)
-library(tidyverse)
-
-
 # -----------------------------------------------------
 field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
 sites <- read.csv("0_data/groa_field/sites.csv")
@@ -25,28 +19,19 @@ field <- field %>%
 # Filter the field data for aboveground biomass
 field <- subset(field, variables.name == "aboveground_biomass" & site.country == "Brazil")
 
-nrow(field)
-
-
 plot_nums <- field %>%
     group_by(plot.id) %>%
     summarise(n = n()) %>%
     filter(n > 1) %>%
     arrange(desc(n))
-# print all the plot.id that have more than one row
-table(plot_nums$n)
-
-# select only rows with plot.id that show up more than once
-field <- field %>%
-    group_by(plot.id) %>%
-    filter(n() > 1) %>%
-    ungroup()
-nrow(field)
+# table(plot_nums$n)
 
 # Rename and select relevant columns
 field <- field %>%
     dplyr::rename(field_biomass = mean_ha, field_age = stand.age) %>%
     dplyr::select(c(field_age, field_biomass, date, lat_dec, long_dec))
+
+head(field)
 
 # Create a SpatVector (terra object) using lat_dec and long_dec for coordinates
 field_spat <- vect(field, geom = c("long_dec", "lat_dec"))
@@ -59,6 +44,18 @@ crs(field_spat) <- "+proj=longlat +datum=WGS84"
 
 # ------------------------------------------------------
 # 
+
+# look into plots with repeated measurements
+
+# select only rows with plot.id that show up more than once
+field_repeats <- field %>%
+    group_by(plot.id) %>%
+    filter(n() > 1) %>%
+    ungroup()
+head(field_repeats)
+
+
+# --------------------------
 
 
 
@@ -78,10 +75,5 @@ field_aggregated <- aggregate_biomass(field, field_age, field_biomass)
 plot(field$field_age, field$field_biomass, xlab = "Field Age", ylab = "Field Biomass", main = "Field Age vs Field Biomass")
 points(field_aggregated$age, field_aggregated$mean_biomass, col = "red", pch = 19)
 
-# identify which ones are in the same site
-unified_field <- read.csv("./0_data/groa_field/unified_field.csv") %>%
-    # remove columns system.index and .geo
-    select(-c(system.index, .geo)) %>%
-    mutate(date = if_else(date < 0, NA_real_, date))
 
-plot(unified_field$field_age, field$field_biom, xlab = "Field Age", ylab = "Field Biomass", main = "Field Age vs Field Biomass")
+# --------------------------
