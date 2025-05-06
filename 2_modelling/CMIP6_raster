@@ -17,12 +17,12 @@ cmip6_dir <- "./0_data/CMIP6/"
 
 variables <- list(
     # "ta" = "air_temperature",
-    # "pr" = "precipitation",
+    "pr" = "precipitation",
     # "rsds" = "surface_downwelling_shortwave_radiation",
-    "mrsos" = "moisture_in_upper_portion_of_soil_column",
-    "huss" = "near_surface_specific_humidity"
+    # "mrsos" = "moisture_in_upper_portion_of_soil_column",
+    # "huss" = "near_surface_specific_humidity",
+    "tas" = "near_surface_air_temperature"
 )
-    # "tas" = "near_surface_air_temperature"
 
 # Function to process .nc files and create a yearly-averaged raster
 process_model_experiment <- function(experiment, model, var_dir, var_short) {

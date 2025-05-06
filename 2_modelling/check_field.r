@@ -38,7 +38,7 @@ unified_field <- read.csv("./0_data/groa_field/unified_field.csv") %>%
 plot(unified_field$field_age, unified_field$field_biom, xlab = "Field Age", ylab = "Field Biomass", main = "Field Age vs Field Biomass")
 
 
-
+# try it out with only 5 years old onwards to see if theta remains 1
 
 data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
 # Fit the model on the full data

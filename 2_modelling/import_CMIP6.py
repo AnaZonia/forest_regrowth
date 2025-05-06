@@ -5,31 +5,12 @@
 # Agroclimatic indicators derived https://cds.climate.copernicus.eu/datasets/sis-agroclimatic-indicators?tab=download
 
 
-# General libs for file paths, data extraction, etc
-from glob import glob
-from pathlib import Path
-from os.path import basename
-import zipfile # To extract zipfiles
+# General libs for file paths\, data extraction, etc
 import urllib3 
-urllib3.disable_warnings() # Disable warnings for data download via API
-import os
-import cftime
-from xarray.coders import CFDatetimeCoder
-
-# CDS API
 import cdsapi
-
-# Libraries for working with multi-dimensional arrays
-import numpy as np
-import xarray as xr
-import pandas as pd
-
-# Libraries for plotting and visualising data
-import matplotlib.path as mpath
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
-from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
-import cartopy.feature as cfeature
+from google.cloud import storage
+from google.cloud.storage import Client, transfer_manager
+urllib3.disable_warnings() # Disable warnings for data download via API
 
 client = cdsapi.Client()
 
@@ -74,6 +55,5 @@ def download_data(experiment, start_year, end_year, models, variable="air_temper
 
             except Exception as e:
                 print(f"⚠️ Failed to download {variable} for {model} ({experiment}, {start}-{end-1}): {e}")
-
 
 
