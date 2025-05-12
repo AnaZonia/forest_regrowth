@@ -56,6 +56,16 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
     }
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Handle climatic variables by grouping dummy variables together
+    for (clim_var in climatic_pars) {
+        dummy_indices <- grep(clim_var, data_pars)
+        if (length(dummy_indices) > 0) {
+            data_pars <- c(data_pars[-dummy_indices], clim_var)
+        }
+    }
+
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Initialize the best model with basic parameters
     remaining <- 1:length(data_pars)
     taken <- length(remaining) + 1 # out of the range of values such that remaining[-taken] = remaining for the first iteration
@@ -104,8 +114,9 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
             iter_df <- as.data.frame(do.call(rbind, iter_df))
 
             best_model <- which.min(iter_df$likelihood)
-            best_model_AIC <- 2 * iter_df$likelihood[best_model] + 2 * (i + val + 1)
-
+            # best_model_AIC <- 2 * iter_df$likelihood[best_model] + 2 * (i + val + 1)
+            best_model_AIC <- iter_df$likelihood[best_model]
+            
             print(best_model_AIC)
             if (best$AIC == 0 | best_model_AIC < best$AIC) {
                 best$AIC <- best_model_AIC

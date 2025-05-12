@@ -1,8 +1,8 @@
 # parameters.R - Define all parameter sets and configurations
 
 # Global Variables
-# climatic_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pr") # , "pdsi"
-climatic_pars <- c("sdsr", "nsat", "musc")
+climatic_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pr") # , "pdsi"
+# climatic_pars <- c("sdsr", "nsat", "musc")
 land_use <- c("lu", "fallow", "num_fires")
 landscape <- c("dist", "sur_cover")
 categorical <- c("ecoreg", "topography") # , "last_lu")
@@ -32,11 +32,11 @@ data_pars_options <- function(colnames) {
         
         environment = colnames[!grepl(paste0(c(excluded_columns, land_use, landscape, paste0(climatic_pars, "_")), collapse = "|"), colnames)],
 
-        all_no_categorical = colnames[!grepl(paste0(c(excluded_columns, paste0(climatic_pars, "_"), categorical), collapse = "|"), colnames)], # all parameters, and no categorical variables
+        # all_no_categorical = colnames[!grepl(paste0(c(excluded_columns, paste0(climatic_pars, "_"), categorical), collapse = "|"), colnames)], # all parameters, and no categorical variables
 
         all_mean_climate = colnames[!grepl(paste0(c(excluded_columns, paste0(climatic_pars, "_")), collapse = "|"), colnames)], # all parameters, and climatic variables as historical summaries,
 
-        all_yearly_climate = colnames[!grepl(paste(excluded_columns, collapse = "|"), colnames)]
+        all_yearly_climate = colnames[!grepl(paste(c(excluded_columns, "mean_srad", "mean_temp", "mean_aet"), collapse = "|"), colnames)]
         
         # all parameters, and each year's climatic variables included
         # all_yearly_climate = colnames[!grepl(paste0(c(excluded_columns, paste0("mean_", climatic_pars)), collapse = "|"), colnames)] # all parameters, and each year's climatic variables included

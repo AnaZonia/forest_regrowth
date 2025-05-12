@@ -24,32 +24,30 @@ source("2_modelling/2_perm_importance.r")
 
 # Set up parallel processing
 set.seed(1)
-ncore = 4
+ncore = 25
 registerDoParallel(cores = ncore)
 
 # Load data
 biome = 1
 n_samples = 10000
 
-data <- import_data("./0_data/unified_cmip6.csv", biome = biome, n_samples = n_samples)
+data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
 
-# remove all columns with _1 as the last two characters
-data <- data %>% select(-ends_with("_1"))
+# # remove all columns with _1 as the last two characters
+# data <- data %>% select(-ends_with("_1"))
 
-# remove all columns with years greater than 2019 (2020, 2021, 2022)
-data_future <- data
+# # remove all columns with years greater than 2019 (2020, 2021, 2022)
+# data_future <- data
 
-data <- data %>%
-    select(-matches("_(202[0-9]|20[3-4][0-9])$"))
+# data <- data %>%
+#     select(-matches("_(202[0-9]|20[3-4][0-9])$"))
 
-source("2_modelling/2_feature_selection_ga.R")
+# tst <- find_combination_pars(basic_pars = basic_pars_options[["lag"]], data_pars = data_pars_options(colnames(data))$all_yearly_climate, data = data)
 
-tst <- find_combination_pars(basic_pars = basic_pars_options[["lag"]], data_pars = data_pars_options(colnames(data))$all_yearly_climate, data = data)
+head(data)
+colnames(data)
 
-
-
-data_pars_options(colnames(data))$all_yearly_climate
-
+hist(data$mean_aet)
 
 # Function to run a single experiment
 run_experiment <- function(basic_pars_name, data_pars_name, biome) {
@@ -87,10 +85,10 @@ for (name in names(data_pars_options(colnames(data)))) {
     print("------------------------------------------------")
     for (experiment in names(basic_pars_options)) {
         print(experiment)
-        result <- run_experiment_no_cv(experiment, name, 1)
+        result <- run_experiment(experiment, name, 1)
         print(result)
         results <- rbind(results, result)
-        write.csv(results, file = "results_no_cv.csv", row.names = FALSE)
+        write.csv(results, file = "results_yearly_no_aic.csv", row.names = FALSE)
     }
 }
 
