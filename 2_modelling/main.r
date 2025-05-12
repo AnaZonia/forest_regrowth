@@ -8,6 +8,8 @@ library(FactoMineR)
 library(factoextra)
 library(cluster)
 
+library(terra)
+
 setwd("/home/aavila/Documents/forest_regrowth")
 
 # Source other scripts
@@ -22,14 +24,31 @@ source("2_modelling/2_perm_importance.r")
 
 # Set up parallel processing
 set.seed(1)
-ncore = 25
+ncore = 4
 registerDoParallel(cores = ncore)
 
 # Load data
 biome = 1
 n_samples = 10000
 
-data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
+data <- import_data("./0_data/unified_cmip6.csv", biome = biome, n_samples = n_samples)
+
+# remove all columns with _1 as the last two characters
+data <- data %>% select(-ends_with("_1"))
+
+# remove all columns with years greater than 2019 (2020, 2021, 2022)
+data_future <- data
+
+data <- data %>%
+    select(-matches("_(202[0-9]|20[3-4][0-9])$"))
+
+
+
+
+
+
+data_pars_options(colnames(data))$all_yearly_climate
+
 
 # Function to run a single experiment
 run_experiment <- function(basic_pars_name, data_pars_name, biome) {
@@ -48,32 +67,6 @@ run_experiment <- function(basic_pars_name, data_pars_name, biome) {
         biome = biome,
         mean_r2 = mean(cv_results),
         sd_r2 = sd(cv_results)
-    ))
-}
-
-
-
-# Function to run a single experiment
-run_experiment_no_cv <- function(basic_pars_name, data_pars_name, biome) {
-
-    # Get parameters
-    basic_pars <- basic_pars_options[[basic_pars_name]]
-    data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
-
-    train_data <- normalize_independently(data)$train_data
-
-    pars_init <- find_combination_pars(basic_pars, data_pars, train_data)
-
-    model <- run_optim(train_data, pars_init, conditions)
-    pred_cv <- growth_curve(model$par, train_data, lag = model$par["lag"])
-
-    r2 <- calc_r2(data, pred_cv)
-
-    # Return summary
-    return(data.frame(
-        basic_pars_name = basic_pars_name,
-        data_pars_name = data_pars_name,
-        r2 =r2
     ))
 }
 
@@ -101,3 +94,22 @@ for (name in names(data_pars_options(colnames(data)))) {
 }
 
 
+
+# select random 20% of pastureland in the Amazon and apply model predictions
+
+# export CSV with the data for all pastureland. get
+
+
+# train the model based on historical data
+
+model <- run_optim(train_data, pars_init, conditions)
+
+pred_cv <- growth_curve(model$par, new_future_data, lag = model$par["lag"])
+
+# get predictions with ages = age + 30 (for the next 30 years)
+
+points <- vect(df, geom = c("lon", "lat"), crs = "EPSG:4326")
+
+# export the shapefile with the predicted biomass in the future
+
+# later in GEE convert the shapefile to a raster at the resolution of mapbiomas
