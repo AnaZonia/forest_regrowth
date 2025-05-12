@@ -42,8 +42,9 @@ data_future <- data
 data <- data %>%
     select(-matches("_(202[0-9]|20[3-4][0-9])$"))
 
+source("2_modelling/2_feature_selection_ga.R")
 
-
+tst <- find_combination_pars(basic_pars = basic_pars_options[["lag"]], data_pars = data_pars_options(colnames(data))$all_yearly_climate, data = data)
 
 
 

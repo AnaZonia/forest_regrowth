@@ -37,8 +37,8 @@ data_pars_options <- function(colnames) {
         all_mean_climate = colnames[!grepl(paste0(c(excluded_columns, paste0(climatic_pars, "_")), collapse = "|"), colnames)], # all parameters, and climatic variables as historical summaries,
 
         all_yearly_climate = colnames[!grepl(paste(excluded_columns, collapse = "|"), colnames)]
- # all parameters, and each year's climatic variables included
-
+        
+        # all parameters, and each year's climatic variables included
         # all_yearly_climate = colnames[!grepl(paste0(c(excluded_columns, paste0("mean_", climatic_pars)), collapse = "|"), colnames)] # all parameters, and each year's climatic variables included
     ))
 }

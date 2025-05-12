@@ -85,7 +85,7 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
                 # check for categorical variables or yearly climatic variables (to be included as a group)
                 if (data_pars[j] %in% categorical) {
                     inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
-                } else if (data_pars[j] %in% climatic) {
+                } else if (data_pars[j] %in% climatic_pars) {
                     inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
                 } else {
                     # as starting point, take the best values from last time
