@@ -26,9 +26,9 @@ basic_pars_options <- list(
 
 data_pars_options <- function(colnames) {
     return(list(
-        age_only = c(),
+        # age_only = c(),
 
-        land_use_landscape = colnames[grepl(paste0(c(land_use, landscape), collapse = "|"), colnames)],
+        # land_use_landscape = colnames[grepl(paste0(c(land_use, landscape), collapse = "|"), colnames)],
         
         environment = colnames[!grepl(paste0(c(excluded_columns, land_use, landscape, paste0(climatic_pars, "_")), collapse = "|"), colnames)],
 
@@ -36,7 +36,7 @@ data_pars_options <- function(colnames) {
 
         all_mean_climate = colnames[!grepl(paste0(c(excluded_columns, paste0(climatic_pars, "_")), collapse = "|"), colnames)], # all parameters, and climatic variables as historical summaries,
 
-        all_yearly_climate = colnames[!grepl(paste(c(excluded_columns, "mean_srad", "mean_temp", "mean_aet"), collapse = "|"), colnames)]
+        all_yearly_climate = colnames[!grepl(paste(c(excluded_columns, paste0("mean_", climatic_pars)), collapse = "|"), colnames)]
         
         # all parameters, and each year's climatic variables included
         # all_yearly_climate = colnames[!grepl(paste0(c(excluded_columns, paste0("mean_", climatic_pars)), collapse = "|"), colnames)] # all parameters, and each year's climatic variables included

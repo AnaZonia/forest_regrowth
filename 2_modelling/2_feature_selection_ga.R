@@ -27,7 +27,7 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
     # basic_pars = c(basic_pars_options[["lag"]], "theta")
     # data <- norm_field
     # data_pars = c("num_fires", "dist")
-    
+
     # Initialize parameter vector with data parameters
     all_pars <- c(setNames(
         rep(0, length(data_pars)),
@@ -73,11 +73,13 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
     # best model list
     best <- list(AIC = 0)
     best[["par"]] <- all_pars[names(all_pars) %in% basic_pars]
-    val <- 0
 
     base_row <- all_pars
     base_row[names(all_pars)] <- NA
     base_row <- c(likelihood = 0, base_row)
+
+    # number of observations for AIC calculation
+    n <- nrow(data)
 
     should_continue <- TRUE
     # Iteratively add parameters and evaluate the model. Keep only AIC improvements.
@@ -85,17 +87,11 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
         return(best$par)
     } else {
         for (i in 1:length(data_pars)) {
-            
             if (!should_continue) break
 
-            # iter_df <- tibble()
             iter_df <- foreach(j = remaining[-taken]) %dopar% {
-            # for (j in remaining[-taken]) {
-
                 # check for categorical variables or yearly climatic variables (to be included as a group)
-                if (data_pars[j] %in% categorical) {
-                    inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
-                } else if (data_pars[j] %in% climatic_pars) {
+                if (data_pars[j] %in% c(categorical, climatic_pars)) {
                     inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
                 } else {
                     # as starting point, take the best values from last time
@@ -107,17 +103,17 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
                 iter_row[names(inipar)] <- model$par
                 iter_row["likelihood"] <- model$value
 
-                # iter_df <- bind_rows(iter_df, iter_row)
                 return(iter_row)
             }
 
             iter_df <- as.data.frame(do.call(rbind, iter_df))
 
             best_model <- which.min(iter_df$likelihood)
-            # best_model_AIC <- 2 * iter_df$likelihood[best_model] + 2 * (i + val + 1)
-            best_model_AIC <- iter_df$likelihood[best_model]
+
+            best_model_AIC <- 2 * (length(best$par)) + n * log(iter_df$likelihood[best_model] / n)
             
             print(best_model_AIC)
+
             if (best$AIC == 0 | best_model_AIC < best$AIC) {
                 best$AIC <- best_model_AIC
                 best$par <- iter_df[best_model, names(all_pars)]
@@ -125,11 +121,12 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
                 taken <- which(sapply(data_pars, function(x) any(grepl(x, names(best$par)))))
                 print(paste0("num parameters included: ", i, "parameters taken: ", toString(data_pars[taken])))
             } else {
-                not_taken <- data_pars[!data_pars %in% names(best$par)]
+                not_taken <- data_pars[!data_pars %in% data_pars[taken]]
                 print(paste("No improvement. Exiting loop. Parameters not taken:", toString(not_taken)))
                 should_continue <- FALSE
             }
         }
+
         return(best$par)
     }
 }

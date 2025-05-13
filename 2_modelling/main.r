@@ -24,7 +24,7 @@ source("2_modelling/2_perm_importance.r")
 
 # Set up parallel processing
 set.seed(1)
-ncore = 25
+ncore = 4
 registerDoParallel(cores = ncore)
 
 # Load data
@@ -43,11 +43,6 @@ data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samp
 #     select(-matches("_(202[0-9]|20[3-4][0-9])$"))
 
 # tst <- find_combination_pars(basic_pars = basic_pars_options[["lag"]], data_pars = data_pars_options(colnames(data))$all_yearly_climate, data = data)
-
-head(data)
-colnames(data)
-
-hist(data$mean_aet)
 
 # Function to run a single experiment
 run_experiment <- function(basic_pars_name, data_pars_name, biome) {
@@ -72,6 +67,16 @@ run_experiment <- function(basic_pars_name, data_pars_name, biome) {
 
 results <- data.frame()
 
+source("2_modelling/2_feature_selection_ga.R")
+source("2_modelling/1_parameters.r")
+
+run_experiment("lag", "environment", biome = 1)
+
+run_experiment("lag", "all_mean_climate", biome = 1)
+
+
+print(data_pars_options(colnames(data))[["all_mean_climate"]])
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------------------------------- Check Importance of parameters included
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -91,8 +96,6 @@ for (name in names(data_pars_options(colnames(data)))) {
         write.csv(results, file = "results_yearly_no_aic.csv", row.names = FALSE)
     }
 }
-
-
 
 # select random 20% of pastureland in the Amazon and apply model predictions
 

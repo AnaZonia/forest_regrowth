@@ -128,22 +128,20 @@ growth_curve <- function(pars, data, lag = 0) {
 #   growth_curve()
 
 likelihood <- function(pars, data, conditions) {
-
     if ("lag" %in% names(pars)) {
         growth_curves <- growth_curve(pars, data, pars[["lag"]])
         residuals <- growth_curves - data$biomass
-        result <- mean(residuals^2)
+        result <- sum(residuals^2)
     } else {
-        result <- mean((growth_curve(pars, data) - data$biomass)^2)
+        result <- sum((growth_curve(pars, data) - data$biomass)^2)
     }
 
     # Check whether any of the parameters is breaking the conditions (e.g. negative values)
     if (any(sapply(conditions, function(cond) eval(parse(text = cond))))) {
-    return(-Inf)
+        return(-Inf)
     } else if (is.na(result) || result == 0) {
-    return(-Inf)
+        return(-Inf)
     } else {
-    return(result)
+        return(result)
     }
-
 }

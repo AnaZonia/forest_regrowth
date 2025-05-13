@@ -32,9 +32,9 @@ import_data <- function(path, biome, n_samples = 10000) {
     df <- read.csv(path) %>%
         mutate(across(all_of(categorical), as.factor)) %>%
         filter(biome == biome) %>%
-        rename(nearest_biomass = first) %>%
+        # rename(nearest_biomass = first) %>%
+        rename(nearest_biomass = "quarter_biomass") %>%
         # rename(biomass = b1) %>%
-        # rename(nearest_biomass = quarter_biomass) %>%
             na.omit() # some pixels are in areas where soilgrids, terraclim or ESA_CCI don't have perfect coverage. These are excluded
 
     # Remove columns containing 'si_yyyy' from 1985 to 2019 and 'mean_si'
@@ -43,8 +43,8 @@ import_data <- function(path, biome, n_samples = 10000) {
     columns_to_drop <- c(si_columns, mean_si_column)
     df <- df %>% select(-all_of(c(columns_to_drop,
         "ecoreg_biomass",
-        "quarter_biomass",
-        # "first",
+        # "quarter_biomass",
+        "first",
         "quarter", "biome",
         ".geo", "system.index")))
 
