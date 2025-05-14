@@ -11,7 +11,6 @@
 import urllib3 
 import cdsapi
 from pathlib import Path
-import os
 
 client = cdsapi.Client()
 urllib3.disable_warnings() # Disable warnings for data download via API
@@ -32,19 +31,6 @@ variables = {
     "huss": "near_surface_specific_humidity"
 }
 
-def verify_model_availability(model, variable):
-    """Check if model supports requested variable"""
-    # Pre-verified combinations (update as needed)
-    model_capabilities = {
-        'hadgem3_gc31_ll': ['tas', 'pr', 'huss'],
-        'inm_cm5_0': ['tas', 'pr'],
-        'ipsl_cm6a_lr': ['tas', 'pr', 'rsds'],
-        # Add other models' capabilities
-    }
-    return variable in model_capabilities.get(model, [])
-
-
-
 def download_data(experiment, start_year, end_year, models, variable = "air_temperature"):
     """Download CMIP6 data from CDS for given experiment, years, models and variable."""
 
@@ -54,22 +40,16 @@ def download_data(experiment, start_year, end_year, models, variable = "air_temp
 
     for model in models:
 
-        # # Verify model availability for this variable
-        # if not verify_model_availability(model, variable):
-        #     print(f"⏩ Model {model} not available for {variable}")
-        #     continue
 
         for start in range(start_year, end_year, 10):
             end = min(start + 10, end_year)  # Ensure no year exceeds end_year
             year_range = [str(y) for y in range(start, end)]
-
-            print(f"📥 Downloading {variable} for {model} ({experiment}, {start_year}-{end-1})")
             
             request = {
                     "temporal_resolution": "monthly",
                     "experiment": experiment,
                     "variable": variable,
-                    "level": ["1000"],
+                    "level": "1000" if variable == "air_temperature" else None,
                     "model": model,
                     "year": year_range,
                     "month": [f"{m:02d}" for m in range(1, 13)],  # All months
@@ -77,13 +57,12 @@ def download_data(experiment, start_year, end_year, models, variable = "air_temp
                 }
 
             try:
-                print("retrieving data...")
+                print(f"✅ Submitted {variable} for {model} ({experiment}, {start}-{end})")
                 client.retrieve("projections-cmip6", request).download(f"{DATADIR}/{variable}/{variable}_{experiment}_{start}-{end}_{model}.zip")
-
-                print(f"✅ Downloaded {variable} for {model} ({experiment}, {start}-{end-1})")
+                print(f"✅ Downloaded {variable} for {model} ({experiment}, {start}-{end})")
 
             except Exception as e:
-                print(f"⚠️ Failed to download {variable} for {model} ({experiment}, {start}-{end-1}): {e}")
+                print(f"⚠️ Failed to download {variable} for {model} ({experiment}, {start}-{end}): {e}")
 
 
 def main():

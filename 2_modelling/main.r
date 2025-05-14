@@ -33,17 +33,6 @@ n_samples = 10000
 
 data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
 
-# # remove all columns with _1 as the last two characters
-# data <- data %>% select(-ends_with("_1"))
-
-# # remove all columns with years greater than 2019 (2020, 2021, 2022)
-# data_future <- data
-
-# data <- data %>%
-#     select(-matches("_(202[0-9]|20[3-4][0-9])$"))
-
-# tst <- find_combination_pars(basic_pars = basic_pars_options[["lag"]], data_pars = data_pars_options(colnames(data))$all_yearly_climate, data = data)
-
 # Function to run a single experiment
 run_experiment <- function(basic_pars_name, data_pars_name, biome) {
 
@@ -63,23 +52,6 @@ run_experiment <- function(basic_pars_name, data_pars_name, biome) {
         sd_r2 = sd(cv_results)
     ))
 }
-
-
-results <- data.frame()
-
-source("2_modelling/2_feature_selection_ga.R")
-source("2_modelling/1_parameters.r")
-source("2_modelling/2_modelling.r")
-
-basic_pars <- basic_pars_options[["intercept"]]
-data_pars <- data_pars_options(colnames(data))$environment
-data_pars
-
-data_norm <- normalize_independently(data)$train_data
-
-pars <- find_combination_pars(basic_pars, data_pars, data_norm)
-
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------------------------------- Check Importance of parameters included
