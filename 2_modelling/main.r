@@ -10,7 +10,7 @@ library(cluster)
 
 library(terra)
 
-setwd("/home/aavila/Documents/forest_regrowth")
+# setwd("/home/aavila/Documents/forest_regrowth")
 
 # Source other scripts
 source("2_modelling/1_parameters.r")
@@ -32,6 +32,8 @@ biome = 1
 n_samples = 10000
 
 data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
+coords <- data$coords
+data <- data$df
 
 # Function to run a single experiment
 run_experiment <- function(basic_pars_name, data_pars_name, biome) {
@@ -79,14 +81,23 @@ for (name in names(data_pars_options(colnames(data)))) {
 
 # train the model based on historical data
 
-model <- run_optim(train_data, pars_init, conditions)
+norm_data <- normalize_independently(data)$train_data
 
-pred_cv <- growth_curve(model$par, new_future_data, lag = model$par["lag"])
+basic_pars <- basic_pars_options[["lag"]]
+data_pars <- c("sur_cover", "ecoreg", "mean_srad", "mean_aet")
 
-# get predictions with ages = age + 30 (for the next 30 years)
+pars_init <- find_combination_pars(basic_pars, data_pars, norm_data)
 
-points <- vect(df, geom = c("lon", "lat"), crs = "EPSG:4326")
+model <- run_optim(norm_data, pars_init, conditions)
 
-# export the shapefile with the predicted biomass in the future
+future_data <- norm_data %>%
+    mutate(age = age + 30)
 
-# later in GEE convert the shapefile to a raster at the resolution of mapbiomas
+pred_future <- growth_curve(model$par, future_data, lag = model$par["lag"])
+
+coords$pred_future <- pred_future
+
+points <- vect(coords, geom = c("lon", "lat"), crs = "EPSG:4326")
+
+# save points as a shapefile
+writeVector(points, "predictions.shp", overwrite = TRUE)

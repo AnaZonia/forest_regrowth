@@ -35,13 +35,6 @@ import_data <- function(path, biome, n_samples = 10000) {
         rename(nearest_biomass = first) %>%
             na.omit() # some pixels are in areas where soilgrids, terraclim or ESA_CCI don't have perfect coverage. These are excluded
 
-    df <- df %>% select(-all_of(c(columns_to_drop,
-        "ecoreg_biomass",
-        "quarter_biomass",
-        # "first",
-        "quarter", "biome",
-        ".geo", "system.index")))
-
     # remove columns with less than 100 non-zero values
     non_zero_counts <- colSums(df != 0, na.rm = TRUE)
     df <- df[, non_zero_counts > 100]
@@ -61,6 +54,21 @@ import_data <- function(path, biome, n_samples = 10000) {
 
     df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
 
+    coords <- df %>%
+        select(.geo) %>%
+        mutate(geo_parsed = lapply(.geo, fromJSON)) %>%
+        mutate(
+            lon = sapply(geo_parsed, function(x) x$coordinates[1]),
+            lat = sapply(geo_parsed, function(x) x$coordinates[2])
+        ) %>%
+        select(lat, lon)
 
-    return(df)
+    df <- df %>% select(-all_of(c(
+        "ecoreg_biomass",
+        "quarter_biomass",
+        # "first",
+        "quarter", "biome", "system.index", ".geo"
+    )))
+
+    return(list(df = df, coords = coords))
 }
