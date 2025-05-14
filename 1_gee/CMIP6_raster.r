@@ -16,11 +16,11 @@ models <- c(
 cmip6_dir <- "./0_data/CMIP6/"
 
 variables <- list(
-    # "ta" = "air_temperature",
+    "ta" = "air_temperature",
     "pr" = "precipitation",
-    # "rsds" = "surface_downwelling_shortwave_radiation",
-    # "mrsos" = "moisture_in_upper_portion_of_soil_column",
-    # "huss" = "near_surface_specific_humidity",
+    "rsds" = "surface_downwelling_shortwave_radiation",
+    "mrsos" = "moisture_in_upper_portion_of_soil_column",
+    "huss" = "near_surface_specific_humidity",
     "tas" = "near_surface_air_temperature"
 )
 
@@ -173,6 +173,5 @@ for (var_short in names(variables)) {
         )
         message("Saved: ", output_file)
     }
-
 }
 

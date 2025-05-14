@@ -2,7 +2,7 @@
 #
 #                 Forest Regrowth Model Data Processing Functions
 #
-#                            Ana Avila - March 2025
+#                            Ana Avila - May 2025
 #
 #     This script defines the core functions used in the data processing and
 #     preparation stages of the forest regrowth modeling process.
@@ -32,19 +32,13 @@ import_data <- function(path, biome, n_samples = 10000) {
     df <- read.csv(path) %>%
         mutate(across(all_of(categorical), as.factor)) %>%
         filter(biome == biome) %>%
-        # rename(nearest_biomass = first) %>%
-        rename(nearest_biomass = "quarter_biomass") %>%
-        # rename(biomass = b1) %>%
+        rename(nearest_biomass = first) %>%
             na.omit() # some pixels are in areas where soilgrids, terraclim or ESA_CCI don't have perfect coverage. These are excluded
 
-    # Remove columns containing 'si_yyyy' from 1985 to 2019 and 'mean_si'
-    si_columns <- grep("si_(19[89]\\d|20[01]\\d)", names(df), value = TRUE) # Matches si_yyyy from 1985 to 2019
-    mean_si_column <- "mean_si"
-    columns_to_drop <- c(si_columns, mean_si_column)
     df <- df %>% select(-all_of(c(columns_to_drop,
         "ecoreg_biomass",
-        # "quarter_biomass",
-        "first",
+        "quarter_biomass",
+        # "first",
         "quarter", "biome",
         ".geo", "system.index")))
 

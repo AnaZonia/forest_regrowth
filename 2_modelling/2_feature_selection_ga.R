@@ -47,22 +47,21 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
     }
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Handle categorical variables by grouping dummy variables together
-    for (cat_var in categorical) {
-        dummy_indices <- grep(cat_var, data_pars)
-        if (length(dummy_indices) > 0) {
-            data_pars <- c(data_pars[-dummy_indices], cat_var)
+    # Helper function to group dummy variables
+    group_dummies <- function(vars, data_pars) {
+        for (var in vars) {
+            dummy_indices <- grep(paste0(var, "_"), data_pars)
+            if (length(dummy_indices) > 0) {
+                data_pars <- c(data_pars[-dummy_indices], var)
+            }
         }
+        return(data_pars)
     }
 
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Handle climatic variables by grouping dummy variables together
-    for (clim_var in climatic_pars) {
-        dummy_indices <- grep(clim_var, data_pars)
-        if (length(dummy_indices) > 0) {
-            data_pars <- c(data_pars[-dummy_indices], clim_var)
-        }
-    }
+    # Process categorical variables
+    data_pars <- group_dummies(categorical, data_pars)
+    # Process climatic variables
+    data_pars <- group_dummies(climatic_pars, data_pars)
 
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -76,10 +75,7 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
 
     base_row <- all_pars
     base_row[names(all_pars)] <- NA
-    base_row <- c(likelihood = 0, base_row)
-
-    # number of observations for AIC calculation
-    n <- nrow(data)
+    base_row <- c(RSS = 0, base_row)
 
     should_continue <- TRUE
     # Iteratively add parameters and evaluate the model. Keep only AIC improvements.
@@ -90,9 +86,10 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
             if (!should_continue) break
 
             iter_df <- foreach(j = remaining[-taken]) %dopar% {
+
                 # check for categorical variables or yearly climatic variables (to be included as a group)
                 if (data_pars[j] %in% c(categorical, climatic_pars)) {
-                    inipar <- c(best$par, all_pars[grep(data_pars[j], names(all_pars))])
+                    inipar <- c(best$par, all_pars[grep(paste0(data_pars[j], "_"), names(all_pars))])
                 } else {
                     # as starting point, take the best values from last time
                     inipar <- c(best$par, all_pars[data_pars[j]])
@@ -101,17 +98,16 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
                 model <- run_optim(data, inipar, conditions)
                 iter_row <- base_row
                 iter_row[names(inipar)] <- model$par
-                iter_row["likelihood"] <- model$value
+                iter_row["RSS"] <- model$value
 
                 return(iter_row)
             }
 
             iter_df <- as.data.frame(do.call(rbind, iter_df))
 
-            best_model <- which.min(iter_df$likelihood)
+            best_model <- which.min(iter_df$RSS)
 
-            best_model_AIC <- 2 * (length(best$par)) + n * log(iter_df$likelihood[best_model] / n)
-            
+            best_model_AIC <- 2 * (i + length(best$par)) + nrow(data) * log(iter_df$RSS[best_model] / nrow(data))
             print(best_model_AIC)
 
             if (best$AIC == 0 | best_model_AIC < best$AIC) {
@@ -119,7 +115,7 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
                 best$par <- iter_df[best_model, names(all_pars)]
                 best$par <- Filter(function(x) !is.na(x), best$par)
                 taken <- which(sapply(data_pars, function(x) any(grepl(x, names(best$par)))))
-                print(paste0("num parameters included: ", i, "parameters taken: ", toString(data_pars[taken])))
+                print(paste0(i, " parameters included: ", toString(data_pars[taken])))
             } else {
                 not_taken <- data_pars[!data_pars %in% data_pars[taken]]
                 print(paste("No improvement. Exiting loop. Parameters not taken:", toString(not_taken)))
@@ -185,7 +181,7 @@ change <- function(par, p_change) {
 optim_ga <- function(par, norm_data = norm_data, control = list(), ngen = 50, maxit = 50, p_change = c(.5, .25, .25)) # p_change - mutation, cross over, co-dominance - issue with none, is that all might be identical 
 {
 #	operations of ga - create population, select who survives based on "fitness". Has mutation and cross-over (which in this case includes independent assortment). Can also mix the values of both (e.g, take the midpoint).
-# keep the best performer. Choose the other ones based on their likelihoods. 
+# keep the best performer. Choose the other ones based on their RSSs. 
 	
     # can be passed into optim to control the number of iterations per optim run
     control$maxit = maxit
@@ -211,7 +207,7 @@ optim_ga <- function(par, norm_data = norm_data, control = list(), ngen = 50, ma
         # s is the selected individuals according to the probability p
         s <- sample(1:ncore, ncore - 1, replace = T, prob = p)
         print(mem_optim)[s, -1]
-        par[-1, ] <- mem_optim[s, -1] # take the parameter outcomes of each of the optims (remove the likelihood values)
+        par[-1, ] <- mem_optim[s, -1] # take the parameter outcomes of each of the optims (remove the RSS values)
         par <- change(par, p_change)
         print(Sys.time())
         print(c(gen, min$lk))

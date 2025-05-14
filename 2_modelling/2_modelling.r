@@ -8,15 +8,6 @@
 #     modeling process (fit_3_run_model.r)
 #
 #     Functions included:
-#     - growth_curve
-#     - likelihood
-#     - run_optim
-#     - run_lm
-#     - filter_test_data
-#     - calc_r2
-#     - cross_valid
-#     - process_row
-#     - find_combination_pars
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -44,7 +35,7 @@ run_optim <- function(train_data, pars, conditions) {
         conditions <- c(conditions, list('pars["theta"] < 0'))
     }
 
-    return(optim(pars, likelihood, data = train_data, conditions = conditions))
+    return(optim(pars, calc_rss, data = train_data, conditions = conditions))
 }
 
 
@@ -58,8 +49,9 @@ run_optim <- function(train_data, pars, conditions) {
 
 growth_curve <- function(pars, data, lag = 0) {
 
+    # I am not checking climatic variables correctly - need to add monthly or yearly separately.
     # Define parameters that are not expected to change yearly (not prec or si)
-    non_clim_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars, "age"))
+    non_yearly_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars, "age"))
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Calculate the growth rate k
@@ -72,10 +64,8 @@ growth_curve <- function(pars, data, lag = 0) {
         age <- age + lag
     }
 
-    if (length(non_clim_pars) > 0) {
-        k <- (k + rowSums(sapply(non_clim_pars, function(par) {
-            pars[[par]] * data[[par]]
-        }, simplify = TRUE))) * (age)
+    if (length(non_yearly_pars) > 0) {
+        k <- (k + rowSums(sapply(non_yearly_pars, function(par) {pars[[par]] * data[[par]]}, simplify = TRUE))) * (age)
     } else {
         k <- k * age
     }
@@ -88,9 +78,11 @@ growth_curve <- function(pars, data, lag = 0) {
             # Starting from 2019 and going back 'yrs' number of years
             last_year <- max(2019 - yrs - round(lag) + 1, 1985)
             year_seq <- seq(2019, last_year, by = -1)
+            # print(year_seq)
             clim_columns <- paste0(clim_par, "_", year_seq)
             # as.matrix(t()) is used to ensure that rowSums would work in cases with a single row
-            k[indices] <- k[indices] + rowSums(as.matrix(t(sapply(clim_columns, function(col) pars[[clim_par]] * data[[col]][indices]))))
+            # k[indices] <- k[indices] + rowSums(as.matrix(t(sapply(clim_columns, function(col) pars[[clim_par]] * data[[col]][indices]))))
+            k[indices] <- k[indices] + rowSums(sapply(clim_columns, function(col) pars[[clim_par]] * data[[col]][indices]))
         }
     }
 
@@ -112,7 +104,7 @@ growth_curve <- function(pars, data, lag = 0) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
 # Function Description:
-#   Calculates the likelihood (or sum of squared errors) for the growth curve model,
+#   Calculates the sum of squared errors for the growth curve model,
 #   incorporating parameter constraints.
 #
 # Arguments:
@@ -121,13 +113,13 @@ growth_curve <- function(pars, data, lag = 0) {
 #   conditions : List of parameter constraints expressed as character strings.
 #
 # Returns:
-#   Numeric value representing the likelihood or sum of squared errors.
+#   Numeric value representing the sum of squared errors.
 #   Returns -Inf if constraints are violated or if the result is invalid.
 #
 # External Functions:
 #   growth_curve()
 
-likelihood <- function(pars, data, conditions) {
+calc_rss <- function(pars, data, conditions) {
     if ("lag" %in% names(pars)) {
         growth_curves <- growth_curve(pars, data, pars[["lag"]])
         residuals <- growth_curves - data$biomass

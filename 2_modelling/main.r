@@ -69,13 +69,17 @@ results <- data.frame()
 
 source("2_modelling/2_feature_selection_ga.R")
 source("2_modelling/1_parameters.r")
+source("2_modelling/2_modelling.r")
 
-run_experiment("lag", "environment", biome = 1)
+basic_pars <- basic_pars_options[["intercept"]]
+data_pars <- data_pars_options(colnames(data))$environment
+data_pars
 
-run_experiment("lag", "all_mean_climate", biome = 1)
+data_norm <- normalize_independently(data)$train_data
+
+pars <- find_combination_pars(basic_pars, data_pars, data_norm)
 
 
-print(data_pars_options(colnames(data))[["all_mean_climate"]])
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------------------------------- Check Importance of parameters included
@@ -100,7 +104,6 @@ for (name in names(data_pars_options(colnames(data)))) {
 # select random 20% of pastureland in the Amazon and apply model predictions
 
 # export CSV with the data for all pastureland. get
-
 
 # train the model based on historical data
 
