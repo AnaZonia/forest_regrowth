@@ -52,23 +52,29 @@ import_data <- function(path, biome, n_samples = 10000) {
         remove_selected_columns = TRUE
     )
 
-    df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
-
-    coords <- df %>%
-        select(.geo) %>%
-        mutate(geo_parsed = lapply(.geo, fromJSON)) %>%
-        mutate(
-            lon = sapply(geo_parsed, function(x) x$coordinates[1]),
-            lat = sapply(geo_parsed, function(x) x$coordinates[2])
-        ) %>%
-        select(lat, lon)
-
     df <- df %>% select(-all_of(c(
         "ecoreg_biomass",
         "quarter_biomass",
         # "first",
-        "quarter", "biome", "system.index", ".geo"
+        "quarter", "biome", "system.index"
     )))
 
-    return(list(df = df, coords = coords))
+    if (n_samples != "all") {
+        df <- df %>%
+            select(-".geo")
+        df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
+        return(df)
+    } else {
+        coords <- df %>%
+            select(.geo) %>%
+            mutate(geo_parsed = lapply(.geo, fromJSON)) %>%
+            mutate(
+                lon = sapply(geo_parsed, function(x) x$coordinates[1]),
+                lat = sapply(geo_parsed, function(x) x$coordinates[2])
+            ) %>%
+            select(lat, lon)
+        df <- df %>%
+            select(-".geo")
+        return(list(df = df, coords = coords))
+    }
 }

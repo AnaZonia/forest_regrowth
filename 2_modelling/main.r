@@ -31,9 +31,7 @@ registerDoParallel(cores = ncore)
 biome = 1
 n_samples = 10000
 
-data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
-coords <- data$coords
-data <- data$df
+
 
 # Function to run a single experiment
 run_experiment <- function(basic_pars_name, data_pars_name, biome) {
@@ -81,6 +79,11 @@ for (name in names(data_pars_options(colnames(data)))) {
 
 # train the model based on historical data
 
+data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = "all")
+coords <- data$coords
+data <- data$df
+
+
 norm_data <- normalize_independently(data)$train_data
 
 basic_pars <- basic_pars_options[["lag"]]
@@ -93,9 +96,25 @@ model <- run_optim(norm_data, pars_init, conditions)
 future_data <- norm_data %>%
     mutate(age = age + 30)
 
-pred_future <- growth_curve(model$par, future_data, lag = model$par["lag"])
+standard_ages <- norm_data %>%
+    mutate(age = 25)
 
-coords$pred_future <- pred_future
+
+# make percent error map for 2020
+
+pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
+
+percent_error <- (pred - norm_data$nearest_biomass) / norm_data$nearest_biomass
+
+# pred_future <- growth_curve(model$par, future_data, lag = model$par["lag"])
+
+pred_standard <- growth_curve(model$par, standard_ages, lag = model$par["lag"])
+
+coords$pred_standard <- pred_standard
+coords$nearest_biomass <- standard_ages$nearest_biomass
+head(coords)
+coords$percentage <- coords$pred_standard / coords$nearest_biomass
+coords$percent_error <- percent_error
 
 points <- vect(coords, geom = c("lon", "lat"), crs = "EPSG:4326")
 
