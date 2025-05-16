@@ -23,8 +23,8 @@ models = ['hadgem3_gc31_ll', 'inm_cm5_0', 'inm_cm4_8', 'ipsl_cm6a_lr',
           'miroc_es2l', 'mpi_esm1_2_lr', 'ukesm1_0_ll']
 
 variables = {
-    "ta": "air_temperature",
-    "pr": "precipitation",
+    # "ta": "air_temperature",
+    # "pr": "precipitation",
     "rsds": "surface_downwelling_shortwave_radiation",
     "mrsos": "moisture_in_upper_portion_of_soil_column",
     "tas": "near_surface_air_temperature",

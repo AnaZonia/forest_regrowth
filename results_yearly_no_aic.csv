@@ -1,6 +1,0 @@
-"basic_pars_name","data_pars_name","biome","mean_r2","sd_r2"
-"lag","age_only",1,0.314367545544484,0.0172299711314575
-"intercept","age_only",1,0.261754026049929,0.0150286930838482
-"lag","land_use_landscape",1,0.34198467343469,0.0164656071883914
-"intercept","land_use_landscape",1,0.300339314465689,0.0168527751203122
-"lag","environment",1,0.353538710705882,0.0154126652681947
