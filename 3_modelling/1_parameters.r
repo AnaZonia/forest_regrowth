@@ -16,7 +16,7 @@ permut_check <- c("ecoreg", "num_fires", "dist", "sur_cover", "mean_srad", "mean
 # Conditions for parameter constraints
 conditions <- list('pars["k0"] < 0')
 
-excluded_columns <- c("age", "biomass", "nearest_biomass")
+excluded_columns <- c("age", "biomass", "nearest_mature")
 
 # Configuration definition
 basic_pars_options <- list(

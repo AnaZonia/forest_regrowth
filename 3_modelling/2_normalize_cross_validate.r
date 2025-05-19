@@ -38,7 +38,7 @@ calc_r2 <- function(data, pred) {
 normalize_independently <- function(train_data, test_data = NULL) {
 
     # Identify numeric columns to normalize (excluding those in exclusion_list)
-    exclusion_list <- c(categorical, paste0(climatic_pars, "_"), binary, "biomass", "nearest_biomass", "age")
+    exclusion_list <- c(categorical, paste0(climatic_pars, "_"), binary, "biomass", "nearest_mature", "age")
 
     norm_cols <- names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))]
 

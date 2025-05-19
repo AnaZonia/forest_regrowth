@@ -28,13 +28,28 @@ library(fastDummies)
 #   df              : A dataframe filtered for the selected biome, cleaned, and optionally transformed with dummy variables.
 
 import_data <- function(path, biome, n_samples = 10000) {
-    
-    df <- read.csv(path) %>%
+
+    # path = "unified_fc"
+    path = "grid_50k_amazon_all"
+
+    # if the folder exists, read all csv files in the folder and bind them together.
+    # if the folder does not exist, read the single csv file.
+    if (dir.exists(paste0("./0_data/", path))) {
+        csv_files <- list.files(paste0("./0_data/", path), pattern = "\\.csv$", full.names = TRUE)
+        df <- csv_files %>%
+            map(read_csv) %>%
+            bind_rows()
+    } else {
+        df <- read_csv(paste0("./0_data/", path, ".csv"))
+    }
+
+    # Convert categorical to factors
+    df <- df %>%
         mutate(across(all_of(categorical), as.factor)) %>%
         filter(biome == biome) %>%
-        rename(nearest_biomass = first) %>%
             na.omit() # some pixels are in areas where soilgrids, terraclim or ESA_CCI don't have perfect coverage. These are excluded
 
+    colnames(df)
     # remove columns with less than 100 non-zero values
     non_zero_counts <- colSums(df != 0, na.rm = TRUE)
     df <- df[, non_zero_counts > 100]
@@ -55,26 +70,16 @@ import_data <- function(path, biome, n_samples = 10000) {
     df <- df %>% select(-all_of(c(
         "ecoreg_biomass",
         "quarter_biomass",
-        # "first",
-        "quarter", "biome", "system.index"
+        "quarter", "biome"
     )))
 
-    if (n_samples != "all") {
-        df <- df %>%
-            select(-".geo")
+    if (n_samples == "all") {
+        coords <- df[, c("lat", "lon")]
+        features <- df[, !names(df) %in% c("lat", "lon")]
+        return(list(df = features, coords = coords))
+    } else {
+        df <- df[, !names(df) %in% c("lat", "lon")]
         df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
         return(df)
-    } else {
-        coords <- df %>%
-            select(.geo) %>%
-            mutate(geo_parsed = lapply(.geo, fromJSON)) %>%
-            mutate(
-                lon = sapply(geo_parsed, function(x) x$coordinates[1]),
-                lat = sapply(geo_parsed, function(x) x$coordinates[2])
-            ) %>%
-            select(lat, lon)
-        df <- df %>%
-            select(-".geo")
-        return(list(df = df, coords = coords))
     }
 }
