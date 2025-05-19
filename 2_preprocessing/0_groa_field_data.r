@@ -71,7 +71,7 @@ aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {
 # Apply the function to both dataframes
 field_aggregated <- aggregate_biomass(field, field_age, field_biomass)
 
-#plot field raw data scatterplot and averages from field_aggregated overlapping
+# Plot field raw data scatterplot and averages from field_aggregated overlapping
 plot(field$field_age, field$field_biomass, xlab = "Field Age", ylab = "Field Biomass", main = "Field Age vs Field Biomass")
 points(field_aggregated$age, field_aggregated$mean_biomass, col = "red", pch = 19)
 

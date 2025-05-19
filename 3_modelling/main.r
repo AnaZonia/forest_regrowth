@@ -7,7 +7,6 @@ library(tidyverse)
 library(FactoMineR)
 library(factoextra)
 library(cluster)
-
 library(terra)
 
 # setwd("/home/aavila/Documents/forest_regrowth")
@@ -30,8 +29,6 @@ registerDoParallel(cores = ncore)
 # Load data
 biome = 1
 n_samples = 10000
-
-
 
 # Function to run a single experiment
 run_experiment <- function(basic_pars_name, data_pars_name, biome) {
@@ -79,7 +76,7 @@ for (name in names(data_pars_options(colnames(data)))) {
 
 # train the model based on historical data
 
-data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = "all")
+data <- import_data("./0_data/unified_all.csv", biome = biome, n_samples = "all")
 coords <- data$coords
 data <- data$df
 
