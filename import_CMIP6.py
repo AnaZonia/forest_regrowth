@@ -17,18 +17,18 @@ urllib3.disable_warnings() # Disable warnings for data download via API
 
 DATADIR = "./0_data/CMIP6"
 
-experiments = ['historical', 'ssp126', 'ssp245', 'ssp585']
+experiments = ['historical', 'ssp1_2_6', 'ssp2_4_5', 'ssp5_8_5']
 
 models = ['hadgem3_gc31_ll', 'inm_cm5_0', 'inm_cm4_8', 'ipsl_cm6a_lr', 
           'miroc_es2l', 'mpi_esm1_2_lr', 'ukesm1_0_ll']
 
 variables = {
-    # "ta": "air_temperature",
-    # "pr": "precipitation",
+    "ta": "air_temperature",
+    "pr": "precipitation",
     "rsds": "surface_downwelling_shortwave_radiation",
-    "mrsos": "moisture_in_upper_portion_of_soil_column",
     "tas": "near_surface_air_temperature",
-    "huss": "near_surface_specific_humidity"
+    "huss": "near_surface_specific_humidity",
+    "mrsos": "moisture_in_upper_portion_of_soil_column"
 }
 
 def download_data(experiment, start_year, end_year, models, variable = "air_temperature"):
@@ -39,26 +39,33 @@ def download_data(experiment, start_year, end_year, models, variable = "air_temp
     var_dir.mkdir(parents=True, exist_ok=True)
 
     for model in models:
-
-
         for start in range(start_year, end_year, 10):
             end = min(start + 10, end_year)  # Ensure no year exceeds end_year
             year_range = [str(y) for y in range(start, end)]
             
+            filename = f"{variable}_{experiment}_{start}-{end}_{model}.zip"
+            filepath = var_dir / filename
+
+            if filepath.is_file():
+                print(f"ℹ️ File already exists: {filepath}, skipping download.")
+                continue
+
             request = {
                     "temporal_resolution": "monthly",
                     "experiment": experiment,
                     "variable": variable,
-                    "level": "1000" if variable == "air_temperature" else None,
                     "model": model,
                     "year": year_range,
                     "month": [f"{m:02d}" for m in range(1, 13)],  # All months
                     "area": [5.3, -74, -35, -34]
                 }
 
+            # Add level only for specific variables
+            if variable in ["air_temperature"]:
+                request["level"] = ["1000"]
+
             try:
-                print(f"✅ Submitted {variable} for {model} ({experiment}, {start}-{end})")
-                client.retrieve("projections-cmip6", request).download(f"{DATADIR}/{variable}/{variable}_{experiment}_{start}-{end}_{model}.zip")
+                client.retrieve("projections-cmip6", request).download(str(filepath))
                 print(f"✅ Downloaded {variable} for {model} ({experiment}, {start}-{end})")
 
             except Exception as e:
