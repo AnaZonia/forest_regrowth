@@ -130,32 +130,58 @@ def desired_lulc():
 
     return age, lulc
 
-# ------------------------------ Map Visualization ------------------------------
-# The high-resolution NICFI basemap is used for visualization purposes.
+# ------------------------------ Create grid ------------------------------
+# Used in gee_5_mature and gee_6_write_csv
 
-class MapManager:
-    """Manage map visualization for Earth Engine data."""
-    def __init__(self):
-        """Initialize map visualization parameters."""
-        self.nicfi = ee.ImageCollection('projects/planet-nicfi/assets/basemaps/americas')
-        self.basemap = self.nicfi.filter(ee.Filter.date('2020-03-01', '2020-12-01')).first()
-        self.vis_planet = {'bands': ['R', 'G', 'B'], 'min': 64, 'max': 5454, 'gamma': 1.8}
-        self.agbd_palette = {'min': 0, 'max': 400, 'palette': ['yellow', 'green']}
-        self.age_palette = {'min': 0, 'max': 35, 'palette': ['white', 'red']}
-        self.mask_palette = {'min': 0, 'max': 1, 'palette': ['white', 'black']}
+def create_grid(image, region_name, cell_size = 10000, file_name = None):
+    
+    config = ProjectConfig()
+    biomes = ee.Image(f"{config.data_folder}/categorical").select("biome")
 
-    def init_map(self):
-        """Initialize a new map centered on a specific location."""
-        return geemap.Map(center=[-3.5, -60], zoom=10)
+    pixels_to_sample = biomes.updateMask(image)
 
-    def add_basemap(self, map_obj):
-        """Add a NICFI basemap to the map."""
-        map_obj.addLayer(self.basemap, self.vis_planet, 'NICFI Basemap')
+    if region_name == "amazon":
+        biome_index = 1
+    elif region_name == "atlantic":
+        biome_index = 4
 
-    def add_agbd_layer(self, map_obj, agbd_data):
-        """Add an Above Ground Biomass Density layer to the map."""
-        map_obj.addLayer(agbd_data, self.agbd_palette, 'AGBD')
+    roi = ee.FeatureCollection(f"{config.data_folder}/raw/biomes_br").filterMetadata('CD_Bioma', 'equals', biome_index).geometry()
 
-    def add_age_layer(self, map_obj, age_data):
-        """Add an age layer to the map."""
-        map_obj.addLayer(age_data, self.age_palette, 'Age')
+    # First, sample locations based only on the age band
+    grid = geemap.create_grid(roi, cell_size, 'EPSG:4326')
+
+    # Function to sample one point per valid cell
+    def sample_cell(cell):
+        sampled_fc = pixels_to_sample.stratifiedSample(
+            numPoints = 1,
+            classBand = 'biome',
+            region = cell.geometry(),
+            scale = cell_size,
+            geometries = True,
+            dropNulls = True
+        )
+
+        # Only return a feature if we found one
+        return ee.Feature(ee.Algorithms.If(
+            sampled_fc.size().gt(0),
+            sampled_fc.first(),
+            # Return a placeholder that we can filter out later
+            ee.Feature(ee.Geometry.Point([0, 0])).set('is_null', True)
+        ))
+
+    samples = grid.map(sample_cell)
+
+    # Filter out placeholder features before exporting
+    samples = samples.filter(ee.Filter.notEquals('is_null', True))
+
+    if file_name is None:
+        return samples
+    else:
+        export_name = f"grid_{cell_size//1000}k_{region_name}_{file_name}"
+
+        export_task = ee.batch.Export.table.toAsset(
+            collection = samples,
+            description = export_name,
+            assetId = f"{config.data_folder}/{export_name}"
+        )
+        export_task.start()
