@@ -29,9 +29,6 @@ library(fastDummies)
 
 import_data <- function(path, biome, n_samples = 10000) {
 
-    # path = "unified_fc"
-    path = "grid_50k_amazon_all"
-
     # if the folder exists, read all csv files in the folder and bind them together.
     # if the folder does not exist, read the single csv file.
     if (dir.exists(paste0("./0_data/", path))) {
@@ -41,6 +38,9 @@ import_data <- function(path, biome, n_samples = 10000) {
             bind_rows()
     } else {
         df <- read_csv(paste0("./0_data/", path, ".csv"))
+        df <- df %>%
+            select(-c(".geo", "system:index")) %>%
+            rename(nearest_mature = first)
     }
 
     # Convert categorical to factors
@@ -49,7 +49,6 @@ import_data <- function(path, biome, n_samples = 10000) {
         filter(biome == biome) %>%
             na.omit() # some pixels are in areas where soilgrids, terraclim or ESA_CCI don't have perfect coverage. These are excluded
 
-    colnames(df)
     # remove columns with less than 100 non-zero values
     non_zero_counts <- colSums(df != 0, na.rm = TRUE)
     df <- df[, non_zero_counts > 100]

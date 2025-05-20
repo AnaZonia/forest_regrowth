@@ -41,14 +41,14 @@ normalize_independently <- function(train_data, test_data = NULL) {
     exclusion_list <- c(categorical, paste0(climatic_pars, "_"), binary, "biomass", "nearest_mature", "age")
 
     norm_cols <- names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))]
-
+    
     # Compute summary statistics
     train_stats <- data.frame(
         variable = norm_cols,
         min = sapply(norm_cols, function(var) min(train_data[[var]], na.rm = TRUE)),
         max = sapply(norm_cols, function(var) max(train_data[[var]], na.rm = TRUE))
     )
-
+    
     # Apply Min-Max scaling using the precomputed min and max
     for (i in seq_along(norm_cols)) {
         var <- norm_cols[i]
@@ -61,10 +61,13 @@ normalize_independently <- function(train_data, test_data = NULL) {
         }
     }
 
+    
     # Compute normalization statistics for each climatic variable across all years
     for (clim_par in climatic_pars) {
         clim_cols <- names(train_data)[grepl(paste0(clim_par, "_"), names(train_data))]
-
+        if (length(clim_cols) == 0) {
+            next
+        }
         # Compute summary statistics
         clim_stats <- data.frame(
             variable = paste0(clim_par, "_"),
@@ -76,16 +79,14 @@ normalize_independently <- function(train_data, test_data = NULL) {
 
         if (!is.null(test_data)) {
             test_data[clim_cols] <- (test_data[clim_cols] - clim_stats$min) / (clim_stats$max - clim_stats$min)
+            test_data <- test_data %>% filter(rowSums(test_data[clim_cols]) > 0)
         }
     }
-
 
     if (is.null(test_data)) {
         return(list(train_data = train_data, train_stats = train_stats))
     } else {
         # keep in test_data only rows with values greater than zero (those with values in the range of the training data)
-        test_data <- test_data %>% filter(rowSums(test_data[clim_cols]) > 0)
-        # test_data <- test_data %>% select(where(~ sum(is.na(.)) < nrow(test_data)))
         return(list(train_data = train_data, test_data = test_data, train_stats = train_stats))
     }
 }
@@ -125,12 +126,17 @@ normalize_independently <- function(train_data, test_data = NULL) {
 
 
 cross_validate <- function(dataframe, basic_pars, data_pars, conditions) {
+    # dataframe <- data
+    # basic_pars <- basic_pars_options[["lag"]]
+    # data_pars <- c("num_fires", "sur_cover")
+
     indices <- sample(c(1:5), nrow(dataframe), replace = TRUE)
     dataframe$pred_cv <- NA
     dataframe$pred_final <- NA
     r2_list <- numeric(5)
 
     for (index in 1:5) {
+
         # Define the test and train sets
         test_data <- dataframe[indices == index, -grep("pred", names(dataframe))]
         train_data <- dataframe[indices != index, -grep("pred", names(dataframe))]

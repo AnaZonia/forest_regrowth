@@ -26,7 +26,7 @@ basic_pars_options <- list(
 
 data_pars_options <- function(colnames) {
     return(list(
-        # age_only = c(),
+        age_only = c(),
 
         # land_use_landscape = colnames[grepl(paste0(c(land_use, landscape), collapse = "|"), colnames)],
 
