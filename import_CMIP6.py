@@ -17,18 +17,18 @@ urllib3.disable_warnings() # Disable warnings for data download via API
 
 DATADIR = "./0_data/CMIP6"
 
-experiments = ['historical', 'ssp1_2_6', 'ssp2_4_5', 'ssp5_8_5']
+experiments = ['historical']#, 'ssp1_2_6', 'ssp2_4_5', 'ssp5_8_5']
 
 models = ['hadgem3_gc31_ll', 'inm_cm5_0', 'inm_cm4_8', 'ipsl_cm6a_lr', 
           'miroc_es2l', 'mpi_esm1_2_lr', 'ukesm1_0_ll']
 
 variables = {
-    "ta": "air_temperature",
-    "pr": "precipitation",
-    "rsds": "surface_downwelling_shortwave_radiation",
-    "tas": "near_surface_air_temperature",
-    "huss": "near_surface_specific_humidity",
-    "mrsos": "moisture_in_upper_portion_of_soil_column"
+    "ta": "air_temperature", # K
+    "pr": "precipitation", # kg m-2 s-1
+    "rsds": "surface_downwelling_shortwave_radiation", # W m-2
+    "tas": "near_surface_air_temperature", # K
+    "huss": "near_surface_specific_humidity", # no units
+    "mrsos": "moisture_in_upper_portion_of_soil_column" # kg m-2
 }
 
 def download_data(experiment, start_year, end_year, models, variable = "air_temperature"):
@@ -83,9 +83,9 @@ def main():
         for exp in experiments:
             # Set temporal ranges
             if exp == 'historical':
-                start, end = 1950, 2014  # Historical period
+                start, end = 1950, 2015  # Historical period
             else:
-                start, end = 2015, 2075  # Future scenarios
+                start, end = 2015, 2076  # Future scenarios
 
             print(f"\n📥 Downloading {variable} ({exp.upper()} {start}-{end})")
             download_data(

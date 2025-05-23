@@ -11,7 +11,6 @@ library(doParallel)
 library(tidyverse)
 library(terra)
 
-
 source("3_modelling/1_parameters.r")
 source("3_modelling/1_data_processing.r")
 source("3_modelling/2_modelling.r")
@@ -24,11 +23,9 @@ ncore <- 4
 registerDoParallel(cores = ncore)
 
 biome <- 1
-n_samples <- 10000
 
 model_lag <- readRDS("./0_results/amazon_model_lag.rds")
 model_intercept <- readRDS("./0_results/amazon_model_intercept.rds")
-
 
 # Import Secondary Forest Data
 data <- import_data("grid_1k_amazon_secondary", biome = biome, n_samples = "all")
@@ -37,6 +34,7 @@ data <- data$df
 
 # Apply Min-Max scaling using the precomputed min and max
 train_stats <- readRDS("./0_results/grid_1k_amazon_secondary_train_stats.rds")
+
 for (i in seq_along(train_stats$variable)) {
     var <- train_stats$variable[i]
     print(var)
@@ -52,38 +50,19 @@ for (i in seq_along(train_stats$variable)) {
 
 predict_future_biomass <- function(data, model, age_offset) {
     data <- data %>% mutate(age = age + age_offset)
-    growth_curve(model$par, data, lag = model$par["lag"])
+    growth_curve(model$par, data)
 }
 
 pred_lag_2050 <- predict_future_biomass(data, model_lag, 30)
 pred_lag_2075 <- predict_future_biomass(data, model_lag, 55)
+
 pred_intercept_2050 <- predict_future_biomass(data, model_intercept, 30)
 pred_intercept_2075 <- predict_future_biomass(data, model_intercept, 55)
 
-median(pred_lag_2050)
-median(pred_intercept_2050)
-median(pred_lag_2075)
-median(pred_intercept_2075)
 
-# # Load ggplot2
-# library(ggplot2)
-
-# # Combine the data into a single dataframe for plotting
-# data_to_plot <- data.frame(
-#     value = c(pred_lag_2050, pred_intercept_2050),
-#     type = c(rep("Lag Model", length(pred_lag_2050)), rep("Intercept Model", length(pred_intercept_2050)))
-# )
-
-# # Create overlapping histograms
-# ggplot(data_to_plot, aes(x = value, fill = type)) +
-#     geom_histogram(alpha = 0.5, position = "identity", bins = 30) +
-#     labs(
-#         title = "Overlapping Histograms of Predictions for 2050",
-#         x = "Predicted Biomass",
-#         y = "Frequency",
-#         fill = "Model Type"
-#     ) +
-#     theme_minimal()
+coords$pred_lag_2050 <- pred_lag_2050
+points <- vect(coords, geom = c("lon", "lat"), crs = "EPSG:4326")
+writeVector(points, "pred_lag_2050.shp", overwrite = TRUE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ~~~~~~~~~~~~~~~~~~~~ Whole Amazon ~~~~~~~~~~~~~~~~~~~~
@@ -109,32 +88,31 @@ relative_growth_rate <- function(data, model) {
 relative_lag <- relative_growth_rate(data, model_lag)
 relative_intercept <- relative_growth_rate(data, model_intercept)
 
-median(relative_lag)
-median(relative_intercept)
 
-model_intercept$par
-
-# coords$percentage <- coords$pred_relative / norm_data$nearest_biomass
-# coords$pred_relative <- pred_relative
+coords$percentage <- (relative_lag * 100) / data$nearest_mature
+coords$pred_40_years <- relative_lag
+points <- vect(coords, geom = c("lon", "lat"), crs = "EPSG:4326")
+# save points as a shapefile
+writeVector(points, "relative_growth.shp", overwrite = TRUE)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Percent error map for 2020
+# Error map for 2020
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Find what is the estimated biomass
 # when hypothetically all pixels
 # are at the same age (25 years)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
+# get error in magnitude
+# add 1 to the data$biomass with 0 values
+# data$biomass[data$biomass == 0] <- 1
+data$biomass[data$biomass == 0] <- 1
 
-coords$percent_error <- (pred - norm_data$nearest_biomass) / norm_data$nearest_biomass
+pred <- growth_curve(model_lag$par, data, model_lag$par["lag"])
 
-
-
-
+coords$error <- ((pred - data$biomass) / data$biomass) * 100
 
 points <- vect(coords, geom = c("lon", "lat"), crs = "EPSG:4326")
-
 # save points as a shapefile
-writeVector(points, "predictions.shp", overwrite = TRUE)
+writeVector(points, "percent_error.shp", overwrite = TRUE)

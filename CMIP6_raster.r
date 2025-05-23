@@ -5,13 +5,12 @@ library(dplyr)
 library(ggplot2)
 
 # Settings
-experiments <- c("historical", "ssp126", "ssp245", "ssp585")
+experiments <- c("ssp126", "ssp245", "ssp585") # "historical",
 
 models <- c(
-    "hadgem3_gc31_ll", "inm_cm5_0", "inm_cm4_8",
-    "ipsl_cm6a_lr", "miroc_es2l", "mpi_esm1_2_lr"#, "ukesm1_0_ll"
+    "inm_cm5_0", "inm_cm4_8",
+    "ipsl_cm6a_lr", "miroc_es2l", "mpi_esm1_2_lr"#, "ukesm1_0_ll" has two types of files - clarify later if worth including
 )
-
 
 cmip6_dir <- "./0_data/CMIP6/"
 
@@ -24,9 +23,18 @@ variables <- list(
     "tas" = "near_surface_air_temperature"
 )
 
-# Function to process .nc files and create a yearly-averaged raster
+seconds_in_month <- c(
+    2678400, 2419200, 2678400, 2592000, 2678400, 2592000, 2678400,
+    2678400, 2592000, 2678400, 2592000, 2678400
+) # typical non-leap year
+
+
+# ====================================
+# FUNCTION: Process Single Model × Experiment
+# Obtains .nc files and creates a yearly-averaged raster
+# ====================================
+
 process_model_experiment <- function(experiment, model, var_dir, var_short) {
-    model_dir <- file.path(var_dir, model)
 
     # List all relevant .nc files
     nc_files <- list.files(
@@ -54,14 +62,17 @@ process_model_experiment <- function(experiment, model, var_dir, var_short) {
             start_layer <- ((i - 1) * 12) + 1
             end_layer <- min(i * 12, num_layers)
             chunk <- r[[start_layer:end_layer]]
-            mean_layer <- app(chunk, fun = mean, na.rm = TRUE)
-            yearly_rasters[[i]] <- mean_layer
+            if (var_short in c("tas", "ta", "huss", "mrsos")) {
+                layer <- app(chunk, fun = mean, na.rm = TRUE)
+            } if (var_short == "pr"){
+                weighted <- chunk * seconds_in_month
+                layer <- app(weighted, fun = sum, na.rm = TRUE)
+            } else { # rsds
+                layer <- app(chunk, fun = sum, na.rm = TRUE)
+            }
+            yearly_rasters[[i]] <- layer
         }
 
-        # Remove first year if it's a historical file not ending in 2014 or 2049
-        if (!grepl("2014|2049", basename(nc_file))) {
-            yearly_rasters <- yearly_rasters[-1]
-        }
 
         yearly_stack <- do.call(c, yearly_rasters)
 
@@ -74,9 +85,9 @@ process_model_experiment <- function(experiment, model, var_dir, var_short) {
 
     # Name bands based on the year range
     if (grepl("historical", basename(nc_files[[1]]))) {
-        names(combined_raster) <- seq(1985, 2014)
+        names(combined_raster) <- seq(1950, 2014)
     } else {
-        names(combined_raster) <- seq(2015, 2049)
+        names(combined_raster) <- seq(2015, 2074)
     }
 
     # Output file path
