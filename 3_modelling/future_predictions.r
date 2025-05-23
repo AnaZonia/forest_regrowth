@@ -59,10 +59,23 @@ pred_lag_2075 <- predict_future_biomass(data, model_lag, 55)
 pred_intercept_2050 <- predict_future_biomass(data, model_intercept, 30)
 pred_intercept_2075 <- predict_future_biomass(data, model_intercept, 55)
 
-
 coords$pred_lag_2050 <- pred_lag_2050
 points <- vect(coords, geom = c("lon", "lat"), crs = "EPSG:4326")
 writeVector(points, "pred_lag_2050.shp", overwrite = TRUE)
+
+# each 1000x1000 m pixel is 1 million m2.
+# convert to hectares
+# 1 hectare = 10,000 m2
+# 1 million m2 = 100 hectares
+data$pasture_area <- data$pasture_area * 100 # convert to hectares
+
+# convert biomass in Mg/ha to C/ha (assuming 50% C content)
+pred_lag_2050 <- pred_lag_2050 * 0.5
+
+# total biomass in Mg
+total_biomass <- sum(pred_lag_2050 * data$pasture_area, na.rm = TRUE)
+# convert to Gg
+total_biomass <- total_biomass / 1000 # convert to Gg
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ~~~~~~~~~~~~~~~~~~~~ Whole Amazon ~~~~~~~~~~~~~~~~~~~~
@@ -116,3 +129,10 @@ coords$error <- ((pred - data$biomass) / data$biomass) * 100
 points <- vect(coords, geom = c("lon", "lat"), crs = "EPSG:4326")
 # save points as a shapefile
 writeVector(points, "percent_error.shp", overwrite = TRUE)
+
+# is more error found in slower areas?
+
+lm(coords$percentage ~ coords$error)
+
+# is more error found in areas of lower initial biomass?
+lm(data$biomass ~ coords$error)

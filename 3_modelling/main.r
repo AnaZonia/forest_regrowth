@@ -54,23 +54,21 @@ run_experiment <- function(basic_pars_name, data_pars_name, biome) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 results <- data.frame()
-# data <- import_data("grid_1k_amazon_secondary", biome = biome, n_samples = 10000)
+data <- import_data("grid_1k_amazon_secondary", biome = biome, n_samples = 10000)
 
-data <- import_data("unified_fc", biome = biome, n_samples = 10000)
+sink("./0_results/amazon_experiments_output.txt")
 
-sink("./0_results/amazon_experiments_output1.txt")
+for (name in names(data_pars_options(colnames(data)))) {
+    print(data_pars_options(colnames(data))[[name]])
+    print("------------------------------------------------")
 
-# # for (name in names(data_pars_options(colnames(data)))) {
-#     print(data_pars_options(colnames(data))[[name]])
-#     print("------------------------------------------------")
-
-name <- "all_mean_climate"
-for (experiment in names(basic_pars_options)) {
-    print(experiment)
-    result <- run_experiment(experiment, name, 1)
-    print(result)
-    results <- rbind(results, result)
-    write.csv(results, file = "./0_results/amazon_experiments.csv", row.names = FALSE)
+    for (experiment in names(basic_pars_options)) {
+        print(experiment)
+        result <- run_experiment(experiment, name, 1)
+        print(result)
+        results <- rbind(results, result)
+        write.csv(results, file = "./0_results/amazon_experiments.csv", row.names = FALSE)
+    }
 }
 
 sink()
@@ -82,8 +80,6 @@ sink()
 # biome = Amazon
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-data <- import_data("grid_1k_amazon_secondary", biome = biome, n_samples = 10000)
-# remove columns .geo and system:index
 
 norm_data <- normalize_independently(data)
 saveRDS(norm_data$train_stats, file = "./0_results/grid_1k_amazon_secondary_train_stats.rds")
@@ -104,9 +100,3 @@ fit_and_save_model <- function(basic_pars_name) {
 # ---- Fit Models ----
 model_lag <- fit_and_save_model("lag")
 model_intercept <- fit_and_save_model("intercept")
-
-pred_lag_2050 <- predict_future_biomass(norm_data, model_lag, 30)
-pred_lag_2075 <- predict_future_biomass(norm_data, model_lag, 55)
-pred_intercept_2050 <- predict_future_biomass(norm_data, model_intercept, 30)
-pred_intercept_2075 <- predict_future_biomass(norm_data, model_intercept, 55)
-
