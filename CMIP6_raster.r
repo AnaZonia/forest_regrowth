@@ -23,10 +23,14 @@ variables <- list(
     "tas" = "near_surface_air_temperature"
 )
 
+# For precipitation conversion
 seconds_in_month <- c(
     2678400, 2419200, 2678400, 2592000, 2678400, 2592000, 2678400,
     2678400, 2592000, 2678400, 2592000, 2678400
 ) # typical non-leap year
+
+# For solar radiation conversion)
+hours_in_month <- c(744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744)
 
 
 # ====================================
@@ -62,17 +66,30 @@ process_model_experiment <- function(experiment, model, var_dir, var_short) {
             start_layer <- ((i - 1) * 12) + 1
             end_layer <- min(i * 12, num_layers)
             chunk <- r[[start_layer:end_layer]]
+            
             if (var_short in c("tas", "ta", "huss", "mrsos")) {
+                # Variables that should be averaged
                 layer <- app(chunk, fun = mean, na.rm = TRUE)
-            } if (var_short == "pr"){
+            } else if (var_short == "pr") {
+                # Precipitation: weight by seconds and sum
                 weighted <- chunk * seconds_in_month
                 layer <- app(weighted, fun = sum, na.rm = TRUE)
-            } else { # rsds
-                layer <- app(chunk, fun = sum, na.rm = TRUE)
+            } else if (var_short == "rsds") {
+                # Solar radiation: convert W/m² to kWh/m²/year
+                # Each monthly layer (W/m²) * hours in month / 1000 = kWh/m²/month
+                weighted_solar <- list()
+                for (month_idx in 1:min(12, nlyr(chunk))) {
+                    monthly_layer <- chunk[[month_idx]]
+                    # Convert W/m² to kWh/m²: multiply by hours, divide by 1000
+                    monthly_energy <- monthly_layer * hours_in_month[month_idx] / 1000
+                    weighted_solar[[month_idx]] <- monthly_energy
+                }
+                # Sum all monthly energy values for annual total
+                solar_stack <- do.call(c, weighted_solar)
+                layer <- app(solar_stack, fun = sum, na.rm = TRUE)
             }
             yearly_rasters[[i]] <- layer
         }
-
 
         yearly_stack <- do.call(c, yearly_rasters)
 
@@ -149,6 +166,11 @@ for (var_short in names(variables)) {
                 full.names = TRUE
             )
             experiment_list <- c(experiment_list, model_files)
+        }
+
+        if (length(experiment_list) == 0) {
+            message("No model files found for experiment: ", experiment)
+            next
         }
 
         experiment_rasters <- lapply(experiment_list, rast)
