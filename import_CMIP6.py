@@ -83,7 +83,7 @@ def main():
         for exp in experiments:
             # Set temporal ranges
             if exp == 'historical':
-                start, end = 1950, 2015  # Historical period
+                start, end = 2010, 2015  # Historical period
             else:
                 start, end = 2015, 2076  # Future scenarios
 

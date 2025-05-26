@@ -17,14 +17,13 @@ field <- field %>%
         left_join(sites %>% dplyr::select(site.id, site.country, site.state, lat_dec, long_dec), by = "site.id")
 
 # Filter the field data for aboveground biomass
-field <- subset(field, variables.name == "aboveground_biomass" & site.country == "Brazil")
+field <- subset(field, variables.name == "aboveground_biomass" & site.country == "Brazil") # same units as ESA CCI - Mg/ha
 
 plot_nums <- field %>%
     group_by(plot.id) %>%
     summarise(n = n()) %>%
     filter(n > 1) %>%
     arrange(desc(n))
-# table(plot_nums$n)
 
 # Rename and select relevant columns
 field <- field %>%
