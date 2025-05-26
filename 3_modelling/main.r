@@ -21,7 +21,7 @@ source("3_modelling/2_feature_selection_ga.R")
 
 # Set up parallel processing
 set.seed(1)
-ncore = 25
+ncore = 4
 registerDoParallel(cores = ncore)
 
 biome = 1
@@ -80,9 +80,37 @@ sink()
 # biome = Amazon
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-data <- import_data("unified_fc", biome = biome, n_samples = 10000)
+data <- import_data("grid_1k_amazon_secondary", biome = biome, n_samples = "all")
+data <- data$df
+data2 <- import_data("unified_fc", biome = biome, n_samples = 20000)
 
-hist(data$nearest_mature)
+par(mfrow = c(4, 2), mar = c(4, 4, 2, 1)) # 4 rows, 2 columns
+
+# sur_cover
+hist(data$sur_cover, main = "sur_cover (unified_fc)", xlab = "", col = "skyblue")
+hist(data2$sur_cover, main = "sur_cover (grid_1k)", xlab = "", col = "orange")
+
+# num_fires
+hist(data$num_fires, main = "num_fires (unified_fc)", xlab = "", col = "skyblue")
+hist(data2$num_fires, main = "num_fires (grid_1k)", xlab = "", col = "orange")
+
+# biomass
+hist(data$biomass, main = "biomass (unified_fc)", xlab = "", col = "skyblue")
+hist(data2$biomass, main = "biomass (grid_1k)", xlab = "", col = "orange")
+
+# nearest_mature
+hist(data$nearest_mature, main = "nearest_mature (unified_fc)", xlab = "", col = "skyblue")
+hist(data2$nearest_mature, main = "nearest_mature (grid_1k)", xlab = "", col = "orange")
+
+# print mean of each variable for data and data2
+print(paste("Mean sur_cover (unified_fc):", mean(data$sur_cover)))
+print(paste("Mean sur_cover (grid_1k):", mean(data2$sur_cover)))
+print(paste("Mean num_fires (unified_fc):", mean(data$num_fires)))
+print(paste("Mean num_fires (grid_1k):", mean(data2$num_fires)))
+print(paste("Mean biomass (unified_fc):", mean(data$biomass)))
+print(paste("Mean biomass (grid_1k):", mean(data2$biomass)))
+print(paste("Mean nearest_mature (unified_fc):", mean(data$nearest_mature)))
+print(paste("Mean nearest_mature (grid_1k):", mean(data2$nearest_mature)))
 
 norm_data <- normalize_independently(data)
 # saveRDS(norm_data$train_stats, file = "./0_results/grid_1k_amazon_secondary_train_stats.rds")

@@ -36,8 +36,8 @@ import_data <- function(path, biome, n_samples = 10000) {
         df <- csv_files %>%
             map(read_csv) %>%
             bind_rows()
-        df <- df %>% rename(dist = distance_deep_forest) %>%
-            select(-"secondary_area")
+        # df <- df %>% rename(dist = distance_deep_forest) %>%
+            # select(-"secondary_area")
     } else {
         df <- read_csv(paste0("./0_data/", path, ".csv"))
         df <- df %>%
