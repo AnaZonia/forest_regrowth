@@ -53,8 +53,6 @@ apply_min_max_scaling <- function(data, train_stats) {
 predict_future_biomass <- function(name, model, age_offset, pasture_selection = "random") {
     # Import Secondary Forest Data
     data <- import_data(paste0("grid_1k_amazon_", name), biome = biome, n_samples = "all")
-    # rename distance_deep_forest to dist
-    data$df <- data$df %>% rename(dist = distance_deep_forest)
     coords <- data$coords
     data <- apply_min_max_scaling(data$df, train_stats)
 
