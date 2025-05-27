@@ -24,9 +24,10 @@
 
 
 find_combination_pars <- function(basic_pars, data_pars, data) {
-    # basic_pars = c(basic_pars_options[["lag"]])
-    # data <- train_data
-    # data_pars = c("num_fires")
+    # basic_pars = c(basic_pars_options[["intercept"]])
+    # data <- norm_data
+    # data_pars = c("aet", "temp")
+    # data_pars = c("temp", "def", "srad", "vpd", "aet", "pr", "pdsi")
 
     # Initialize parameter vector with data parameters
     all_pars <- c(setNames(
@@ -48,20 +49,12 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Helper function to group dummy variables
-    group_dummies <- function(vars, data_pars) {
-        for (var in vars) {
-            dummy_indices <- grep(paste0(var, "_"), data_pars)
-            if (length(dummy_indices) > 0) {
-                data_pars <- c(data_pars[-dummy_indices], var)
-            }
+    for (var in categorical) {
+        dummy_indices <- grep(paste0(var, "_"), data_pars)
+        if (length(dummy_indices) > 0) {
+            data_pars <- c(data_pars[-dummy_indices], var)
         }
-        return(data_pars)
     }
-
-    # Process categorical variables
-    data_pars <- group_dummies(categorical, data_pars)
-    # Process climatic variables
-    data_pars <- group_dummies(climatic_pars, data_pars)
 
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -85,10 +78,10 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
         for (i in 1:length(data_pars)) {
             if (!should_continue) break
 
-            iter_df <- foreach(j = remaining[-taken]) %dopar% {
+            iter_df <- foreach(j = remaining[-taken], .combine = rbind) %dopar% {
 
-                # check for categorical variables or yearly climatic variables (to be included as a group)
-                if (data_pars[j] %in% c(categorical, climatic_pars)) {
+                # check for categorical variables (to be included as a group)
+                if (data_pars[j] %in% c(categorical)) {
                     inipar <- c(best$par, all_pars[grep(paste0(data_pars[j], "_"), names(all_pars))])
                 } else {
                     # as starting point, take the best values from last time
@@ -103,12 +96,10 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
                 return(iter_row)
             }
 
-            iter_df <- as.data.frame(do.call(rbind, iter_df))
-
+            iter_df <- as.data.frame(iter_df)
             best_model <- which.min(iter_df$RSS)
 
             best_model_AIC <- 2 * (i + length(best$par)) + nrow(data) * log(iter_df$RSS[best_model] / nrow(data))
-            print(best_model_AIC)
 
             if (best$AIC == 0 | best_model_AIC < best$AIC) {
                 best$AIC <- best_model_AIC

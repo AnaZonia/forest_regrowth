@@ -70,44 +70,6 @@ for (data_pars_name in names(data_pars_options(colnames(data)))) {
 
 # sink()
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Save coefficients of climatic variables with different asymptotes
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-asymptotes <- c("nearest_mature", "ecoreg_biomass", "quarter_biomass")
-
-# output_file <- "./0_results/climate_pars_by_asymptote.txt"
-# cat("", file = output_file)  # Clear file at start
-
-for (asymptote in asymptotes) {
-    print(paste("Asymptote:", asymptote))
-
-    basic_pars <- basic_pars_options[["lag"]]
-    # data_pars <- data_pars_options(colnames(data))[["environment"]]
-
-    data <- import_data("grid_10k_amazon_secondary", biome = biome, n_samples = 10000, asymptote = asymptote)
-
-    norm_data <- normalize_independently(data)
-    norm_data <- norm_data$train_data
-
-    data_pars <- c("mean_srad", "mean_soil", "mean_temp", "mean_vpd", "mean_aet", "mean_def", "mean_pr", "mean_pdsi")
-
-    init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
-
-    model <- run_optim(norm_data, init_pars, conditions)
-
-    pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
-
-    model_pars <- as.data.frame(t(model$par))
-    r2 <- calc_r2(norm_data, pred)
-
-    cat("Asymptote:", asymptote, "\n", file = output_file, append = TRUE)
-    cat("R²:", r2, "\n", file = output_file, append = TRUE)
-    cat("Parameters:\n", file = output_file, append = TRUE)
-    cat(capture.output(print(model$par)), sep = "\n", file = output_file, append = TRUE)
-    cat("\n\n", file = output_file, append = TRUE)
-}
-
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -132,3 +94,38 @@ basic_pars <- basic_pars_options[[basic_pars_name]]
 init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
 model <- run_optim(norm_data, init_pars, conditions)
 # saveRDS(model, file = paste0("./0_results/amazon_model_", basic_pars_name, ".rds", sep = ""))
+
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# compare mean climate and yearly climate
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+data <- import_data("grid_10k_amazon_secondary", biome = biome, n_samples = 10000)
+head(data)
+norm_data <- normalize_independently(data)
+# saveRDS(norm_data$train_stats, file = "./0_results/grid_1k_amazon_secondary_train_stats.rds")
+norm_data <- norm_data$train_data
+head(norm_data)
+
+
+
+data_pars_options <- list(
+    # mean_climate = colnames(data)[grepl(paste(c(paste0("mean_", climatic_pars)), collapse = "|"), colnames(data))], # 0.372253 (srad, temp, def, pdsi)
+
+    yearly_climate = c("temp", "def", "srad", "vpd", "aet", "pr", "pdsi")
+)
+
+
+for (data_pars_name in names(data_pars_options)) {
+    print(data_pars_name)
+    basic_pars <- basic_pars_options[["intercept"]]
+    data_pars <- data_pars_options[[data_pars_name]]
+    init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
+    model <- run_optim(norm_data, init_pars, conditions)
+    pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
+    r2 <- calc_r2(norm_data, pred)
+    r2
+}

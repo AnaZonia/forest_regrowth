@@ -70,15 +70,15 @@ growth_curve <- function(pars, data, lag = 0) {
         k <- k * age
     }
 
+
     # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
     for (clim_par in intersect(climatic_pars, names(pars))) {
         for (yrs in 1:max(data[["age"]])) {
             indices <- which(data[["age"]] == yrs)
             # Generate a sequence of years for the current age group
-            # Starting from 2019 and going back 'yrs' number of years
-            last_year <- max(2019 - yrs - round(lag) + 1, 1985)
+            # Starting from 2019 and going back 'yrs' number of years (stopping in 1958 as the earliest year)
+            last_year <- max(2019 - yrs - round(lag) + 1, 1958)
             year_seq <- seq(2019, last_year, by = -1)
-            # print(year_seq)
             clim_columns <- paste0(clim_par, "_", year_seq)
             # as.matrix(t()) is used to ensure that rowSums would work in cases with a single row
             # k[indices] <- k[indices] + rowSums(as.matrix(t(sapply(clim_columns, function(col) pars[[clim_par]] * data[[col]][indices]))))
