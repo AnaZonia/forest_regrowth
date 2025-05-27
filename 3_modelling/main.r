@@ -79,49 +79,36 @@ sink()
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # biome = Amazon
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Import data and remove missing values
 
-data <- import_data("grid_1k_amazon_secondary", biome = biome, n_samples = "all")
-data <- data$df
-data2 <- import_data("unified_fc", biome = biome, n_samples = 20000)
 
-par(mfrow = c(4, 2), mar = c(4, 4, 2, 1)) # 4 rows, 2 columns
 
-# sur_cover
-hist(data$sur_cover, main = "sur_cover (unified_fc)", xlab = "", col = "skyblue")
-hist(data2$sur_cover, main = "sur_cover (grid_1k)", xlab = "", col = "orange")
+# data <- import_data("unified_fc_ESA_CCI_new", biome = biome, n_samples = 10000)
 
-# num_fires
-hist(data$num_fires, main = "num_fires (unified_fc)", xlab = "", col = "skyblue")
-hist(data2$num_fires, main = "num_fires (grid_1k)", xlab = "", col = "orange")
+data <- read.csv("./0_data/unified_old_data.csv")
+head(data)
+# remove columns system.index, .geo and nearest_mature_smooth
+data <- data %>%
+    select(-c(system.index, .geo)) %>%
+    na.omit()
 
-# biomass
-hist(data$biomass, main = "biomass (unified_fc)", xlab = "", col = "skyblue")
-hist(data2$biomass, main = "biomass (grid_1k)", xlab = "", col = "orange")
+# rename nearest_mature_smooth to nearest_mature
+data <- data %>%
+    rename(nearest_mature = first)
 
-# nearest_mature
-hist(data$nearest_mature, main = "nearest_mature (unified_fc)", xlab = "", col = "skyblue")
-hist(data2$nearest_mature, main = "nearest_mature (grid_1k)", xlab = "", col = "orange")
-
-# print mean of each variable for data and data2
-print(paste("Mean sur_cover (unified_fc):", mean(data$sur_cover)))
-print(paste("Mean sur_cover (grid_1k):", mean(data2$sur_cover)))
-print(paste("Mean num_fires (unified_fc):", mean(data$num_fires)))
-print(paste("Mean num_fires (grid_1k):", mean(data2$num_fires)))
-print(paste("Mean biomass (unified_fc):", mean(data$biomass)))
-print(paste("Mean biomass (grid_1k):", mean(data2$biomass)))
-print(paste("Mean nearest_mature (unified_fc):", mean(data$nearest_mature)))
-print(paste("Mean nearest_mature (grid_1k):", mean(data2$nearest_mature)))
-
+# data <- import_data("grid_10k_amazon_secondary_unsmoothed", biome = biome, n_samples = 10000)
+# data <- data$df
+head(data)
 norm_data <- normalize_independently(data)
 # saveRDS(norm_data$train_stats, file = "./0_results/grid_1k_amazon_secondary_train_stats.rds")
 norm_data <- norm_data$train_data
-
+head(norm_data)
 
 # ---- Helper to Fit and Save Model ----
 fit_and_save_model <- function(basic_pars_name) {
     basic_pars <- basic_pars_options[[basic_pars_name]]
     # data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
-    data_pars <- c("num_fires", "sur_cover")
+    data_pars <- c()
     init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
     model <- run_optim(norm_data, init_pars, conditions)
     # saveRDS(model, file = paste0("./0_results/amazon_model_", basic_pars_name, ".rds", sep = ""))
@@ -134,9 +121,3 @@ model_lag <- fit_and_save_model("lag")
 pred_lag <- growth_curve(model_lag$par, norm_data, lag = model_lag$par["lag"])
 calc_r2(norm_data, pred_lag)
 
-
-
-
-
-
-model_intercept <- fit_and_save_model("intercept")
