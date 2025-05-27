@@ -136,7 +136,7 @@ cross_validate <- function(dataframe, basic_pars, data_pars, conditions) {
     r2_list <- numeric(5)
 
     for (index in 1:5) {
-
+        # index <- 1
         # Define the test and train sets
         test_data <- dataframe[indices == index, -grep("pred", names(dataframe))]
         train_data <- dataframe[indices != index, -grep("pred", names(dataframe))]

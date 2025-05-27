@@ -24,9 +24,9 @@
 
 
 find_combination_pars <- function(basic_pars, data_pars, data) {
-    # basic_pars = c(basic_pars_options[["lag"]], "theta")
-    # data <- norm_data
-    # data_pars = c("num_fires", "dist")
+    # basic_pars = c(basic_pars_options[["lag"]])
+    # data <- train_data
+    # data_pars = c("num_fires")
 
     # Initialize parameter vector with data parameters
     all_pars <- c(setNames(

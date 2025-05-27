@@ -54,25 +54,24 @@ run_experiment <- function(basic_pars_name, data_pars_name, biome) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 results <- data.frame()
-data <- import_data("grid_1k_amazon_secondary", biome = biome, n_samples = 10000)
+data <- import_data("grid_10k_amazon_secondary", biome = biome, n_samples = 10000)
 
-sink("./0_results/amazon_experiments_output.txt")
+# sink("./0_results/amazon_experiments_output.txt")
 
-for (name in names(data_pars_options(colnames(data)))) {
-    print(data_pars_options(colnames(data))[[name]])
+for (data_pars_name in names(data_pars_options(colnames(data)))) {
+    print(data_pars_options(colnames(data))[[data_pars_name]])
     print("------------------------------------------------")
 
     for (experiment in names(basic_pars_options)) {
         print(experiment)
-        result <- run_experiment(experiment, name, 1)
+        result <- run_experiment(experiment, data_pars_name, 1)
         print(result)
         results <- rbind(results, result)
         write.csv(results, file = "./0_results/amazon_experiments.csv", row.names = FALSE)
     }
 }
 
-sink()
-
+# sink()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Save trained model for the best parameters
@@ -83,21 +82,7 @@ sink()
 
 
 
-# data <- import_data("unified_fc_ESA_CCI_new", biome = biome, n_samples = 10000)
-
-data <- read.csv("./0_data/unified_old_data.csv")
-head(data)
-# remove columns system.index, .geo and nearest_mature_smooth
-data <- data %>%
-    select(-c(system.index, .geo)) %>%
-    na.omit()
-
-# rename nearest_mature_smooth to nearest_mature
-data <- data %>%
-    rename(nearest_mature = first)
-
-# data <- import_data("grid_10k_amazon_secondary_unsmoothed", biome = biome, n_samples = 10000)
-# data <- data$df
+data <- import_data("grid_10k_amazon_secondary", biome = biome, n_samples = 10000)
 head(data)
 norm_data <- normalize_independently(data)
 # saveRDS(norm_data$train_stats, file = "./0_results/grid_1k_amazon_secondary_train_stats.rds")
@@ -108,7 +93,6 @@ head(norm_data)
 fit_and_save_model <- function(basic_pars_name) {
     basic_pars <- basic_pars_options[[basic_pars_name]]
     # data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
-    data_pars <- c()
     init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
     model <- run_optim(norm_data, init_pars, conditions)
     # saveRDS(model, file = paste0("./0_results/amazon_model_", basic_pars_name, ".rds", sep = ""))
@@ -118,6 +102,8 @@ fit_and_save_model <- function(basic_pars_name) {
 # ---- Fit Models ----
 model_lag <- fit_and_save_model("lag")
 
-pred_lag <- growth_curve(model_lag$par, norm_data, lag = model_lag$par["lag"])
-calc_r2(norm_data, pred_lag)
+# pred_lag <- growth_curve(model_lag$par, norm_data, lag = model_lag$par["lag"])
+# calc_r2(norm_data, pred_lag)
+
+
 

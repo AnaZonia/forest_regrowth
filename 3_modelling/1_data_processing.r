@@ -36,8 +36,8 @@ import_data <- function(path, biome, n_samples = 10000) {
         df <- csv_files %>%
             map(read_csv) %>%
             bind_rows()
-        # df <- df %>% rename(dist = distance_deep_forest) %>%
-            # select(-"secondary_area")
+        df <- df %>% rename(dist = distance_deep_forest) %>%
+            select(-"secondary_area")
     } else {
         df <- read_csv(paste0("./0_data/", path, ".csv"))
         df <- df %>%
@@ -45,35 +45,35 @@ import_data <- function(path, biome, n_samples = 10000) {
             rename(nearest_mature = first)
     }
 
+    # Convert categorical to factors
+    df <- df %>%
+        mutate(across(all_of(categorical), as.factor)) %>%
+        filter(biome == biome)
+
     df <- na.omit(df)
 
-    # # Convert categorical to factors
-    # df <- df %>%
-    #     mutate(across(all_of(categorical), as.factor)) %>%
-    #     filter(biome == biome) 
+    # remove columns with less than 100 non-zero values
+    non_zero_counts <- colSums(df != 0, na.rm = TRUE)
+    df <- df[, non_zero_counts > 100]
 
-    # # remove columns with less than 100 non-zero values
-    # non_zero_counts <- colSums(df != 0, na.rm = TRUE)
-    # df <- df[, non_zero_counts > 100]
-
-    # # remove columns with less than 50 unique values
-    # df <- df %>%
-    #     group_by(across(all_of(categorical))) %>%
-    #     filter(n() >= 50) %>%
-    #     ungroup() %>%
-    #     mutate(across(all_of(categorical), droplevels))
+    # remove columns with less than 50 unique values
+    df <- df %>%
+        group_by(across(all_of(categorical))) %>%
+        filter(n() >= 50) %>%
+        ungroup() %>%
+        mutate(across(all_of(categorical), droplevels))
     
-    # df <- dummy_cols(df,
-    #     select_columns = categorical,
-    #     remove_first_dummy = TRUE,
-    #     remove_selected_columns = TRUE
-    # )
+    df <- dummy_cols(df,
+        select_columns = categorical,
+        remove_first_dummy = TRUE,
+        remove_selected_columns = TRUE
+    )
 
-    # df <- df %>% select(-all_of(c(
-    #     "ecoreg_biomass",
-    #     "quarter_biomass",
-    #     "quarter", "biome"
-    # )))
+    df <- df %>% select(-all_of(c(
+        "ecoreg_biomass",
+        "quarter_biomass",
+        "quarter", "biome"
+    )))
 
     if (n_samples == "all") {
         coords <- df[, c("lat", "lon")]
