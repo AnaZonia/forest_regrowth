@@ -27,7 +27,7 @@ library(fastDummies)
 # Returns:
 #   df              : A dataframe filtered for the selected biome, cleaned, and optionally transformed with dummy variables.
 
-import_data <- function(path, biome, n_samples = 10000) {
+import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mature") {
 
     # if the folder exists, read all csv files in the folder and bind them together.
     # if the folder does not exist, read the single csv file.
@@ -69,9 +69,11 @@ import_data <- function(path, biome, n_samples = 10000) {
         remove_selected_columns = TRUE
     )
 
-    df <- df %>% select(-all_of(c(
-        "ecoreg_biomass",
-        "quarter_biomass",
+    asymptotes <- c("nearest_mature", "ecoreg_biomass", "quarter_biomass")
+    # remove the columns in asymptotes that are not the designated asymptote
+    # rename to asymptote the column named the same as the value of asymptote
+    df <- df %>% rename(asymptote = !!sym(asymptote))
+    df <- df %>% select(-all_of(c(asymptotes[asymptotes != asymptote],
         "quarter", "biome"
     )))
 

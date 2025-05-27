@@ -38,7 +38,7 @@ calc_r2 <- function(data, pred) {
 normalize_independently <- function(train_data, test_data = NULL) {
 
     # Identify numeric columns to normalize (excluding those in exclusion_list)
-    exclusion_list <- c(categorical, paste0(climatic_pars, "_"), binary, "biomass", "nearest_mature", "age")
+    exclusion_list <- c(categorical, paste0(climatic_pars, "_"), binary, "biomass", "asymptote", "age")
 
     norm_cols <- names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))]
     
@@ -79,7 +79,6 @@ normalize_independently <- function(train_data, test_data = NULL) {
 
         if (!is.null(test_data)) {
             test_data[clim_cols] <- (test_data[clim_cols] - clim_stats$min) / (clim_stats$max - clim_stats$min)
-            test_data <- test_data %>% filter(rowSums(test_data[clim_cols]) > 0)
         }
     }
 
@@ -134,15 +133,16 @@ cross_validate <- function(dataframe, basic_pars, data_pars, conditions) {
     dataframe$pred_cv <- NA
     dataframe$pred_final <- NA
     r2_list <- numeric(5)
+    print(nrow(dataframe))
 
     for (index in 1:5) {
         # index <- 1
         # Define the test and train sets
         test_data <- dataframe[indices == index, -grep("pred", names(dataframe))]
         train_data <- dataframe[indices != index, -grep("pred", names(dataframe))]
+
         # Normalize training and test sets independently, but using training data's min/max for both
         norm_data <- normalize_independently(train_data, test_data)
-
         train_data <- norm_data$train_data
         test_data <- norm_data$test_data
 

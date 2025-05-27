@@ -1,7 +1,7 @@
 # parameters.R - Define all parameter sets and configurations
 
 # Global Variables
-climatic_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pr", "pdsi", "si")
+climatic_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pr", "pdsi")
 # climatic_pars <- c("sdsr", "nsat", "musc")
 land_use <- c("lu", "fallow", "num_fires")
 landscape <- c("dist", "sur_cover")
@@ -16,7 +16,7 @@ permut_check <- c("ecoreg", "num_fires", "dist", "sur_cover", "mean_srad", "mean
 # Conditions for parameter constraints
 conditions <- list('pars["k0"] < 0')
 
-excluded_columns <- c("age", "biomass", "nearest_mature")
+excluded_columns <- c("age", "biomass", "asymptote")
 
 # Configuration definition
 basic_pars_options <- list(
