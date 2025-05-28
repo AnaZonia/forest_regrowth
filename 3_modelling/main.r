@@ -21,7 +21,7 @@ source("3_modelling/2_feature_selection_ga.R")
 
 # Set up parallel processing
 set.seed(1)
-ncore = 25
+ncore = 4
 registerDoParallel(cores = ncore)
 
 biome = 1
@@ -95,7 +95,7 @@ init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
 model <- run_optim(norm_data, init_pars, conditions)
 # saveRDS(model, file = paste0("./0_results/amazon_model_", basic_pars_name, ".rds", sep = ""))
 
-
+ 
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -110,12 +110,10 @@ norm_data <- normalize_independently(data)
 norm_data <- norm_data$train_data
 head(norm_data)
 
-
-
+climatic_pars <- c("srad", "temp", "def", "vpd", "pr", "pdsi", "aet")
 data_pars_options <- list(
-    # mean_climate = colnames(data)[grepl(paste(c(paste0("mean_", climatic_pars)), collapse = "|"), colnames(data))], # 0.372253 (srad, temp, def, pdsi)
-
-    yearly_climate = c("temp", "def", "srad", "vpd", "aet", "pr", "pdsi")
+    # mean_climate = colnames(data)[grepl(paste(c(paste0("mean_", climatic_pars)), collapse = "|"), colnames(data))],
+    yearly_climate = climatic_pars
 )
 
 
@@ -125,7 +123,15 @@ for (data_pars_name in names(data_pars_options)) {
     data_pars <- data_pars_options[[data_pars_name]]
     init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
     model <- run_optim(norm_data, init_pars, conditions)
-    pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
+    pred <- growth_curve(model$par, norm_data)
     r2 <- calc_r2(norm_data, pred)
-    r2
+    print(r2)
 }
+
+# intercept
+# mean_climatic - 0.3217656 (srad, temp, def, pdsi)
+# yearly - 0.3185027
+# lag
+# mean_climatic - 0.372253 (srad, temp, def, pdsi)
+
+# , lag = model$par["lag"]

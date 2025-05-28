@@ -78,8 +78,7 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
         for (i in 1:length(data_pars)) {
             if (!should_continue) break
 
-            iter_df <- foreach(j = remaining[-taken], .combine = rbind) %dopar% {
-
+            iter_df <- foreach(j = remaining[-taken]) %dopar% {
                 # check for categorical variables (to be included as a group)
                 if (data_pars[j] %in% c(categorical)) {
                     inipar <- c(best$par, all_pars[grep(paste0(data_pars[j], "_"), names(all_pars))])
@@ -96,9 +95,8 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
                 return(iter_row)
             }
 
-            iter_df <- as.data.frame(iter_df)
+            iter_df <- as.data.frame(do.call(rbind, iter_df))
             best_model <- which.min(iter_df$RSS)
-
             best_model_AIC <- 2 * (i + length(best$par)) + nrow(data) * log(iter_df$RSS[best_model] / nrow(data))
 
             if (best$AIC == 0 | best_model_AIC < best$AIC) {
