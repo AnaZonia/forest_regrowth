@@ -1,3 +1,5 @@
+
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
 #                 Forest Regrowth Model Functions and Utilities
@@ -119,23 +121,30 @@ growth_curve <- function(pars, data, lag = 0) {
 
     # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
     for (clim_par in intersect(climatic_pars, names(pars))) {
-        for (yr in 1:max(data[["age"]])) {
+        last_year <- 1985
+        year_seq <- seq(last_year, 2019)
+        clim_columns <- paste0(clim_par, "_", year_seq)
+        # print(clim_columns)
 
-            indices <- which(data[["age"]] == yr)
-            # Generate a sequence of years for the current age group
-            # Starting from 2019 and going back 'yrs' number of years (stopping in 1958 as the earliest year)
-            last_year <- max(2019 - yr - round(lag) + 1, 1959)
-            lag_rounded <- max(round(lag), 0)
-            last_year <- max(2019 - yr - lag_rounded + 1, 1959)
-            year_seq <- seq(2019, last_year, by = -1)
-            clim_columns <- paste0(clim_par, "_", year_seq)
+        k[indices] <- k[indices] + pars[[clim_par]] * rowMeans(sapply(clim_columns, function(col) data[[col]][indices]))
 
-            # Add the contribution individually or as an average
+        # for (yr in 1:max(data[["age"]])) {
 
-            k[indices] <- k[indices] + pars[[clim_par]] * rowMeans(sapply(clim_columns, function(col) data[[col]][indices]))
+        #     indices <- which(data[["age"]] == yr)
+        #     # Generate a sequence of years for the current age group
+        #     # Starting from 2019 and going back 'yrs' number of years (stopping in 1958 as the earliest year)
+        #     last_year <- max(2019 - yr - round(lag) + 1, 1959)
+        #     lag_rounded <- max(round(lag), 0)
+        #     last_year <- max(2019 - yr - lag_rounded + 1, 1959)
+        #     year_seq <- seq(last_year, 2019)
+        #     clim_columns <- paste0(clim_par, "_", year_seq)
 
-            # k[indices] <- k[indices] + pars[[clim_par]] * rowSums(sapply(clim_columns, function(col) data[[col]][indices]))
-        }
+        #     # Add the contribution individually or as an average
+
+        #     k[indices] <- k[indices] + pars[[clim_par]] * rowMeans(sapply(clim_columns, function(col) data[[col]][indices]))
+
+        #     # k[indices] <- k[indices] + pars[[clim_par]] * rowSums(sapply(clim_columns, function(col) data[[col]][indices]))
+        # }
     }
 
     # Constrains k to avoid negative values

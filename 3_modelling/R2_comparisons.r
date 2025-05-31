@@ -22,7 +22,6 @@ registerDoParallel(cores = ncore)
 biome = 1
 n_samples = 10000
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Check Importance of parameters included
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
