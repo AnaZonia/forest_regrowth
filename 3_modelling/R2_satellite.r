@@ -12,7 +12,7 @@ source("3_modelling/1_parameters.r")
 source("3_modelling/1_data_processing.r")
 source("3_modelling/2_modelling.r")
 source("3_modelling/2_normalize_cross_validate.r")
-source("3_modelling/2_feature_selection_ga.R")
+source("3_modelling/2_feature_selection.R")
 
 # Set up parallel processing
 set.seed(1)

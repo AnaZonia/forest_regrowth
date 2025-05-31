@@ -7,9 +7,9 @@ library(ggplot2)
 
 
 # Settings
-experiments <- c("historical") # "ssp126", "ssp245", "ssp585") # 
+experiments <- c("historical", "ssp126", "ssp245", "ssp585") 
 
-models <- c(
+models <- c("hadgem3_gc31_ll",
     "inm_cm5_0", "inm_cm4_8",
     "ipsl_cm6a_lr", "miroc_es2l", "mpi_esm1_2_lr"#, "ukesm1_0_ll" has two types of files - clarify later if worth including
 )
@@ -33,7 +33,6 @@ seconds_in_month <- c(
 
 # For solar radiation conversion)
 hours_in_month <- c(744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744)
-
 
 # ====================================
 # FUNCTION: Process Single Model × Experiment
@@ -106,7 +105,7 @@ process_model_experiment <- function(experiment, model, var_dir, var_short) {
 
     # Name bands based on the year range
     if (grepl("historical", basename(nc_files[[1]]))) {
-        names(combined_raster) <- seq(1950, 2015)
+        names(combined_raster) <- seq(1950, 2014)
     } else {
         names(combined_raster) <- seq(2015, 2074)
     }

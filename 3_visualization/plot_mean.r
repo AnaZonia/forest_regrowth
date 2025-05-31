@@ -2,40 +2,20 @@
 library(foreach)
 library(doParallel)
 library(tidyverse)
-library(FactoMineR)
-library(factoextra)
 library(cluster)
 
-# get data for plotting
-# source("2_R_scripts/1_modelling.r")
-source("2_R_scripts/modelling_no_theta.r")
-source("2_R_scripts/1_data_processing.r")
-source("2_R_scripts/1_parameters.r")
+# Source other scripts
+source("3_modelling/1_parameters.r")
+source("3_modelling/1_data_processing.r")
+source("3_modelling/2_modelling.r")
+source("3_modelling/2_normalize_cross_validate.r")
+source("3_modelling/2_feature_selection.R")
+
 
 biome = 1
 n_samples = 10000
 set.seed(1)
 registerDoParallel(cores = 4)
-
-# --------------------------------- Plotting ---------------------------------#
-
-field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
-sites <- read.csv("0_data/groa_field/sites.csv")
-
-# Clean up duplicates in sites
-sites <- sites %>%
-    dplyr::distinct(site.id, .keep_all = TRUE)
-
-sites <- subset(sites, site.state %in% c("Acre", "Amazonas", "Amapá", "Pará", "Rondônia", "Roraima", "Tocantins"))
-
-field <- field %>%
-    filter(site.id %in% sites$site.id)
-
-field_aggregated <- field %>%
-        mutate(age_interval = floor(stand.age + 0.5)) %>% # Group into integer intervals
-        group_by(age_interval) %>%
-        summarise(mean_biomass = mean(mean_ha, na.rm = TRUE)) %>%
-        rename(age = age_interval)
 
 
 # --------------------------------- Plotting ---------------------------------#
@@ -43,7 +23,7 @@ field_aggregated <- field %>%
 
 conditions <- list('pars["k0"] < 0')
 
-data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples) %>%
+data <- import_data("unified_fc", biome = biome, n_samples = n_samples) %>%
         # rename(biomass = b1) %>%
         select(-c(mean_pdsi))
 
@@ -51,7 +31,7 @@ norm <- normalize_independently(data)
 norm_data <- norm$train_data
 norm_stats <- norm$train_stats
 
-pars_init <- find_combination_pars(basic_pars = c("B0", "k0"), "data_pars" = c("protec", "indig", "sur_cover"), norm_data)
+pars_init <- find_combination_pars(basic_pars = c("lag", "k0"), "data_pars" = c("protec", "indig", "sur_cover"), norm_data)
 pars_init
 
 final_model <- run_optim(norm_data, pars_init, conditions)

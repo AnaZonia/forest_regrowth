@@ -1,6 +1,55 @@
+
+
+
+
 # Load necessary libraries
 library(tidyverse)
 library(ggplot2)
+
+
+
+# --------------------------------- Plotting ---------------------------------#
+
+field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
+sites <- read.csv("0_data/groa_field/sites.csv")
+
+# Clean up duplicates in sites
+sites <- sites %>%
+    dplyr::distinct(site.id, .keep_all = TRUE)
+
+sites <- subset(sites, site.state %in% c("Acre", "Amazonas", "Amapá", "Pará", "Rondônia", "Roraima", "Tocantins"))
+
+field <- field %>%
+    filter(site.id %in% sites$site.id)
+
+field_aggregated <- field %>%
+    mutate(age_interval = floor(stand.age + 0.5)) %>% # Group into integer intervals
+    group_by(age_interval) %>%
+    summarise(mean_biomass = mean(mean_ha, na.rm = TRUE)) %>%
+    rename(age = age_interval)
+
+
+
+# Calculate mean biomass per field_age
+aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {
+    data %>%
+        mutate(age_interval = floor({{ age_col }} + 0.5)) %>% # Group into integer intervals
+        group_by(age_interval) %>%
+        summarise(mean_biomass = mean({{ biomass_col }}, na.rm = TRUE)) %>%
+        rename(age = age_interval)
+}
+
+# Apply the function to both dataframes
+field_aggregated <- aggregate_biomass(field, field_age, field_biomass)
+
+# Plot field raw data scatterplot and averages from field_aggregated overlapping
+plot(field$field_age, field$field_biomass, xlab = "Field Age", ylab = "Field Biomass", main = "Field Age vs Field Biomass")
+points(field_aggregated$age, field_aggregated$mean_biomass, col = "red", pch = 19)
+
+
+# --------------------------
+
+
 
 # Load data
 # new_model_data <- read.csv("./0_results/lagged_nolag_unified_data.csv")

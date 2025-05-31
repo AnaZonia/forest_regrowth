@@ -1,14 +1,14 @@
 # Data obtained from Global Reforestation Opportunity Assessment (GROA) https://github.com/forc-db/GROA/tree/master
 
-
+# 1km is the worst precision they get
+library(tidyverse)
+library(utf8)
 
 # -----------------------------------------------------
 field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
 sites <- read.csv("0_data/groa_field/sites.csv")
 
-# get the ones that have more precise coordinates
-# 1km is the worst precision they get
-# buffer around that region
+
 
 
 # Merge lat, lon, and site.country from sites to field by matching site.id
@@ -18,6 +18,8 @@ field <- field %>%
 
 # Filter the field data for aboveground biomass
 field <- subset(field, variables.name == "aboveground_biomass" & site.country == "Brazil") # same units as ESA CCI - Mg/ha
+
+head(field)
 
 plot_nums <- field %>%
     group_by(plot.id) %>%
@@ -51,11 +53,9 @@ field_repeats <- field %>%
     group_by(plot.id) %>%
     filter(n() > 1) %>%
     ungroup()
-head(field_repeats)
-
+field_repeats
 
 # --------------------------
-
 
 
 # Calculate mean biomass per field_age
