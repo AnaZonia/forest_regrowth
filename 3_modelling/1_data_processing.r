@@ -70,12 +70,19 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
     )
 
     asymptotes <- c("nearest_mature", "ecoreg_biomass", "quarter_biomass")
-    # remove the columns in asymptotes that are not the designated asymptote
-    # rename to asymptote the column named the same as the value of asymptote
-    df <- df %>% rename(asymptote = !!sym(asymptote))
-    df <- df %>% select(-all_of(c(asymptotes[asymptotes != asymptote],
-        "quarter", "biome"
-    )))
+
+    if (asymptote == "full_amazon") {
+        df$asymptote <- mean(df$nearest_mature, na.rm = TRUE)
+        df <- df %>% select(-all_of(c(asymptotes, "quarter", "biome")))
+    } else {
+        # remove the columns in asymptotes that are not the designated asymptote
+        # rename to asymptote the column named the same as the value of asymptote
+        df <- df %>% rename(asymptote = !!sym(asymptote))
+        df <- df %>% select(-all_of(c(
+            asymptotes[asymptotes != asymptote],
+            "quarter", "biome"
+        )))
+    }
 
     if (n_samples == "all") {
         coords <- df[, c("lat", "lon")]

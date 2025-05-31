@@ -1,78 +1,100 @@
-# Data obtained from Global Reforestation Opportunity Assessment (GROA) https://github.com/forc-db/GROA/tree/master
+# ------------------------------------------------------
+# Load libraries
+# ------------------------------------------------------
+library(tidyverse) # For data wrangling
+library(terra)
 
-# 1km is the worst precision they get
-library(tidyverse)
-library(utf8)
+# ------------------------------------------------------
+# Load GROA field and site data
+# Source: https://github.com/forc-db/GROA
+# ------------------------------------------------------
 
-# -----------------------------------------------------
 field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
 sites <- read.csv("0_data/groa_field/sites.csv")
 
+# ------------------------------------------------------
+# Merge site-level metadata (lat/lon/country/state) into field data
+# ------------------------------------------------------
 
+sites_unique <- sites %>% distinct(site.id, .keep_all = TRUE)
 
-
-# Merge lat, lon, and site.country from sites to field by matching site.id
 field <- field %>%
-    filter(site.id %in% sites$site.id) %>%
-        left_join(sites %>% dplyr::select(site.id, site.country, site.state, lat_dec, long_dec), by = "site.id")
+    left_join(
+        sites_unique %>% select(site.id, site.country, site.state, lat_dec, long_dec),
+        by = "site.id"
+    )
 
-# Filter the field data for aboveground biomass
-field <- subset(field, variables.name == "aboveground_biomass" & site.country == "Brazil") # same units as ESA CCI - Mg/ha
+# ------------------------------------------------------
+# Filter for aboveground biomass measurements in Brazil
+# Units are Mg/ha, matching ESA CCI standards
+# ------------------------------------------------------
 
-head(field)
+field <- subset(field, variables.name == "aboveground_biomass" & site.country == "Brazil")
 
+# ------------------------------------------------------
+# Aggregate biomass data by field age
+# This function calculates the mean biomass per field age, grouping by integer intervals.
+# The data is used in 2_lag_field_data.r for visualization
+# ------------------------------------------------------
+
+aggregated_field <- field %>%
+    mutate(age_interval = floor(`stand.age` + 0.5)) %>% # Group into integer intervals
+    group_by(age_interval) %>%
+    summarise(mean_biomass = mean(`mean_ha`, na.rm = TRUE)) %>%
+    rename(age = age_interval)
+
+write.csv(aggregated_field, "0_data/groa_field/aggregated_field_biomass.csv", row.names = FALSE)
+
+# ------------------------------------------------------
+# Identify and handle plots with repeated measurements
+# ------------------------------------------------------
+
+# Identify plot IDs with more than one observation
 plot_nums <- field %>%
     group_by(plot.id) %>%
     summarise(n = n()) %>%
     filter(n > 1) %>%
     arrange(desc(n))
 
-# Rename and select relevant columns
-field <- field %>%
-    dplyr::rename(field_biomass = mean_ha, field_age = stand.age) %>%
-    dplyr::select(c(field_age, field_biomass, date, lat_dec, long_dec))
-
-head(field)
-
-# Create a SpatVector (terra object) using lat_dec and long_dec for coordinates
-field_spat <- vect(field, geom = c("long_dec", "lat_dec"))
-
-# Set the CRS (assuming WGS84)
-crs(field_spat) <- "+proj=longlat +datum=WGS84"
-
-# # Export as a shapefile
-# writeVector(field_spat, "0_data/groa_field/field_biomass.shp", overwrite = TRUE)
-
-# ------------------------------------------------------
-# 
-
-# look into plots with repeated measurements
-
-# select only rows with plot.id that show up more than once
+# Extract only the rows with repeated plot IDs
 field_repeats <- field %>%
     group_by(plot.id) %>%
     filter(n() > 1) %>%
     ungroup()
-field_repeats
 
-# --------------------------
+# there are 16 plots with repeated measurements, totalling 78 non-independent measurements out of 435 total.
 
+# Export repeated measurements for separate analysis
+write.csv(field_repeats, "0_data/groa_field/field_repeats.csv", row.names = FALSE)
 
-# Calculate mean biomass per field_age
-aggregate_biomass <- function(data, age_col, biomass_col, interval = 1) {
-    data %>%
-        mutate(age_interval = floor({{ age_col }} + 0.5)) %>% # Group into integer intervals
-        group_by(age_interval) %>%
-        summarise(mean_biomass = mean({{ biomass_col }}, na.rm = TRUE)) %>%
-        rename(age = age_interval)
-}
+# From each plot, randomly retain only one measurement (to avoid pseudoreplication)
+field <- field %>%
+    group_by(plot.id) %>%
+    slice_sample(n = 1) %>%
+    ungroup()
 
-# Apply the function to both dataframes
-field_aggregated <- aggregate_biomass(field, field_age, field_biomass)
+# ------------------------------------------------------
+# Clean up columns and rename for clarity
+# ------------------------------------------------------
 
-# Plot field raw data scatterplot and averages from field_aggregated overlapping
-plot(field$field_age, field$field_biomass, xlab = "Field Age", ylab = "Field Biomass", main = "Field Age vs Field Biomass")
-points(field_aggregated$age, field_aggregated$mean_biomass, col = "red", pch = 19)
+field <- field %>%
+    dplyr::rename(
+        field_biomass = mean_ha, # Rename biomass column
+        field_age = stand.age # Rename stand age column
+    ) %>%
+    dplyr::select(field_age, field_biomass, date, plot.id, lat_dec, long_dec)
 
+# ------------------------------------------------------
+# Convert to a spatial object (terra::SpatVector)
+# and export as a shapefile
+# ------------------------------------------------------
 
-# --------------------------
+# Create spatial object using longitude and latitude
+field_spat <- vect(field, geom = c("long_dec", "lat_dec"))
+
+# Assign WGS84 coordinate reference system
+crs(field_spat) <- "+proj=longlat +datum=WGS84"
+
+# Export to shapefile
+writeVector(field_spat, "0_data/groa_field/field_biomass.shp", overwrite = TRUE)
+
