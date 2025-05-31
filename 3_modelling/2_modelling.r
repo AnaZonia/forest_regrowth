@@ -49,6 +49,8 @@ run_optim <- function(train_data, pars, conditions) {
 
 growth_curve <- function(pars, data, lag = 0) {
 
+    # pars <- all_pars
+
     # I am not checking climatic variables correctly - need to add monthly or yearly separately.
     # Define parameters that are not expected to change yearly (not prec or si)
     non_yearly_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars, "age"))
@@ -73,16 +75,23 @@ growth_curve <- function(pars, data, lag = 0) {
 
     # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
     for (clim_par in intersect(climatic_pars, names(pars))) {
-        for (yrs in 1:max(data[["age"]])) {
-            indices <- which(data[["age"]] == yrs)
+        for (yr in 1:max(data[["age"]])) {
+            # clim_pars <- "temp"
+            # yr = 2
+            # lag = 0
+            indices <- which(data[["age"]] == yr)
             # Generate a sequence of years for the current age group
             # Starting from 2019 and going back 'yrs' number of years (stopping in 1958 as the earliest year)
-            last_year <- max(2019 - yrs - round(lag) + 1, 1958)
+            last_year <- max(2019 - yr - round(lag) + 1, 1958)
             year_seq <- seq(2019, last_year, by = -1)
             clim_columns <- paste0(clim_par, "_", year_seq)
-            # as.matrix(t()) is used to ensure that rowSums would work in cases with a single row
-            # k[indices] <- k[indices] + rowSums(as.matrix(t(sapply(clim_columns, function(col) pars[[clim_par]] * data[[col]][indices]))))
-            k[indices] <- k[indices] + rowSums(sapply(clim_columns, function(col) pars[[clim_par]] * data[[col]][indices]))
+            
+            # head(pars[[clim_par]] * rowMeans(sapply(clim_columns, function(col) data[[col]][indices])))
+            # Add the contribution individually or as an average
+
+            k[indices] <- k[indices] + pars[[clim_par]] * rowMeans(sapply(clim_columns, function(col) data[[col]][indices]))
+
+            # k[indices] <- k[indices] + pars[[clim_par]] * rowSums(sapply(clim_columns, function(col) data[[col]][indices]))
         }
     }
 

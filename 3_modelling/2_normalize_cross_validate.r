@@ -65,9 +65,11 @@ normalize_independently <- function(train_data, test_data = NULL) {
     # Compute normalization statistics for each climatic variable across all years
     for (clim_par in climatic_pars) {
         clim_cols <- names(train_data)[grepl(paste0(clim_par, "_"), names(train_data))]
+
         if (length(clim_cols) == 0) {
             next
         }
+        
         # Compute summary statistics
         clim_stats <- data.frame(
             variable = paste0(clim_par, "_"),

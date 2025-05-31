@@ -4,8 +4,10 @@ library(utils)
 library(dplyr)
 library(ggplot2)
 
+
+
 # Settings
-experiments <- c("ssp126", "ssp245", "ssp585") # "historical",
+experiments <- c("historical") # "ssp126", "ssp245", "ssp585") # 
 
 models <- c(
     "inm_cm5_0", "inm_cm4_8",
@@ -40,6 +42,8 @@ hours_in_month <- c(744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744)
 
 process_model_experiment <- function(experiment, model, var_dir, var_short) {
 
+    model_dir <- file.path(var_dir, model)
+
     # List all relevant .nc files
     nc_files <- list.files(
         path = model_dir,
@@ -67,7 +71,7 @@ process_model_experiment <- function(experiment, model, var_dir, var_short) {
             end_layer <- min(i * 12, num_layers)
             chunk <- r[[start_layer:end_layer]]
             
-            if (var_short in c("tas", "ta", "huss", "mrsos")) {
+            if (var_short %in% c("tas", "ta", "huss", "mrsos")) {
                 # Variables that should be averaged
                 layer <- app(chunk, fun = mean, na.rm = TRUE)
             } else if (var_short == "pr") {
@@ -102,7 +106,7 @@ process_model_experiment <- function(experiment, model, var_dir, var_short) {
 
     # Name bands based on the year range
     if (grepl("historical", basename(nc_files[[1]]))) {
-        names(combined_raster) <- seq(1950, 2014)
+        names(combined_raster) <- seq(1950, 2015)
     } else {
         names(combined_raster) <- seq(2015, 2074)
     }
@@ -123,6 +127,7 @@ process_model_experiment <- function(experiment, model, var_dir, var_short) {
 
 # Main loop to process everything
 for (var_short in names(variables)) {
+
     var_full <- variables[[var_short]]
     var_dir <- file.path(cmip6_dir, var_full)
 

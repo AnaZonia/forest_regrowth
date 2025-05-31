@@ -5,12 +5,7 @@
 library(foreach)
 library(doParallel)
 library(tidyverse)
-library(FactoMineR)
-library(factoextra)
 library(cluster)
-library(terra)
-
-# setwd("/home/aavila/Documents/forest_regrowth")
 
 # Source other scripts
 source("3_modelling/1_parameters.r")
@@ -103,7 +98,7 @@ model <- run_optim(norm_data, init_pars, conditions)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-data <- import_data("grid_10k_amazon_secondary", biome = biome, n_samples = 10000)
+data <- import_data("grid_10k_amazon_secondary", biome = biome, n_samples = 10000, asymptote = "quarter_biomass")
 head(data)
 norm_data <- normalize_independently(data)
 # saveRDS(norm_data$train_stats, file = "./0_results/grid_1k_amazon_secondary_train_stats.rds")
@@ -119,6 +114,17 @@ data_pars_options <- list(
 
 for (data_pars_name in names(data_pars_options)) {
     print(data_pars_name)
+    basic_pars <- basic_pars_options[["lag"]]
+    data_pars <- data_pars_options[[data_pars_name]]
+    init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
+    model <- run_optim(norm_data, init_pars, conditions)
+    pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
+    r2 <- calc_r2(norm_data, pred)
+    print(r2)
+}
+
+for (data_pars_name in names(data_pars_options)) {
+    print(data_pars_name)
     basic_pars <- basic_pars_options[["intercept"]]
     data_pars <- data_pars_options[[data_pars_name]]
     init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
@@ -128,10 +134,11 @@ for (data_pars_name in names(data_pars_options)) {
     print(r2)
 }
 
-# intercept
-# mean_climatic - 0.3217656 (srad, temp, def, pdsi)
-# yearly - 0.3185027
-# lag
-# mean_climatic - 0.372253 (srad, temp, def, pdsi)
 
-# , lag = model$par["lag"]
+
+# use mean climate for the estimated years of growth only
+
+
+
+
+

@@ -24,10 +24,9 @@
 
 
 find_combination_pars <- function(basic_pars, data_pars, data) {
-    # basic_pars = c(basic_pars_options[["intercept"]])
-    # data <- norm_data
-    # data_pars = c("aet", "temp")
-    # data_pars = c("temp", "def", "srad", "vpd", "aet", "pr", "pdsi")
+    basic_pars = c(basic_pars_options[["intercept"]])
+    data <- norm_data
+    data_pars = c("temp", "def", "srad", "vpd", "aet", "pr", "pdsi")
 
     # Initialize parameter vector with data parameters
     all_pars <- c(setNames(
