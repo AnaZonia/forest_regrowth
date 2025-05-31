@@ -21,10 +21,10 @@
 #   - The function writes the results of each iteration to an RDS file for future use.
 # External Functions:
 #   run_optim()
-
+install.packages("terra", repos = "https://rspatial.r-universe.dev")
 
 find_combination_pars <- function(basic_pars, data_pars, data) {
-    basic_pars = c(basic_pars_options[["intercept"]])
+    basic_pars = c(basic_pars_options[["lag"]])
     data <- norm_data
     data_pars = c("temp", "def", "srad", "vpd", "aet", "pr", "pdsi")
 
@@ -76,8 +76,10 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
     } else {
         for (i in 1:length(data_pars)) {
             if (!should_continue) break
-
-            iter_df <- foreach(j = remaining[-taken]) %dopar% {
+            i = 1
+            
+            # iter_df <- foreach(j = remaining[-taken]) %dopar% {
+            for (j in remaining[-taken]) {
                 # check for categorical variables (to be included as a group)
                 if (data_pars[j] %in% c(categorical)) {
                     inipar <- c(best$par, all_pars[grep(paste0(data_pars[j], "_"), names(all_pars))])
@@ -90,8 +92,9 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
                 iter_row <- base_row
                 iter_row[names(inipar)] <- model$par
                 iter_row["RSS"] <- model$value
+                print(iter_row)
 
-                return(iter_row)
+                # return(iter_row)
             }
 
             iter_df <- as.data.frame(do.call(rbind, iter_df))
