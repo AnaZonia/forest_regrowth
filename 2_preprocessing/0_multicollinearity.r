@@ -70,15 +70,29 @@ find_highly_correlated <- function(corr_matrix, threshold = 0.8) {
 # Main function to run the data preparation steps
 
 # Load and preprocess the dataset (modify the path as needed)
-data <- read_csv("./0_data/unified_fc.csv") %>% na.omit()
+secondary_CMIP6 <- import_data("grid_10k_amazon_secondary_CMIP6", biome = 1, n_samples = 10000)
 
-df <- data %>%
-    filter(biome == 1) %>%
-    select(-matches("_19[8-9][0-9]|_20[0-2][0-9]")) %>%
-    select(-all_of(c('system:index', '.geo')))
+secondary_CMIP6 <- secondary_CMIP6 %>% select(-contains("pr"))
 
 
-df <- df[, sapply(df, function(col) length(unique(col)) > 1)]
+terraclim_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pdsi")
+cmip6_pars <- c("nssh", "musc", "sdsr", "nsat")
+
+secondary_CMIP6 <- secondary_CMIP6 %>%
+    rename_with(
+        ~ gsub(paste0("^(", paste(cmip6_pars, collapse = "|"), ")_mean$"), "mean_\\1", .),
+        .cols = matches("_mean$")
+    )
+secondary_CMIP6 <- secondary_CMIP6 %>%
+    filter(rowSums(is.na(.)) == 0)
+
+
+climatic_pars <- c(terraclim_pars, cmip6_pars)
+
+pattern <- paste0("^mean_(", paste(climatic_pars, collapse = "|"), ")$")
+
+df <- secondary_CMIP6 %>%
+    select(c("age", "asymptote", "biomass", matches(pattern)))
 
 # Calculate correlation matrix
 corr_matrix <- calculate_correlation_matrix(df)
@@ -93,6 +107,3 @@ print(vif_results)
 
 # Identify highly correlated features
 find_highly_correlated(corr_matrix, threshold = 0.6)
-
-
-lm(formula = num_fires ~age, data = df) %>% summary()

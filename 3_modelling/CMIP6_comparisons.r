@@ -22,27 +22,35 @@ registerDoParallel(cores = ncore)
 
 secondary_CMIP6 <- import_data("grid_10k_amazon_secondary_CMIP6", biome = 1, n_samples = 10000)
 
-colnames(secondary_CMIP6)
+secondary_CMIP6 <- secondary_CMIP6 %>% select(-contains("pr"))
 
-# remove columns pr
 
-terraclim_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pr", "pdsi")
-cmip6_pars <- c("pr", "nssh", "musc", "sdsr", "nsat")
+terraclim_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pdsi")
+cmip6_pars <- c("nssh", "musc", "sdsr", "nsat")
 
-rename columns with names like pr_mean for all vars in cmip6_pars to mean_pr
+secondary_CMIP6 <- secondary_CMIP6 %>%
+    rename_with(
+        ~ gsub(paste0("^(", paste(cmip6_pars, collapse = "|"), ")_mean$"), "mean_\\1", .),
+        .cols = matches("_mean$")
+    )
+secondary_CMIP6 <- secondary_CMIP6 %>%
+    filter(rowSums(is.na(.)) == 0)
+
 
 climatic_pars <- c(terraclim_pars, cmip6_pars)
 
 pattern <- paste0("^mean_(", paste(climatic_pars, collapse = "|"), ")$")
 
-# Get matching column names
-mean_clim_cols <- grep(pattern, colnames(secondary_CMIP6), value = TRUE)
+secondary_CMIP6 <- secondary_CMIP6 %>%
+    select(c("age", "asymptote", "biomass", matches(pattern)))
 
-print(mean_clim_cols)
+norm_data <- normalize_independently(secondary_CMIP6)
+norm_data <- norm_data$train_data
+# how many rows have any NA values
 
 
-data_pars <- colnames(norm_data)[grepl(paste(c(paste0("mean_", climatic_pars)), collapse = "|"), colnames(norm_data))]
-data_pars
+data_pars <- grep(pattern, colnames(secondary_CMIP6), value = TRUE)
+data_pars <- paste0("mean_", cmip6_pars)
 basic_pars <- basic_pars_options[["lag"]]
 init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
 model <- run_optim(norm_data, init_pars, conditions)
@@ -55,16 +63,6 @@ print(r2)
 
 
 
-# how many rows have any NA values
-secondary_CMIP6_1 <- secondary_CMIP6_1 %>%
-    filter(rowSums(is.na(.)) == 0)
-
-secondary_CMIP6 <- secondary_CMIP6_1 %>%
-    select(-matches("(_1|_2)$"))
-
-
-
-colnames(secondary_CMIP6)
 
 # For each variable, compute row-wise historical and future means
 for (v in climatic_pars) {
@@ -78,26 +76,10 @@ for (v in climatic_pars) {
 }
 
 
-norm_data <- normalize_independently(secondary_CMIP6)
-norm_data <- norm_data$train_data
-
-
-data_pars = colnames(norm_data)[grepl(paste(c(paste0("mean_", climatic_pars, "_hist")), collapse = "|"), colnames(norm_data))]
-data_pars
-basic_pars <- basic_pars_options[["lag"]]
-init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
-model <- run_optim(norm_data, init_pars, conditions)
-pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
-r2 <- calc_r2(norm_data, pred)
-print(r2)
-
-
-
-
-
 
 
 climatic_pars <- c("pr", "nssh", "musc", "sdsr", "nsat")
+
 vars <- c(
     "precipitation",
     "near_surface_specific_humidity",
