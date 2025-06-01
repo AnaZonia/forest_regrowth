@@ -52,10 +52,7 @@ predict_future_biomass <- function(name, model, age_offset, pasture_selection = 
     # Import Secondary Forest Data
     data <- import_data(paste0("grid_1k_amazon_", name), biome = biome, n_samples = "all")
     coords <- data$coords
-    if (name == "pastureland") {
-        train_stats <- train_stats %>%
-            filter(!variable %in% c("mean_pdsi", "mean_def"))
-    }
+
     data <- apply_min_max_scaling(data$df, train_stats)
 
     if (name == "secondary") {
@@ -65,6 +62,7 @@ predict_future_biomass <- function(name, model, age_offset, pasture_selection = 
         # assuming it starts regrowing at 2020
         data$age <- age_offset
     }
+
     pred <- growth_curve(model$par, data)
 
     # get the column in data with the word "area"
