@@ -12,91 +12,108 @@ library(ggplot2)
 
 aggregated_field <- read.csv("0_data/groa_field/aggregated_field_biomass.csv")
 
+pred_vs_observed <- read.csv("0_results/pred_vs_obs_amazon_lag.csv")
 
 
 # ---------------------------- Plotting ----------------------------
 
 
+lag = pred_vs_observed$corrected_age[1] - pred_vs_observed$uncorrected_age[1]
 
 # Compute mean values and standard deviations per age
 # Restructure the data to have separate columns for each biomass type
-mean_biomass_data <- data %>%
-    group_by(age) %>%
+uncorrected_data <- pred_vs_observed %>%
+    group_by(corrected_age) %>%
     summarise(
-        mean_pred = median(pred, na.rm = TRUE),
-        sd_pred = sd(pred, na.rm = TRUE),
-        mean_biomass = median(biomass, na.rm = TRUE),
-        sd_biomass = sd(biomass, na.rm = TRUE)
+        mean_pred_uncorrected = median(pred_uncorrected, na.rm = TRUE),
+        sd_pred_uncorrected = sd(pred_uncorrected, na.rm = TRUE),
+        mean_observed = median(obs, na.rm = TRUE),
+        sd_observed = sd(obs, na.rm = TRUE)
     ) %>%
-    mutate(age = age + lag) # Adjust age by lag
+    rename(age = corrected_age)
 
-pred_data <- data %>%
-    group_by(age) %>%
+lag_corrected_data <- pred_vs_observed %>%
+    group_by(uncorrected_age) %>%
     summarise(
-        mean_pred_lag = median(pred_lag, na.rm = TRUE),
-        sd_pred_lag = sd(pred_lag, na.rm = TRUE),
+        mean_pred_corrected_age = median(pred_corrected_age, na.rm = TRUE),
+        sd_pred_corrected_age = sd(pred_corrected_age, na.rm = TRUE),
     ) %>%
-    filter(age <= (lag + 1))
+    rename(age = uncorrected_age) %>%
+        filter(age <= (lag + 1))
 
 # Merge the data frames based on age using full_join
-pred_data <- full_join(pred_data, mean_biomass_data, by = "age")
+pred_data <- full_join(lag_corrected_data, uncorrected_data, by = "age")
 
 print(pred_data, n = 50)
-
 colors <- c(
-    "mean_pred_lag" = "blue",
-    "mean_pred" = "blue",
-    "mean_biomass" = "red",
-    "scatter_points" = "red" # Use black color for the scatter points in the legend
+    "mean_pred_corrected_age" = "blue",
+    "mean_pred_uncorrected" = "dodgerblue",
+    "mean_observed" = "red",
+    "scatter_points" = "black"
 )
 
-# Define custom legend labels
 legend_labels <- c(
-    "mean_pred_lag" = "Predicted biomass before observations",
-    "mean_pred" = "Predicted biomass",
-    "mean_biomass" = "Biomass estimated by remote sensing",
-    "scatter_points" = "Biomass measured in field plots" # Custom label for scatter points
+    "mean_pred_corrected_age" = "Predicted biomass before observations",
+    "mean_pred_uncorrected" = "Predicted biomass",
+    "mean_observed" = "Biomass estimated by remote sensing",
+    "scatter_points" = "Biomass measured in field plots"
 )
 
-# Create the plot
 p <- ggplot(pred_data, aes(x = age)) +
-    geom_line(aes(y = mean_biomass, color = "mean_biomass"), size = 1, na.rm = TRUE) +
-    geom_line(aes(y = mean_pred_lag, color = "mean_pred_lag"), size = 1, linetype = "dotted") +
-    geom_line(aes(y = mean_pred, color = "mean_pred"), size = 1, na.rm = TRUE) +
-    geom_ribbon(aes(ymin = mean_biomass - sd_biomass, ymax = mean_biomass + sd_biomass, fill = "mean_biomass"),
+    geom_line(aes(y = mean_observed, color = "mean_observed"), size = 1, na.rm = TRUE) +
+    geom_line(aes(y = mean_pred_corrected_age, color = "mean_pred_corrected_age"), size = 1, linetype = "dotted", na.rm = TRUE) +
+    geom_line(aes(y = mean_pred_uncorrected, color = "mean_pred_uncorrected"), size = 1, na.rm = TRUE) +
+    geom_ribbon(aes(ymin = mean_observed - sd_observed, ymax = mean_observed + sd_observed, fill = "mean_observed"),
         alpha = 0.2, color = NA, na.rm = TRUE
     ) +
-    geom_ribbon(aes(ymin = mean_pred_lag - sd_pred_lag, ymax = mean_pred_lag + sd_pred_lag, fill = "mean_pred_lag"),
-        alpha = 0.2, color = NA
-    ) +
-    geom_ribbon(aes(ymin = mean_pred - sd_pred, ymax = mean_pred + sd_pred, fill = "mean_pred"),
+    geom_ribbon(aes(ymin = mean_pred_corrected_age - sd_pred_corrected_age, ymax = mean_pred_corrected_age + sd_pred_corrected_age, fill = "mean_pred_corrected_age"),
         alpha = 0.2, color = NA, na.rm = TRUE
     ) +
-    scale_color_manual(values = colors, name = "Legend", labels = legend_labels) + # Custom labels
+    geom_ribbon(aes(ymin = mean_pred_uncorrected - sd_pred_uncorrected, ymax = mean_pred_uncorrected + sd_pred_uncorrected, fill = "mean_pred_uncorrected"),
+        alpha = 0.2, color = NA, na.rm = TRUE
+    ) +
+    geom_point(data = aggregated_field, aes(x = age, y = mean_biomass, color = "scatter_points"), size = 2, alpha = 0.7) +
+    scale_color_manual(values = colors, name = "Legend", labels = legend_labels) +
     scale_fill_manual(values = colors, guide = "none") +
     labs(
         x = "Forest Age (years)",
         y = "Biomass (Mg/ha)"
     ) +
-    geom_point(data = field_aggregated, aes(x = age, y = mean_biomass, color = "scatter_points"), size = 2, alpha = 0.7) + # Scatter points, now part of the legend
     theme_minimal(base_size = 20) +
     theme(
-        legend.text = element_text(size = 16, family = "Helvetica"),
-        legend.title = element_blank(), # Remove legend title
-        legend.position = c(0.25, 0.75),
-        legend.background = element_rect(fill = "white", color = NA), # Remove background color
-        legend.key = element_blank(), # Remove the black square around legend items
         aspect.ratio = 1 / 2,
-        panel.grid.major = element_blank(), # Remove major grid lines
-        panel.grid.minor = element_blank(), # Remove minor grid lines
-        axis.line = element_line(color = "black"), # Keep simple x and y axis lines
-        axis.title.x = element_text(color = "black", family = "Helvetica"), # Set x-axis title to black, Helvetica font
-        axis.title.y = element_text(color = "black", family = "Helvetica"), # Set y-axis title to black, Helvetica font
-        axis.text.x = element_text(color = "black", size = 14, family = "Helvetica"), # Set x-axis labels to black, Helvetica font
-        axis.text.y = element_text(color = "black", size = 14, family = "Helvetica"), # Set y-axis labels to black, Helvetica font
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(color = "black"),
+        axis.title.x = element_text(color = "black", family = "Helvetica"),
+        axis.title.y = element_text(color = "black", family = "Helvetica"),
+        axis.text.x = element_text(color = "black", size = 14, family = "Helvetica"),
+        axis.text.y = element_text(color = "black", size = 14, family = "Helvetica")
     ) +
-    scale_y_continuous(limits = c(0, 310)) + # Set y-axis limits
-    geom_vline(xintercept = (lag + 1), linetype = "dotted", color = "black", size = 1) + # Vertical dashed line at x = 34
-    annotate("text", x = (lag + 2), y = 280, label = "34 years", hjust = -0.1, size = 6, color = "black", family = "Helvetica") # Add label with annotate()
+    scale_y_continuous(limits = c(0, 310)) +
+    geom_vline(xintercept = (lag + 1), linetype = "dotted", color = "black", size = 1) 
+
+p <- p +
+    coord_cartesian(clip = "off") + # Allow annotation outside plot panel
+    annotate(
+        "text",
+        x = (lag + 1),
+        y = 320, # Just above y-limit 310
+        label = paste(lag + 1, "years"),
+        hjust = 0.5, # Center horizontally on the vertical line
+        size = 6,
+        color = "black",
+        family = "Helvetica"
+    )
 
 p
+
+# save the plot
+ggsave(
+    filename = "0_results/figures/lag_field_biomass.jpeg",
+    plot = p,
+    width = 15,
+    height = 5,
+    units = "in",
+    dpi = 300
+)

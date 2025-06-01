@@ -36,8 +36,7 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
         df <- csv_files %>%
             map(read_csv) %>%
             bind_rows()
-        df <- df %>% rename(dist = distance_deep_forest) %>%
-            select(-"secondary_area")
+        df <- df %>% rename(dist = distance_deep_forest)
     } else {
         df <- read_csv(paste0("./0_data/", path, ".csv"))
         df <- df %>%
@@ -89,6 +88,9 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
         features <- df[, !names(df) %in% c("lat", "lon")]
         return(list(df = features, coords = coords))
     } else {
+
+        if ("secondary_area" %in% names(df)) df <- df[, names(df) != "secondary_area"]
+
         df <- df[, !names(df) %in% c("lat", "lon")]
         df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
         return(df)

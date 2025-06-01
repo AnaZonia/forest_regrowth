@@ -104,8 +104,9 @@ for (basic_pars_name in names(basic_pars_options)) {
     model <- run_optim(norm_data, init_pars, conditions)
     saveRDS(model, file = paste0("./0_results/amazon_model_", basic_pars_name, ".rds", sep = ""))
     if basic_pars_name == "lag" {
-        pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
-        pred_vs_obs <- data.frame(age = norm_data$age, pred = pred, obs = norm_data$biomass)
+        pred <- growth_curve(model$par, norm_data)
+        pred_uncorrected <- growth_curve(model$par, norm_data, lag = model$par["lag"])
+        pred_vs_obs <- data.frame(uncorrected_age = norm_data$age, corrected_age = round(norm_data$age + model$par["lag"]), pred_corrected_age = pred, pred_uncorrected = pred_uncorrected, obs = norm_data$biomass)
         write.csv(pred_vs_obs, file = "./0_results/pred_vs_obs_amazon_lag.csv", row.names = FALSE)
     }
 }
@@ -131,6 +132,8 @@ for (asymptote in c("nearest_mature", "full_amazon")) {
     r2 <- calc_r2(norm_data, pred)
 
     importance_results <- calculate_permutation_importance(model, norm_data, data_pars)
-    importance_results$r2 <- r2
+
+    importance_results$importance_scaled = importance_pct * r2 / 100)
+
     write.csv(importance_results, file = paste0("./0_results/importance_", asymptote, ".csv"), row.names = FALSE)
 }

@@ -6,29 +6,19 @@
 # select all secondary forests in the Amazon
 
 # Load required libraries
-library(foreach)
-library(doParallel)
 library(tidyverse)
 library(terra)
-
-source("3_modelling/1_parameters.r")
-source("3_modelling/1_data_processing.r")
-source("3_modelling/2_modelling.r")
-source("3_modelling/2_normalize_cross_validate.r")
-source("3_modelling/2_feature_selection_ga.R")
-
-# Set up parallel processing
 set.seed(1)
-ncore <- 4
-registerDoParallel(cores = ncore)
 
-biome <- 1
+
 
 model_lag <- readRDS("./0_results/amazon_model_lag.rds")
 model_intercept <- readRDS("./0_results/amazon_model_intercept.rds")
 
 # Apply Min-Max scaling using the precomputed min and max
-train_stats <- readRDS("./0_results/grid_1k_amazon_secondary_train_stats.rds")
+train_stats <- readRDS("./0_results/grid_1k_amazon_secondary_train_stats.rds") %>%
+    # remove row where variable is "mean_temp"
+    filter(variable != "mean_temp")
 
 apply_min_max_scaling <- function(data, train_stats) {
     # Apply Min-Max scaling to each variable in the data
@@ -40,8 +30,6 @@ apply_min_max_scaling <- function(data, train_stats) {
     return(data)
 }
 
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Biomass predictions for future years
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Estimated biomass x years after 2020
@@ -129,35 +117,6 @@ predict_future_biomass <- function(name, model, age_offset, pasture_selection = 
     return(list(total_biomass, coords))
 }
 
-pred <- growth_curve(model$par, data)
-area <- data[[grep("area", names(data), value = TRUE)]] * 100 # convert to hectares
-
-
-
-# While the sum of the selected area is less than 20% of the total area
-while (sum(area) < 0.2 * sum(data$area)) {
-    # Get the top 2% of predictions not already selected
-    top_indices <- setdiff(top_indices[1:round(0.02 * length(pred))], selected_indices)
-
-    # Add the corresponding areas to the total area
-    area <- c(area, data$area[top_indices])
-
-    # Keep track of the selected indices to avoid duplicates
-    selected_indices <- c(selected_indices, top_indices)
-}
-pred <- pred[selected_indices]
-
-# set.seed(1)
-# random_indices <- sample(1:length(pred), size = 0.2 * length(pred), replace = FALSE)
-# print(length(random_indices))
-# pred <- pred[random_indices]
-# area <- area[random_indices]
-# top_20_indices <- order(pred, decreasing = TRUE)[1:round(0.2 * length(pred))]
-# print(length(top_20_indices))
-# pred <- pred[top_20_indices]
-# area <- area[top_20_indices]
-mean(area)
-hist(area)
 
 
 
@@ -192,6 +151,35 @@ barplot(
 # writeVector(points, "pred_lag_2050_secondary.shp", overwrite = TRUE)
 
 
+pred <- growth_curve(model$par, data)
+area <- data[[grep("area", names(data), value = TRUE)]] * 100 # convert to hectares
+
+
+
+# While the sum of the selected area is less than 20% of the total area
+while (sum(area) < 0.2 * sum(data$area)) {
+    # Get the top 2% of predictions not already selected
+    top_indices <- setdiff(top_indices[1:round(0.02 * length(pred))], selected_indices)
+
+    # Add the corresponding areas to the total area
+    area <- c(area, data$area[top_indices])
+
+    # Keep track of the selected indices to avoid duplicates
+    selected_indices <- c(selected_indices, top_indices)
+}
+pred <- pred[selected_indices]
+
+# set.seed(1)
+# random_indices <- sample(1:length(pred), size = 0.2 * length(pred), replace = FALSE)
+# print(length(random_indices))
+# pred <- pred[random_indices]
+# area <- area[random_indices]
+# top_20_indices <- order(pred, decreasing = TRUE)[1:round(0.2 * length(pred))]
+# print(length(top_20_indices))
+# pred <- pred[top_20_indices]
+# area <- area[top_20_indices]
+mean(area)
+hist(area)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ~~~~~~~~~~~~~~~~~~~~ Whole Amazon ~~~~~~~~~~~~~~~~~~~~
