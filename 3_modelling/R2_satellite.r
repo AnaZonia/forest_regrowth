@@ -80,12 +80,9 @@ for (data_pars_name in names(data_pars_options(colnames(data)))) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000, asymptote = "quarter_biomass")
-head(data)
+data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000, asymptote = "nearest_mature")
 norm_data <- normalize_independently(data)
-# saveRDS(norm_data$train_stats, file = "./0_results/grid_1k_amazon_secondary_train_stats.rds")
 norm_data <- norm_data$train_data
-head(norm_data)
 
 climatic_pars <- c("srad", "temp", "def", "vpd", "pr", "pdsi", "aet")
 data_pars_options <- list(

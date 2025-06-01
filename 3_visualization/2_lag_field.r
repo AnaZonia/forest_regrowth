@@ -1,119 +1,270 @@
-
-
-
-
 # Load necessary libraries
 library(tidyverse)
 library(ggplot2)
+library(patchwork) # For legend extraction
 
+# Set global options
+options(stringsAsFactors = FALSE)
+theme_set(theme_minimal(base_size = 20))
 
+# ---------------------------- Data Loading ----------------------------
+field_data <- read.csv("0_data/groa_field/aggregated_field_biomass.csv")
+lag_data <- read.csv("0_results/pred_vs_obs_amazon_lag.csv")
+intercept_data <- read.csv("0_results/pred_vs_obs_amazon_intercept.csv")
 
-# --------------------------------- Plotting ---------------------------------#
+# Calculate the age lag
+lag <- lag_data$corrected_age[1] - lag_data$uncorrected_age[1]
 
-aggregated_field <- read.csv("0_data/groa_field/aggregated_field_biomass.csv")
+# ---------------------------- Data Preparation ----------------------------
+prepare_summary_data <- function(data, group_var, pred_var, obs_var = NULL) {
+    summary <- data %>%
+        group_by({{ group_var }}) %>%
+        summarise(
+            mean_pred = median({{ pred_var }}, na.rm = TRUE),
+            sd_pred = sd({{ pred_var }}, na.rm = TRUE),
+            .groups = "drop"
+        ) %>%
+        rename(age = {{ group_var }})
 
-pred_vs_observed <- read.csv("0_results/pred_vs_obs_amazon_lag.csv")
+    if (!rlang::quo_is_null(enquo(obs_var))) {
+        obs_summary <- data %>%
+            group_by({{ group_var }}) %>%
+            summarise(
+                mean_obs = median({{ obs_var }}, na.rm = TRUE),
+                sd_obs = sd({{ obs_var }}, na.rm = TRUE),
+                .groups = "drop"
+            ) %>%
+            rename(age = {{ group_var }})
 
+        summary <- full_join(summary, obs_summary, by = "age")
+    }
 
-# ---------------------------- Plotting ----------------------------
+    return(summary)
+}
 
-
-lag = pred_vs_observed$corrected_age[1] - pred_vs_observed$uncorrected_age[1]
-
-# Compute mean values and standard deviations per age
-# Restructure the data to have separate columns for each biomass type
-uncorrected_data <- pred_vs_observed %>%
-    group_by(corrected_age) %>%
-    summarise(
-        mean_pred_uncorrected = median(pred_uncorrected, na.rm = TRUE),
-        sd_pred_uncorrected = sd(pred_uncorrected, na.rm = TRUE),
-        mean_observed = median(obs, na.rm = TRUE),
-        sd_observed = sd(obs, na.rm = TRUE)
-    ) %>%
-    rename(age = corrected_age)
-
-lag_corrected_data <- pred_vs_observed %>%
-    group_by(uncorrected_age) %>%
-    summarise(
-        mean_pred_corrected_age = median(pred_corrected_age, na.rm = TRUE),
-        sd_pred_corrected_age = sd(pred_corrected_age, na.rm = TRUE),
-    ) %>%
-    rename(age = uncorrected_age) %>%
-        filter(age <= (lag + 1))
-
-# Merge the data frames based on age using full_join
-pred_data <- full_join(lag_corrected_data, uncorrected_data, by = "age")
-
-print(pred_data, n = 50)
-colors <- c(
-    "mean_pred_corrected_age" = "blue",
-    "mean_pred_uncorrected" = "dodgerblue",
-    "mean_observed" = "red",
-    "scatter_points" = "black"
+# Prepare all datasets
+uncorrected_summary <- prepare_summary_data(
+  lag_data, corrected_age, pred_uncorrected, obs
 )
 
-legend_labels <- c(
-    "mean_pred_corrected_age" = "Predicted biomass before observations",
-    "mean_pred_uncorrected" = "Predicted biomass",
-    "mean_observed" = "Biomass estimated by remote sensing",
-    "scatter_points" = "Biomass measured in field plots"
+lag_corrected_summary <- prepare_summary_data(
+  lag_data, uncorrected_age, pred_corrected
+) %>% filter(age <= (lag + 1))
+
+lag_future <- prepare_summary_data(
+    lag_data, age_future, pred_future
 )
 
-p <- ggplot(pred_data, aes(x = age)) +
-    geom_line(aes(y = mean_observed, color = "mean_observed"), size = 1, na.rm = TRUE) +
-    geom_line(aes(y = mean_pred_corrected_age, color = "mean_pred_corrected_age"), size = 1, linetype = "dotted", na.rm = TRUE) +
-    geom_line(aes(y = mean_pred_uncorrected, color = "mean_pred_uncorrected"), size = 1, na.rm = TRUE) +
-    geom_ribbon(aes(ymin = mean_observed - sd_observed, ymax = mean_observed + sd_observed, fill = "mean_observed"),
-        alpha = 0.2, color = NA, na.rm = TRUE
-    ) +
-    geom_ribbon(aes(ymin = mean_pred_corrected_age - sd_pred_corrected_age, ymax = mean_pred_corrected_age + sd_pred_corrected_age, fill = "mean_pred_corrected_age"),
-        alpha = 0.2, color = NA, na.rm = TRUE
-    ) +
-    geom_ribbon(aes(ymin = mean_pred_uncorrected - sd_pred_uncorrected, ymax = mean_pred_uncorrected + sd_pred_uncorrected, fill = "mean_pred_uncorrected"),
-        alpha = 0.2, color = NA, na.rm = TRUE
-    ) +
-    geom_point(data = aggregated_field, aes(x = age, y = mean_biomass, color = "scatter_points"), size = 2, alpha = 0.7) +
-    scale_color_manual(values = colors, name = "Legend", labels = legend_labels) +
-    scale_fill_manual(values = colors, guide = "none") +
-    labs(
-        x = "Forest Age (years)",
-        y = "Biomass (Mg/ha)"
-    ) +
-    theme_minimal(base_size = 20) +
-    theme(
-        aspect.ratio = 1 / 2,
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.line = element_line(color = "black"),
-        axis.title.x = element_text(color = "black", family = "Helvetica"),
-        axis.title.y = element_text(color = "black", family = "Helvetica"),
-        axis.text.x = element_text(color = "black", size = 14, family = "Helvetica"),
-        axis.text.y = element_text(color = "black", size = 14, family = "Helvetica")
-    ) +
-    scale_y_continuous(limits = c(0, 310)) +
-    geom_vline(xintercept = (lag + 1), linetype = "dotted", color = "black", size = 1) 
+intercept_summary <- prepare_summary_data(
+  intercept_data, age, pred_corrected
+)
 
-p <- p +
-    coord_cartesian(clip = "off") + # Allow annotation outside plot panel
-    annotate(
-        "text",
-        x = (lag + 1),
-        y = 320, # Just above y-limit 310
-        label = paste(lag + 1, "years"),
-        hjust = 0.5, # Center horizontally on the vertical line
-        size = 6,
-        color = "black",
-        family = "Helvetica"
+intercept_future <- prepare_summary_data(
+    intercept_data, age_future, pred_future
+)
+
+# First, combine all data including future predictions
+all_pred_data <- uncorrected_summary %>%
+    full_join(lag_corrected_summary, by = "age", suffix = c("_uncorrected", "_lag_corrected")) %>%
+    full_join(intercept_summary, by = "age") %>%
+    rename(
+        mean_pred_intercept = mean_pred,
+        sd_pred_intercept = sd_pred
+    ) %>%
+    full_join(
+        lag_future %>% rename(
+            mean_pred_lag_future = mean_pred,
+            sd_pred_lag_future = sd_pred
+        ),
+        by = "age"
+    ) %>%
+    full_join(
+        intercept_future %>% rename(
+            mean_pred_intercept_future = mean_pred,
+            sd_pred_intercept_future = sd_pred
+        ),
+        by = "age"
     )
 
-p
+# Update plot colors and linetypes to include future predictions
+plot_colors <- c(
+    "Predicted (lag-corrected)" = "blue",
+    "Predicted (uncorrected)" = "blue",
+    "Predicted (intercept-only)" = "green4",
+    "Remote Sensing" = "red",
+    "Field Measurements" = "black",
+    "Future (lag-corrected)" = "blue",
+    "Future (intercept-only)" = "green4"
+)
 
-# save the plot
+linetypes <- c(
+    "Predicted (lag-corrected)" = "dotted",
+    "Predicted (uncorrected)" = "solid",
+    "Predicted (intercept-only)" = "dashed",
+    "Remote Sensing" = "solid",
+    "Field Measurements" = "solid",
+    "Future (lag-corrected)" = "solid",
+    "Future (intercept-only)" = "dashed"
+)
+
+# Modify the plotting function
+create_biomass_plot <- function(data, field_data, lag, output_width = 20, output_height = 8) {
+    p <- ggplot(data, aes(x = age)) +
+        # Remote sensing data
+        geom_line(aes(y = mean_obs, color = "Remote Sensing"), size = 1) +
+        geom_ribbon(
+            aes(ymin = mean_obs - sd_obs, ymax = mean_obs + sd_obs, fill = "Remote Sensing"),
+            alpha = 0.2, color = NA
+        ) +
+
+        # Predicted data
+        geom_line(aes(
+            y = mean_pred_lag_corrected, color = "Predicted (lag-corrected)",
+            linetype = "Predicted (lag-corrected)"
+        ), size = 1) +
+        geom_ribbon(
+            aes(
+                ymin = mean_pred_lag_corrected - sd_pred_lag_corrected,
+                ymax = mean_pred_lag_corrected + sd_pred_lag_corrected,
+                fill = "Predicted (lag-corrected)"
+            ),
+            alpha = 0.2, color = NA
+        ) +
+        geom_line(aes(
+            y = mean_pred_uncorrected, color = "Predicted (uncorrected)",
+            linetype = "Predicted (uncorrected)"
+        ), size = 1) +
+        geom_ribbon(
+            aes(
+                ymin = mean_pred_uncorrected - sd_pred_uncorrected,
+                ymax = mean_pred_uncorrected + sd_pred_uncorrected,
+                fill = "Predicted (uncorrected)"
+            ),
+            alpha = 0.2, color = NA
+        ) +
+        geom_line(aes(
+            y = mean_pred_intercept, color = "Predicted (intercept-only)",
+            linetype = "Predicted (intercept-only)"
+        ), size = 1) +
+        geom_ribbon(
+            aes(
+                ymin = mean_pred_intercept - sd_pred_intercept,
+                ymax = mean_pred_intercept + sd_pred_intercept,
+                fill = "Predicted (intercept-only)"
+            ),
+            alpha = 0.2, color = NA
+        ) +
+
+        # Field data points
+        geom_point(
+            data = field_data,
+            aes(x = age, y = mean_biomass, color = "Field Measurements"),
+            size = 3, alpha = 0.7
+        ) +
+
+        # Vertical line for age lag
+        geom_vline(
+            xintercept = (lag + 1),
+            linetype = "dotted", color = "black", size = 1
+        ) + 
+        geom_text(
+            aes(x = (lag + 1), y = 300, label = paste(lag, "year lag")),
+            hjust = 0.5, color = "black", size = 5
+        ) +
+        
+        # Add future prediction lines
+        geom_line(
+            aes(
+                y = mean_pred_lag_future,
+                color = "Future (lag-corrected)",
+                linetype = "Future (lag-corrected)"
+            ),
+            size = 1, na.rm = TRUE
+        ) +
+        geom_ribbon(
+            aes(
+                ymin = mean_pred_lag_future - sd_pred_lag_future,
+                ymax = mean_pred_lag_future + sd_pred_lag_future,
+                fill = "Future (lag-corrected)"
+            ),
+            alpha = 0.15, color = NA, na.rm = TRUE
+        ) +
+        geom_line(
+            aes(
+                y = mean_pred_intercept_future,
+                color = "Future (intercept-only)",
+                linetype = "Future (intercept-only)"
+            ),
+            size = 1, na.rm = TRUE
+        ) +
+        geom_ribbon(
+            aes(
+                ymin = mean_pred_intercept_future - sd_pred_intercept_future,
+                ymax = mean_pred_intercept_future + sd_pred_intercept_future,
+                fill = "Future (intercept-only)"
+            ),
+            alpha = 0.15, color = NA, na.rm = TRUE
+        ) +
+
+        # Scale definitions
+        scale_color_manual(values = plot_colors, name = NULL) +
+        scale_fill_manual(values = plot_colors, name = NULL) +
+        scale_linetype_manual(values = linetypes, name = NULL) +
+        scale_y_continuous(limits = c(0, 310), expand = expansion(mult = c(0, 0.05))) +
+
+        # Labels and theme
+        labs(
+            x = "Forest Age (years)",
+            y = "Biomass (Mg/ha)"
+        ) +
+        theme(
+            aspect.ratio = 0.5,
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            axis.line = element_line(color = "black"),
+            axis.title = element_text(color = "black", family = "Helvetica"),
+            axis.text = element_text(color = "black", size = 14, family = "Helvetica")
+        )
+
+    return(p)
+}
+
+# Create and save plot
+biomass_plot <- create_biomass_plot(all_pred_data, field_data, lag)
+
+
+# ---------------------------- Save Outputs ----------------------------
+# Save main plot
 ggsave(
-    filename = "0_results/figures/lag_field_biomass.jpeg",
-    plot = p,
-    width = 15,
-    height = 5,
+  filename = "0_results/figures/lag_field_biomass.jpeg",
+  plot = biomass_plot,
+  width = 15,
+  height = 8,
+  units = "in",
+  dpi = 300
+)
+
+# Function to extract and save legend
+save_legend_separately <- function(plot, filename, width = 10, height = 2) {
+  # Extract legend
+  legend <- cowplot::get_legend(plot)
+  
+  # Create a blank plot with just the legend
+  legend_plot <- ggpubr::as_ggplot(legend)
+  
+  # Save the legend
+  ggsave(
+    filename = filename,
+    plot = legend_plot,
+    width = width,
+    height = height,
     units = "in",
     dpi = 300
+  )
+}
+
+# Save legend separately
+save_legend_separately(
+  biomass_plot,
+  "0_results/figures/biomass_plot_legend.jpeg"
 )

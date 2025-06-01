@@ -1,5 +1,5 @@
-# main.R - Main script
-# Runs experiments and saves results for different parameter combinations
+
+
 
 # Load required libraries
 library(foreach)
@@ -103,11 +103,51 @@ for (basic_pars_name in names(basic_pars_options)) {
     init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
     model <- run_optim(norm_data, init_pars, conditions)
     saveRDS(model, file = paste0("./0_results/amazon_model_", basic_pars_name, ".rds", sep = ""))
-    if basic_pars_name == "lag" {
-        pred <- growth_curve(model$par, norm_data)
+    
+    pred <- growth_curve(model$par, norm_data)
+    # get growth trends 50 years in the future
+    norm_data_future <- norm_data
+    norm_data_future$age <- norm_data_future$age + 35
+
+    if (basic_pars_name == "lag") {
+
         pred_uncorrected <- growth_curve(model$par, norm_data, lag = model$par["lag"])
-        pred_vs_obs <- data.frame(uncorrected_age = norm_data$age, corrected_age = round(norm_data$age + model$par["lag"]), pred_corrected_age = pred, pred_uncorrected = pred_uncorrected, obs = norm_data$biomass)
+        
+        norm_data_future$age <- norm_data_future$age + model$par["lag"]
+
+        pred_future <- growth_curve(model$par, norm_data_future, lag = model$par["lag"])
+
+        pred_vs_obs <- data.frame(
+            uncorrected_age = norm_data$age,
+            corrected_age = round(norm_data$age + model$par["lag"]),
+            pred_uncorrected = pred_uncorrected,
+            pred_corrected = pred,
+            obs = norm_data$biomass,
+            age_future = norm_data_future$age,
+            pred_future = pred_future
+        )
+
         write.csv(pred_vs_obs, file = "./0_results/pred_vs_obs_amazon_lag.csv", row.names = FALSE)
+
+    } else {
+        pred_future <- growth_curve(model$par, norm_data_future)
+
+        norm_data_further_future <- norm_data_future
+        norm_data_further_future$age <- norm_data_further_future$age + 35
+        pred_further_future <- growth_curve(model$par, norm_data_further_future)
+        
+        age_future <- rbind(norm_data_future$age, norm_data_further_future$age)
+        pred_future <- round(rbind(pred_future, pred_further_future) - model$par["B0"])
+
+        pred_vs_obs <- data.frame(
+            age = norm_data$age,
+            pred = pred,
+            obs = norm_data$biomass,
+            pred_corrected = round(pred - model$par["B0"]),
+            age_future = norm_data_future$age, pred_future = pred_future,
+        )
+        
+        write.csv(pred_vs_obs, file = paste0("./0_results/pred_vs_obs_amazon_intercept.csv"), row.names = FALSE)
     }
 }
 
@@ -135,5 +175,5 @@ for (asymptote in c("nearest_mature", "full_amazon")) {
 
     importance_results$importance_scaled = importance_pct * r2 / 100)
 
-    write.csv(importance_results, file = paste0("./0_results/importance_", asymptote, ".csv"), row.names = FALSE)
+    # write.csv(importance_results, file = paste0("./0_results/importance_", asymptote, ".csv"), row.names = FALSE)
 }

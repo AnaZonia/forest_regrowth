@@ -200,6 +200,13 @@ for (var_short in names(variables)) {
         s <- sds(experiment_rasters_aligned)
         combined_raster <- app(s, mean)
 
+        # Set names based on the year range
+        if (grepl("historical", experiment)) {
+            names(combined_raster) <- seq(1950, 2014)
+        } else {
+            names(combined_raster) <- seq(2015, 2074)
+        }
+
         output_file <- paste0(cmip6_dir, var_full, "_", experiment, ".tif")
 
         writeRaster(
@@ -211,4 +218,48 @@ for (var_short in names(variables)) {
         message("Saved: ", output_file)
     }
 }
+
+
+# merge all rasters for each variable and experiment (making 4 rasters, one for each experiment)
+
+
+
+for (experiment in experiments) {
+    experiment_rasters <- list()
+    for (var_short in names(variables)) {
+        var_full <- variables[[var_short]]
+        file <- rast(paste0(cmip6_dir, var_full, "_", experiment, ".tif"))
+        if (is.null(file)) {
+            message("No raster found for variable: ", var_full, " in experiment: ", experiment)
+            next
+        }
+
+        # Name bands based on the year range
+        if (experiment == "historical") {
+            names(combined_raster) <- seq(1950, 2014)
+        } else {
+            names(combined_raster) <- seq(2015, 2074)
+        }
+
+        experiment_rasters[[var_full]] <- file
+    }
+
+    output_file <- paste0(cmip6_dir, "CMIP6_", experiment, ".tif")
+
+    combined_raster <- do.call(c, experiment_rasters)
+
+    if (file.exists(output_file)) {
+        message("Raster for ", var_full, " in ", experiment, " already exists: ", output_file)
+    } else {
+        writeRaster(
+            combined_raster,
+            filename = output_file,
+            filetype = "GTiff",
+            overwrite = TRUE
+        )
+    }
+}
+
+
+
 
