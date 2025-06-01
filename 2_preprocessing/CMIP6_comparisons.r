@@ -22,47 +22,32 @@ registerDoParallel(cores = ncore)
 
 secondary_CMIP6 <- import_data("grid_10k_amazon_secondary_CMIP6", biome = 1, n_samples = 10000, asymptote = "quarter_biomass")
 
-
-terraclim_pars <- c("soil", "temp", "vpd", "aet", "pdsi", "srad", "def")
-cmip6_pars <- c("nssh", "musc", "sdsr", "nsat", "pr")
-
-secondary_CMIP6 <- secondary_CMIP6 %>%
-    rename_with(
-        ~ gsub(paste0("^(", paste(cmip6_pars, collapse = "|"), ")_mean$"), "mean_\\1", .),
-        .cols = matches("_mean$")
-    )
-secondary_CMIP6 <- secondary_CMIP6 %>%
-    filter(rowSums(is.na(.)) == 0)
-
+terraclim_pars <- c("soil", "temp", "vpd", "aet", "pdsi", "def", "srad")
+cmip6_pars <- c("musc", "nsat", "pr", "sdsr", "nssh")
 
 climatic_pars <- c(terraclim_pars, cmip6_pars)
 
 pattern <- paste0("^mean_(", paste(climatic_pars, collapse = "|"), ")$")
 
-secondary_CMIP6 <- secondary_CMIP6 %>%
+secondary_CMIP6_selected <- secondary_CMIP6 %>%
     select(c("age", "asymptote", "biomass", matches(pattern)))
 
-colnames(secondary_CMIP6)
-
-norm_data <- normalize_independently(secondary_CMIP6)
+norm_data <- normalize_independently(secondary_CMIP6_selected)
 norm_data <- norm_data$train_data
 # how many rows have any NA values
 
-
-data_pars <- grep(pattern, colnames(secondary_CMIP6), value = TRUE) # 0.234472
+# data_pars <- grep(pattern, colnames(secondary_CMIP6_selected), value = TRUE)
+# data_pars <- paste0("mean_", c(terraclim_pars, cmip6_pars[-c(4, 5)]))
+data_pars <- paste0("mean_", c(terraclim_pars[-c(6, 7)], cmip6_pars))
+# data_pars <- paste0("mean_", cmip6_pars[-c(4, 5)])
+# data_pars <- paste0("mean_", terraclim_pars)
 data_pars
-# data_pars <- paste0("mean_", cmip6_pars) # 0.2108765
-data_pars <- paste0("mean_", terraclim_pars) # 0.2157957
-
 basic_pars <- basic_pars_options[["lag"]]
 init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
 model <- run_optim(norm_data, init_pars, conditions)
 pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
 r2 <- calc_r2(norm_data, pred)
 print(r2)
-
-
-
 
 
 

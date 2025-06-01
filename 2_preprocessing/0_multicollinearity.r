@@ -70,22 +70,10 @@ find_highly_correlated <- function(corr_matrix, threshold = 0.8) {
 # Main function to run the data preparation steps
 
 # Load and preprocess the dataset (modify the path as needed)
-secondary_CMIP6 <- import_data("grid_10k_amazon_secondary_CMIP6", biome = 1, n_samples = 10000)
-
-secondary_CMIP6 <- secondary_CMIP6 %>% select(-contains("pr"))
-
+secondary_CMIP6 <- import_data("grid_10k_amazon_secondary_CMIP6", biome = 1, n_samples = 10000, asymptote = "quarter_biomass")
 
 terraclim_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pdsi")
 cmip6_pars <- c("nssh", "musc", "sdsr", "nsat")
-
-secondary_CMIP6 <- secondary_CMIP6 %>%
-    rename_with(
-        ~ gsub(paste0("^(", paste(cmip6_pars, collapse = "|"), ")_mean$"), "mean_\\1", .),
-        .cols = matches("_mean$")
-    )
-secondary_CMIP6 <- secondary_CMIP6 %>%
-    filter(rowSums(is.na(.)) == 0)
-
 
 climatic_pars <- c(terraclim_pars, cmip6_pars)
 

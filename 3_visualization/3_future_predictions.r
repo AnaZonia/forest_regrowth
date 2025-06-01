@@ -28,6 +28,10 @@ model_intercept <- readRDS("./0_results/amazon_model_intercept.rds")
 # Apply Min-Max scaling using the precomputed min and max
 train_stats <- readRDS("./0_results/grid_1k_amazon_secondary_train_stats.rds")
 
+# keep only the variables that are in the model
+train_stats <- train_stats %>%
+    filter(variable %in% c(names(model_lag$par), names(model_intercept$par)))
+
 apply_min_max_scaling <- function(data, train_stats) {
     # Apply Min-Max scaling to each variable in the data
     for (i in seq_along(train_stats$variable)) {
@@ -38,11 +42,11 @@ apply_min_max_scaling <- function(data, train_stats) {
     return(data)
 }
 
+
 # Biomass predictions for future years
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Estimated biomass x years after 2020
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
 
 # pasture_selection can be random, protected, or top_20_percent
 
@@ -54,14 +58,15 @@ predict_future_biomass <- function(name, model, age_offset, pasture_selection = 
     data <- apply_min_max_scaling(data$df, train_stats)
 
     if (name == "secondary") {
-        data <- data %>% mutate(age = age + age_offset)
+        data <- data %>% mutate(age = age + age_offset + round(model$par["lag"]))
     } else if (name == "pastureland") {
+
         # pastureland does not have an age column, so we create one
         # assuming it starts regrowing at 2020
         data$age <- age_offset
     }
 
-    pred <- growth_curve(model$par, data)
+    pred <- growth_curve(model$par, data, model$par["lag"])
 
     # get the column in data with the word "area"
     # each 1000x1000 m pixel is 1 million m2.
@@ -70,23 +75,31 @@ predict_future_biomass <- function(name, model, age_offset, pasture_selection = 
     # 1 million m2 = 100 hectares
     area <- data[[grep("area", names(data), value = TRUE)]] * 100 # convert to hectares
 
-    # convert biomass in Mg/ha to C/ha (assuming 50% C content)
+    # we are interested in estimated biomass gain (delta)
+    if (name == "secondary") {
+        pred <- pred - data$biomass
+    }
+
+    # convert biomass in Mg/ha to MgC/ha (assuming 50% C content)
     pred <- pred * 0.5
+
+    # total estimate in Megatons of Carbon
+    pred <- pred / 1000
+
     coords$pred <- pred
 
     if (name == "pastureland") {
         if (pasture_selection == "random") {
             set.seed(1)
             # shuffle the indices of pred
-            random_indices <- sample(1:length(pred), size = 0.2 * length(pred), replace = FALSE)
-
+            random_indices <- sample(1:length(pred), size = 0.05 * length(pred), replace = FALSE)
+            sorted_area <- area[random_indices]
 
             # Compute cumulative sum of area
             cum_area <- cumsum(sorted_area)
 
             # Find the number of pixels needed to reach 20% of total area
             total_area <- sum(area)
-
 
             pred <- pred[random_indices]
             area <- area[random_indices]
@@ -111,7 +124,7 @@ predict_future_biomass <- function(name, model, age_offset, pasture_selection = 
 
             # Find the number of pixels needed to reach 20% of total area
             total_area <- sum(area)
-            n_needed <- which(cum_area >= 0.2 * total_area)[1]
+            n_needed <- which(cum_area >= 0.05 * total_area)[1]
 
             # Select those indices
             selected_indices <- order_indices[1:n_needed]
@@ -128,69 +141,62 @@ predict_future_biomass <- function(name, model, age_offset, pasture_selection = 
 }
 
 
-
-
 pred_lag_2050_secondary <- predict_future_biomass("secondary", model_lag, 30)
 pred_intercept_2050_secondary <- predict_future_biomass("secondary", model_intercept, 30)
-
-pred_lag_2050_pastureland_random <- predict_future_biomass("pastureland", model_lag, 30, "random")
-pred_lag_2050_pastureland_protected <- predict_future_biomass("pastureland", model_lag, 30, "protected")
 pred_lag_2050_pastureland_top_20 <- predict_future_biomass("pastureland", model_lag, 30, "top_20_percent")
+pred_lag_2050_pastureland_random <- predict_future_biomass("pastureland", model_lag, 30, "random")
 
-barplot(
-    c(
-        # pred_lag_2050_secondary[[1]],
-        # pred_intercept_2050_secondary[[1]],
-        pred_lag_2050_pastureland_random[[1]],
-        pred_lag_2050_pastureland_protected[[1]],
-        pred_lag_2050_pastureland_top_20[[1]]
+
+points <- vect(pred_lag_2050_pastureland_top_20[[2]], geom = c("lon", "lat"), crs = "EPSG:4326")
+writeVector(points, "pred_lag_2050_pastureland_top_20.shp", overwrite = TRUE)
+points <- vect(pred_lag_2050_secondary[[2]], geom = c("lon", "lat"), crs = "EPSG:4326")
+writeVector(points, "pred_lag_2050_secondary.shp", overwrite = TRUE)
+
+# Data
+df <- tibble::tibble(
+    scenario = factor(
+        rep(c("Secondary Forests", "Random 5% pastureland", "Top 5% pastureland"), each = 2),
+        levels = c("Secondary Forests", "Random 5% pastureland", "Top 5% pastureland")
     ),
-    names.arg = c(
-        # "Lag 2050 Secondary",
-        # "Intercept 2050 Secondary",
-        "Lag 2050 Pastureland Random 20%",
-        "Lag 2050 Pastureland Protected",
-        "Lag 2050 Pastureland Top 20%"
-    ),
-    main = "Total Biomass in the Amazon (Mg C)",
-    ylab = "Total Biomass (Mg C)"
+    source = rep(c("Secondary", "Pastureland"), 3),
+    value = c(
+        pred_lag_2050_secondary[[1]], 0,
+        pred_lag_2050_secondary[[1]], pred_lag_2050_pastureland_random[[1]],
+        pred_lag_2050_secondary[[1]], pred_lag_2050_pastureland_top_20[[1]]
+    )
 )
 
+palette <- c(
+    "Secondary" = "#4DAF4A",
+    "Pastureland" = "#1F78B4"
+)
 
-# points <- vect(pred_lag_2050[[2]], geom = c("lon", "lat"), crs = "EPSG:4326")
-# writeVector(points, "pred_lag_2050_secondary.shp", overwrite = TRUE)
+p <- ggplot(df, aes(x = scenario, y = value, fill = source)) +
+        geom_bar(stat = "identity", width = 0.7) +
+        scale_fill_manual(values = palette, name = NULL) +
+        scale_y_continuous(
+            expand = expansion(mult = c(0.05, 0.05)),
+            name = "Biomass stored by 2050 (Mg C)"
+        ) +
+        theme_minimal(base_size = 18) +
+        theme(
+            legend.position = "top",
+            legend.text = element_text(size = 18),
+            axis.text = element_text(size = 10, color = "black"),
+            axis.title = element_text(size = 20, color = "black"),
+            panel.grid = element_blank(),
+            axis.line = element_line(color = "black", size = 1),
+            axis.ticks = element_line(color = "black", size = 0.8),
+            axis.ticks.length = unit(0.3, "cm"),
+            plot.margin = margin(10, 10, 10, 10)
+        ) +
+        labs(x = NULL)
 
-
-pred <- growth_curve(model$par, data)
-area <- data[[grep("area", names(data), value = TRUE)]] * 100 # convert to hectares
-
-
-
-# While the sum of the selected area is less than 20% of the total area
-while (sum(area) < 0.2 * sum(data$area)) {
-    # Get the top 2% of predictions not already selected
-    top_indices <- setdiff(top_indices[1:round(0.02 * length(pred))], selected_indices)
-
-    # Add the corresponding areas to the total area
-    area <- c(area, data$area[top_indices])
-
-    # Keep track of the selected indices to avoid duplicates
-    selected_indices <- c(selected_indices, top_indices)
-}
-pred <- pred[selected_indices]
-
-# set.seed(1)
-# random_indices <- sample(1:length(pred), size = 0.2 * length(pred), replace = FALSE)
-# print(length(random_indices))
-# pred <- pred[random_indices]
-# area <- area[random_indices]
-# top_20_indices <- order(pred, decreasing = TRUE)[1:round(0.2 * length(pred))]
-# print(length(top_20_indices))
-# pred <- pred[top_20_indices]
-# area <- area[top_20_indices]
-mean(area)
-hist(area)
-
+# Save to file
+ggsave("0_results/figures/pastureland_biomass_stack.jpeg",
+    plot = p,
+    width = 8, height = 8, dpi = 300
+)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ~~~~~~~~~~~~~~~~~~~~ Whole Amazon ~~~~~~~~~~~~~~~~~~~~
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

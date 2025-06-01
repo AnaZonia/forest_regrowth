@@ -66,7 +66,6 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
         remove_selected_columns = TRUE
     )
 
-
     asymptotes <- c("nearest_mature", "ecoreg_biomass", "quarter_biomass")
 
     if (asymptote == "full_amazon") {
@@ -81,6 +80,9 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
             "quarter", "biome"
         )))
     }
+
+    # remove any rows with NA values (important due to gaps in CMIP6 data)
+    df <- df %>% filter(rowSums(is.na(.)) == 0)
 
     if (n_samples == "all") {
         coords <- df[, c("lat", "lon")]

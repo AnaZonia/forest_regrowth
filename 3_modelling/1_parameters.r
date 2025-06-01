@@ -1,8 +1,7 @@
 # parameters.R - Define all parameter sets and configurations
 
 # Global Variables
-climatic_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pr", "pdsi")
-# climatic_pars <- c("sdsr", "nsat", "musc")
+climatic_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pdsi", "pr", "nssh", "musc", "sdsr", "nsat")
 land_use <- c("lu", "fallow", "num_fires")
 landscape <- c("dist", "sur_cover")
 categorical <- c("ecoreg", "topography") # , "last_lu")

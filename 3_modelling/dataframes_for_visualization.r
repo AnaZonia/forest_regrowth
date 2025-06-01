@@ -91,15 +91,15 @@ calculate_permutation_importance <- function(model, data, data_pars) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000)
+data <- import_data("grid_1k_amazon_secondary", biome = 1, n_samples = 10000)
 norm_data <- normalize_independently(data)
 saveRDS(norm_data$train_stats, file = "./0_results/grid_1k_amazon_secondary_train_stats.rds")
 norm_data <- norm_data$train_data
 
-
 for (basic_pars_name in names(basic_pars_options)) {
     basic_pars <- basic_pars_options[[basic_pars_name]]
     data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
+    # data_pars <- c("num_fires", "sur_cover", "dist")
     init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
     model <- run_optim(norm_data, init_pars, conditions)
     saveRDS(model, file = paste0("./0_results/amazon_model_", basic_pars_name, ".rds", sep = ""))
