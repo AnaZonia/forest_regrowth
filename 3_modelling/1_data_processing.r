@@ -36,12 +36,10 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
         df <- csv_files %>%
             map(read_csv) %>%
             bind_rows()
-        df <- df %>% rename(dist = distance_deep_forest)
     } else {
         df <- read_csv(paste0("./0_data/", path, ".csv"))
         df <- df %>%
-            select(-c(".geo", "system:index")) %>%
-            rename(nearest_mature = first)
+            select(-c(".geo", "system:index"))
     }
 
     # Convert categorical to factors

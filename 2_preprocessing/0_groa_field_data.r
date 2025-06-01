@@ -78,11 +78,12 @@ field <- field %>%
 # ------------------------------------------------------
 
 field <- field %>%
-    dplyr::rename(
-        field_biomass = mean_ha, # Rename biomass column
-        field_age = stand.age # Rename stand age column
-    ) %>%
-    dplyr::select(field_age, field_biomass, date, plot.id, lat_dec, long_dec)
+    select(stand.age, mean_ha, date, plot.id, lat_dec, long_dec) %>%
+        rename(
+            field_biomass = mean_ha,
+            field_age = stand.age,
+            plot_id = plot.id
+        )
 
 # ------------------------------------------------------
 # Convert to a spatial object (terra::SpatVector)

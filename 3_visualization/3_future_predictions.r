@@ -5,11 +5,21 @@
 # select all pasturelands in the Amazon
 # select all secondary forests in the Amazon
 
+
+source("3_modelling/1_parameters.r")
+source("3_modelling/1_data_processing.r")
+source("3_modelling/2_modelling.r")
+source("3_modelling/2_normalize_cross_validate.r")
+source("3_modelling/2_feature_selection.R")
+
+
+
+
 # Load required libraries
 library(tidyverse)
 library(terra)
 set.seed(1)
-
+biome <- 1 # Amazon
 
 
 model_lag <- readRDS("./0_results/amazon_model_lag.rds")
@@ -42,6 +52,10 @@ predict_future_biomass <- function(name, model, age_offset, pasture_selection = 
     # Import Secondary Forest Data
     data <- import_data(paste0("grid_1k_amazon_", name), biome = biome, n_samples = "all")
     coords <- data$coords
+    if (name == "pastureland") {
+        train_stats <- train_stats %>%
+            filter(!variable %in% c("mean_pdsi", "mean_def"))
+    }
     data <- apply_min_max_scaling(data$df, train_stats)
 
     if (name == "secondary") {

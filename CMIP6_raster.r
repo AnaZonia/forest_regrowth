@@ -225,7 +225,7 @@ for (var_short in names(variables)) {
             names(combined_raster) <- seq(2015, 2074)
         }
 
-        output_file <- paste0(cmip6_dir, var_full, "/", var_full, "_", experiment, ".tif")
+        output_file <- paste0(cmip6_dir, var_full, "_", experiment, ".tif")
 
         writeRaster(
             combined_raster,
@@ -234,54 +234,6 @@ for (var_short in names(variables)) {
             overwrite = TRUE
         )
         message("Saved: ", output_file)
-    }
-}
-
-# ====================================
-# Final merge: Combine all variables into one file per experiment
-# ====================================
-
-for (experiment in experiments) {
-    
-    experiment_rasters <- list()
-
-    for (var_short in names(variables)) {
-
-        path <- paste0(cmip6_dir, variables[[var_short]], "/", variables[[var_short]], "_", experiment, ".tif")
-        
-        if (!file.exists(path)) {
-            message("No raster found for variable: ", variables[[var_short]], " in experiment: ", experiment)
-            next
-        }
-
-        raster <- rast(path)
-
-        if (experiment == "historical") {
-            names(raster) <- paste0(var_short, "_", seq(1950, 2014))
-        } else {
-            names(raster) <- paste0(var_short, "_", seq(2015, 2074))
-        }
-
-        experiment_rasters <- c(experiment_rasters, raster)
-    }
-    
-    # Align and combine all variables
-    experiment_rasters_aligned <- standardize_extents(experiment_rasters)
-
-    combined_raster <- do.call(c, experiment_rasters_aligned)
-
-    output_file <- paste0(cmip6_dir, "CMIP6_", experiment, ".tif")
-
-
-    if (file.exists(output_file)) {
-        message("Raster for ", experiment, " already exists: ", output_file)
-    } else {
-        writeRaster(
-            combined_raster,
-            filename = output_file,
-            filetype = "GTiff",
-            overwrite = TRUE
-        )
     }
 }
 
