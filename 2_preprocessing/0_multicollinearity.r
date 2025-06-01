@@ -70,7 +70,7 @@ find_highly_correlated <- function(corr_matrix, threshold = 0.8) {
 # Main function to run the data preparation steps
 
 # Load and preprocess the dataset (modify the path as needed)
-data <- read_csv("./0_data/unified_fc_old_biomass.csv") %>% na.omit()
+data <- read_csv("./0_data/unified_fc.csv") %>% na.omit()
 
 df <- data %>%
     filter(biome == 1) %>%

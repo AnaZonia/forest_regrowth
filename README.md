@@ -6,21 +6,17 @@ forest_regrowth
 ├── 0_data
 ├── 1_gee
 │   ├── gee_0_utils.py
-│   ├── gee_1_secondary.ipynb
-│   ├── gee_2_categorical.ipynb
-│   ├── gee_3_climate.ipynb
-│   ├── gee_4_mature.ipynb
-│   ├── gee_5_land_use.ipynb
+│   ├── gee_1_categorical.ipynb
+│   ├── gee_2_age_biomass.ipynb
+│   ├── gee_3_climate_soil.ipynb
+│   ├── gee_4_land_use.ipynb
+│   ├── gee_5_mature.ipynb
 │   └── gee_6_write_csv.ipynb
-├── 2_R_scripts
+├── 2_modelling
 │   ├── fit_1_import_data.r
 │   ├── fit_2_functions.r
 │   └── fit_3_run_model.r
-├── 3_python_scripts
-│   ├── data_utils.py
-│   ├── model_utils.py
-│   ├── run.py
-│   └── tuners.py
+
 ├── 4_visualization
 │   ├── 1_visualize_data.ipynb
 |
