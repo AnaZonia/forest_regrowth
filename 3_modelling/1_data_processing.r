@@ -43,30 +43,29 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
     }
 
     # Convert categorical to factors
-    if (any(names(df) %in% categorical)) {
-        df <- df %>%
-            mutate(across(any_of(categorical), as.factor)) %>%
-            filter(biome == biome)
+    df <- df %>%
+        mutate(across(any_of(categorical), as.factor)) %>%
+        filter(biome == biome)
 
-        df <- na.omit(df)
+    df <- na.omit(df)
 
-        # remove columns with less than 100 non-zero values
-        non_zero_counts <- colSums(df != 0, na.rm = TRUE)
-        df <- df[, non_zero_counts > 100]
+    # remove columns with less than 100 non-zero values
+    non_zero_counts <- colSums(df != 0, na.rm = TRUE)
+    df <- df[, non_zero_counts > 100]
 
-        # remove columns with less than 50 unique values
-        df <- df %>%
-            group_by(across(any_of(categorical))) %>%
-            filter(n() >= 50) %>%
-            ungroup() %>%
-            mutate(across(all_of(categorical), droplevels))
+    # remove columns with less than 50 unique values
+    df <- df %>%
+        group_by(across(any_of(categorical))) %>%
+        filter(n() >= 50) %>%
+        ungroup() %>%
+        mutate(across(any_of(categorical), droplevels))
 
-        df <- dummy_cols(df,
-            select_columns = categorical,
-            remove_first_dummy = TRUE,
-            remove_selected_columns = TRUE
-        )
-    }
+    df <- dummy_cols(df,
+        select_columns = categorical,
+        remove_first_dummy = TRUE,
+        remove_selected_columns = TRUE
+    )
+
 
     asymptotes <- c("nearest_mature", "ecoreg_biomass", "quarter_biomass")
 

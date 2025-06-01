@@ -26,9 +26,7 @@ model_lag <- readRDS("./0_results/amazon_model_lag.rds")
 model_intercept <- readRDS("./0_results/amazon_model_intercept.rds")
 
 # Apply Min-Max scaling using the precomputed min and max
-train_stats <- readRDS("./0_results/grid_1k_amazon_secondary_train_stats.rds") %>%
-    # remove row where variable is "mean_temp"
-    filter(variable != "mean_temp")
+train_stats <- readRDS("./0_results/grid_1k_amazon_secondary_train_stats.rds")
 
 apply_min_max_scaling <- function(data, train_stats) {
     # Apply Min-Max scaling to each variable in the data
