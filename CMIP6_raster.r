@@ -1,9 +1,9 @@
-# library(raster)
+
+
+
 library(terra)
 library(utils)
 library(dplyr)
-library(ggplot2)
-
 
 
 # Settings
@@ -34,9 +34,13 @@ seconds_in_month <- c(
 # For solar radiation conversion)
 hours_in_month <- c(744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744)
 
+
+
+
 # ====================================
-# FUNCTION: Process Single Model × Experiment
-# Obtains .nc files and creates a yearly-averaged raster
+# FUNCTION: process_model_experiment
+# Description: Processes each model × experiment × variable .nc file
+# into a yearly-averaged raster stack
 # ====================================
 
 process_model_experiment <- function(experiment, model, var_dir, var_short) {
@@ -122,9 +126,37 @@ process_model_experiment <- function(experiment, model, var_dir, var_short) {
     message("Saved: ", output_file)
 }
 
+# ====================================
+# FUNCTION: standardize_extents
+# Description: Aligns extent, resolution, and CRS of a list of rasters
+# ====================================
+standardize_extents <- function(experiment_rasters) {
+    extents <- lapply(experiment_rasters, ext)
+
+    xmin_ref <- max(unlist(lapply(extents, function(x) x$xmin)))
+    xmax_ref <- min(unlist(lapply(extents, function(x) x$xmax)))
+    ymin_ref <- max(unlist(lapply(extents, function(x) x$ymin)))
+    ymax_ref <- min(unlist(lapply(extents, function(x) x$ymax)))
+
+    min_extent <- ext(xmin_ref, xmax_ref, ymin_ref, ymax_ref)
+    ref_raster <- experiment_rasters[[1]]
+
+    # Reproject and crop all rasters to the smallest extent
+    experiment_rasters_aligned <- lapply(experiment_rasters, function(r) {
+        r <- resample(r, ref_raster) # resample to a common resolution
+        r <- project(r, crs(ref_raster)) # reproject to the same CRS
+        r <- crop(r, min_extent) # crop to the smallest extent
+        return(r)
+    })
+
+    return(experiment_rasters_aligned)
+}
 
 
-# Main loop to process everything
+
+# ====================================
+# MAIN LOOP: Process each variable
+# ====================================
 for (var_short in names(variables)) {
 
     var_full <- variables[[var_short]]
@@ -158,7 +190,9 @@ for (var_short in names(variables)) {
         }
     }
 
-    # Combine all models for each experiment
+    # ====================================
+    # Combine rasters from all models for each experiment
+    # ====================================
     for (experiment in experiments) {
         experiment_list <- c()
 
@@ -179,23 +213,7 @@ for (var_short in names(variables)) {
 
         experiment_rasters <- lapply(experiment_list, rast)
 
-        extents <- lapply(experiment_rasters, ext)
-
-        xmin_ref <- max(unlist(lapply(extents, function(x) x$xmin)))
-        xmax_ref <- min(unlist(lapply(extents, function(x) x$xmax)))
-        ymin_ref <- max(unlist(lapply(extents, function(x) x$ymin)))
-        ymax_ref <- min(unlist(lapply(extents, function(x) x$ymax)))
-
-        min_extent <- ext(xmin_ref, xmax_ref, ymin_ref, ymax_ref)
-        ref_raster <- experiment_rasters[[1]]
-
-        # Reproject and crop all rasters to the smallest extent
-        experiment_rasters_aligned <- lapply(experiment_rasters, function(r) {
-            r <- resample(r, ref_raster) # resample to a common resolution
-            r <- project(r, crs(ref_raster)) # reproject to the same CRS
-            r <- crop(r, min_extent) # crop to the smallest extent
-            return(r)
-        })
+        experiment_rasters_aligned <- standardize_extents(experiment_rasters)
 
         s <- sds(experiment_rasters_aligned)
         combined_raster <- app(s, mean)
@@ -207,7 +225,7 @@ for (var_short in names(variables)) {
             names(combined_raster) <- seq(2015, 2074)
         }
 
-        output_file <- paste0(cmip6_dir, var_full, "_", experiment, ".tif")
+        output_file <- paste0(cmip6_dir, var_full, "/", var_full, "_", experiment, ".tif")
 
         writeRaster(
             combined_raster,
@@ -219,37 +237,44 @@ for (var_short in names(variables)) {
     }
 }
 
-
-# merge all rasters for each variable and experiment (making 4 rasters, one for each experiment)
-
-
+# ====================================
+# Final merge: Combine all variables into one file per experiment
+# ====================================
 
 for (experiment in experiments) {
+    
     experiment_rasters <- list()
+
     for (var_short in names(variables)) {
-        var_full <- variables[[var_short]]
-        file <- rast(paste0(cmip6_dir, var_full, "_", experiment, ".tif"))
-        if (is.null(file)) {
-            message("No raster found for variable: ", var_full, " in experiment: ", experiment)
+
+        path <- paste0(cmip6_dir, variables[[var_short]], "/", variables[[var_short]], "_", experiment, ".tif")
+        
+        if (!file.exists(path)) {
+            message("No raster found for variable: ", variables[[var_short]], " in experiment: ", experiment)
             next
         }
 
-        # Name bands based on the year range
+        raster <- rast(path)
+
         if (experiment == "historical") {
-            names(combined_raster) <- seq(1950, 2014)
+            names(raster) <- paste0(var_short, "_", seq(1950, 2014))
         } else {
-            names(combined_raster) <- seq(2015, 2074)
+            names(raster) <- paste0(var_short, "_", seq(2015, 2074))
         }
 
-        experiment_rasters[[var_full]] <- file
+        experiment_rasters <- c(experiment_rasters, raster)
     }
+    
+    # Align and combine all variables
+    experiment_rasters_aligned <- standardize_extents(experiment_rasters)
+
+    combined_raster <- do.call(c, experiment_rasters_aligned)
 
     output_file <- paste0(cmip6_dir, "CMIP6_", experiment, ".tif")
 
-    combined_raster <- do.call(c, experiment_rasters)
 
     if (file.exists(output_file)) {
-        message("Raster for ", var_full, " in ", experiment, " already exists: ", output_file)
+        message("Raster for ", experiment, " already exists: ", output_file)
     } else {
         writeRaster(
             combined_raster,
@@ -259,7 +284,6 @@ for (experiment in experiments) {
         )
     }
 }
-
 
 
 

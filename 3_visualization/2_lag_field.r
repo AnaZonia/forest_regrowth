@@ -4,9 +4,6 @@ library(ggplot2)
 library(cowplot) # For legend extraction
 library(ggpubr) # For legend extraction
 
-install.packages("pak")
-pak::pak("ggpubr")
-
 # Set global options
 options(stringsAsFactors = FALSE)
 theme_set(theme_minimal(base_size = 20))
@@ -51,16 +48,16 @@ all_pred_data <- full_join(field_data, lag_summary, by = "age") %>%
 
 # Update plot colors and linetypes to include future predictions
 plot_colors <- c(
-    "Predicted (lag-corrected)" = "blue",
-    "Predicted (intercept)" = "green4",
-    "Remote Sensing" = "red",
+    "Lag-corrected estimates" = "blue",
+    "Uncorrected estimates" = "green4",
+    "Observed (Remote Sensing)" = "red",
     "Field Measurements" = "black"
 )
 
 linetypes <- c(
-    "Predicted (lag-corrected)" = "solid",
-    "Predicted (intercept)" = "solid",
-    "Remote Sensing" = "solid",
+    "Lag-corrected estimates" = "solid",
+    "Uncorrected estimates" = "solid",
+    "Observed (Remote Sensing)" = "solid",
     "Field Measurements" = "solid"
 )
 
@@ -69,40 +66,31 @@ linetypes <- c(
 p <- ggplot(all_pred_data, aes(x = age)) +
 
     # Remote sensing data
-    geom_line(aes(y = mean_obs, color = "Remote Sensing"), size = 1) +
+    geom_line(aes(y = mean_obs, color = "Observed (Remote Sensing)"), linewidth = 1) +
     geom_ribbon(
-        aes(ymin = mean_obs - sd_obs, ymax = mean_obs + sd_obs, fill = "Remote Sensing"),
+        aes(ymin = mean_obs - sd_obs, ymax = mean_obs + sd_obs, fill = "Observed (Remote Sensing)"),
         alpha = 0.2, color = NA
     ) +
 
     # Predicted data - current
     geom_line(aes(
-        y = mean_pred_lag, color = "Predicted (lag-corrected)",
-        linetype = "Predicted (lag-corrected)"
-    ), size = 1) +
+        y = mean_pred_lag, color = "Lag-corrected estimates",
+        linetype = "Lag-corrected estimates"
+    ), linewidth = 1) +
 
     geom_ribbon(
         aes(
             ymin = mean_pred_lag - sd_pred_lag,
             ymax = mean_pred_lag + sd_pred_lag,
-            fill = "Predicted (lag-corrected)"
+            fill = "Lag-corrected estimates"
         ),
         alpha = 0.2, color = NA
     ) +
     
     geom_line(aes(
-        y = mean_pred_intercept, color = "Predicted (intercept)",
-        linetype = "Predicted (intercept)"
-    ), size = 1) +
-
-    # geom_ribbon(
-    #     aes(
-    #         ymin = mean_pred_intercept - sd_pred_intercept,
-    #         ymax = mean_pred_intercept + sd_pred_intercept,
-    #         fill = "Predicted (intercept)"
-    #     ),
-    #     alpha = 0.2, color = NA
-    # ) +
+        y = mean_pred_intercept, color = "Uncorrected estimates",
+        linetype = "Uncorrected estimates"
+    ), linewidth = 1) +
 
     # Field data points
     geom_point(
@@ -114,7 +102,7 @@ p <- ggplot(all_pred_data, aes(x = age)) +
     # Vertical line for age lag
     geom_vline(
         xintercept = (lag + 1),
-        linetype = "dotted", color = "black", size = 1
+        linetype = "dotted", color = "black", linewidth = 1
     ) +
     annotate(
         "text", x = (lag + 1) + 2, y = 300,
@@ -158,12 +146,13 @@ ggsave(
   dpi = 300
 )
 
+p <- p + theme(legend.position = "right")
 
 # Extract legend
 legend <- cowplot::get_legend(p)
 
 # Create a blank plot with just the legend
-legend_plot <- ggpubr::as_ggplot(legend)
+legend_plot <- cowplot::ggdraw(legend)
 
 # Save the legend
 ggsave(
