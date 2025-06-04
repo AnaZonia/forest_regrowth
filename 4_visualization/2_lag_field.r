@@ -9,7 +9,7 @@ options(stringsAsFactors = FALSE)
 theme_set(theme_minimal(base_size = 20))
 
 # ---------------------------- Data Loading ----------------------------
-field_data <- read.csv("0_data/groa_field/aggregated_field_biomass.csv")
+field_data <- read.csv("0_data/groa_field/average_biomass_per_age.csv")
 lag_data <- read.csv("0_results/pred_vs_obs_amazon_lag.csv")
 intercept_data <- read.csv("0_results/pred_vs_obs_amazon_intercept.csv")
 

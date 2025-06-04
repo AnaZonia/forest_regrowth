@@ -5,6 +5,10 @@ library(car) # For VIF
 library(dplyr)
 library(readr) # For reading CSV files
 
+source("3_modelling/1_parameters.r")
+source("3_modelling/1_data_processing.r")
+
+
 # Function to calculate correlation matrix
 calculate_correlation_matrix <- function(df) {
     return(cor(df, use = "pairwise.complete.obs"))
@@ -70,17 +74,16 @@ find_highly_correlated <- function(corr_matrix, threshold = 0.8) {
 # Main function to run the data preparation steps
 
 # Load and preprocess the dataset (modify the path as needed)
-secondary_CMIP6 <- import_data("grid_10k_amazon_secondary_CMIP6", biome = 1, n_samples = 10000, asymptote = "quarter_biomass")
+secondary_CMIP6 <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000, asymptote = "quarter_biomass")
 
 terraclim_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pdsi")
 cmip6_pars <- c("nssh", "musc", "sdsr", "nsat")
 
-climatic_pars <- c(terraclim_pars, cmip6_pars)
+soil <- c("nitro", "phh2o", "ocd", "cec", "sand", "clay", "soc", "cfvo")
 
-pattern <- paste0("^mean_(", paste(climatic_pars, collapse = "|"), ")$")
 
 df <- secondary_CMIP6 %>%
-    select(c("age", "asymptote", "biomass", matches(pattern)))
+    select(c("age", "asymptote", "biomass", soil))
 
 # Calculate correlation matrix
 corr_matrix <- calculate_correlation_matrix(df)
@@ -94,4 +97,4 @@ print("Variance Inflation Factors:")
 print(vif_results)
 
 # Identify highly correlated features
-find_highly_correlated(corr_matrix, threshold = 0.6)
+find_highly_correlated(corr_matrix, threshold = 0.3)

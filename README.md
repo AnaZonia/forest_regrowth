@@ -1,5 +1,5 @@
 ## Project Overview
-CapoERA (Computational Algorithm for Post-agricultural Ecosystem Regrowth Analysis) is a model that predicts the age of secondary forests in Brazil based on satellite data. This script imports and processes remote sensing data from Google Earth Engine, and compares different models to predict the biomass of secondary forests based on climate and previous land use.
+CapoERA (Computational Algorithm for Post-agricultural Ecosystem Regrowth Analysis) is a model that predicts the age of secondary forests in Brazil based on satellite data. This script imports and processes remote sensing data from Google Earth Engine, and compares different models to predict the biomass of secondary forests in 2020 and in the future.
 
 ```
 forest_regrowth
@@ -22,8 +22,8 @@ forest_regrowth
 │   ├── 1_parameters.r
 │   ├── 2_feature_selection.r
 │   ├── 2_modelling.r
-│   ├── 2_normalize_cross_validate.r
-│   ├── dataframes_for_visualization.r
+│   ├── 2_cross_validate.r
+│   ├── results_for_visualization.r
 │   ├── R2_field.r
 │   └── R2_satellite.r
 |
@@ -72,6 +72,7 @@ forest_regrowth
         - Vapour Pressure
         - Evapotranspiration
     "yearly_terraclim": values of the metrics across all years from 1985-2019, and the means across time
+    
     - SoilGrids
         - Bulk Density
         - Cation Exchange Capacity
@@ -84,12 +85,18 @@ forest_regrowth
         - Sand Content
         - Soil Organic Carbon
     All averaged from 0-30cm depth and converted to the correct units.
+    
     - CMIP6 Climate
     Gets yearly climate data from the CMIP6 dataset for the period 1985-2019, and averages it across all years.
-    - Exports:
-        - "yearly_terraclim"
-        - "soilgrids"
-        - "cmip6_climate"
+        - Near Surface Specific Humidity
+        - Near Surface Air Temperature
+        - Moisture in Upper Portion of Soil Column
+        - Precipitation
+        - Surface Downwelling Shortwave Radiation
+    Exports:
+        - "CMIP6_historical"
+        - "CMIP6_ssp245"
+        - "CMIP6_means"
 
 - **gee_4_mature.ipynb**:
     Imports:
@@ -133,18 +140,138 @@ forest_regrowth
         - as a random sample of 15000 pixels per biome (for model fitting and validation)
         - as tiles incorporating all pixels classified as secondary forests for 2020 (for future predictions)
 
-### 2_R_scripts/
-- **0_multicollinearity.r**:
-- **fit_1_import_data.r**:
-  - Imports 
-- **fit_2_functions.r**:
-- **fit_3_run_model.r**:
+### 2_preprocessing/
+- **multicollinearity.r**:
+    Tests for multicollinearity in the dataset and removes highly correlated variables.
+- **groa_field_data.r**:
+    Imports and processes field data from the GROA project.
+    Imports:
+    - Field data from GROA (biomass_litter_CWD.csv)
+    - site data from GROA (sites.csv)
+    Exports:
+    - Average biomass per age (average_biomass_per_age.csv)
+    - Data for all field plots with repeated measurements (field_repeats.csv)
+    - Shapefile with one biomass measurement per plot ID to avoid pseudoreplication (field_plots.shp)
+- **import_CMIP6.r**:
+- **CMIP6_raster.r**:
 
-### 3_python_scripts/
-- **data_utils.py**:
-- **model_utils.py**:
-- **run.py**:
-- **tuners.py**:
+### 3_modelling/
+- **1_data_processing.r**:
+    Imports and processes the data for modelling.
+    Functions:
+    - "import_data"
+      - Converts categorical variables to factors
+      - Removes columns with extremely rare occurrences (less than 100 non-zero values)
+      - Removes categorical values that occur less than 50 times
+      - Selects which asymptote to use for the model ("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")
+      - Splits the coordinates into a separate dataframe for export of results as shapefile
+    - "normalize_independently"
+      - Intakes training and testing dataframes
+      - Normalizes the data for both dataframes based on the training data
+
+- **1_parameters.r**:
+    Defines the categories of parameters:
+    - Climatic
+    - Land Use (lu, fallow, num_fires)
+    - Soil
+    - Categorical
+    - Binary
+    - Landscape (dist, sur_cover)
+    Defines the parameter lists for comparisons in R2_satellite.r
+    - basic_pars_options
+    - data_pars_options
+    - conditions
+
+- **2_feature_selection.r**:
+    Performs feature selection and defines initial parameters.
+    Functions:
+      - "find_combination_pars"
+
+- **2_modelling.r**:
+    Defines the main functions for modelling:
+    - "run_optim"
+    - "calc_rss"
+    - "growth_curve"
+
+- **2_cross_validate.r**:
+    Evaluates the model performance using 5-fold cross-validation.
+    Functions:
+    - "calc_r2"
+    - "cross_validate"
+
+- **results_for_visualization.r**:
+    Prepares the results for visualization.
+    Functions:
+    - "calculate_permutation_importance"
+    Inputs:
+      - "grid_1k_amazon_secondary": all CSVs in directory
+
+    Outputs:
+    Trained models and their predictions:
+      - "grid_1k_amazon_secondary_train_stats.rds" - the normalization statistics for the training data
+      - amazon_model_lag.rds
+      - amazon_model_intercept.rds
+      - pred_vs_obs_amazon_lag.csv
+      - pred_vs_obs_amazon_intercept.csv
+    Feature importance dataframes:
+      - "importance_nearest_mature.csv"
+      - "importance_full_amazon.csv"
+
+- **R2_field.r**:
+    Obtains the R2 values for the field data based on the model trained from satellite data
+    Inputs:
+    - amazon_model_lag.rds 
+
+- **R2_satellite.r**:
+    Compares the R2 values of different models trained on satellite data.
+    Comparisons:
+    - Basic_pars (lag vs intercept)
+    - Data inputs (age_only, land_use_landscape, environment, all_mean_climate)
+    - Biomes (Amazon, Atlantic Forest)
+    - Asymptotes ("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")
+    - Land Use (non_aggregated_all, aggregated_all, non_aggregated_5yr, non_aggregated_10yr)
+    Inputs:
+    - "grid_10k_amazon_secondary": all CSVs in directory
+
+
+### 4_visualization
+- **1_model_performance.r**:
+    Stacked barplot.
+    Compares the R2 of full_amazon (inflexible) asymptote with the R2 of the nearest_mature (flexible) asymptote.
+    Compares the relative importance of the parameters in the two models.
+    Inputs:
+      - "importance_nearest_mature.csv"
+      - "importance_full_amazon.csv"
+
+- **2_lag_field.r**:
+    Growth curve line graph.
+    Compares the growth rate of intercept and lag models.
+    Overlays the average biomass per age from the field data scatterplot.
+    Inputs:
+      - "average_biomass_per_age.csv"
+      - "pred_vs_obs_amazon_lag.csv"
+      - "pred_vs_obs_amazon_intercept.csv"
+      - "amazon_model_lag.rds"
+
+- **3_future_predictions.r**:
+    Barplot 1: Compares the biomass gain by 2050 for:
+        - random 5% of pastureland
+        - 5% with top regrowth potential
+        - all secondary forests
+    Barplot 2: Shows current area of:
+        - 5% of pastureland
+        - secondary forests
+    Barplot 3: Shows current biomass stocked in:
+        - random 5% of pastureland
+        - secondary forests
+    Shapefile 1: Predicted biomass gain by 2050 for all pastureland.
+    Shapefile 2: Predicted biomass gain by 2050 for all secondary forests.
+    Inputs:
+      - "amazon_model_lag.rds"
+      - "amazon_model_intercept.rds"
+      - "grid_1k_amazon_secondary": all CSVs in directory
+      - "grid_1k_amazon_pastureland": all CSVs in directory
+
 
 ## Getting Started
 To get started with the project, follow these steps:

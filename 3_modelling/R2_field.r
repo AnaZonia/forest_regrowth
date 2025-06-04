@@ -5,8 +5,7 @@ library(terra)
 library(tidyverse)
 library(foreach)
 library(doParallel)
-# library(FactoMineR)
-# library(factoextra)
+
 library(cluster)
 
 

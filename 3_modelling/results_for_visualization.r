@@ -87,8 +87,6 @@ calculate_permutation_importance <- function(model, data, data_pars) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Save trained model for the best parameters
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# biome = Amazon
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
 data <- import_data("grid_1k_amazon_secondary", biome = 1, n_samples = 10000)
@@ -140,8 +138,6 @@ for (basic_pars_name in names(basic_pars_options)) {
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Save feature importance results
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# biome = Amazon
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 

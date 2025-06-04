@@ -43,7 +43,7 @@ aggregated_field <- field %>%
     summarise(mean_biomass = mean(`mean_ha`, na.rm = TRUE)) %>%
     rename(age = age_interval)
 
-write.csv(aggregated_field, "0_data/groa_field/aggregated_field_biomass.csv", row.names = FALSE)
+write.csv(aggregated_field, "0_data/groa_field/average_biomass_per_age.csv", row.names = FALSE)
 
 # ------------------------------------------------------
 # Identify and handle plots with repeated measurements

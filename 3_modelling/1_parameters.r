@@ -6,8 +6,7 @@ land_use <- c("lu", "fallow", "num_fires")
 landscape <- c("dist", "sur_cover")
 categorical <- c("ecoreg", "topography") # , "last_lu")
 binary <- c("floodable_forests", "protec", "indig")
-soil <- c("nitro", "phh2o", "ocd", "cec", "sand", "clay")
-
+soil <- c("nitro", "phh2o", "ocd", "cec", "sand", "clay", "soc", "cfvo")
 
 non_data_pars <- c("k0", "B0", "lag", "theta")
 interval <- c("5yr", "10yr", "15yr", "all")
@@ -27,7 +26,7 @@ data_pars_options <- function(colnames) {
     return(list(
         age_only = c(),
 
-        # land_use_landscape = colnames[grepl(paste0(c(land_use, landscape), collapse = "|"), colnames)],
+        land_use_landscape = colnames[grepl(paste0(c(land_use, landscape), collapse = "|"), colnames)],
 
         environment = colnames[!grepl(paste0(c(excluded_columns, land_use, landscape, paste0(climatic_pars, "_")), collapse = "|"), colnames)],
 
