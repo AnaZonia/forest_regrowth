@@ -148,9 +148,9 @@ pred_lag_2050_pastureland_random <- predict_future_biomass("pastureland", model_
 
 
 points <- vect(pred_lag_2050_pastureland_top_20[[2]], geom = c("lon", "lat"), crs = "EPSG:4326")
-writeVector(points, "pred_lag_2050_pastureland_top_20.shp", overwrite = TRUE)
+writeVector(points, "0_results/pred_lag_2050_pastureland_top_20.shp", overwrite = TRUE)
 points <- vect(pred_lag_2050_secondary[[2]], geom = c("lon", "lat"), crs = "EPSG:4326")
-writeVector(points, "pred_lag_2050_secondary.shp", overwrite = TRUE)
+writeVector(points, "0_results/pred_lag_2050_secondary.shp", overwrite = TRUE)
 
 # Data
 df <- tibble::tibble(
