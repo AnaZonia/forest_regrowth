@@ -42,6 +42,7 @@ forest_regrowth
     - defines export_image function
     - imports files for data processing (from Google Earth Engine)
     - select only pixels with exclusively the desired land use histories (exclude all instances of land use types we are not interested in)
+    - makes grid cells for exporting data in gee_5_mature and gee_6_write_csv
 
 - **gee_2_categorical.ipynb**:
     Imports:
@@ -58,7 +59,6 @@ forest_regrowth
       - removes pixels with ages that don't match the IPCC estimates
       - removes isolated pixels (keeps only pixels within a patch of at least 1 hectare)
       - removes pixels within 10km of a biome boundary (distance_to_border_mask)
-    - reprojects and exports GEDI L2A, GEDI L4A and ESA CCI Biomass data
 
 - **gee_3_climate_soil.ipynb**:
     - TerraClim
@@ -84,7 +84,12 @@ forest_regrowth
         - Sand Content
         - Soil Organic Carbon
     All averaged from 0-30cm depth and converted to the correct units.
-    - IPCC future climate trajectories
+    - CMIP6 Climate
+    Gets yearly climate data from the CMIP6 dataset for the period 1985-2019, and averages it across all years.
+    - Exports:
+        - "yearly_terraclim"
+        - "soilgrids"
+        - "cmip6_climate"
 
 - **gee_4_mature.ipynb**:
     Imports:
