@@ -12,15 +12,26 @@ forest_regrowth
 │   ├── gee_4_land_use.ipynb
 │   ├── gee_5_mature.ipynb
 │   └── gee_6_write_csv.ipynb
-├── 2_modelling
-│   ├── fit_1_import_data.r
-│   ├── fit_2_functions.r
-│   └── fit_3_run_model.r
-
-├── 4_visualization
-│   ├── 1_visualize_data.ipynb
 |
-├── methods.txt
+├── 2_preprocessing
+│   ├── multicollinearity.r
+│   └── groa_field_data.r
+|
+├── 3_modelling
+│   ├── 1_data_processing.r
+│   ├── 1_parameters.r
+│   ├── 2_feature_selection.r
+│   ├── 2_modelling.r
+│   ├── 2_normalize_cross_validate.r
+│   ├── dataframes_for_visualization.r
+│   ├── R2_field.r
+│   └── R2_satellite.r
+|
+├── 4_visualization
+│   ├── 1_model_performance.r
+│   ├── 2_lag_field.r
+│   └── 3_future predictions.r
+|
 ├── README.md
 └── requirements.txt
 ```
