@@ -154,7 +154,7 @@ growth_curve <- function(pars, data, lag = 0) {
     if ("theta" %in% names(pars)) {
         theta <- pars[["theta"]]
     } else {
-        theta <- 1.1
+        theta <- 1
     }
 
     return(pars[["B0"]] + (data[["asymptote"]] - pars[["B0"]]) * (1 - exp(-k))^theta)

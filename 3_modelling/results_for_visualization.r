@@ -10,8 +10,8 @@ library(tidyverse)
 source("3_modelling/1_parameters.r")
 source("3_modelling/1_data_processing.r")
 source("3_modelling/2_modelling.r")
-source("3_modelling/2_normalize_cross_validate.r")
-source("3_modelling/2_feature_selection.R")
+source("3_modelling/2_cross_validate.r")
+source("3_modelling/2_feature_selection.r")
 
 # Set up parallel processing
 set.seed(1)
@@ -89,7 +89,7 @@ calculate_permutation_importance <- function(model, data, data_pars) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-data <- import_data("grid_1k_amazon_secondary", biome = 1, n_samples = 10000)
+data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000)
 norm_data <- normalize_independently(data)
 saveRDS(norm_data$train_stats, file = "./0_results/grid_1k_amazon_secondary_train_stats.rds")
 norm_data <- norm_data$train_data

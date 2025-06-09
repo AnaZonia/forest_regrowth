@@ -85,6 +85,8 @@ field <- field %>%
             plot_id = plot.id
         )
 
+plot(field$field_biomass ~ field$field_age, data = field, main = "Field Biomass by Age", xlab = "Field Age (years)", ylab = "Biomass (Mg/ha)")
+
 # ------------------------------------------------------
 # Convert to a spatial object (terra::SpatVector)
 # and export as a shapefile

@@ -10,8 +10,8 @@ library(tidyverse)
 source("3_modelling/1_parameters.r")
 source("3_modelling/1_data_processing.r")
 source("3_modelling/2_modelling.r")
-source("3_modelling/2_normalize_cross_validate.r")
-source("3_modelling/2_feature_selection.R")
+source("3_modelling/2_cross_validate.r")
+source("3_modelling/2_feature_selection.r")
 
 # Set up parallel processing
 set.seed(1)
@@ -19,28 +19,58 @@ ncore <- 4
 registerDoParallel(cores = ncore)
 
 
-
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # quick R2 check
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-data <- import_data("grid_10k_amazon_secondary_2", biome = 1, n_samples = 10000, asymptote = "nearest_mature")
+data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = "nearest_mature")
 norm_data <- normalize_independently(data)
 norm_data <- norm_data$train_data
 
 basic_pars <- basic_pars_options[["lag"]]
-data_pars <- data_pars_options(colnames(norm_data))[["all_mean_climate"]]
+data_pars <- c()
 
 init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
 model <- run_optim(norm_data, init_pars, conditions)
 pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
 r2 <- calc_r2(norm_data, pred)
 print(r2)
-model
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# quick R2 check
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+data <- import_data("grid_1k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = "nearest_mature")
+norm_data <- normalize_independently(data)
+norm_data <- norm_data$train_data
+
+basic_pars <- basic_pars_options[["lag"]]
+data_pars <- c()
+
+init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
+model <- run_optim(norm_data, init_pars, conditions)
+pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
+r2 <- calc_r2(norm_data, pred)
+print(r2)
 
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# quick R2 check
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+data <- import_data("grid_1k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = "nearest_mature")
+norm_data <- normalize_independently(data)
+norm_data <- norm_data$train_data
+
+basic_pars <- basic_pars_options[["lag"]]
+data_pars <- c()
+
+init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
+model <- run_optim(norm_data, init_pars, conditions)
+pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
+r2 <- calc_r2(norm_data, pred)
+print(r2)
+# 0.3425
+# 0.3559
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Mean and Yearly Climate
@@ -79,3 +109,36 @@ for (data_pars_name in names(data_pars_options)) {
     r2 <- calc_r2(norm_data, pred)
     print(r2)
 }
+
+
+
+# data1k <- import_data("grid_1k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = "nearest_mature")
+
+data1k <- list.files(paste0("./0_data/grid_1k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE) %>%
+    map(read_csv) %>%
+    bind_rows()
+
+# data10k <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = "nearest_mature")
+
+data10k <- list.files(paste0("./0_data/grid_10k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE) %>%
+    map(read_csv) %>%
+    bind_rows()
+
+
+
+
+hist(data1k$biomass)
+mean(data10k$biomass, na.rm = TRUE)
+median(data1k$biomass, na.rm = TRUE)
+median(data10k$biomass, na.rm = TRUE)
+
+# mean(data1k$asymptote, na.rm = TRUE)
+# mean(data10k$asymptote, na.rm = TRUE)
+# median(data1k$asymptote, na.rm = TRUE)
+# median(data10k$asymptote, na.rm = TRUE)
+
+mean(data1k$nearest_mature, na.rm = TRUE)
+mean(data10k$nearest_mature, na.rm = TRUE)
+median(data1k$nearest_mature, na.rm = TRUE)
+median(data10k$nearest_mature, na.rm = TRUE)
+
