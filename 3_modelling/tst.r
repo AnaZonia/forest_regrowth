@@ -77,7 +77,7 @@ print(r2)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000, asymptote = "nearest_mature")
+data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000, asymptote = "quarter_biomass")
 norm_data <- normalize_independently(data)
 norm_data <- norm_data$train_data
 
@@ -114,20 +114,41 @@ for (data_pars_name in names(data_pars_options)) {
 
 # data1k <- import_data("grid_1k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = "nearest_mature")
 
-data1k <- list.files(paste0("./0_data/grid_1k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE) %>%
-    map(read_csv) %>%
-    bind_rows()
+# data1k <- list.files(paste0("./0_data/grid_1k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE) %>%
+#     map(read_csv) %>%
+#     bind_rows()
 
 # data10k <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = "nearest_mature")
 
-data10k <- list.files(paste0("./0_data/grid_10k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE) %>%
-    map(read_csv) %>%
-    bind_rows()
+# data10k <- list.files(paste0("./0_data/grid_10k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE) %>%
+#     map(read_csv) %>%
+#     bind_rows()
+
+data1k <- import_data("grid_1k_amazon_secondary", biome = 1, n_samples = 18248, asymptote = "quarter_biomass")
+
+data10k <- import_data("grid_10k_amazon_secondary_2", biome = 1, n_samples = 50000, asymptote = "quarter_biomass")
+
+# Find common columns
+common_cols <- intersect(names(data1k), names(data10k))
+
+# Subset to common columns and add group labels
+data1k_sub <- data1k[, common_cols]
+data10k_sub <- data10k[, common_cols]
+data1k_sub$group <- "1k"
+data10k_sub$group <- "10k"
+
+# Combine
+combined <- rbind(data1k_sub, data10k_sub)
 
 
+# Plot overlapping histograms
+ggplot(combined, aes(x = biomass, fill = group)) +
+    geom_histogram(alpha = 0.5, position = "identity", bins = 30) +
+    labs(x = "Biomass", y = "Count") +
+    scale_fill_manual(values = c("1k" = "blue", "10k" = "red")) +
+    theme_minimal()
 
-
-hist(data1k$biomass)
+mean(data1k$biomass, na.rm = TRUE)
 mean(data10k$biomass, na.rm = TRUE)
 median(data1k$biomass, na.rm = TRUE)
 median(data10k$biomass, na.rm = TRUE)
