@@ -156,7 +156,7 @@ def create_grid(image, region_name, cell_size = 10000, file_name = None):
             numPoints = 1,
             classBand = 'biome',
             region = cell.geometry(),
-            scale = cell_size,
+            scale = pixels_to_sample.projection().nominalScale(),
             geometries = True,
             dropNulls = True
         )
