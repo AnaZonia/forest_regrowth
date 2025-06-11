@@ -27,7 +27,7 @@ library(fastDummies)
 # Returns:
 #   df              : A dataframe filtered for the selected biome, cleaned, and optionally transformed with dummy variables.
 
-import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mature") {
+import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest_mature") {
 
     # if the folder exists, read all csv files in the folder and bind them together.
     # if the folder does not exist, read the single csv file.
@@ -45,9 +45,7 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
     # Convert categorical to factors
     df <- df %>%
         mutate(across(any_of(categorical), as.factor)) %>%
-        filter(biome == biome)
-
-    df <- na.omit(df)
+        filter(biome == biome_num)
 
     # remove columns with less than 100 non-zero values
     non_zero_counts <- colSums(df != 0, na.rm = TRUE)
@@ -89,9 +87,7 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
         features <- df[, !names(df) %in% c("lat", "lon")]
         return(list(df = features, coords = coords))
     } else {
-
         if ("secondary_area" %in% names(df)) df <- df[, names(df) != "secondary_area"]
-
         df <- df[, !names(df) %in% c("lat", "lon")]
         df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
         return(df)

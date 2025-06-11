@@ -18,6 +18,58 @@ set.seed(1)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Save trained model for the best parameters
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000)
+norm_data <- normalize_independently(data)
+saveRDS(norm_data$train_stats, file = "./0_results/grid_1k_amazon_secondary_train_stats.rds")
+norm_data <- norm_data$train_data
+
+for (basic_pars_name in names(basic_pars_options)) {
+    basic_pars <- basic_pars_options[[basic_pars_name]]
+    data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
+    # data_pars <- c("num_fires", "sur_cover", "dist")
+    init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
+    model <- run_optim(norm_data, init_pars, conditions)
+    saveRDS(model, file = paste0("./0_results/amazon_model_", basic_pars_name, ".rds", sep = ""))
+    
+    model <- readRDS(paste0("./0_results/amazon_model_lag.rds", sep = ""))
+    pred_vs_obs <- data.frame(
+        age = norm_data$age,
+        pred = growth_curve(model$par, norm_data)
+    )
+
+    # get the biomass predictions for the ages 1 to 105 (in 35 year steps)
+    for (i in c(35, 70)) {
+        norm_data_future <- norm_data
+        norm_data_future$age <- norm_data_future$age + i
+        pred_future <- growth_curve(model$par, norm_data_future)
+        df_future <- data.frame(
+            age = norm_data_future$age,
+            pred = pred_future
+        )
+        pred_vs_obs <- rbind(pred_vs_obs, df_future)
+    }
+    
+    if (basic_pars_name == "intercept") {
+        pred_vs_obs$pred <- round(pred_vs_obs$pred - model$par["B0"])
+    } else {
+        # add column obs with the age correspondent to that in norm_data
+        pred_vs_obs <- cbind(pred_vs_obs, data.frame(
+            obs = norm_data$biomass,
+            obs_age = round(norm_data$age + model$par["lag"])
+        ))
+    }
+
+    write.csv(pred_vs_obs, file = paste0("./0_results/pred_vs_obs_amazon_", basic_pars_name, ".csv"), row.names = FALSE)
+
+}
+
+
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------ Calculate Permutation Importance ---------------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -84,55 +136,57 @@ calculate_permutation_importance <- function(model, data, data_pars) {
 }
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Save trained model for the best parameters
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+calculate_permutation_importance <- function(model, data) {
 
 
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000)
-norm_data <- normalize_independently(data)
-saveRDS(norm_data$train_stats, file = "./0_results/grid_1k_amazon_secondary_train_stats.rds")
-norm_data <- norm_data$train_data
-
-for (basic_pars_name in names(basic_pars_options)) {
-    basic_pars <- basic_pars_options[[basic_pars_name]]
-    data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
-    # data_pars <- c("num_fires", "sur_cover", "dist")
-    init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
-    model <- run_optim(norm_data, init_pars, conditions)
-    saveRDS(model, file = paste0("./0_results/amazon_model_", basic_pars_name, ".rds", sep = ""))
+    # Initialize parameter vector with data parameters
+    all_pars <- model$par
     
-    model <- readRDS(paste0("./0_results/amazon_model_lag.rds", sep = ""))
-    pred_vs_obs <- data.frame(
-        age = norm_data$age,
-        pred = growth_curve(model$par, norm_data)
-    )
-
-    # get the biomass predictions for the ages 1 to 105 (in 35 year steps)
-    for (i in c(35, 70)) {
-        norm_data_future <- norm_data
-        norm_data_future$age <- norm_data_future$age + i
-        pred_future <- growth_curve(model$par, norm_data_future)
-        df_future <- data.frame(
-            age = norm_data_future$age,
-            pred = pred_future
-        )
-        pred_vs_obs <- rbind(pred_vs_obs, df_future)
-    }
     
-    if (basic_pars_name == "intercept") {
-        pred_vs_obs$pred <- round(pred_vs_obs$pred - model$par["B0"])
-    } else {
-        # add column obs with the age correspondent to that in norm_data
-        pred_vs_obs <- cbind(pred_vs_obs, data.frame(
-            obs = norm_data$biomass,
-            obs_age = round(norm_data$age + model$par["lag"])
-        ))
+    data_pars <- names(all_pars)[!names(all_pars) %in% non_data_pars]
+
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Initialize the best model with basic parameters
+    remaining <- 1:length(data_pars)
+    taken <- length(remaining) + 1 # out of the range of values such that remaining[-taken] = remaining for the first iteration
+
+    # best model list
+    best <- list(AIC = 0)
+    best[["par"]] <- all_pars[names(all_pars) %in% non_data_pars]
+
+    base_row <- all_pars
+    base_row[names(all_pars)] <- NA
+    base_row <- c(RSS = 0, base_row)
+
+    # Iteratively add parameters and evaluate the model. Keep only AIC improvements.
+
+    for (i in 1:length(data_pars)) {
+
+        iter_df <- foreach(j = remaining[-taken]) %dopar% {
+
+            inipar <- c(best$par, all_pars[data_pars[j]])
+            model <- run_optim(data, inipar, conditions)
+            iter_row <- base_row
+            iter_row[names(inipar)] <- model$par
+            iter_row["RSS"] <- model$value
+
+            return(iter_row)
+        }
+
+        iter_df <- as.data.frame(do.call(rbind, iter_df))
+        best_model <- which.min(iter_df$RSS)
+        print(iter_df$RSS[best_model])
+        best_model_AIC <- 2 * (i + length(best$par)) + nrow(data) * log(iter_df$RSS[best_model] / nrow(data))
+
+        best$par <- iter_df[best_model, names(all_pars)]
+        best$par <- Filter(function(x) !is.na(x), best$par)
+        taken <- which(sapply(data_pars, function(x) any(grepl(x, names(best$par)))))
+        print(paste0(i, " parameters included: ", toString(data_pars[taken])))
+
     }
-
-    write.csv(pred_vs_obs, file = paste0("./0_results/pred_vs_obs_amazon_", basic_pars_name, ".csv"), row.names = FALSE)
-
 }
+
 
 
 
@@ -152,10 +206,13 @@ for (asymptote in c("nearest_mature", "full_amazon")) {
     model <- run_optim(norm_data, init_pars, conditions)
     pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
     r2 <- calc_r2(norm_data, pred)
+    
 
-    importance_results <- calculate_permutation_importance(model, norm_data, data_pars)
+    importance_results <- calculate_permutation_importance(model, data_pars)
 
-    importance_results$importance_scaled = importance_pct * r2 / 100)
+    importance_results$importance_scaled = importance_pct * r2 / 100
 
     # write.csv(importance_results, file = paste0("./0_results/importance_", asymptote, ".csv"), row.names = FALSE)
 }
+init_pars
+model

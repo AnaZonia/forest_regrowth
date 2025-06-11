@@ -112,21 +112,37 @@ for (data_pars_name in names(data_pars_options)) {
 
 
 
-# data1k <- import_data("grid_1k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = "nearest_mature")
+data1k <- import_data("grid_1k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = "nearest_mature")
 
 # data1k <- list.files(paste0("./0_data/grid_1k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE) %>%
 #     map(read_csv) %>%
 #     bind_rows()
 
-# data10k <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = "nearest_mature")
+data10k <- import_data("grid_10k_amazon_secondary", biome_num = 4, n_samples = 10000, asymptote = "nearest_mature")
 
-# data10k <- list.files(paste0("./0_data/grid_10k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE) %>%
-#     map(read_csv) %>%
-#     bind_rows()
+table(data10k$biome)
 
-data1k <- import_data("grid_1k_amazon_secondary", biome = 1, n_samples = 18248, asymptote = "quarter_biomass")
 
-data10k <- import_data("grid_10k_amazon_secondary_2", biome = 1, n_samples = 50000, asymptote = "quarter_biomass")
+df <- list.files(paste0("./0_data/grid_10k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE) %>%
+    map(read_csv) %>%
+    bind_rows()
+
+biome_num <- 4
+
+# Convert categorical to factors
+df2 <- df %>%
+    mutate(across(any_of(categorical), as.factor)) %>%
+    filter(biome == biome_num)
+
+table(df$biome)
+
+# print the column names in df that contain at least one NA value
+na_cols <- sapply(df, function(x) any(is.na(x)))
+na_cols <- names(df)[na_cols]
+# Print columns with NAs
+print(na_cols)
+
+head(df$ecoreg_biomass)
 
 # Find common columns
 common_cols <- intersect(names(data1k), names(data10k))
@@ -139,27 +155,3 @@ data10k_sub$group <- "10k"
 
 # Combine
 combined <- rbind(data1k_sub, data10k_sub)
-
-
-# Plot overlapping histograms
-ggplot(combined, aes(x = biomass, fill = group)) +
-    geom_histogram(alpha = 0.5, position = "identity", bins = 30) +
-    labs(x = "Biomass", y = "Count") +
-    scale_fill_manual(values = c("1k" = "blue", "10k" = "red")) +
-    theme_minimal()
-
-mean(data1k$biomass, na.rm = TRUE)
-mean(data10k$biomass, na.rm = TRUE)
-median(data1k$biomass, na.rm = TRUE)
-median(data10k$biomass, na.rm = TRUE)
-
-# mean(data1k$asymptote, na.rm = TRUE)
-# mean(data10k$asymptote, na.rm = TRUE)
-# median(data1k$asymptote, na.rm = TRUE)
-# median(data10k$asymptote, na.rm = TRUE)
-
-mean(data1k$nearest_mature, na.rm = TRUE)
-mean(data10k$nearest_mature, na.rm = TRUE)
-median(data1k$nearest_mature, na.rm = TRUE)
-median(data10k$nearest_mature, na.rm = TRUE)
-

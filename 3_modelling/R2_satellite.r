@@ -10,8 +10,8 @@ library(tidyverse)
 source("3_modelling/1_parameters.r")
 source("3_modelling/1_data_processing.r")
 source("3_modelling/2_modelling.r")
-source("3_modelling/2_normalize_cross_validate.r")
-source("3_modelling/2_feature_selection.R")
+source("3_modelling/2_cross_validate.r")
+source("3_modelling/2_feature_selection.r")
 
 # Set up parallel processing
 set.seed(1)
@@ -24,8 +24,8 @@ registerDoParallel(cores = ncore)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 results <- data.frame()
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000)
-
+data <- import_data("grid_10k_amazon_secondary", biome = 3, n_samples = 10000)
+nrow(data)
 
 for (data_pars_name in names(data_pars_options(colnames(data)))) {
     print(data_pars_options(colnames(data))[[data_pars_name]])
