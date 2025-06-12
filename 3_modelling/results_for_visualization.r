@@ -23,13 +23,20 @@ registerDoParallel(cores = ncore)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000)
+data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000)
 norm_data <- normalize_independently(data)
-saveRDS(norm_data$train_stats, file = "./0_results/grid_1k_amazon_secondary_train_stats.rds")
+saveRDS(norm_data$train_stats, file = "./0_results/grid_10k_amazon_secondary_train_stats.rds")
 norm_data <- norm_data$train_data
 
 for (basic_pars_name in names(basic_pars_options)) {
     basic_pars <- basic_pars_options[[basic_pars_name]]
+
+    if (basic_pars_name == "intercept") {
+        # For intercept, we force the data to intercept through zero
+        mean_biomass_at_zero_age <- median(norm_data$biomass[norm_data$age == 1], na.rm = TRUE)
+        norm_data$biomass <- norm_data$biomass - mean_biomass_at_zero_age
+    }
+
     data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
     # data_pars <- c("num_fires", "sur_cover", "dist")
     init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
@@ -41,6 +48,8 @@ for (basic_pars_name in names(basic_pars_options)) {
         age = norm_data$age,
         pred = growth_curve(model$par, norm_data)
     )
+
+    print(paste0("R2 for ", basic_pars_name, ": ", calc_r2(norm_data, pred_vs_obs$pred)))
 
     # get the biomass predictions for the ages 1 to 105 (in 35 year steps)
     for (i in c(35, 70)) {
@@ -136,68 +145,14 @@ calculate_permutation_importance <- function(model, data, data_pars) {
 }
 
 
-calculate_permutation_importance <- function(model, data) {
-
-
-    # Initialize parameter vector with data parameters
-    all_pars <- model$par
-    
-    
-    data_pars <- names(all_pars)[!names(all_pars) %in% non_data_pars]
-
-
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Initialize the best model with basic parameters
-    remaining <- 1:length(data_pars)
-    taken <- length(remaining) + 1 # out of the range of values such that remaining[-taken] = remaining for the first iteration
-
-    # best model list
-    best <- list(AIC = 0)
-    best[["par"]] <- all_pars[names(all_pars) %in% non_data_pars]
-
-    base_row <- all_pars
-    base_row[names(all_pars)] <- NA
-    base_row <- c(RSS = 0, base_row)
-
-    # Iteratively add parameters and evaluate the model. Keep only AIC improvements.
-
-    for (i in 1:length(data_pars)) {
-
-        iter_df <- foreach(j = remaining[-taken]) %dopar% {
-
-            inipar <- c(best$par, all_pars[data_pars[j]])
-            model <- run_optim(data, inipar, conditions)
-            iter_row <- base_row
-            iter_row[names(inipar)] <- model$par
-            iter_row["RSS"] <- model$value
-
-            return(iter_row)
-        }
-
-        iter_df <- as.data.frame(do.call(rbind, iter_df))
-        best_model <- which.min(iter_df$RSS)
-        print(iter_df$RSS[best_model])
-        best_model_AIC <- 2 * (i + length(best$par)) + nrow(data) * log(iter_df$RSS[best_model] / nrow(data))
-
-        best$par <- iter_df[best_model, names(all_pars)]
-        best$par <- Filter(function(x) !is.na(x), best$par)
-        taken <- which(sapply(data_pars, function(x) any(grepl(x, names(best$par)))))
-        print(paste0(i, " parameters included: ", toString(data_pars[taken])))
-
-    }
-}
-
-
-
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Save feature importance results
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-for (asymptote in c("nearest_mature", "full_amazon")) {
+for (asymptote in c("full_amazon", "quarter_biomass", "ecoreg_biomass", "nearest_mature")) {
     # save permutation importance results for asymptote = "quarter_biomass"
-    data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000, asymptote = asymptote)
+    data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000, asymptote = asymptote)
     norm_data <- normalize_independently(data)$train_data
 
     basic_pars <- basic_pars_options[["lag"]]
@@ -207,12 +162,9 @@ for (asymptote in c("nearest_mature", "full_amazon")) {
     pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
     r2 <- calc_r2(norm_data, pred)
     
+    importance_results <- calculate_permutation_importance(model, norm_data, data_pars)
 
-    importance_results <- calculate_permutation_importance(model, data_pars)
+    importance_results$importance_scaled = importance_results$importance_pct * r2 / 100
 
-    importance_results$importance_scaled = importance_pct * r2 / 100
-
-    # write.csv(importance_results, file = paste0("./0_results/importance_", asymptote, ".csv"), row.names = FALSE)
+    write.csv(importance_results, file = paste0("./0_results/importance_", asymptote, ".csv"), row.names = FALSE)
 }
-init_pars
-model

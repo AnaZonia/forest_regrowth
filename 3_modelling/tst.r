@@ -123,35 +123,17 @@ data10k <- import_data("grid_10k_amazon_secondary", biome_num = 4, n_samples = 1
 table(data10k$biome)
 
 
-df <- list.files(paste0("./0_data/grid_10k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE) %>%
+df <- list.files(paste0("./0_data/grid_10k_amazon_secondary_2"), pattern = "\\.csv$", full.names = TRUE) %>%
     map(read_csv) %>%
     bind_rows()
 
-biome_num <- 4
+# rename column system:index to system_index
+df <- df %>%
+    rename(system_index = `system:index`) %>%
+    select(-c(".geo"))
 
-# Convert categorical to factors
-df2 <- df %>%
-    mutate(across(any_of(categorical), as.factor)) %>%
-    filter(biome == biome_num)
+head(df$system_index)
 
-table(df$biome)
 
-# print the column names in df that contain at least one NA value
-na_cols <- sapply(df, function(x) any(is.na(x)))
-na_cols <- names(df)[na_cols]
-# Print columns with NAs
-print(na_cols)
 
-head(df$ecoreg_biomass)
 
-# Find common columns
-common_cols <- intersect(names(data1k), names(data10k))
-
-# Subset to common columns and add group labels
-data1k_sub <- data1k[, common_cols]
-data10k_sub <- data10k[, common_cols]
-data1k_sub$group <- "1k"
-data10k_sub$group <- "10k"
-
-# Combine
-combined <- rbind(data1k_sub, data10k_sub)

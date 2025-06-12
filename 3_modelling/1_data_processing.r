@@ -82,6 +82,11 @@ import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest
     # remove any rows with NA values (important due to gaps in CMIP6 data)
     df <- df %>% filter(rowSums(is.na(.)) == 0)
 
+    # if there is a column named distance_deep_forest rename it to dist
+    if ("distance_deep_forest" %in% names(df)) {
+        df <- df %>% rename(dist = distance_deep_forest)
+    }
+
     if (n_samples == "all") {
         coords <- df[, c("lat", "lon")]
         features <- df[, !names(df) %in% c("lat", "lon")]
