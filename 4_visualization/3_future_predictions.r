@@ -9,8 +9,8 @@
 source("3_modelling/1_parameters.r")
 source("3_modelling/1_data_processing.r")
 source("3_modelling/2_modelling.r")
-source("3_modelling/2_normalize_cross_validate.r")
-source("3_modelling/2_feature_selection.R")
+source("3_modelling/2_cross_validate.r")
+source("3_modelling/2_feature_selection.r")
 
 
 
@@ -26,7 +26,7 @@ model_lag <- readRDS("./0_results/amazon_model_lag.rds")
 model_intercept <- readRDS("./0_results/amazon_model_intercept.rds")
 
 # Apply Min-Max scaling using the precomputed min and max
-train_stats <- readRDS("./0_results/grid_1k_amazon_secondary_train_stats.rds")
+train_stats <- readRDS("./0_results/grid_10k_amazon_secondary_train_stats.rds")
 
 # keep only the variables that are in the model
 train_stats <- train_stats %>%
@@ -52,7 +52,7 @@ apply_min_max_scaling <- function(data, train_stats) {
 
 predict_future_biomass <- function(name, model, age_offset, pasture_selection = "random") {
     # Import Secondary Forest Data
-    data <- import_data(paste0("grid_1k_amazon_", name), biome = biome, n_samples = "all")
+    data <- import_data(paste0("grid_10k_amazon_", name), biome = biome, n_samples = "all")
     coords <- data$coords
 
     data <- apply_min_max_scaling(data$df, train_stats)

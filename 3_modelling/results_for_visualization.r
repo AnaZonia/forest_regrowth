@@ -22,7 +22,6 @@ registerDoParallel(cores = ncore)
 # Save trained model for the best parameters
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
 data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000)
 norm_data <- normalize_independently(data)
 saveRDS(norm_data$train_stats, file = "./0_results/grid_10k_amazon_secondary_train_stats.rds")
@@ -43,7 +42,6 @@ for (basic_pars_name in names(basic_pars_options)) {
     model <- run_optim(norm_data, init_pars, conditions)
     saveRDS(model, file = paste0("./0_results/amazon_model_", basic_pars_name, ".rds", sep = ""))
     
-    model <- readRDS(paste0("./0_results/amazon_model_lag.rds", sep = ""))
     pred_vs_obs <- data.frame(
         age = norm_data$age,
         pred = growth_curve(model$par, norm_data)
@@ -150,7 +148,7 @@ calculate_permutation_importance <- function(model, data, data_pars) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-for (asymptote in c("full_amazon", "quarter_biomass", "ecoreg_biomass", "nearest_mature")) {
+for (asymptote in c("full_amazon", "nearest_mature")) { #"quarter_biomass", "ecoreg_biomass", 
     # save permutation importance results for asymptote = "quarter_biomass"
     data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000, asymptote = asymptote)
     norm_data <- normalize_independently(data)$train_data
@@ -167,4 +165,28 @@ for (asymptote in c("full_amazon", "quarter_biomass", "ecoreg_biomass", "nearest
     importance_results$importance_scaled = importance_results$importance_pct * r2 / 100
 
     write.csv(importance_results, file = paste0("./0_results/importance_", asymptote, ".csv"), row.names = FALSE)
+}
+
+
+importance_repeats <- data.frame()
+for (asymptote in c("full_amazon", "nearest_mature")) {
+    for (i in 1:5) {
+        data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000, asymptote = asymptote)
+        norm_data <- normalize_independently(data)$train_data
+
+        basic_pars <- basic_pars_options[["lag"]]
+        data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
+        init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
+        model <- run_optim(norm_data, init_pars, conditions)
+        pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
+        r2 <- calc_r2(norm_data, pred)
+
+        importance_results <- calculate_permutation_importance(model, norm_data, data_pars)
+        importance_results$importance_scaled = importance_results$importance_pct * r2 / 100
+        importance_wide <- importance_results[, c("variable", "importance_scaled")] %>%
+            pivot_wider(names_from = variable, values_from = importance_scaled)
+        importance_wide$asymptote <- asymptote
+        importance_repeats <- rbind(importance_repeats, importance_wide)
+        write.csv(importance_repeats, file = paste0("./0_results/importance_repeats.csv"), row.names = FALSE)
+    }
 }

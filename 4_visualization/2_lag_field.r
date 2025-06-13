@@ -33,6 +33,14 @@ lag_summary <- lag_data %>%
         sd_pred_lag = sd(pred, na.rm = TRUE)
     )
 
+# in both, keep only sd_pred_lag for ages greater than lag
+intercept_summary <- intercept_summary %>%
+    mutate(sd_pred_intercept = if_else(age < lag+1, 0, sd_pred_intercept))
+
+lag_summary <- lag_summary %>%
+    mutate(sd_pred_lag = if_else(age < lag+1, 0, sd_pred_lag))
+
+
 satellite_summary <- lag_data %>%
     group_by(obs_age) %>%
     summarise(
@@ -48,17 +56,16 @@ all_pred_data <- full_join(field_data, lag_summary, by = "age") %>%
 
 # Update plot colors and linetypes to include future predictions
 plot_colors <- c(
-    "Lag-corrected estimates" = "blue",
-    "Uncorrected estimates" = "green4",
-    "Observed (Remote Sensing)" = "red",
+    "Lag-corrected estimates" = "#2f4b7c",
+    "Uncorrected estimates" = "#ffa600",
+    "Observed (Remote Sensing)" = "#f95d6a",
     "Field Measurements" = "black"
 )
 
 linetypes <- c(
     "Lag-corrected estimates" = "solid",
     "Uncorrected estimates" = "solid",
-    "Observed (Remote Sensing)" = "solid",
-    "Field Measurements" = "solid"
+    "Observed (Remote Sensing)" = "dashed"
 )
 
 
@@ -91,6 +98,15 @@ p <- ggplot(all_pred_data, aes(x = age)) +
         y = mean_pred_intercept, color = "Uncorrected estimates",
         linetype = "Uncorrected estimates"
     ), linewidth = 1) +
+
+    geom_ribbon(
+        aes(
+            ymin = mean_pred_intercept - sd_pred_intercept,
+            ymax = mean_pred_intercept + sd_pred_intercept,
+            fill = "Uncorrected estimates"
+        ),
+        alpha = 0.2, color = NA
+    ) +
 
     # Field data points
     geom_point(

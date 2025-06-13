@@ -8,20 +8,22 @@ library(tidyverse)
 library(RColorBrewer)
 
 importance_full_amazon <- read.csv("./0_results/importance_full_amazon.csv")
-importance_nearest_mature <- read.csv("./0_results/importance_nearest_mature.csv")
 importance_quarter <- read.csv("./0_results/importance_quarter_biomass.csv")
-importance_full_amazon$group <- "Amazon-wide Average"
-importance_nearest_mature$group <- "Nearest Neighbor"
-importance_quarter$group <- "Quarter Biomass"
+importance_ecoreg <- read.csv("./0_results/importance_ecoreg_biomass.csv")
+importance_nearest_mature <- read.csv("./0_results/importance_nearest_mature.csv")
 
-all_data <- bind_rows(importance_full_amazon, importance_quarter, importance_nearest_mature) %>%
+importance_full_amazon$group <- "Amazon-wide Average"
+importance_quarter$group <- "Quarter Biomass"
+importance_ecoreg$group <- "Ecoregion Biomass"
+importance_nearest_mature$group <- "Nearest Neighbor"
+
+all_data <- bind_rows(importance_full_amazon, importance_nearest_mature) %>% # importance_quarter, importance_ecoreg, 
     filter(importance_pct > 1)
 # Set the desired order of groups so Quarter Biomass is in the middle
 all_data$group <- factor(
     all_data$group,
-    levels = c("Amazon-wide Average", "Quarter Biomass", "Nearest Neighbor")
+    levels = c("Amazon-wide Average", "Nearest Neighbor") # , "Quarter Biomass", "Ecoregion Biomass"
 )
-
 
 # Create a mapping of short variable names to their full names
 variable_names <- c(
@@ -57,11 +59,10 @@ all_data$variable <- factor(all_data$variable, levels = names(variable_names))
 
 # ---- Plot ----
 
-
-# Custom 8-color palette
+# Custom 10-color palette
 custom_colors <- c(
     "#003f5c", "#2f4b7c", "#665191", "#a05195",
-    "#d45087", "#f95d6a", "#ff7c43", "#ffa600"
+    "#d45087", "#f95d6a", "#ff7c43", "#ffa600", "#ffc300", "#ffda6a"
 )
 
 # Generate enough colors by recycling if fewer than number of variables
@@ -71,12 +72,12 @@ recycled_colors <- rep(custom_colors, length.out = n_vars)
 ggplot(all_data, aes(x = group, y = importance_scaled, fill = variable)) +
     geom_bar(stat = "identity") +
     scale_x_discrete(
-        labels = c(Amazon = "Amazon-wide Average", QuarterBiomass = "Quarter Biomass", NearestMature = "Nearest Neighbor"),
+        labels = c(Amazon = "Amazon-wide Average", NearestMature = "Nearest Neighbor"), # # QuarterBiomass = "Quarter Biomass", EcoregBiomass = "Ecoregion Biomass",  
         name = "Asymptote"
     ) +
     scale_y_continuous(
         expand = expansion(mult = c(0, 0.05)),
-        name = "Feature Importance"
+        name = "R²"
     ) +
     scale_fill_manual(
         values = recycled_colors,

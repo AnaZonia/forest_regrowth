@@ -112,28 +112,4 @@ for (data_pars_name in names(data_pars_options)) {
 
 
 
-data1k <- import_data("grid_1k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = "nearest_mature")
-
-# data1k <- list.files(paste0("./0_data/grid_1k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE) %>%
-#     map(read_csv) %>%
-#     bind_rows()
-
-data10k <- import_data("grid_10k_amazon_secondary", biome_num = 4, n_samples = 10000, asymptote = "nearest_mature")
-
-table(data10k$biome)
-
-
-df <- list.files(paste0("./0_data/grid_10k_amazon_secondary_2"), pattern = "\\.csv$", full.names = TRUE) %>%
-    map(read_csv) %>%
-    bind_rows()
-
-# rename column system:index to system_index
-df <- df %>%
-    rename(system_index = `system:index`) %>%
-    select(-c(".geo"))
-
-head(df$system_index)
-
-
-
 
