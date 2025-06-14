@@ -11,7 +11,7 @@ source("3_modelling/1_parameters.r")
 source("3_modelling/1_data_processing.r")
 source("3_modelling/2_modelling.r")
 source("3_modelling/2_cross_validate.r")
-source("3_modelling/2_feature_selection_ga.r")
+source("3_modelling/2_feature_selection.r")
 
 # Set up parallel processing
 set.seed(1)
@@ -22,97 +22,93 @@ registerDoParallel(cores = ncore)
 biome <- 1
 n_samples = 10000
 
-# identify which ones are in the same site
-unified_field <- read.csv("./0_data/groa_field/unified_field.csv") %>%
-    # remove columns system.index and .geo
-    select(-c(system.index, .geo)) %>%
-    mutate(date = if_else(date < 0, NA_real_, date))
-
-plot(unified_field$field_age, unified_field$field_biom, xlab = "Field Age", ylab = "Field Biomass", main = "Field Age vs Field Biomass")
-
-
 # try it out with only 5 years old onwards to see if theta remains 1
 
-data <- import_data("./0_data/unified_fc.csv", biome = biome, n_samples = n_samples)
+data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000)
+
 # Fit the model on the full data
 norm_data <- normalize_independently(data)$train_data
 
-pars_init <- find_combination_pars(basic_pars = basic_pars_options[["lag"]], "data_pars" = c("num_fires", "dist"), norm_data)
+pars_init <- find_combination_pars(basic_pars = basic_pars_options[["lag"]], "data_pars" = c("num_fires", "dist", "sur_cover"), norm_data)
 
 final_model <- run_optim(norm_data, pars_init, conditions)
 
-pred <- growth_curve(final_model$par, data = norm_data)
+pred <- growth_curve(final_model$par, data = norm_data, lag = final_model$par["lag"])
 
-r2 <- calc_r2(norm_data, pred)
-r2
-
-tst <- as.data.frame(cbind(norm_data$age, pred))
-colnames(tst) <- c("age", "pred")
-head(tst)
-plot(tst$age, tst$pred, xlab = "Field Age", ylab = "Predicted AGB", main = "Field Age vs Predicted AGB")
-
-plot(norm_data$age, norm_data$biomass, xlab = "Field Age", ylab = "Predicted AGB", main = "Field Age vs Predicted AGB")
-
-
-
-plot(pred, norm_data$biomass, xlab = "Predicted AGB", ylab = "Observed AGB", main = "Predicted vs Observed AGB")
-# add 1-1 line to the plot
+# save plot as png
+png("./0_results/extended/predicted_vs_observed_satellite.png", width = 800, height = 600)
+plot(pred, norm_data$biomass, xlab = "Predicted AGB", ylab = "Observed AGB", main = "Predicted vs Observed AGB") # add 1-1 line to the plot
 abline(0, 1, col = "red", lty = 2)
-
-plot(pred, norm_data$biomass, xlab = "Predicted AGB", ylab = "Observed AGB", main = "Predicted vs Observed AGB")
-
-
-field <- unified_field %>%
-    # rename field_age to age
-    rename(age = field_age) %>%
-    # rename first to nearest_biomass
-    rename(nearest_biomass = first) %>%
-    # rename b1 to biomass
-    rename(biomass = field_biom) %>%
-    # keep only columns dist, num_fires, sur_cover, nearest_biomass, biomass and age
-    select(dist, num_fires, nearest_biomass, biomass, age)
-
-norm_field <- normalize_independently(field)$train_data
-nrow(norm_field) # 582
-# remove rows with NA in any column
-norm_field <- norm_field[complete.cases(norm_field), ]
-nrow(norm_field) # 402
-
-pars_init <- find_combination_pars(
-    basic_pars = c(basic_pars_options[["intercept"]], "theta"),
-    data_pars = c("num_fires", "dist"),
-    norm_field
-)
-final_model <- run_optim(norm_field, pars_init, conditions)
-final_model$par
+dev.off()
 
 
-plot(norm_field$age, norm_field$biomass, xlab = "Field Age", ylab = "Field Biomass", main = "Field Age vs Field Biomass")
-pred_agb <- growth_curve(final_model$par, data = norm_field)
+
+# ------------------------------------------------
+
+
+# identify which ones are in the same site
+field <- read.csv("./0_data/groa_field/field_predictors.csv")
+field <- subset(field, biome == 1) # Filter for Amazon biome
+field <- field %>%
+    rename(biomass = field_biom,
+    asymptote = nearest_mature) %>%
+    mutate(age = floor(age + 0.5))
+
+# remove rows with NA values in any colum
+field <- field[complete.cases(field), ]
+
+field <- normalize_independently(field)$train_data
+
+# pick one random row per unique value of site_id
+field_non_repeats <- field %>%
+    group_by(site_id) %>%
+    slice_sample(n = 1) %>%
+    ungroup()
+# there are 44 unique sites in the Amazon
+
+# remove columns biome, lat, lon, site_id, plot_id
+field_non_repeats <- field_non_repeats %>%
+    select(-biome, -lat, -lon, -site_id, -plot_id)
+
+pred_field <- growth_curve(final_model$par, data = norm_field)
+
+png("./0_results/figures/extended/field_predictions_scatterplot.png", width = 800, height = 600)
+plot(norm_field$age, norm_field$biomass, xlab = "Field Age", ylab = "Field Biomass", main = "Age vs Biomass")
 points(norm_field$age, pred_agb, col = "red", pch = 19)
+dev.off()
 
 # get R2
-r2 <- calc_r2(norm_field, pred_agb)
+r2 <- calc_r2(norm_field, pred_field)
 r2
 
-plot(pred_agb, tst$biomass, xlab = "Predicted AGB", ylab = "Observed AGB", main = "Predicted vs Observed AGB")
+png("./0_results/figures/extended/predicted_vs_observed_field.png", width = 800, height = 600)
+plot(pred_agb, norm_field$biomass, xlab = "Predicted AGB", ylab = "Observed AGB", main = "Predicted vs Observed AGB")
 # add 1-1 line to the plot
 abline(0, 1, col = "red", lty = 2)
+dev.off()
 
-# color the points by their age
-plot(pred_agb, tst$biomass, xlab = "Predicted AGB", ylab = "Observed AGB", main = "Predicted vs Observed AGB", col = tst$age)
-# make the color a gradient from blue to red
-library(ggplot2)
-ggplot(tst, aes(x = pred_agb, y = biomass, color = age)) +
-    geom_point() +
-    scale_color_gradient(low = "blue", high = "red") +
-    labs(x = "Predicted AGB", y = "Observed AGB", title = "Predicted vs Observed AGB") +
-    theme_minimal()
 
-# tell me if there is a relationship between age and distance between observed from predicted AGB
-# calculate the difference between observed and predicted AGB
-tst$diff <- tst$biomass - pred_agb
-# plot the difference against age
-plot(tst$diff, tst$age, xlab = "Difference between observed and predicted AGB", ylab = "Age", main = "Difference vs Age")
-summary(lm(tst$diff ~ tst$age))
+# ------------------------------------------------------
+# Identify and handle plots with repeated measurements
+# ------------------------------------------------------
+
+
+# Identify plot IDs with more than one observation
+plot_nums <- field %>%
+    group_by(plot_id) %>%
+    summarise(n = n()) %>%
+    filter(n > 1) %>%
+    arrange(desc(n))
+
+# take only rows with more than 5 observations for the same plot_id
+field_repeats <- field_repeats %>%
+    group_by(plot_id) %>%
+    filter(n() > 5) %>%
+    ungroup()
+
+pred_repeats
+table(field_repeats$site_id)
+pred_repeats <- growth_curve(final_model$par, data = field_repeats)
+plot(field_repeats$age, field_repeats$biomass, xlab = "Age", ylab = "Biomass", main = "Predictions for site with repeated measurements")
+points(field_repeats$age, pred_repeats, col = "red", pch = 19)
 

@@ -5,22 +5,17 @@
 # select all pasturelands in the Amazon
 # select all secondary forests in the Amazon
 
-
 source("3_modelling/1_parameters.r")
 source("3_modelling/1_data_processing.r")
 source("3_modelling/2_modelling.r")
 source("3_modelling/2_cross_validate.r")
 source("3_modelling/2_feature_selection.r")
 
-
-
-
 # Load required libraries
 library(tidyverse)
 library(terra)
 set.seed(1)
 biome <- 1 # Amazon
-
 
 model_lag <- readRDS("./0_results/amazon_model_lag.rds")
 model_intercept <- readRDS("./0_results/amazon_model_intercept.rds")

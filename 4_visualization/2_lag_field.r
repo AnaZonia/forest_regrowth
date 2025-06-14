@@ -9,7 +9,18 @@ options(stringsAsFactors = FALSE)
 theme_set(theme_minimal(base_size = 20))
 
 # ---------------------------- Data Loading ----------------------------
-field_data <- read.csv("0_data/groa_field/average_biomass_per_age.csv")
+field <- read.csv("0_data/groa_field/field_predictors.csv")
+field <- subset(field, biome == 1) # Filter for Amazon biome
+field <- field %>%
+    rename(field_biomass = field_biom) %>%
+    mutate(age = floor(age + 0.5))
+
+# get the average per age
+aggregated_field <- field %>%
+    select(site_id, age, field_biomass) %>%
+    group_by(age) %>%
+    summarise(field_biomass = mean(field_biomass, na.rm = TRUE))
+
 lag_data <- read.csv("0_results/pred_vs_obs_amazon_lag.csv")
 intercept_data <- read.csv("0_results/pred_vs_obs_amazon_intercept.csv")
 
@@ -50,7 +61,7 @@ satellite_summary <- lag_data %>%
     rename(age = obs_age)
 
 # First, combine all data including future predictions
-all_pred_data <- full_join(field_data, lag_summary, by = "age") %>%
+all_pred_data <- full_join(aggregated_field, lag_summary, by = "age") %>%
     full_join(intercept_summary, by = "age") %>%
     full_join(satellite_summary, by = "age")
 
@@ -72,8 +83,15 @@ linetypes <- c(
 # Modify the plotting function
 p <- ggplot(all_pred_data, aes(x = age)) +
 
+    # Field data points
+    geom_point(
+        data = aggregated_field,
+        aes(x = age, y = field_biomass, color = "Field Measurements"),
+        size = 3, alpha = 0.7
+    ) +
+
     # Remote sensing data
-    geom_line(aes(y = mean_obs, color = "Observed (Remote Sensing)"), linewidth = 1) +
+    geom_line(aes(y = mean_obs, color = "Observed (Remote Sensing)"), linewidth = 1.5) +
     geom_ribbon(
         aes(ymin = mean_obs - sd_obs, ymax = mean_obs + sd_obs, fill = "Observed (Remote Sensing)"),
         alpha = 0.2, color = NA
@@ -83,7 +101,7 @@ p <- ggplot(all_pred_data, aes(x = age)) +
     geom_line(aes(
         y = mean_pred_lag, color = "Lag-corrected estimates",
         linetype = "Lag-corrected estimates"
-    ), linewidth = 1) +
+    ), linewidth = 1.5) +
 
     geom_ribbon(
         aes(
@@ -97,7 +115,7 @@ p <- ggplot(all_pred_data, aes(x = age)) +
     geom_line(aes(
         y = mean_pred_intercept, color = "Uncorrected estimates",
         linetype = "Uncorrected estimates"
-    ), linewidth = 1) +
+    ), linewidth = 1.5) +
 
     geom_ribbon(
         aes(
@@ -106,13 +124,6 @@ p <- ggplot(all_pred_data, aes(x = age)) +
             fill = "Uncorrected estimates"
         ),
         alpha = 0.2, color = NA
-    ) +
-
-    # Field data points
-    geom_point(
-        data = field_data,
-        aes(x = age, y = mean_biomass, color = "Field Measurements"),
-        size = 3, alpha = 0.7
     ) +
 
     # Vertical line for age lag

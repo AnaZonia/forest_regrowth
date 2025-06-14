@@ -31,61 +31,14 @@ field <- field %>%
 
 field <- subset(field, variables.name == "aboveground_biomass" & site.country == "Brazil")
 
-# ------------------------------------------------------
-# Aggregate biomass data by field age
-# This function calculates the mean biomass per field age, grouping by integer intervals.
-# The data is used in 2_lag_field_data.r for visualization
-# ------------------------------------------------------
-
-aggregated_field <- field %>%
-    mutate(age_interval = floor(`stand.age` + 0.5)) %>% # Group into integer intervals
-    group_by(age_interval) %>%
-    summarise(mean_biomass = mean(`mean_ha`, na.rm = TRUE)) %>%
-    rename(age = age_interval)
-
-write.csv(aggregated_field, "0_data/groa_field/average_biomass_per_age.csv", row.names = FALSE)
-
-# ------------------------------------------------------
-# Identify and handle plots with repeated measurements
-# ------------------------------------------------------
-
-# Identify plot IDs with more than one observation
-plot_nums <- field %>%
-    group_by(plot.id) %>%
-    summarise(n = n()) %>%
-    filter(n > 1) %>%
-    arrange(desc(n))
-
-# Extract only the rows with repeated plot IDs
-field_repeats <- field %>%
-    group_by(plot.id) %>%
-    filter(n() > 1) %>%
-    ungroup()
-
-# there are 16 plots with repeated measurements, totalling 78 non-independent measurements out of 435 total.
-
-# Export repeated measurements for separate analysis
-write.csv(field_repeats, "0_data/groa_field/field_repeats.csv", row.names = FALSE)
-
-# From each plot, randomly retain only one measurement (to avoid pseudoreplication)
 field <- field %>%
-    group_by(plot.id) %>%
-    slice_sample(n = 1) %>%
-    ungroup()
-
-# ------------------------------------------------------
-# Clean up columns and rename for clarity
-# ------------------------------------------------------
-
-field <- field %>%
-    select(stand.age, mean_ha, date, plot.id, lat_dec, long_dec) %>%
-        rename(
-            field_biomass = mean_ha,
-            field_age = stand.age,
-            plot_id = plot.id
-        )
-
-plot(field$field_biomass ~ field$field_age, data = field, main = "Field Biomass by Age", xlab = "Field Age (years)", ylab = "Biomass (Mg/ha)")
+    select(stand.age, mean_ha, site.id, plot.id, lat_dec, long_dec) %>%
+    rename(
+        field_biomass = mean_ha,
+        age = stand.age,
+        site_id = site.id,
+        plot_id = plot.id
+    )
 
 # ------------------------------------------------------
 # Convert to a spatial object (terra::SpatVector)
@@ -99,5 +52,6 @@ field_spat <- vect(field, geom = c("long_dec", "lat_dec"))
 crs(field_spat) <- "+proj=longlat +datum=WGS84"
 
 # Export to shapefile
-writeVector(field_spat, "0_data/groa_field/field_biomass.shp", overwrite = TRUE)
+writeVector(field_spat, "0_data/groa_field/field.shp", overwrite = TRUE)
+
 
