@@ -1,3 +1,5 @@
+
+
 # Load necessary libraries
 library(tidyverse)
 library(ggplot2)
@@ -67,15 +69,15 @@ all_pred_data <- full_join(aggregated_field, lag_summary, by = "age") %>%
 
 # Update plot colors and linetypes to include future predictions
 plot_colors <- c(
-    "Lag-corrected estimates" = "#2f4b7c",
-    "Uncorrected estimates" = "#ffa600",
+    "Lag-corrected" = "#2f4b7c",
+    "Uncorrected" = "#ffa600",
     "Observed (Remote Sensing)" = "#f95d6a",
     "Field Measurements" = "black"
 )
 
 linetypes <- c(
-    "Lag-corrected estimates" = "solid",
-    "Uncorrected estimates" = "solid",
+    "Lag-corrected" = "solid",
+    "Uncorrected" = "solid",
     "Observed (Remote Sensing)" = "dashed"
 )
 
@@ -99,32 +101,32 @@ p <- ggplot(all_pred_data, aes(x = age)) +
 
     # Predicted data - current
     geom_line(aes(
-        y = mean_pred_lag, color = "Lag-corrected estimates",
-        linetype = "Lag-corrected estimates"
+        y = mean_pred_lag, color = "Lag-corrected",
+        linetype = "Lag-corrected"
     ), linewidth = 1.5) +
 
     geom_ribbon(
         aes(
             ymin = mean_pred_lag - sd_pred_lag,
             ymax = mean_pred_lag + sd_pred_lag,
-            fill = "Lag-corrected estimates"
+            fill = "Lag-corrected"
         ),
         alpha = 0.2, color = NA
     ) +
     
     geom_line(aes(
-        y = mean_pred_intercept, color = "Uncorrected estimates",
-        linetype = "Uncorrected estimates"
+        y = mean_pred_intercept, color = "Uncorrected",
+        linetype = "Uncorrected"
     ), linewidth = 1.5) +
 
-    geom_ribbon(
-        aes(
-            ymin = mean_pred_intercept - sd_pred_intercept,
-            ymax = mean_pred_intercept + sd_pred_intercept,
-            fill = "Uncorrected estimates"
-        ),
-        alpha = 0.2, color = NA
-    ) +
+    # geom_ribbon(
+    #     aes(
+    #         ymin = mean_pred_intercept - sd_pred_intercept,
+    #         ymax = mean_pred_intercept + sd_pred_intercept,
+    #         fill = "Uncorrected"
+    #     ),
+    #     alpha = 0.2, color = NA
+    # ) +
 
     # Vertical line for age lag
     geom_vline(
@@ -132,16 +134,16 @@ p <- ggplot(all_pred_data, aes(x = age)) +
         linetype = "dotted", color = "black", linewidth = 1
     ) +
     annotate(
-        "text", x = (lag + 1) + 2, y = 300,
+        "text", x = (lag + 1) + 2, y = 320,
         label = paste(lag, "year lag"),
-        color = "black", size = 5, hjust = 0
+        color = "black", size = 7, hjust = 0
     ) +
     
     # Scale definitions
     scale_color_manual(values = plot_colors, name = NULL) +
     scale_fill_manual(values = plot_colors, name = NULL) +
     scale_linetype_manual(values = linetypes, name = NULL) +
-    scale_y_continuous(limits = c(0, 310), expand = expansion(mult = c(0, 0.05))) +
+    scale_y_continuous(limits = c(0, 320), expand = expansion(mult = c(0, 0.05))) +
 
     # Labels and theme
     labs(
@@ -154,7 +156,7 @@ p <- ggplot(all_pred_data, aes(x = age)) +
         panel.grid.minor = element_blank(),
         axis.line = element_line(color = "black"),
         axis.title = element_text(color = "black", family = "Helvetica"),
-        axis.text = element_text(color = "black", size = 14, family = "Helvetica"),
+        axis.text = element_text(color = "black", size = 18, family = "Helvetica"),
         legend.position = "none"
     )
 

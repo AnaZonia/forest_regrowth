@@ -54,7 +54,7 @@ import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest
     # remove columns with less than 50 unique values
     df <- df %>%
         group_by(across(any_of(categorical))) %>%
-        filter(n() >= 50) %>%
+        # filter(n() >= 50) %>%
         ungroup() %>%
         mutate(across(any_of(categorical), droplevels))
 

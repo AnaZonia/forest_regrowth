@@ -29,15 +29,20 @@ data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 1000
 # Fit the model on the full data
 norm_data <- normalize_independently(data)$train_data
 
-pars_init <- find_combination_pars(basic_pars = basic_pars_options[["lag"]], "data_pars" = c("num_fires", "dist", "sur_cover"), norm_data)
+
+pars_init <- find_combination_pars(
+    basic_pars = basic_pars_options[["lag"]],
+    data_pars = data_pars_options(colnames(data))[["all_mean_climate"]],
+    norm_data
+)
 
 final_model <- run_optim(norm_data, pars_init, conditions)
 
 pred <- growth_curve(final_model$par, data = norm_data, lag = final_model$par["lag"])
 
 # save plot as png
-png("./0_results/extended/predicted_vs_observed_satellite.png", width = 800, height = 600)
-plot(pred, norm_data$biomass, xlab = "Predicted AGB", ylab = "Observed AGB", main = "Predicted vs Observed AGB") # add 1-1 line to the plot
+png("./0_results/figures/extended/predicted_vs_observed_satellite.png", width = 800, height = 600)
+plot(pred, norm_data$biomass, xlab = "Predicted AGB", ylab = "Observed AGB", main = "Predicted vs Observed AGB")
 abline(0, 1, col = "red", lty = 2)
 dev.off()
 

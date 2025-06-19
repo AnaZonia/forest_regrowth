@@ -22,9 +22,9 @@ registerDoParallel(cores = ncore)
 # Save trained model for the best parameters
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000)
+data <- import_data("grid_1k_amazon_secondary", biome_num = 1, n_samples = 10000)
 norm_data <- normalize_independently(data)
-saveRDS(norm_data$train_stats, file = "./0_results/grid_10k_amazon_secondary_train_stats.rds")
+saveRDS(norm_data$train_stats, file = "./0_results/grid_1k_amazon_secondary_train_stats.rds")
 norm_data <- norm_data$train_data
 
 for (basic_pars_name in names(basic_pars_options)) {
@@ -167,7 +167,7 @@ for (asymptote in c("full_amazon", "nearest_mature")) { #"quarter_biomass", "eco
     write.csv(importance_results, file = paste0("./0_results/importance_", asymptote, ".csv"), row.names = FALSE)
 }
 
-
+# checking whether the importance results change over different runs
 importance_repeats <- data.frame()
 for (asymptote in c("full_amazon", "nearest_mature")) {
     for (i in 1:5) {
