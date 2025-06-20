@@ -47,7 +47,7 @@ apply_min_max_scaling <- function(data, train_stats) {
 
 # pasture_selection can be random, protected, top_5_percent, or all
 
-predict_future_biomass <- function(name, model, age_offset, pasture_selection = "random") {
+predict_future_biomass <- function(name, model, age_offset, pasture_selection = "random", delta = TRUE) {
 
     # Import Secondary Forest Data
     data <- import_data(paste0("grid_1k_amazon_", name), biome_num = biome, n_samples = "all")
@@ -67,8 +67,13 @@ predict_future_biomass <- function(name, model, age_offset, pasture_selection = 
     }
 
     pred <- growth_curve(model$par, data, model$par["lag"])
-    pred_2020 <- growth_curve(model$par, data_2020, model$par["lag"])
-    pred <- pred - pred_2020
+
+    if (delta) {
+        pred_2020 <- growth_curve(model$par, data_2020, model$par["lag"])
+        # if delta is TRUE, we return the difference between the two predictions
+        pred <- pred - pred_2020
+    }
+    
 
     # get the column in data with the word "area"
     # each 1000x1000 m pixel is 1 million m2.
@@ -80,7 +85,7 @@ predict_future_biomass <- function(name, model, age_offset, pasture_selection = 
     # convert biomass in Mg/ha to MgC/ha (assuming 50% C content)
     pred <- pred * 0.5
 
-    # total estimate in Teragram of Carbon (TgC)
+    # total estimate in Teragram of Carbon (TgC / ha)
     pred <- pred / 1000000
 
     coords$pred <- pred
@@ -146,6 +151,16 @@ pred_lag_2050_pastureland_top_5 <- predict_future_biomass("pastureland", model_l
 pred_lag_2050_pastureland_random <- predict_future_biomass("pastureland", model_lag, 30, "random")
 # pred_lag_2050_pastureland_all <- predict_future_biomass("pastureland", model_lag, 30, "all")
 
+pred_lag_2050_secondary <- predict_future_biomass("secondary", model_lag, 30, delta = FALSE)
+pred_lag_2050_pastureland_top_5 <- predict_future_biomass("pastureland", model_lag, 30, "top_5_percent", delta = FALSE)
+pred_lag_2050_pastureland_random <- predict_future_biomass("pastureland", model_lag, 30, "random", delta = FALSE)
+# pred_lag_2050_pastureland_all <- predict_future_biomass("pastureland", model_lag, 30, "all")
+
+
+
+
+
+
 
 df <- data.frame(
     category = factor(
@@ -164,7 +179,7 @@ p <- ggplot(df, aes(x = category, y = value)) + # removed fill aesthetic
     geom_bar(stat = "identity", width = 0.7, fill = "black") + # set fill manually
     scale_y_continuous(
         labels = scales::label_comma(),
-        name = "Biomass sequestered by 2050 (Tg C)"
+        name = "Carbon stored by 2050 (Tg CO₂e)"
     ) +
     labs(x = NULL) +
     theme_minimal(base_size = 16) +
@@ -231,9 +246,8 @@ ggsave("0_results/figures/figure_4_pasture_secondary_area.jpeg",
 # add legend for maps
 
 
-predict_future_biomass <- function(name, model, age_offset, pasture_selection = "random") {
+predict_future_biomass <- function(name, model, age_offset, pasture_selection = "random", delta = TRUE) {
 
-name = "secondary" # "secondary" or "pastureland"
     # Import Secondary Forest Data
     data <- import_data(paste0("grid_1k_amazon_", name), biome_num = biome, n_samples = "all")
     coords <- data$coords
@@ -248,10 +262,14 @@ name = "secondary" # "secondary" or "pastureland"
         data$age <- 30
     }
 
-    pred_2020 <- growth_curve(model$par, data_2020, model$par["lag"])
     pred_2050 <- growth_curve(model$par, data, model$par["lag"])
-    # head(pred_2050)
-    pred_2050 <- pred_2050 - pred_2020
+
+    if (delta) {
+        pred_2020 <- growth_curve(model$par, data_2020, model$par["lag"])
+        # if delta is TRUE, we return the difference between the two predictions
+        pred <- pred - pred_2020
+    }
+
 
     # get the column in data with the word "area"
     coords$pred <- pred_2050
@@ -268,6 +286,15 @@ writeVector(points, "0_results/pred_lag_2050_pastureland_all.shp", overwrite = T
 points <- vect(pred_lag_2050_secondary[[1, 2]], geom = c("lon", "lat"), crs = "EPSG:4326")
 writeVector(points, "0_results/pred_lag_2050_secondary.shp", overwrite = TRUE)
 
+
+
+pred_lag_2050_pastureland_all <- predict_future_biomass("pastureland", model_lag, 30, "all", delta = FALSE)
+pred_lag_2050_secondary <- predict_future_biomass("secondary", model_lag, 30, delta = FALSE)
+
+points <- vect(pred_lag_2050_pastureland_all, geom = c("lon", "lat"), crs = "EPSG:4326")
+writeVector(points, "0_results/total_pred_lag_2050_pastureland_all.shp", overwrite = TRUE)
+points <- vect(pred_lag_2050_secondary, geom = c("lon", "lat"), crs = "EPSG:4326")
+writeVector(points, "0_results/total_pred_lag_2050_secondary.shp", overwrite = TRUE)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

@@ -53,7 +53,6 @@ intercept_summary <- intercept_summary %>%
 lag_summary <- lag_summary %>%
     mutate(sd_pred_lag = if_else(age < lag+1, 0, sd_pred_lag))
 
-
 satellite_summary <- lag_data %>%
     group_by(obs_age) %>%
     summarise(
@@ -80,7 +79,6 @@ linetypes <- c(
     "Uncorrected" = "solid",
     "Observed (Remote Sensing)" = "dashed"
 )
-
 
 # Modify the plotting function
 p <- ggplot(all_pred_data, aes(x = age)) +
