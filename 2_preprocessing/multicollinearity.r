@@ -76,15 +76,15 @@ find_highly_correlated <- function(corr_matrix, threshold = 0.8) {
 # Load and preprocess the dataset (modify the path as needed)
 secondary_CMIP6 <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000, asymptote = "quarter_biomass")
 
-terraclim_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pdsi")
+terraclim_pars <- c("mean_srad", "mean_soil", "mean_temp", "mean_vpd", "mean_aet", "mean_def", "mean_pdsi")
 cmip6_pars <- c("nssh", "musc", "sdsr", "nsat")
 
 soil <- c("nitro", "phh2o", "ocd", "cec", "sand", "clay", "soc", "cfvo")
 
 
 df <- secondary_CMIP6 %>%
-    select(c("age", "asymptote", "biomass", soil))
-
+    select(c("age", "asymptote", "biomass", soil, terraclim_pars))
+ 
 # Calculate correlation matrix
 corr_matrix <- calculate_correlation_matrix(df)
 
@@ -98,3 +98,4 @@ print(vif_results)
 
 # Identify highly correlated features
 find_highly_correlated(corr_matrix, threshold = 0.3)
+colnames(secondary_CMIP6)

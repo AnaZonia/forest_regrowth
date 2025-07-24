@@ -118,7 +118,6 @@ growth_curve <- function(pars, data, lag = 0) {
         k <- k * age
     }
 
-
     # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
     for (clim_par in intersect(climatic_pars, names(pars))) {
         last_year <- 1985

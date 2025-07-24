@@ -4,7 +4,7 @@
 climatic_pars <- c("srad", "soil", "temp", "vpd", "aet", "def", "pdsi", "pr", "nssh", "musc", "sdsr", "nsat")
 land_use <- c("lu", "fallow", "num_fires")
 landscape <- c("dist", "sur_cover")
-categorical <- c("ecoreg", "topography") # , "last_lu")
+categorical <- c("ecoreg", "topography", "last_lu")
 binary <- c("floodable_forests", "protec", "indig")
 soil <- c("nitro", "phh2o", "ocd", "cec", "sand", "clay", "soc", "cfvo")
 
@@ -34,3 +34,4 @@ data_pars_options <- function(colnames) {
 
     ))
 }
+

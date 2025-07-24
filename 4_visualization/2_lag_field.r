@@ -26,6 +26,7 @@ aggregated_field <- field %>%
 lag_data <- read.csv("0_results/pred_vs_obs_amazon_lag.csv")
 intercept_data <- read.csv("0_results/pred_vs_obs_amazon_intercept.csv")
 
+
 # Calculate the age lag
 model <- readRDS("0_results/amazon_model_lag.rds")
 lag <- round(model$par["lag"])
@@ -83,12 +84,12 @@ linetypes <- c(
 # Modify the plotting function
 p <- ggplot(all_pred_data, aes(x = age)) +
 
-    # Field data points
-    geom_point(
-        data = aggregated_field,
-        aes(x = age, y = field_biomass, color = "Field Measurements"),
-        size = 3, alpha = 0.7
-    ) +
+    # # Field data points
+    # geom_point(
+    #     data = aggregated_field,
+    #     aes(x = age, y = field_biomass, color = "Field Measurements"),
+    #     size = 3, alpha = 0.7
+    # ) +
 
     # Remote sensing data
     geom_line(aes(y = mean_obs, color = "Observed (Remote Sensing)"), linewidth = 1.5) +
@@ -160,6 +161,29 @@ p <- ggplot(all_pred_data, aes(x = age)) +
 
 p
 
+
+satellite_summary$age <- satellite_summary$age - lag
+p <- ggplot(satellite_summary, aes(x = age)) +
+    # Remote sensing data
+    geom_line(aes(y = mean_obs, color = "Observed (Remote Sensing)"), linewidth = 1.5) +
+        geom_ribbon(
+            aes(ymin = mean_obs - sd_obs, ymax = mean_obs + sd_obs, 
+                fill = "Observed (Remote Sensing)"),
+            alpha = 0.2, color = NA
+        ) +
+
+        # Labels and theme
+        labs(
+            x = "Forest Age (years)",
+            y = "Mean Biomass (Mg/ha)"
+        )
+    
+
+
+p
+
+
+head(satellite_summary)
 
 
 # ---------------------------- Save Outputs ----------------------------
