@@ -27,6 +27,23 @@ n_samples = 10000
 # identify which ones are in the same site
 field <- read.csv("./0_data/groa_field/field_predictors.csv")
 field <- subset(field, biome == 1)
+
+
+
+
+png("./0_results/figures/extended/field_age_histogram.png", width = 600, height = 600)
+ggplot(field, aes(x = age)) +
+    geom_histogram(binwidth = 5, fill = "black", color = "white", boundary = 0) +
+    labs(x = "Forest age (years)", y = "Number of plots") +
+    theme_minimal(base_size = 14) +
+    theme(
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(color = "black", size = 30),
+        axis.title = element_text(face = "bold", size = 30)
+    )
+dev.off()
+
 field <- field %>%
     rename(
         biomass = field_biom,
@@ -36,6 +53,8 @@ field <- field %>%
 
 # remove rows with NA values in any colum
 field <- field[complete.cases(field), ]
+
+table(field$age)
 
 # pick one random row per unique value of site_id
 field_non_repeats <- field %>%
