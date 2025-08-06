@@ -29,18 +29,10 @@ library(fastDummies)
 
 import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest_mature") {
 
-    # if the folder exists, read all csv files in the folder and bind them together.
-    # if the folder does not exist, read the single csv file.
-    if (dir.exists(paste0("./0_data/", path))) {
-        csv_files <- list.files(paste0("./0_data/", path), pattern = "\\.csv$", full.names = TRUE)
-        df <- csv_files %>%
-            map(read_csv) %>%
-            bind_rows()
-    } else {
-        df <- read_csv(paste0("./0_data/", path, ".csv"))
-        df <- df %>%
-            select(-c(".geo", "system:index"))
-    }
+    csv_files <- list.files(paste0("./0_data/", path), pattern = "\\.csv$", full.names = TRUE)
+    df <- csv_files %>%
+        map(read_csv) %>%
+        bind_rows()
 
     # Convert categorical to factors
     df <- df %>%

@@ -7,6 +7,11 @@ library(ggplot2)
 library(tidyverse)
 library(RColorBrewer)
 
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
 importance_full_amazon <- read.csv("./0_results/importance_full_amazon.csv")
 importance_quarter <- read.csv("./0_results/importance_quarter_biomass.csv")
 importance_ecoreg <- read.csv("./0_results/importance_ecoreg_biomass.csv")
