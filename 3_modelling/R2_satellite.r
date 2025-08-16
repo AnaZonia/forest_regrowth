@@ -25,7 +25,7 @@ registerDoParallel(cores = ncore)
 results <- data.frame()
 
 for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")) {
-    data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000, asymptote = asymptote)
+    data <- import_data("UTM_stratified_10k", biome_num = 1, n_samples = 10000, asymptote = asymptote)
 
     data_pars_name <- "age_only"
     basic_pars_name <- "lag"
