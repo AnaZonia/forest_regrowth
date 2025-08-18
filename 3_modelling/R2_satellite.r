@@ -25,7 +25,7 @@ registerDoParallel(cores = ncore)
 results <- data.frame()
 
 for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")) {
-    data <- import_data("UTM_stratified_10k", biome_num = 1, n_samples = 10000, asymptote = asymptote)
+    data <- import_data("UTM_100k", biome_num = 1, n_samples = 10000, asymptote = asymptote)
 
     data_pars_name <- "age_only"
     basic_pars_name <- "lag"
@@ -102,4 +102,25 @@ for (biome in c(1, 4)) {
 
 
 
+asymptote <- "nearest_mature"
+data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000, asymptote = asymptote)
 
+data_pars_name <- "all_mean_climate"
+basic_pars_name <- "lag"
+
+# Get parameters
+basic_pars <- basic_pars_options[[basic_pars_name]]
+data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
+
+# Run cross-validation
+cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
+
+# Return summary
+result <- data.frame(
+    basic_pars_name = basic_pars_name,
+    asymptote = asymptote,
+    mean_r2 = mean(cv_results),
+    sd_r2 = sd(cv_results)
+)
+
+print(result)
