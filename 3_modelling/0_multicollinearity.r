@@ -32,7 +32,6 @@ plot_correlation_heatmap <- function(corr_matrix) {
     print(p)
     dev.off()
 
-    # Print the plot in a separate window (for RStudio or VSCode)
     print(p)
 }
 
@@ -74,7 +73,7 @@ find_highly_correlated <- function(corr_matrix, threshold = 0.8) {
 # Main function to run the data preparation steps
 
 # Load and preprocess the dataset (modify the path as needed)
-secondary_CMIP6 <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000, asymptote = "nearest_biomass")
+secondary_CMIP6 <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000, asymptote = "nearest_mature")
 
 
 terraclim_pars <- c("mean_srad", "mean_soil", "mean_temp", "mean_vpd", "mean_aet", "mean_def", "mean_pdsi")
@@ -85,16 +84,19 @@ soil <- c("nitro", "phh2o", "ocd", "cec", "sand", "clay", "soc", "cfvo")
 
 df <- secondary_CMIP6 %>%
     select(c("age", "asymptote", "biomass", soil, terraclim_pars, "num_fires", "sur_cover", "dist"))
- 
+
 # Calculate correlation matrix
 corr_matrix <- calculate_correlation_matrix(df)
 
 # Plot correlation heatmap
 plot_correlation_heatmap(corr_matrix)
 
+
+df_drop <- df %>%
+    select(-c("mean_def"))
+
 # Compute VIF values
-vif_results <- calculate_vif(df)
-print("Variance Inflation Factors:")
+vif_results <- calculate_vif(df_drop)
 print(vif_results)
 
 # Identify highly correlated features

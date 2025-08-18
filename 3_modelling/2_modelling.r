@@ -118,34 +118,6 @@ growth_curve <- function(pars, data, lag = 0) {
         k <- k * age
     }
 
-    # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
-    for (clim_par in intersect(climatic_pars, names(pars))) {
-        last_year <- 1985
-        year_seq <- seq(last_year, 2019)
-        clim_columns <- paste0(clim_par, "_", year_seq)
-        # print(clim_columns)
-
-        k[indices] <- k[indices] + pars[[clim_par]] * rowMeans(sapply(clim_columns, function(col) data[[col]][indices]))
-
-        # for (yr in 1:max(data[["age"]])) {
-
-        #     indices <- which(data[["age"]] == yr)
-        #     # Generate a sequence of years for the current age group
-        #     # Starting from 2019 and going back 'yrs' number of years (stopping in 1958 as the earliest year)
-        #     last_year <- max(2019 - yr - round(lag) + 1, 1959)
-        #     lag_rounded <- max(round(lag), 0)
-        #     last_year <- max(2019 - yr - lag_rounded + 1, 1959)
-        #     year_seq <- seq(last_year, 2019)
-        #     clim_columns <- paste0(clim_par, "_", year_seq)
-
-        #     # Add the contribution individually or as an average
-
-        #     k[indices] <- k[indices] + pars[[clim_par]] * rowMeans(sapply(clim_columns, function(col) data[[col]][indices]))
-
-        #     # k[indices] <- k[indices] + pars[[clim_par]] * rowSums(sapply(clim_columns, function(col) data[[col]][indices]))
-        # }
-    }
-
     # Constrains k to avoid negative values
     k[which(k < 1e-10)] <- 1e-10
     k[which(k > 7)] <- 7 # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)

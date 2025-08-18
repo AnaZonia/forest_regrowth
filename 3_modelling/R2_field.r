@@ -20,16 +20,13 @@ registerDoParallel(cores = ncore)
 
 # Load data
 biome <- 1
-n_samples = 10000
+n_samples <- 10000
 
 # ------------------------------------------------------
 
 # identify which ones are in the same site
 field <- read.csv("./0_data/groa_field/field_predictors.csv")
 field <- subset(field, biome == 1)
-
-
-
 
 png("./0_results/figures/extended/field_age_histogram.png", width = 600, height = 600)
 ggplot(field, aes(x = age)) +
@@ -80,7 +77,6 @@ field_non_repeats <- dummy_cols(field_non_repeats,
 
 # ------------------------------------------------------
 
-# try it out with only 5 years old onwards to see if theta remains 1
 
 data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000)
 
@@ -147,7 +143,7 @@ growth_curve <- function(pars, data, lag = 0) {
     pars = final_model$par
     data = field_non_repeats
     lag = final_model$par["lag"]
-    # I am not checking climatic variables correctly - need to add monthly or yearly separately.
+
     # Define parameters that are not expected to change yearly (not prec or si)
     non_yearly_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars, "age"))
 
@@ -168,18 +164,6 @@ growth_curve <- function(pars, data, lag = 0) {
         }, simplify = TRUE))) * (age)
     } else {
         k <- k * age
-    }
-
-
-    # Add yearly-changing climatic parameters to the growth rate k (if included in the parameter set)
-    for (clim_par in intersect(climatic_pars, names(pars))) {
-        last_year <- 1985
-        year_seq <- seq(last_year, 2019)
-        clim_columns <- paste0(clim_par, "_", year_seq)
-        # print(clim_columns)
-
-        k[indices] <- k[indices] + pars[[clim_par]] * rowMeans(sapply(clim_columns, function(col) data[[col]][indices]))
-
     }
 
     # Constrains k to avoid negative values

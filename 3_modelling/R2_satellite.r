@@ -18,6 +18,7 @@ set.seed(1)
 ncore = 4
 registerDoParallel(cores = ncore)
 
+data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000, asymptote = "nearest_mature")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Asymptotes ("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")
@@ -25,7 +26,7 @@ registerDoParallel(cores = ncore)
 results <- data.frame()
 
 for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")) {
-    data <- import_data("UTM_100k", biome_num = 1, n_samples = 10000, asymptote = asymptote)
+    data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000, asymptote = asymptote)
 
     data_pars_name <- "age_only"
     basic_pars_name <- "lag"
@@ -63,8 +64,6 @@ land_use_list
 
 for (biome in c(1, 4)) {
     print(biome)
-
-
 
     data <- import_data("grid_10k_secondary_non_aggregated_5yr", biome_num = biome, n_samples = 10000)
     for (data_pars_name in names(data_pars_options(colnames(data)))) {
@@ -112,15 +111,22 @@ basic_pars_name <- "lag"
 basic_pars <- basic_pars_options[[basic_pars_name]]
 data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
 
+data_pars <- data_pars[!data_pars %in% c("mean_def")]
+
 # Run cross-validation
 cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
 
-# Return summary
-result <- data.frame(
-    basic_pars_name = basic_pars_name,
-    asymptote = asymptote,
-    mean_r2 = mean(cv_results),
-    sd_r2 = sd(cv_results)
-)
+# Normalize training and test sets independently, but using training data's min/max for both
+train_data <- normalize_independently(data)$train_data
 
-print(result)
+# Function to perform direct optimization
+pars_init <- find_combination_pars(basic_pars, data_pars, train_data)
+
+# Run the model function on the training set and evaluate on the test set
+model <- run_optim(train_data, pars_init, conditions)
+
+pred_cv <- growth_curve(model$par, train_data, lag = model$par["lag"])
+
+# save the predicted values of each iteration of the cross validation.
+r2 <- calc_r2(train_data, pred_cv)
+r2
