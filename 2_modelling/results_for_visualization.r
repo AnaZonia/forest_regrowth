@@ -35,7 +35,6 @@ for (basic_pars_name in names(basic_pars_options)) {
     }
 
     data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
-    # data_pars <- c("num_fires", "sur_cover", "dist")
     init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
     model <- run_optim(norm_data, init_pars, conditions)
     saveRDS(model, file = paste0("./0_results/amazon_model_", basic_pars_name, ".rds", sep = ""))

@@ -52,8 +52,6 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
     write.csv(results, file = "./0_results/R2_asymptotes.csv", row.names = FALSE)
 }
 
-
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Land Use (non_aggregated_all, aggregated_all, non_aggregated_5yr, non_aggregated_10yr)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -61,33 +59,40 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 results <- data.frame()
 
 land_use_list <- list.files(paste0("./0_data"), pattern = "land_use", full.names = FALSE)
-land_use_list
 
 for (biome in c(1, 4)) {
     print(biome)
 
-    data <- import_data("grid_10k_secondary_non_aggregated_5yr", biome_num = biome, n_samples = 10000)
     for (land_use_aggregation in land_use_list) {
-        print(land_use_list)
-        print("------------------------------------------------")
 
-        for (basic_pars_name in names(basic_pars_options)) {
-            print(basic_pars_name)
+        data <- import_data(land_use_aggregation, biome_num = biome, n_samples = 10000)
+
+        for (data_pars_name in c("age_only", "land_use", "fires")) {
 
             # Get parameters
-            basic_pars <- basic_pars_options[[basic_pars_name]]
+            basic_pars <- basic_pars_options[["lag"]]
             data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
 
-            # Run cross-validation
-            cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
+            # Normalize training and test sets independently, but using training data's min/max for both
+            train_data <- normalize_independently(data)$train_data
+
+            # Function to perform direct optimization
+            pars_init <- find_combination_pars(basic_pars, data_pars, train_data)
+
+            # Run the model function on the training set and evaluate on the test set
+            model <- run_optim(train_data, pars_init, conditions)
+
+            pred_cv <- growth_curve(model$par, train_data, lag = model$par["lag"])
+
+            # save the predicted values of each iteration of the cross validation.
+            r2 <- calc_r2(train_data, pred_cv)
 
             # Return summary
             result <- data.frame(
-                basic_pars_name = basic_pars_name,
+                land_use_aggregation = land_use_aggregation,
                 data_pars_name = data_pars_name,
                 biome = biome,
-                mean_r2 = mean(cv_results),
-                sd_r2 = sd(cv_results)
+                r2 = r2
             )
 
             print(result)
@@ -101,33 +106,3 @@ for (biome in c(1, 4)) {
 
 
 
-
-asymptote <- "nearest_mature"
-data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000, asymptote = asymptote)
-
-data_pars_name <- "all_mean_climate"
-basic_pars_name <- "lag"
-
-# Get parameters
-basic_pars <- basic_pars_options[[basic_pars_name]]
-data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
-
-data_pars <- data_pars[!data_pars %in% c("mean_def")]
-
-# Run cross-validation
-cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
-
-# Normalize training and test sets independently, but using training data's min/max for both
-train_data <- normalize_independently(data)$train_data
-
-# Function to perform direct optimization
-pars_init <- find_combination_pars(basic_pars, data_pars, train_data)
-
-# Run the model function on the training set and evaluate on the test set
-model <- run_optim(train_data, pars_init, conditions)
-
-pred_cv <- growth_curve(model$par, train_data, lag = model$par["lag"])
-
-# save the predicted values of each iteration of the cross validation.
-r2 <- calc_r2(train_data, pred_cv)
-r2

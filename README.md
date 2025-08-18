@@ -1,5 +1,5 @@
 ## Project Overview
-CapoERA (Computational Algorithm for Post-agricultural Ecosystem Regrowth Analysis) is a model that predicts the age of secondary forests in Brazil based on satellite data. This script imports and processes remote sensing data from Google Earth Engine, and compares different models to predict the biomass of secondary forests in 2020 and in the future.
+ReSELVA (Computational Algorithm for Post-agricultural Ecosystem Regrowth Analysis) is a model that predicts the age of secondary forests in Brazil based on satellite data. This script imports and processes remote sensing data from Google Earth Engine, and compares different models to predict the biomass of secondary forests in 2020 and in the future.
 
 
 ```
@@ -144,10 +144,15 @@ forest_regrowth
         - as a random sample of 15000 pixels per biome (for model fitting and validation)
         - as tiles incorporating all pixels classified as secondary forests for 2020 (for future predictions)
 
-### 2_preprocessing/
-- **multicollinearity.r**:
-    Tests for multicollinearity in the dataset and removes highly correlated variables.
-- **groa_field_data.r**:
+
+- **gee_8_field_data.ipynb**:
+    Imports field.shp from 2_modelling/groa_field_data.r
+
+
+
+### 2_modelling/
+
+- **0_groa_field_data.r**:
     Imports and processes field data from the GROA project.
     Imports:
     - Field data from GROA (biomass_litter_CWD.csv)
@@ -155,11 +160,11 @@ forest_regrowth
     Exports:
     - Average biomass per age (average_biomass_per_age.csv)
     - Data for all field plots with repeated measurements (field_repeats.csv)
-    - Shapefile with one biomass measurement per plot ID to avoid pseudoreplication (field_plots.shp)
-- **import_CMIP6.r**:
-- **CMIP6_raster.r**:
+    - Shapefile with one biomass measurement per plot ID to avoid pseudoreplication (field.shp)
 
-### 3_modelling/
+- **0_multicollinearity.r**:
+    Tests for multicollinearity in the dataset and removes highly correlated variables.
+
 - **1_data_processing.r**:
     Imports and processes the data for modelling.
     Functions:

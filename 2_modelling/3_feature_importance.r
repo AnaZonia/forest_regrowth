@@ -13,13 +13,18 @@ source("2_modelling/2_cross_validate.r")
 source("2_modelling/2_feature_selection.r")
 
 # Set up parallel processing
-set.seed(1)
+set.seed(5)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------------------ Calculate Permutation Importance ---------------------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# Function Description:
+#   Uses permutation importance to quantify variable contribution to model performance (R2).
+#   For categorical variables with multiple dummy columns (e.g., ecoregion, topography), permutes all columns as group.
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 calculate_permutation_importance <- function(model, data, data_pars) {

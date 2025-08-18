@@ -14,7 +14,8 @@ non_data_pars <- c("k0", "B0", "lag")
 # Conditions for parameter constraints
 conditions <- list('pars["k0"] < 0')
 
-excluded_columns <- c("age", "biomass", "asymptote")
+# "mean_def", "mean_temp" excluded due to multicollinearity
+excluded_columns <- c("age", "biomass", "asymptote", "mean_def", "mean_temp")
 
 # Configuration definition
 basic_pars_options <- list(
@@ -26,14 +27,13 @@ data_pars_options <- function(colnames) {
     return(list(
         age_only = c(),
 
-        land_use = colnames[grepl(paste0(c(land_use), collapse = "|"), colnames)],
+        land_use = colnames[grepl(paste0(c(land_use, "last_lu"), collapse = "|"), colnames)],
 
-        fires = colnames[grepl(paste0(c(fires), collapse = "|"), colnames)],
+        fires = colnames[grepl("num_fires", colnames)],
 
-        environment = colnames[!grepl(paste0(c(excluded_columns, land_use, landscape, paste0(climatic_pars, "_")), collapse = "|"), colnames)],
+        environment = colnames[!grepl(paste0(c(excluded_columns, land_use, landscape, "num_fires"), collapse = "|"), colnames)],
 
-        all_mean_climate = colnames[!grepl(paste0(c(excluded_columns, paste0(climatic_pars, "_"), "mean_def"), collapse = "|"), colnames)]
-
+        all_mean_climate = colnames[!grepl(paste0(c(excluded_columns), collapse = "|"), colnames)]
     ))
 }
 

@@ -97,9 +97,7 @@ calc_rss <- function(pars, data, conditions) {
 
 growth_curve <- function(pars, data, lag = 0) {
 
-    # I am not checking climatic variables correctly - need to add monthly or yearly separately.
-    # Define parameters that are not expected to change yearly (not prec or si)
-    non_yearly_pars <- setdiff(names(pars), c(non_data_pars, climatic_pars, "age"))
+    fit_data_pars <- setdiff(names(pars), c(non_data_pars, "age"))
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Calculate the growth rate k
@@ -112,8 +110,10 @@ growth_curve <- function(pars, data, lag = 0) {
         age <- age + lag
     }
 
-    if (length(non_yearly_pars) > 0) {
-        k <- (k + rowSums(sapply(non_yearly_pars, function(par) {pars[[par]] * data[[par]]}, simplify = TRUE))) * (age)
+    if (length(fit_data_pars) > 0) {
+        k <- (k + rowSums(sapply(fit_data_pars, function(par) {
+            pars[[par]] * data[[par]]
+        }, simplify = TRUE))) * (age)
     } else {
         k <- k * age
     }
