@@ -22,7 +22,7 @@ registerDoParallel(cores = ncore)
 
 data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000)
 norm_data <- normalize_independently(data)
-saveRDS(norm_data$train_stats, file = "./0_results/grid_10k_amazon_secondary_train_stats.rds")
+
 norm_data <- norm_data$train_data
 
 for (basic_pars_name in names(basic_pars_options)) {

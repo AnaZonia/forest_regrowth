@@ -32,7 +32,7 @@ data_pars_options <- function(colnames) {
 
         environment = colnames[!grepl(paste0(c(excluded_columns, land_use, landscape, paste0(climatic_pars, "_")), collapse = "|"), colnames)],
 
-        all_mean_climate = colnames[!grepl(paste0(c(excluded_columns, paste0(climatic_pars, "_")), collapse = "|"), colnames)]
+        all_mean_climate = colnames[!grepl(paste0(c(excluded_columns, paste0(climatic_pars, "_"), "mean_def"), collapse = "|"), colnames)]
 
     ))
 }

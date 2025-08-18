@@ -7,11 +7,11 @@ library(doParallel)
 library(tidyverse)
 
 # Source other scripts
-source("3_modelling/1_parameters.r")
-source("3_modelling/1_data_processing.r")
-source("3_modelling/2_modelling.r")
-source("3_modelling/2_cross_validate.r")
-source("3_modelling/2_feature_selection.r")
+source("2_modelling/1_parameters.r")
+source("2_modelling/1_data_processing.r")
+source("2_modelling/2_modelling.r")
+source("2_modelling/2_cross_validate.r")
+source("2_modelling/2_feature_selection.r")
 
 # Set up parallel processing
 set.seed(1)
@@ -23,6 +23,7 @@ data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 1000
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Asymptotes ("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 results <- data.frame()
 
 for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")) {

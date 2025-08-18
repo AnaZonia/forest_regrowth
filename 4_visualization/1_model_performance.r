@@ -13,13 +13,9 @@ library(RColorBrewer)
 
 
 importance_full_amazon <- read.csv("./0_results/importance_full_amazon.csv")
-importance_quarter <- read.csv("./0_results/importance_quarter_biomass.csv")
-importance_ecoreg <- read.csv("./0_results/importance_ecoreg_biomass.csv")
 importance_nearest_mature <- read.csv("./0_results/importance_nearest_mature.csv")
 
 importance_full_amazon$group <- "Amazon-wide Average"
-importance_quarter$group <- "Quarter Biomass"
-importance_ecoreg$group <- "Ecoregion Biomass"
 importance_nearest_mature$group <- "Nearest Neighbor"
 
 all_data <- bind_rows(importance_full_amazon, importance_nearest_mature) %>% # importance_quarter, importance_ecoreg, 
@@ -27,7 +23,7 @@ all_data <- bind_rows(importance_full_amazon, importance_nearest_mature) %>% # i
 # Set the desired order of groups so Quarter Biomass is in the middle
 all_data$group <- factor(
     all_data$group,
-    levels = c("Amazon-wide Average", "Nearest Neighbor") # , "Quarter Biomass", "Ecoregion Biomass"
+    levels = c("Amazon-wide Average", "Nearest Neighbor") 
 )
 
 # Create a mapping of short variable names to their full names
