@@ -67,8 +67,8 @@ for (biome in c(1, 4)) {
     print(biome)
 
     data <- import_data("grid_10k_secondary_non_aggregated_5yr", biome_num = biome, n_samples = 10000)
-    for (data_pars_name in names(data_pars_options(colnames(data)))) {
-        print(data_pars_options(colnames(data))[[data_pars_name]])
+    for (land_use_aggregation in land_use_list) {
+        print(land_use_list)
         print("------------------------------------------------")
 
         for (basic_pars_name in names(basic_pars_options)) {
@@ -92,7 +92,7 @@ for (biome in c(1, 4)) {
 
             print(result)
             results <- rbind(results, result)
-            write.csv(results, file = "./0_results/R2_satellite_5yr.csv", row.names = FALSE)
+            write.csv(results, file = "./0_results/R2_land_use.csv", row.names = FALSE)
         }
     }
 }

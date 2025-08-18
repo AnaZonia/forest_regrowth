@@ -1,3 +1,7 @@
+# makes shapefile of GROA field data for visualization
+# and for keeping only the sites in the Amazon biome (subsequently done in Google Earth Engine)
+
+
 # ------------------------------------------------------
 # Load libraries
 # ------------------------------------------------------

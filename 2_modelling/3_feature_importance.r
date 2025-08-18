@@ -83,46 +83,38 @@ calculate_permutation_importance <- function(model, data, data_pars) {
     return(importance_df)
 }
 
+# ----------- Main Analysis ---------------------
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Save feature importance results
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+all_results <- list()
+groups <- c("full_amazon", "nearest_mature")
+group_names <- c("Amazon-wide Average", "Nearest Neighbor")
 
-
-for (asymptote in c("full_amazon", "nearest_mature")) {
+for (i in seq_along(groups)) {
+    asymptote <- groups[i]
     data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000, asymptote = asymptote)
     norm_data <- normalize_independently(data)$train_data
-
     basic_pars <- basic_pars_options[["lag"]]
     data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
     init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
     model <- run_optim(norm_data, init_pars, conditions)
     pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
     r2 <- calc_r2(norm_data, pred)
-
     importance_results <- calculate_permutation_importance(model, norm_data, data_pars)
-
     importance_results$importance_scaled <- importance_results$importance_pct * r2 / 100
-
-    write.csv(importance_results, file = paste0("./0_results/importance_", asymptote, ".csv"), row.names = FALSE)
+    importance_results$group <- group_names[i]
+    all_results[[i]] <- importance_results
 }
 
-
-importance_full_amazon <- read.csv("./0_results/importance_full_amazon.csv")
-importance_nearest_mature <- read.csv("./0_results/importance_nearest_mature.csv")
-
-importance_full_amazon$group <- "Amazon-wide Average"
-importance_nearest_mature$group <- "Nearest Neighbor"
-
-all_data <- bind_rows(importance_full_amazon, importance_nearest_mature) %>% # importance_quarter, importance_ecoreg,
+# Combine importance results
+all_data <- bind_rows(all_results) %>%
     filter(importance_pct > 1)
-# Set the desired order of groups so Quarter Biomass is in the middle
+
 all_data$group <- factor(
     all_data$group,
-    levels = c("Amazon-wide Average", "Nearest Neighbor")
+    levels = group_names
 )
 
-# Create a mapping of short variable names to their full names
+# Map variable short names to full names
 variable_names <- c(
     age = "Age",
     sur_cover = "Surrounding Mature Forest Cover",
@@ -149,27 +141,21 @@ variable_names <- c(
     mean_soil = "Mean Soil Moisture",
     mean_pdsi = "Mean Palmer Drought Severity Index"
 )
-
-
-# Map variable short names to full names in the data frame
 all_data$variable <- factor(all_data$variable, levels = names(variable_names))
 
-# ---- Plot ----
-
-# Custom 10-color palette
+# Custom colors as before
 custom_colors <- c(
     "#003f5c", "#2f4b7c", "#665191", "#a05195",
     "#d45087", "#f95d6a", "#ff7c43", "#ffa600", "#ffc300", "#ffda6a"
 )
-
-# Generate enough colors by recycling if fewer than number of variables
 n_vars <- length(unique(all_data$variable))
 recycled_colors <- rep(custom_colors, length.out = n_vars)
 
-ggplot(all_data, aes(x = group, y = importance_scaled, fill = variable)) +
+# Plot (final in-memory results)
+p <- ggplot(all_data, aes(x = group, y = importance_scaled, fill = variable)) +
     geom_bar(stat = "identity") +
     scale_x_discrete(
-        labels = c(Amazon = "Amazon-wide Average", NearestMature = "Nearest Neighbor"), # # QuarterBiomass = "Quarter Biomass", EcoregBiomass = "Ecoregion Biomass",
+        labels = group_names,
         name = "Asymptote"
     ) +
     scale_y_continuous(
@@ -193,6 +179,7 @@ ggplot(all_data, aes(x = group, y = importance_scaled, fill = variable)) +
 
 ggsave(
     "./0_results/figures/model_performance.jpg",
+    plot = p,
     width = 10,
     height = 6,
     dpi = 300

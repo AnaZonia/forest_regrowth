@@ -7,11 +7,11 @@ library(foreach)
 library(doParallel)
 
 # Source other scripts
-source("3_modelling/1_parameters.r")
-source("3_modelling/1_data_processing.r")
-source("3_modelling/2_modelling.r")
-source("3_modelling/2_cross_validate.r")
-source("3_modelling/2_feature_selection.r")
+source("2_modelling/1_parameters.r")
+source("2_modelling/1_data_processing.r")
+source("2_modelling/2_modelling.r")
+source("2_modelling/2_cross_validate.r")
+source("2_modelling/2_feature_selection.r")
 
 # Set up parallel processing
 set.seed(1)
