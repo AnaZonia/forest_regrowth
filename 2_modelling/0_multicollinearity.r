@@ -1,3 +1,17 @@
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+#            Field Data Analysis and Model Validation
+#
+#                  Ana Avila - August 2025
+#
+#     Fit the model to the field data
+#     Find theta (shape parameter) value from the field data
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+
+
 # Load necessary libraries
 library(ggplot2)
 library(ggcorrplot)
@@ -26,11 +40,6 @@ plot_correlation_heatmap <- function(corr_matrix) {
         ggtheme = ggplot2::theme_minimal(base_size = 14), # Increase base font size
         tl.cex = 1.2 # Increase text size for variable names
     )
-
-    # Save the plot as a high-resolution JPEG
-    jpeg("0_results/correlation_heatmap.jpg", width = 1500, height = 1000, quality = 100)
-    print(p)
-    dev.off()
 
     print(p)
 }
@@ -73,20 +82,20 @@ find_highly_correlated <- function(corr_matrix, threshold = 0.8) {
 # Main function to run the data preparation steps
 
 # Load and preprocess the dataset (modify the path as needed)
-amazon_secondary <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 10000, asymptote = "nearest_mature")
+amazon_secondary <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = "full_amazon")
 
 terraclim_pars <- c("mean_srad", "mean_soil", "mean_temp", "mean_vpd", "mean_aet", "mean_def", "mean_pdsi", "mean_pr")
 
 soil <- c("nitro", "phh2o", "ocs", "ocd", "cec", "sand", "clay", "soc", "cfvo")
 
 df <- amazon_secondary %>%
-    select(all_of(c("age", "asymptote", "biomass", soil, terraclim_pars, "num_fires", "sur_cover", "dist")))
+    select(all_of(c("age", "biomass", soil, terraclim_pars, "num_fires", "sur_cover", "dist")))
 
-# Calculate correlation matrix
-corr_matrix <- calculate_correlation_matrix(df)
-
+# List to update variables found to be multicollinear
 df_drop <- df %>%
-    select(-c("mean_def", "mean_temp"))
+    select(-c("mean_def", "mean_temp", "mean_pr", "phh2o"))
+
+corr_matrix <- calculate_correlation_matrix(df_drop)
 
 # Compute VIF values
 vif_results <- calculate_vif(df_drop)

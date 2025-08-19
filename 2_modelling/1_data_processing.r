@@ -1,4 +1,4 @@
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
 #                 Forest Regrowth Model Data Processing Functions
 #
@@ -7,15 +7,14 @@
 #     This script defines the core functions used in the data processing and
 #     preparation stages of the forest regrowth modeling process.
 #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 library(tidyverse)
 library(fastDummies)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------------------- Data Import & Preparation Function ------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Function to import data, remove unnecessary columns, filter by biome,
 # and optionally convert categorical variables to dummy variables.
 #
@@ -46,7 +45,6 @@ import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest
     # remove columns with less than 50 unique values
     df <- df %>%
         group_by(across(any_of(categorical))) %>%
-        # filter(n() >= 50) %>%
         ungroup() %>%
         mutate(across(any_of(categorical), droplevels))
 
@@ -92,9 +90,9 @@ import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest
 }
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# -------------------------- Prepare Dataframes Function --------------------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ------------ Prepare Dataframes Function -----------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Function used in import_data to normalize numeric columns in dataframes.
 # Arguments:
 #   train_data  : The training dataframe to be used for analysis
@@ -107,7 +105,7 @@ import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest
 
 normalize_independently <- function(train_data, test_data = NULL) {
     # Identify numeric columns to normalize (excluding those in exclusion_list)
-    exclusion_list <- c(categorical, paste0(climatic_pars, "_"), binary, "biomass", "asymptote", "age")
+    exclusion_list <- c(categorical, binary, "biomass", "asymptote", "age")
 
     norm_cols <- names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))]
 
@@ -127,29 +125,6 @@ normalize_independently <- function(train_data, test_data = NULL) {
         if (!is.null(test_data)) {
             test_data[[var]] <- (test_data[[var]] - train_stats$min[i]) /
                 (train_stats$max[i] - train_stats$min[i])
-        }
-    }
-
-
-    # Compute normalization statistics for each climatic variable across all years
-    for (clim_par in climatic_pars) {
-        clim_cols <- names(train_data)[grepl(paste0(clim_par, "_"), names(train_data))]
-
-        if (length(clim_cols) == 0) {
-            next
-        }
-
-        # Compute summary statistics
-        clim_stats <- data.frame(
-            variable = paste0(clim_par, "_"),
-            min = min(as.matrix(train_data[clim_cols]), na.rm = TRUE),
-            max = max(as.matrix(train_data[clim_cols]), na.rm = TRUE)
-        )
-
-        train_data[clim_cols] <- (train_data[clim_cols] - clim_stats$min) / (clim_stats$max - clim_stats$min)
-
-        if (!is.null(test_data)) {
-            test_data[clim_cols] <- (test_data[clim_cols] - clim_stats$min) / (clim_stats$max - clim_stats$min)
         }
     }
 

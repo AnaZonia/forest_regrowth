@@ -6,29 +6,27 @@ ReSELVA (Computational Algorithm for Post-agricultural Ecosystem Regrowth Analys
 forest_regrowth
 ├── 0_data
 ├── 1_gee
-│   ├── gee_0_utils.py
-│   ├── gee_1_categorical.ipynb
-│   ├── gee_2_age_biomass.ipynb
-│   ├── gee_3_climate_soil.ipynb
-│   ├── gee_4_land_use.ipynb
-│   ├── gee_5_mature.ipynb
-│   └── gee_6_write_csv.ipynb
+│   ├── 0_utils.py
+│   ├── 1_categorical.ipynb
+│   ├── 2_age_biomass.ipynb
+│   ├── 3_grids_area.ipynb
+│   ├── 4_climate_soil.ipynb
+│   ├── 5_land_use.ipynb
+│   ├── 6_mature.ipynb
+│   ├── 7_write_csv.ipynb
+│   └── 8_field_data.ipynb
 |
-├── 2_preprocessing
-│   ├── CMIP6_raster.r
-│   ├── import_CMIP6.r
-│   ├── multicollinearity.r
-│   └── groa_field_data.r
-|
-├── 3_modelling
+├── 2_modelling
+│   ├── 0_multicollinearity.r
+│   ├── 0_groa_field_data.r
 │   ├── 1_data_processing.r
 │   ├── 1_parameters.r
+│   ├── 2_cross_validate.r
 │   ├── 2_feature_selection.r
 │   ├── 2_modelling.r
-│   ├── 2_cross_validate.r
-│   ├── results_for_visualization.r
+│   ├── 3_feature_importance.r
 │   ├── R2_field.r
-│   └── R2_satellite.r
+│   └── R2_asymptote_land_use.r
 |
 ├── 4_visualization
 │   ├── 1_model_performance.r

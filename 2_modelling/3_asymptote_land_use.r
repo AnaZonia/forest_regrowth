@@ -1,4 +1,14 @@
-# main.R - Main script
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+#                 Forest Regrowth Model Data Processing Functions
+#
+#                            Ana Avila - May 2025
+#
+#     This script defines the core functions used in the data processing and
+#     preparation stages of the forest regrowth modeling process.
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 # Runs experiments and saves results for different parameter combinations
 
 # Load required libraries
@@ -27,7 +37,7 @@ data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 1000
 results <- data.frame()
 
 for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")) {
-    data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000, asymptote = asymptote)
+    data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 50000, asymptote = asymptote)
 
     data_pars_name <- "age_only"
     basic_pars_name <- "lag"
@@ -65,7 +75,7 @@ for (biome in c(1, 4)) {
 
     for (land_use_aggregation in land_use_list) {
 
-        data <- import_data(land_use_aggregation, biome_num = biome, n_samples = 10000)
+        data <- import_data(land_use_aggregation, biome_num = biome, n_samples = 50000)
 
         for (data_pars_name in c("age_only", "land_use", "fires")) {
 
@@ -73,26 +83,16 @@ for (biome in c(1, 4)) {
             basic_pars <- basic_pars_options[["lag"]]
             data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
 
-            # Normalize training and test sets independently, but using training data's min/max for both
-            train_data <- normalize_independently(data)$train_data
-
-            # Function to perform direct optimization
-            pars_init <- find_combination_pars(basic_pars, data_pars, train_data)
-
-            # Run the model function on the training set and evaluate on the test set
-            model <- run_optim(train_data, pars_init, conditions)
-
-            pred_cv <- growth_curve(model$par, train_data, lag = model$par["lag"])
-
-            # save the predicted values of each iteration of the cross validation.
-            r2 <- calc_r2(train_data, pred_cv)
+            # Run cross-validation
+            cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
 
             # Return summary
             result <- data.frame(
                 land_use_aggregation = land_use_aggregation,
                 data_pars_name = data_pars_name,
                 biome = biome,
-                r2 = r2
+                mean_r2 = mean(cv_results),
+                sd_r2 = sd(cv_results)
             )
 
             print(result)
@@ -101,8 +101,3 @@ for (biome in c(1, 4)) {
         }
     }
 }
-
-
-
-
-

@@ -1,3 +1,15 @@
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+#                 Forest Regrowth Model Data Processing Functions
+#
+#                            Ana Avila - May 2025
+#
+#     This script defines the core functions used in the data processing and
+#     preparation stages of the forest regrowth modeling process.
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
 # parameters.R - Define all parameter sets and configurations
 
 # Global Variables
@@ -15,7 +27,7 @@ non_data_pars <- c("k0", "B0", "lag")
 conditions <- list('pars["k0"] < 0')
 
 # "mean_def", "mean_temp" excluded due to multicollinearity
-excluded_columns <- c("age", "biomass", "asymptote", "mean_def", "mean_temp")
+excluded_columns <- c("age", "biomass", "asymptote", "mean_def", "mean_temp", "mean_pr", "phh2o")
 
 # Configuration definition
 basic_pars_options <- list(

@@ -1,3 +1,16 @@
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+#            Field Data Analysis and Model Validation
+#
+#                  Ana Avila - August 2025
+#
+#     Fit the model to the field data
+#     Find theta (shape parameter) value from the field data
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+
 # makes shapefile of GROA field data for visualization
 # and for keeping only the sites in the Amazon biome (subsequently done in Google Earth Engine)
 

@@ -1,3 +1,15 @@
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+#                 Forest Regrowth Model Data Processing Functions
+#
+#                            Ana Avila - May 2025
+#
+#     This script defines the core functions used in the data processing and
+#     preparation stages of the forest regrowth modeling process.
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
 # Load required libraries
 library(foreach)
 library(doParallel)
@@ -13,7 +25,7 @@ source("2_modelling/2_cross_validate.r")
 source("2_modelling/2_feature_selection.r")
 
 # Set up parallel processing
-set.seed(5)
+set.seed(1)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
@@ -146,6 +158,8 @@ variable_names <- c(
     mean_soil = "Mean Soil Moisture",
     mean_pdsi = "Mean Palmer Drought Severity Index"
 )
+
+
 all_data$variable <- factor(all_data$variable, levels = names(variable_names))
 
 # Custom colors as before
@@ -189,3 +203,4 @@ ggsave(
     height = 6,
     dpi = 300
 )
+
