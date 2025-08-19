@@ -1,50 +1,47 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-#            Field Data Analysis and Model Validation
+#                 Tests for multicollinearity
 #
 #                  Ana Avila - August 2025
 #
-#     Fit the model to the field data
-#     Find theta (shape parameter) value from the field data
+#  Tests for multicollinearity with VIF.
+#  Multicollinear variables are subsequently removed in 1_parameters.r
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
-
-
-# Load necessary libraries
 library(ggplot2)
 library(ggcorrplot)
 library(car) # For VIF
 library(dplyr)
-library(readr) # For reading CSV files
+library(readr)
 
-source("3_modelling/1_parameters.r")
-source("3_modelling/1_data_processing.r")
+source("2_modelling/1_parameters.r")
+source("2_modelling/1_data_processing.r")
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ---------------------- Functions -------------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-# Function to calculate correlation matrix
 calculate_correlation_matrix <- function(df) {
     return(cor(df, use = "pairwise.complete.obs"))
 }
 
-# Function to plot correlation heatmap
+
 plot_correlation_heatmap <- function(corr_matrix) {
     p <- ggcorrplot(corr_matrix,
         hc.order = TRUE,
         type = "lower",
         lab = TRUE,
-        lab_size = 4, # Increase label size
-        colors = c("blue", "white", "red"), # Adjust color scheme
+        lab_size = 4,
+        colors = c("blue", "white", "red"),
         title = "Correlation Heatmap",
-        ggtheme = ggplot2::theme_minimal(base_size = 14), # Increase base font size
-        tl.cex = 1.2 # Increase text size for variable names
+        ggtheme = ggplot2::theme_minimal(base_size = 14),
+        tl.cex = 1.2
     )
 
     print(p)
 }
 
-# Function to calculate Variance Inflation Factor (VIF)
 calculate_vif <- function(df) {
     # Standardize the dataset
     df_scaled <- as.data.frame(scale(df))
@@ -79,27 +76,30 @@ find_highly_correlated <- function(corr_matrix, threshold = 0.8) {
     }
 }
 
-# Main function to run the data preparation steps
 
-# Load and preprocess the dataset (modify the path as needed)
-amazon_secondary <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = "full_amazon")
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# -------------- Verify multicollinearity ------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-terraclim_pars <- c("mean_srad", "mean_soil", "mean_temp", "mean_vpd", "mean_aet", "mean_def", "mean_pdsi", "mean_pr")
+csv_files <- list.files("./0_data/grid_10k_amazon_secondary", pattern = "\\.csv$", full.names = TRUE)
 
-soil <- c("nitro", "phh2o", "ocs", "ocd", "cec", "sand", "clay", "soc", "cfvo")
-
-df <- amazon_secondary %>%
-    select(all_of(c("age", "biomass", soil, terraclim_pars, "num_fires", "sur_cover", "dist")))
-
-# List to update variables found to be multicollinear
-df_drop <- df %>%
+df <- csv_files %>%
+    map(read_csv) %>%
+    bind_rows() %>%
+    filter(biome == 1) %>%
+    select(-c("lon", "lat", "quarter_biomass", "ecoreg_biomass", "quarter", "secondary_area", "biome")) %>%
     select(-c("mean_def", "mean_temp", "mean_pr", "phh2o"))
+    # List to update variables found to be multicollinear
 
-corr_matrix <- calculate_correlation_matrix(df_drop)
+predictors <- setdiff(colnames(df), "biomass")
 
-# Compute VIF values
-vif_results <- calculate_vif(df_drop)
-print(vif_results)
+mod <- lm(as.formula(paste("biomass ~", paste(predictors, collapse = " + "))), data = df)
+
+vif_df <- data.frame(Feature = names(vif(mod)), VIF = vif(mod))
+vif_df <- vif_df[order(-vif_df$VIF), ]
+print(vif_df)
+
+corr_matrix <- calculate_correlation_matrix(df)
 
 # Identify highly correlated features
 find_highly_correlated(corr_matrix, threshold = 0.4)

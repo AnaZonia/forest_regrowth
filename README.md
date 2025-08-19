@@ -1,5 +1,5 @@
 ## Project Overview
-ReSELVA (Computational Algorithm for Post-agricultural Ecosystem Regrowth Analysis) is a model that predicts the age of secondary forests in Brazil based on satellite data. This script imports and processes remote sensing data from Google Earth Engine, and compares different models to predict the biomass of secondary forests in 2020 and in the future.
+ReSELVA (Remote sensing SEcondary forest Local Variability Analysis) is a model that predicts the age of secondary forests in Brazil based on satellite data. This script imports and processes remote sensing data from Google Earth Engine, and compares different models to predict the biomass of secondary forests in 2020 and in the future.
 
 
 ```
@@ -23,16 +23,17 @@ forest_regrowth
 │   ├── 1_parameters.r
 │   ├── 2_cross_validate.r
 │   ├── 2_feature_selection.r
-│   ├── 2_modelling.r
-│   ├── 3_feature_importance.r
-│   ├── R2_field.r
-│   └── R2_asymptote_land_use.r
+│   └── 2_modelling.r
 |
-├── 4_visualization
+├── 3_analysis
+│   ├── 0_asymptote_land_use.r
+│   ├── 0_field.r
+│   ├── 1_feature_importance.r
 │   ├── 1_model_performance.r
 │   ├── 2_lag_field.r
-│   └── 3_future predictions.r
-|
+│   ├── 3_future predictions.r
+|   └── EXT_pred_vs_obs.r
+│
 ├── README.md
 └── requirements.txt
 ```
@@ -151,17 +152,17 @@ forest_regrowth
 ### 2_modelling/
 
 - **0_groa_field_data.r**:
-    Imports and processes field data from the GROA project.
+    Imports and processes field data from the GROA project into a shapefile.
+    Shapefile is then used in 1_gee/8_field_data.ipynb for visualization
+    and to restrict the field data to the Amazon biome.
     Imports:
     - Field data from GROA (biomass_litter_CWD.csv)
     - site data from GROA (sites.csv)
     Exports:
-    - Average biomass per age (average_biomass_per_age.csv)
-    - Data for all field plots with repeated measurements (field_repeats.csv)
-    - Shapefile with one biomass measurement per plot ID to avoid pseudoreplication (field.shp)
+    - Shapefile with aboveground biomass data for Brazil (field.shp)
 
 - **0_multicollinearity.r**:
-    Tests for multicollinearity in the dataset and removes highly correlated variables.
+    Tests for multicollinearity with VIF. Multicollinear variables are removed in 1_parameters.r
 
 - **1_data_processing.r**:
     Imports and processes the data for modelling.
@@ -178,19 +179,23 @@ forest_regrowth
 
 - **1_parameters.r**:
     Defines the categories of parameters:
-    - Climatic
     - Land Use (lu, fallow, num_fires)
     - Soil
     - Categorical
     - Binary
     - Landscape (dist, sur_cover)
-    Defines the parameter lists for comparisons in R2_satellite.r
+    Defines the parameter lists for comparisons in 3_analysis.r
     - basic_pars_options
     - data_pars_options
-    - conditions
 
-- **2_feature_selection.r**:
-    Performs feature selection and defines initial parameters.
+- **2_cross_validate.r**:
+    Evaluates the model performance using 5-fold cross-validation.
+    Functions:
+    - "calc_r2"
+    - "cross_validate"
+
+- **2_forward_selection.r**:
+    Iteratively fits parameter combinations with `run_optim()` and selects the one that minimizes the Akaike Information Criterion (AIC), excluding parameters that do not improve the model.
     Functions:
       - "find_combination_pars"
 
@@ -200,11 +205,14 @@ forest_regrowth
     - "calc_rss"
     - "growth_curve"
 
-- **2_cross_validate.r**:
-    Evaluates the model performance using 5-fold cross-validation.
-    Functions:
-    - "calc_r2"
-    - "cross_validate"
+
+
+
+
+
+
+
+
 
 - **results_for_visualization.r**:
     Prepares the results for visualization.
@@ -241,7 +249,7 @@ forest_regrowth
     - "grid_10k_amazon_secondary": all CSVs in directory
 
 
-### 4_visualization
+### 3_analysis
 - **1_model_performance.r**:
     Stacked barplot.
     Compares the R2 of full_amazon (inflexible) asymptote with the R2 of the nearest_mature (flexible) asymptote.

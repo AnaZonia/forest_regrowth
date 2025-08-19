@@ -1,40 +1,32 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-#                 Forest Regrowth Model Data Processing Functions
+#                  Forward Selection for Optim
 #
-#                            Ana Avila - May 2025
-#
-#     This script defines the core functions used in the data processing and
-#     preparation stages of the forest regrowth modeling process.
+#                    Ana Avila - August 2025
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------- Identify Optimal Parameter Combination ------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-#
-# Function Description:
-#   This function identifies the optimal combination of parameters for a given dataset
-#   by iteratively fitting parameter combinations with run_optim and selecting the one that minimizes
-#   the Akaike Information Criterion (AIC).
-#
-# Arguments:
-#   iterations       : A dataframe where each row contains the information needed to perform
-#                      one iteration of the parameter selection process, including the land use history
-#                      interval, data parameter set, basic parameter set, and biome.
-#
-# Returns:
-#   ideal_par_combination : A list where each element contains the best parameter combination
-#                           identified for each iteration in the `iterations` dataframe.
-#
-# Notes:
-#   - Categorical variables are handled by grouping their dummy variables together during optimization.
-#   - The function writes the results of each iteration to an RDS file for future use.
-# External Functions:
-#   run_optim()
+#' Identify Optimal Parameter Combination
+#'
+#' Iteratively fits parameter combinations with `run_optim()` and selects the one
+#' that minimizes the Akaike Information Criterion (AIC), excluding parameters that
+#' do not improve the model.
+#'
+#' @param basic_pars Character vector. The basic parameters (lag, k0, B0).
+#' @param data_pars Character vector. The data parameters (predictors).
+#' @param data Data frame. The dataset to be used for fitting the model.
+#'
+#' @return A list. The best parameter combination identified.
+#'
+#' @details
+#' - Categorical variables are handled by grouping their dummy variables together.
+
+
 
 find_combination_pars <- function(basic_pars, data_pars, data) {
 
@@ -88,7 +80,6 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
             if (!should_continue) break
 
             iter_df <- foreach(j = remaining[-taken]) %dopar% {
-            # for (j in remaining[-taken]) {
                 # check for categorical variables (to be included as a group)
                 if (data_pars[j] %in% c(categorical)) {
                     inipar <- c(best$par, all_pars[grep(paste0(data_pars[j], "_"), names(all_pars))])
@@ -101,7 +92,6 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
                 iter_row <- base_row
                 iter_row[names(inipar)] <- model$par
                 iter_row["RSS"] <- model$value
-                # print(iter_row)
 
                 return(iter_row)
             }

@@ -1,11 +1,8 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-#                 Forest Regrowth Model Data Processing Functions
+#           Import and Normalization Functions
 #
-#                            Ana Avila - May 2025
-#
-#     This script defines the core functions used in the data processing and
-#     preparation stages of the forest regrowth modeling process.
+#                 Ana Avila - August 2025
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
@@ -13,18 +10,29 @@ library(tidyverse)
 library(fastDummies)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# -------------------------- Data Import & Preparation Function ------------------------#
+# ------------ Data Import & Preparation Function ----------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Function to import data, remove unnecessary columns, filter by biome,
-# and optionally convert categorical variables to dummy variables.
-#
-# Arguments:
-#   path             : The path to the CSV file.
-#   biome            : Integer. Specifies which biome to retain (1 = Amazonia, 2 = Caatinga, etc.).
-#   n_samples        : Integer. The maximum number of rows to sample from the filtered dataframe (default: 10,000).
-#
-# Returns:
-#   df              : A dataframe filtered for the selected biome, cleaned, and optionally transformed with dummy variables.
+
+#' This function imports CSV files, cleans unnecessary columns, filters by biome, and handles categorical variables (via factor conversion and dummy encoding).
+#'
+#' @param path Character. Path to the folder containing CSV files.
+#' @param biome_num Integer. Biome to retain (1 = Amazonia, 4 = Atlantic Forest).
+#' @param n_samples Integer or "all". Maximum number of rows to sample
+#'        (default = 10000). Use "all" to keep the entire dataset.
+#' @param asymptote Character. Which asymptote column to use. Options:
+#'        "nearest_mature", "ecoreg_biomass", "quarter_biomass", or "full_amazon".
+#'
+#' @return A data frame ready for modeling, or if \code{n_samples = "all"},
+#'         a list with:
+#'         \item{df}{Features (excluding coordinates).}
+#'         \item{coords}{Latitude and longitude.}
+#'
+#' @details
+#' - Removes columns with very few non-zero values or insufficient unique categories.
+#' - Encodes categorical variables into dummy columns.
+#' - Handles asymptote selection by renaming and filtering columns accordingly.
+#' - Drops rows with missing values.
+#'
 
 import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest_mature") {
 
@@ -93,15 +101,22 @@ import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------ Prepare Dataframes Function -----------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Function used in import_data to normalize numeric columns in dataframes.
-# Arguments:
-#   train_data  : The training dataframe to be used for analysis
-#   test_data   : (Optional) The testing dataframe to be normalized using the same
-#                 parameters as train_data.
-# Returns:
-#   A list containing:
-#     - train_data : A dataframe with normalized numerical values
-#     - test_data  : (If provided) The test dataframe, normalized using train_data statistics
+
+#' Normalize numeric columns independently with min-max scaling
+#'
+#' Normalizes numerical columns of a dataset to the [0,1] range, while
+#' excluding specified variables. If test data is provided, it is normalized
+#' using the statistics from the training data.
+#'
+#' @param train_data Data frame. Training dataset.
+#' @param test_data Optional data frame. Test dataset to normalize using the
+#'        training data statistics.
+#'
+#' @return A list containing:
+#' \item{train_data}{Normalized training dataset.}
+#' \item{test_data}{(If provided) Normalized test dataset.}
+#' \item{train_stats}{Data frame of min and max values used for scaling.}
+#'
 
 normalize_independently <- function(train_data, test_data = NULL) {
     # Identify numeric columns to normalize (excluding those in exclusion_list)

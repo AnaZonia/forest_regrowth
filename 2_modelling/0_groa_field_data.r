@@ -4,34 +4,27 @@
 #
 #                  Ana Avila - August 2025
 #
-#     Fit the model to the field data
-#     Find theta (shape parameter) value from the field data
+#   Imports and processes field data from the
+#   GROA project into a shapefile.
+#   Shapefile is then used in 1_gee/8_field_data.ipynb
+#   for visualization and to restrict the field data to the Amazon biome.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
-
-# makes shapefile of GROA field data for visualization
-# and for keeping only the sites in the Amazon biome (subsequently done in Google Earth Engine)
-
-
-# ------------------------------------------------------
-# Load libraries
-# ------------------------------------------------------
 library(tidyverse) # For data wrangling
 library(terra)
 
-# ------------------------------------------------------
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Load GROA field and site data
 # Source: https://github.com/forc-db/GROA
-# ------------------------------------------------------
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 field <- read.csv("0_data/groa_field/biomass_litter_CWD.csv")
 sites <- read.csv("0_data/groa_field/sites.csv")
 
-# ------------------------------------------------------
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Merge site-level metadata (lat/lon/country/state) into field data
-# ------------------------------------------------------
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 sites_unique <- sites %>% distinct(site.id, .keep_all = TRUE)
 
@@ -41,10 +34,10 @@ field <- field %>%
         by = "site.id"
     )
 
-# ------------------------------------------------------
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Filter for aboveground biomass measurements in Brazil
 # Units are Mg/ha, matching ESA CCI standards
-# ------------------------------------------------------
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 field <- subset(field, variables.name == "aboveground_biomass" & site.country == "Brazil")
 
@@ -57,10 +50,10 @@ field <- field %>%
         plot_id = plot.id
     )
 
-# ------------------------------------------------------
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Convert to a spatial object (terra::SpatVector)
 # and export as a shapefile
-# ------------------------------------------------------
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Create spatial object using longitude and latitude
 field_spat <- vect(field, geom = c("long_dec", "lat_dec"))

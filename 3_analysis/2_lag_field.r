@@ -26,21 +26,26 @@ source("2_modelling/2_feature_selection.r")
 set.seed(1)
 ncore <- 4
 registerDoParallel(cores = ncore)
+# For plotting
+options(stringsAsFactors = FALSE)
+theme_set(theme_minimal(base_size = 20))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Save trained model for the best parameters
+#        Model fitting and prediction
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000)
 norm_data <- normalize_independently(data)
-
 norm_data <- norm_data$train_data
+
+all_pred_results <- list()
+names(all_pred_results$lag)
 
 for (basic_pars_name in names(basic_pars_options)) {
     basic_pars <- basic_pars_options[[basic_pars_name]]
 
     if (basic_pars_name == "intercept") {
-        # For intercept, we force the data to intercept through zero
+        # Force the data to intercept through zero
         mean_biomass_at_zero_age <- median(norm_data$biomass[norm_data$age == 1], na.rm = TRUE)
         norm_data$biomass <- norm_data$biomass - mean_biomass_at_zero_age
     }
@@ -48,14 +53,11 @@ for (basic_pars_name in names(basic_pars_options)) {
     data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
     init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
     model <- run_optim(norm_data, init_pars, conditions)
-    saveRDS(model, file = paste0("./0_results/amazon_model_", basic_pars_name, ".rds", sep = ""))
 
     pred_vs_obs <- data.frame(
         age = norm_data$age,
         pred = growth_curve(model$par, norm_data)
     )
-
-    print(paste0("R2 for ", basic_pars_name, ": ", calc_r2(norm_data, pred_vs_obs$pred)))
 
     # get the biomass predictions for the ages 1 to 105 (in 35 year steps)
     for (i in c(35, 70)) {
@@ -79,28 +81,17 @@ for (basic_pars_name in names(basic_pars_options)) {
         ))
     }
 
-    write.csv(pred_vs_obs, file = paste0("./0_results/pred_vs_obs_amazon_", basic_pars_name, ".csv"), row.names = FALSE)
+    all_pred_results[[basic_pars_name]] <- list(
+        model = model,
+        preds = pred_vs_obs
+    )
 }
 
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Load and plot field and satellite data
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
-
-
-
-
-
-
-
-
-
-
-
-# Set global options
-options(stringsAsFactors = FALSE)
-theme_set(theme_minimal(base_size = 20))
-
-# ---------------------------- Data Loading ----------------------------
 field <- read.csv("0_data/groa_field/field_predictors.csv")
 field <- subset(field, biome == 1) # Filter for Amazon biome
 field <- field %>%
@@ -113,35 +104,31 @@ aggregated_field <- field %>%
     group_by(age) %>%
     summarise(field_biomass = mean(field_biomass, na.rm = TRUE))
 
-lag_data <- read.csv("0_results/pred_vs_obs_amazon_lag.csv")
-intercept_data <- read.csv("0_results/pred_vs_obs_amazon_intercept.csv")
+lag_preds <- all_pred_results[["lag"]]$preds
+intercept_preds <- all_pred_results[["intercept"]]$preds
+lag_model <- all_pred_results[["lag"]]$model
+lag <- round(lag_model$par["lag"])
 
-
-# Calculate the age lag
-model <- readRDS("0_results/amazon_model_lag.rds")
-lag <- round(model$par["lag"])
 
 # ---------------------------- Data Preparation ----------------------------
 
-intercept_summary <- intercept_data %>%
+
+# keep only sd_pred_lag for ages greater than lag
+
+intercept_summary <- intercept_preds %>%
     group_by(age) %>%
     summarise(
         mean_pred_intercept = median(pred, na.rm = TRUE),
         sd_pred_intercept = sd(pred, na.rm = TRUE)
-    )
+    ) %>%
+    mutate(sd_pred_intercept = if_else(age < lag + 1, 0, sd_pred_intercept))
 
-lag_summary <- lag_data %>%
+lag_summary <- lag_preds %>%
     group_by(age) %>%
     summarise(
         mean_pred_lag = median(pred, na.rm = TRUE),
         sd_pred_lag = sd(pred, na.rm = TRUE)
-    )
-
-# in both, keep only sd_pred_lag for ages greater than lag
-intercept_summary <- intercept_summary %>%
-    mutate(sd_pred_intercept = if_else(age < lag + 1, 0, sd_pred_intercept))
-
-lag_summary <- lag_summary %>%
+    ) %>%
     mutate(sd_pred_lag = if_else(age < lag + 1, 0, sd_pred_lag))
 
 satellite_summary <- lag_data %>%
@@ -156,6 +143,11 @@ satellite_summary <- lag_data %>%
 all_pred_data <- full_join(aggregated_field, lag_summary, by = "age") %>%
     full_join(intercept_summary, by = "age") %>%
     full_join(satellite_summary, by = "age")
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#        Plotting
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 
 # Update plot colors and linetypes to include future predictions
 plot_colors <- c(

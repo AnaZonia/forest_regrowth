@@ -85,7 +85,6 @@ data <- data %>%
     remove_unused_onehot(field_non_repeats, "ecoreg") %>%
     remove_unused_onehot(field_non_repeats, "topography")
 
-
 # Fit the model on the full data
 norm_data <- normalize_independently(data)
 train_stats <- norm_data$train_stats

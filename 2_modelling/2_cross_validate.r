@@ -1,31 +1,24 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-#                 Forest Regrowth Model Data Processing Functions
+#              Cross-Validation and R-Squared
 #
-#                            Ana Avila - May 2025
+#                   Ana Avila - August 2025
 #
-#     This script defines the core functions used in the data processing and
-#     preparation stages of the forest regrowth modeling process.
+#     Evaluates the model performance using 5-fold cross-validation.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-
-
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------------ Calculate R-squared -------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
-# Function Description:
-#   Calculates the R-squared value.
-#
-# Arguments:
-#   data : A dataframe containing the observed values.
-#   pred : A vector of predicted values from the model.
-#
-# Returns:
-#   r2  : The R-squared value indicating the goodness of fit.
+
+#' Computes the coefficient of determination (R²).
+#'
+#' @param data A dataframe containing observed response values (`biomass` column).
+#' @param pred A numeric vector of predicted values from the model.
+#'
+#' @return A numeric value: the R-squared indicating goodness-of-fit.
 
 calc_r2 <- function(data, pred) {
     obs_pred <- lm(data$biomass ~ pred)
@@ -41,50 +34,39 @@ calc_r2 <- function(data, pred) {
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ----------------------------- K-Fold Cross-Validation ---------------------------------#
+# --------------- 5-Fold Cross-Validation ------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-# Function Description:
-#   This function performs k-fold cross-validation (with k=5) on the provided data.
-#   It splits the data into five folds, uses each fold as a test set once while training
-#   on the remaining folds, and then applies the specified `run_function` to train the model
-#   and calculate the R-squared values for each fold.
-#
-# Arguments:
-#   data        : The full dataset to be split into training and test sets for cross-validation.
-#   run_function: The function used to train the model and generate predictions (either "run_optim", "run_lm")
-#   pars_iter   : The parameters to be passed to `run_function` for model training.
-#   conditions  : Additional conditions or constraints to be passed to `run_function`
-#                 (optional, default is NULL).
-#
-# Returns:
-#   A list with the following elements:
-#     - `r2`     : The mean R-squared value across all folds.
-#     - `r2_sd`  : The standard deviation of the R-squared values across all folds.
-#     - `pars`    : The model parameters corresponding to the fold with the highest R-squared value.
-#
-# Notes:
-#   - The function uses random sampling to assign data points to each of the five folds.
-#   - The function assumes that `run_function` takes as input the training data, parameters,
-#     conditions, and test data, and returns the model output.
-#   - The R-squared values from each fold are stored in `r2_list`, and the best model
-#
-cross_validate <- function(dataframe, basic_pars, data_pars, conditions) {
-    # dataframe <- data
-    # basic_pars <- basic_pars_options[["lag"]]
-    # data_pars <- c("num_fires", "sur_cover")
+#' Each fold is used once as a test set while training on
+#' the remaining folds. Computes R² values for each fold.
+#'
+#' @param data A dataframe containing the full dataset to be split.
+#' @param basic_pars List of basic parameters to pass to the model.
+#' @param data_pars Vector of predictor names to include in the model.
+#' @param conditions Additional conditions to pass to optim.
+#'
+#' @return A numeric vector of length 5 containing the R² for each fold.
+#'
+#' @details
+#' - Each fold is randomly assigned using equal probability.
+#' - Training and test sets are normalized independently, with the test set
+#'   scaled according to the training set's min/max values.
+#' - The model is trained using `run_optim` and evaluated using `calc_r2`.
 
-    indices <- sample(c(1:5), nrow(dataframe), replace = TRUE)
-    dataframe$pred_cv <- NA
-    dataframe$pred_final <- NA
+
+
+
+cross_validate <- function(data, basic_pars, data_pars, conditions) {
+
+    indices <- sample(c(1:5), nrow(data), replace = TRUE)
+    data$pred_cv <- NA
+    data$pred_final <- NA
     r2_list <- numeric(5)
-    print(nrow(dataframe))
 
     for (index in 1:5) {
-        # index <- 1
         # Define the test and train sets
-        test_data <- dataframe[indices == index, -grep("pred", names(dataframe))]
-        train_data <- dataframe[indices != index, -grep("pred", names(dataframe))]
+        test_data <- data[indices == index, -grep("pred", names(data))]
+        train_data <- data[indices != index, -grep("pred", names(data))]
 
         # Normalize training and test sets independently, but using training data's min/max for both
         norm_data <- normalize_independently(train_data, test_data)
@@ -100,8 +82,8 @@ cross_validate <- function(dataframe, basic_pars, data_pars, conditions) {
         pred_cv <- growth_curve(model$par, test_data, lag = model$par["lag"])
 
         # save the predicted values of each iteration of the cross validation.
-        dataframe$pred_cv[indices == index] <- pred_cv
-        r2 <- calc_r2(dataframe[indices == index, ], pred_cv)
+        data$pred_cv[indices == index] <- pred_cv
+        r2 <- calc_r2(data[indices == index, ], pred_cv)
         r2_list[index] <- r2
         print(r2)
     }

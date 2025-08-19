@@ -1,14 +1,8 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
 #
-#                 Forest Regrowth Model Functions and Utilities
+#        Forest Regrowth Model Functions and Utilities
 #
-#                            Ana Avila - August 2024
-#
-#     This script defines the core functions used in the forest regrowth
-#     modeling process (fit_3_run_model.r)
-#
-#     Functions included:
+#                   Ana Avila - August 2024
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
@@ -16,15 +10,19 @@
 # ------------ Optimization for Forest Regrowth ------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-#
-# Function Description:
-#   Prepares and executes the optimization process for the forest regrowth model.
-#   It applies constraints, performs optimization, and optionally calculates R-squared.
-#
-# Arguments:
-#   train_data : Data frame containing the training dataset.
-#   pars       : Named vector of initial parameter values for optimization.
-#   conditions : List of parameter constraints expressed as character strings.
+#' Optim wrapper function.
+#' Applies constraints and optimizes the Chapman-Richards
+#' growth model to forest regrowth data.
+#'
+#' @param train_data Data frame. Training dataset containing forest attributes
+#'   such as age, biomass, and predictors.
+#' @param pars Named numeric vector. Initial parameter values 
+#' (e.g., B0, k0, theta, lag).
+#' @param conditions List of character strings. Parameter constraints expressed
+#'   as logical conditions (evaluated during optimization).
+#'
+#' @return A list. The output object from \code{optim()}, including
+#' optimized parameters, objective value, and convergence status.
 
 
 run_optim <- function(train_data, pars, conditions) {
@@ -43,24 +41,25 @@ run_optim <- function(train_data, pars, conditions) {
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ---------- Sum of squared errors (SSE) ----------#
+# --------------- Sum of squared errors (SSE) --------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
-# Function Description:
-#   Calculates the sum of squared errors for the growth curve model,
-#   incorporating parameter constraints.
-#
-# Arguments:
-#   pars       : Named vector of parameter values to be evaluated.
-#   data       : Dataframe containing predictor variables and forest attributes
-#   conditions : List of parameter constraints expressed as character strings.
-#
-# Returns:
-#   Numeric value representing the sum of squared errors.
-#   Returns -Inf if constraints are violated or if the result is invalid.
-#
-# External Functions:
-#   growth_curve()
+
+#' Computes the residual sum of squares between observed biomass values
+#' and predictions from the Chapman-Richards growth curve.
+#'
+#' @param pars Named numeric vector. Candidate parameter values.
+#' @param data Data frame. Must include \code{age}, \code{biomass}, 
+#' \code{asymptote}, and predictors as needed.
+#' @param conditions List of character strings. Constraints on parameters 
+#' expressed as logical conditions.
+#'
+#' @return Numeric. The residual sum of squares value, or \code{-Inf}
+#' if constraints are violated or if residuals are invalid.
+#'
+#' @details
+#' - Constraint violations or invalid objective values automatically 
+#' return \code{-Inf}, so that they are rejected during optimization.
+
 
 calc_rss <- function(pars, data, conditions) {
 
@@ -72,7 +71,6 @@ calc_rss <- function(pars, data, conditions) {
         result <- sum((growth_curve(pars, data) - data$biomass)^2)
     }
 
-    # Check whether any of the parameters is breaking the conditions (e.g. negative values)
     if (any(sapply(conditions, function(cond) eval(parse(text = cond))))) {
         return(-Inf)
     } else if (is.na(result) || result == 0) {
@@ -83,20 +81,30 @@ calc_rss <- function(pars, data, conditions) {
 }
 
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------- Chapman-Richards Growth Curve -------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-#
-# Function Description:
-#   Calculates the Chapman-Richards growth curve based on provided parameters and data.
-#   Incorporates intercept terms and forest age.
-
-# get the mean value per column of all columns in data with the name pdsi
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-
+#' Estimates forest biomass according to the Chapman-Richards equation,
+#' with optional predictor effects and lag adjustment.
+#'
+#' @param pars Named numeric vector. Growth model parameters:
+#'   - \code{B0} : Initial biomass at age zero (baseline).
+#'   - \code{k0} : Baseline growth rate constant.
+#'   - \code{theta} : Curve shape parameter.
+#'   - \code{lag} : Optional regrowth lag (age offset).
+#'   - Additional coefficients for predictor covariates.
+#' @param data Data frame. Must include \code{age}, \code{biomass}, \code{asymptote}, and predictors if present.
+#' @param lag Numeric (default = 0). Optional time adjustment for regrowth start.
+#'
+#' @return Numeric vector. Predicted biomass values for each row in \code{data}.
+#'
+#' @details
+#' - Growth rate (\code{k}) is computed from \code{k0}, covariates, and forest age.
+#' - Growth rates are constrained for numerical stability:
+#'   values below \code{1e-10} are floored, and values above 7 are capped.
+#' - If \code{theta} is specified, \code{B0} is internally fixed at 0 to avoid redundancy.
+#'
 
 growth_curve <- function(pars, data, lag = 0) {
 
@@ -123,13 +131,14 @@ growth_curve <- function(pars, data, lag = 0) {
 
     # Constrains k to avoid negative values
     k[which(k < 1e-10)] <- 1e-10
-    k[which(k > 7)] <- 7 # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
+    # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
+    k[which(k > 7)] <- 7
 
     if ("theta" %in% names(pars)) {
         theta <- pars[["theta"]]
         pars[["B0"]] <- 0
     } else {
-        theta <- 1
+        theta <- 2
     }
 
     return(pars[["B0"]] + (data[["asymptote"]] - pars[["B0"]]) * (1 - exp(-k))^theta)
