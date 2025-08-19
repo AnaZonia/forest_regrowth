@@ -2,7 +2,7 @@
 #
 #                 Forest Regrowth Model Data Processing Functions
 #
-#                            Ana Avila - May 2025
+#                            Ana Avila - August 2025
 #
 #     This script defines the core functions used in the data processing and
 #     preparation stages of the forest regrowth modeling process.
@@ -29,15 +29,17 @@ set.seed(1)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ------------------------------ Calculate Permutation Importance ---------------------- #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------------- Calculate Permutation Importance -------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 
 # Function Description:
 #   Uses permutation importance to quantify variable contribution to model performance (R2).
 #   For categorical variables with multiple dummy columns (e.g., ecoregion, topography), permutes all columns as group.
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 
 calculate_permutation_importance <- function(model, data, data_pars) {
     data_pars <- c(unlist(data_pars), "age")

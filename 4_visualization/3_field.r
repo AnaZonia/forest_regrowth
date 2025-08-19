@@ -103,7 +103,7 @@ pred <- growth_curve(final_model$par, data = norm_data, lag = final_model$par["l
 
 # Calculate R2
 r2 <- calc_r2(norm_data, pred)
-r2
+r2 # 0.42
 
 # ------------------------------------------------------
 # Get R2 when predicting field data
@@ -138,27 +138,22 @@ r2
 
 # ------------------------------------------------------
 # Get theta from field data
+# we remove other predictors (keep only the basic)
+# to avoid local minima
 # ------------------------------------------------------
-field <- field[complete.cases(field), ]
 
 field_scaled <- apply_min_max_scaling(field, train_stats)
 
-pars_init$lag <- 0
+pars_init <- pars_init[c("k0")]
 pars_init$theta <- 1
-
-conditions <- c(
-    'pars["k0"] > 0',
-    'pars["lag"] >= 0',
-    'pars["theta"] > 0'
-)
+pars_init$B0 <- 0
 
 final_model <- run_optim(field_scaled, pars_init, conditions)
+final_model[['par']]
+    
+pred_field <- growth_curve(final_model$par, data = field_scaled)
 
-pred <- growth_curve(final_model$par, data = norm_data, lag = final_model$par["lag"])
-
-# Calculate R2
-r2 <- calc_r2(norm_data, pred)
-r2
+# theta = 2
 
 
 # ------------------------------------------------------
@@ -215,27 +210,27 @@ dev.off()
 
 
 
-# png("./0_results/figures/extended/field_age_histogram.png", width = 1800, height = 1400, res = 300)
+png("./0_results/figures/extended/field_age_histogram.png", width = 1800, height = 1400, res = 300)
 
-# ggplot(field, aes(x = age)) +
-#     geom_histogram(
-#         binwidth = 5,
-#         fill = "grey30",
-#         color = "white",
-#         boundary = 0
-#     ) +
-#     labs(
-#         x = "Forest age (years)",
-#         y = "Number of plots"
-#     ) +
-#     theme_minimal(base_size = 14) +
-#     theme(
-#         panel.grid.major = element_blank(),
-#         panel.grid.minor = element_blank(),
-#         axis.text = element_text(color = "black", size = 20),
-#         axis.title = element_text(face = "bold", size = 22),
-#         axis.ticks = element_line(color = "black"),
-#         plot.margin = margin(10, 10, 10, 10)
-#     )
+ggplot(field, aes(x = age)) +
+    geom_histogram(
+        binwidth = 5,
+        fill = "grey30",
+        color = "white",
+        boundary = 0
+    ) +
+    labs(
+        x = "Forest age (years)",
+        y = "Number of plots"
+    ) +
+    theme_minimal(base_size = 14) +
+    theme(
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(color = "black", size = 20),
+        axis.title = element_text(face = "bold", size = 22),
+        axis.ticks = element_line(color = "black"),
+        plot.margin = margin(10, 10, 10, 10)
+    )
 
-# dev.off()
+dev.off()

@@ -1,10 +1,100 @@
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+#           Field Data Analysis and Model Validation
+#
+#                 Ana Avila - August 2025
+#
+#     Fit the model to the field data
+#     Find theta (shape parameter) value from the field data
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
-# Load necessary libraries
+library(foreach)
+library(doParallel)
 library(tidyverse)
 library(ggplot2)
 library(cowplot) # For legend extraction
 library(ggpubr) # For legend extraction
+
+source("2_modelling/1_parameters.r")
+source("2_modelling/1_data_processing.r")
+source("2_modelling/2_modelling.r")
+source("2_modelling/2_cross_validate.r")
+source("2_modelling/2_feature_selection.r")
+
+# Set up parallel processing
+set.seed(1)
+ncore <- 4
+registerDoParallel(cores = ncore)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Save trained model for the best parameters
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000)
+norm_data <- normalize_independently(data)
+
+norm_data <- norm_data$train_data
+
+for (basic_pars_name in names(basic_pars_options)) {
+    basic_pars <- basic_pars_options[[basic_pars_name]]
+
+    if (basic_pars_name == "intercept") {
+        # For intercept, we force the data to intercept through zero
+        mean_biomass_at_zero_age <- median(norm_data$biomass[norm_data$age == 1], na.rm = TRUE)
+        norm_data$biomass <- norm_data$biomass - mean_biomass_at_zero_age
+    }
+
+    data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
+    init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
+    model <- run_optim(norm_data, init_pars, conditions)
+    saveRDS(model, file = paste0("./0_results/amazon_model_", basic_pars_name, ".rds", sep = ""))
+
+    pred_vs_obs <- data.frame(
+        age = norm_data$age,
+        pred = growth_curve(model$par, norm_data)
+    )
+
+    print(paste0("R2 for ", basic_pars_name, ": ", calc_r2(norm_data, pred_vs_obs$pred)))
+
+    # get the biomass predictions for the ages 1 to 105 (in 35 year steps)
+    for (i in c(35, 70)) {
+        norm_data_future <- norm_data
+        norm_data_future$age <- norm_data_future$age + i
+        pred_future <- growth_curve(model$par, norm_data_future)
+        df_future <- data.frame(
+            age = norm_data_future$age,
+            pred = pred_future
+        )
+        pred_vs_obs <- rbind(pred_vs_obs, df_future)
+    }
+
+    if (basic_pars_name == "intercept") {
+        pred_vs_obs$pred <- round(pred_vs_obs$pred - model$par["B0"])
+    } else {
+        # add column obs with the age correspondent to that in norm_data
+        pred_vs_obs <- cbind(pred_vs_obs, data.frame(
+            obs = norm_data$biomass,
+            obs_age = round(norm_data$age + model$par["lag"])
+        ))
+    }
+
+    write.csv(pred_vs_obs, file = paste0("./0_results/pred_vs_obs_amazon_", basic_pars_name, ".csv"), row.names = FALSE)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Set global options
 options(stringsAsFactors = FALSE)
@@ -49,10 +139,10 @@ lag_summary <- lag_data %>%
 
 # in both, keep only sd_pred_lag for ages greater than lag
 intercept_summary <- intercept_summary %>%
-    mutate(sd_pred_intercept = if_else(age < lag+1, 0, sd_pred_intercept))
+    mutate(sd_pred_intercept = if_else(age < lag + 1, 0, sd_pred_intercept))
 
 lag_summary <- lag_summary %>%
-    mutate(sd_pred_lag = if_else(age < lag+1, 0, sd_pred_lag))
+    mutate(sd_pred_lag = if_else(age < lag + 1, 0, sd_pred_lag))
 
 satellite_summary <- lag_data %>%
     group_by(obs_age) %>%
@@ -103,7 +193,6 @@ p <- ggplot(all_pred_data, aes(x = age)) +
         y = mean_pred_lag, color = "Lag-corrected",
         linetype = "Lag-corrected"
     ), linewidth = 1.5) +
-
     geom_ribbon(
         aes(
             ymin = mean_pred_lag - sd_pred_lag,
@@ -112,7 +201,6 @@ p <- ggplot(all_pred_data, aes(x = age)) +
         ),
         alpha = 0.2, color = NA
     ) +
-    
     geom_line(aes(
         y = mean_pred_intercept, color = "Uncorrected",
         linetype = "Uncorrected"
@@ -133,11 +221,12 @@ p <- ggplot(all_pred_data, aes(x = age)) +
         linetype = "dotted", color = "black", linewidth = 1
     ) +
     annotate(
-        "text", x = (lag + 1) + 2, y = 320,
+        "text",
+        x = (lag + 1) + 2, y = 320,
         label = paste(lag, "year lag"),
         color = "black", size = 7, hjust = 0
     ) +
-    
+
     # Scale definitions
     scale_color_manual(values = plot_colors, name = NULL) +
     scale_fill_manual(values = plot_colors, name = NULL) +
@@ -166,18 +255,20 @@ satellite_summary$age <- satellite_summary$age - lag
 p <- ggplot(satellite_summary, aes(x = age)) +
     # Remote sensing data
     geom_line(aes(y = mean_obs, color = "Observed (Remote Sensing)"), linewidth = 1.5) +
-        geom_ribbon(
-            aes(ymin = mean_obs - sd_obs, ymax = mean_obs + sd_obs, 
-                fill = "Observed (Remote Sensing)"),
-            alpha = 0.2, color = NA
-        ) +
+    geom_ribbon(
+        aes(
+            ymin = mean_obs - sd_obs, ymax = mean_obs + sd_obs,
+            fill = "Observed (Remote Sensing)"
+        ),
+        alpha = 0.2, color = NA
+    ) +
 
-        # Labels and theme
-        labs(
-            x = "Forest Age (years)",
-            y = "Mean Biomass (Mg/ha)"
-        )
-    
+    # Labels and theme
+    labs(
+        x = "Forest Age (years)",
+        y = "Mean Biomass (Mg/ha)"
+    )
+
 
 
 p
@@ -189,12 +280,12 @@ head(satellite_summary)
 # ---------------------------- Save Outputs ----------------------------
 # Save main plot
 ggsave(
-  filename = "0_results/figures/lag_field_biomass.jpeg",
-  plot = p,
-  width = 15,
-  height = 8,
-  units = "in",
-  dpi = 300
+    filename = "0_results/figures/lag_field_biomass.jpeg",
+    plot = p,
+    width = 15,
+    height = 8,
+    units = "in",
+    dpi = 300
 )
 
 p <- p + theme(legend.position = "right")
@@ -207,11 +298,10 @@ legend_plot <- cowplot::ggdraw(legend)
 
 # Save the legend
 ggsave(
-filename = "0_results/figures/lag_field_biomass_legend.jpeg",
-plot = legend_plot,
-width = 15,
-height = 10,
-units = "in",
-dpi = 300
+    filename = "0_results/figures/lag_field_biomass_legend.jpeg",
+    plot = legend_plot,
+    width = 15,
+    height = 10,
+    units = "in",
+    dpi = 300
 )
-

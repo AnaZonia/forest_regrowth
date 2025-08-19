@@ -43,7 +43,7 @@ run_optim <- function(train_data, pars, conditions) {
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ---------- Likelihood Function for Optimization ----------#
+# ---------- Sum of squared errors (SSE) ----------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
 # Function Description:
@@ -100,7 +100,7 @@ calc_rss <- function(pars, data, conditions) {
 
 growth_curve <- function(pars, data, lag = 0) {
 
-    fit_data_pars <- setdiff(names(pars), c(non_data_pars, "age"))
+    fit_data_pars <- setdiff(names(pars), c(non_data_pars, "age", "theta"))
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Calculate the growth rate k
@@ -127,6 +127,7 @@ growth_curve <- function(pars, data, lag = 0) {
 
     if ("theta" %in% names(pars)) {
         theta <- pars[["theta"]]
+        pars[["B0"]] <- 0
     } else {
         theta <- 1
     }
