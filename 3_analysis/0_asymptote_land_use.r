@@ -1,38 +1,35 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-#                 Forest Regrowth Model Data Processing Functions
+#      Compare R2 of different asymptotes and land use aggregations
 #
-#                            Ana Avila - May 2025
-#
-#     This script defines the core functions used in the data processing and
-#     preparation stages of the forest regrowth modeling process.
+#                     Ana Avila - August 2025
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-# Runs experiments and saves results for different parameter combinations
-
-# Load required libraries
 library(foreach)
 library(doParallel)
 library(tidyverse)
 
-# Source other scripts
 source("2_modelling/1_parameters.r")
 source("2_modelling/1_data_processing.r")
 source("2_modelling/2_modelling.r")
 source("2_modelling/2_cross_validate.r")
-source("2_modelling/2_feature_selection.r")
+source("2_modelling/2_forward_selection.r")
 
 # Set up parallel processing
 set.seed(1)
 ncore = 4
 registerDoParallel(cores = ncore)
 
-data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000, asymptote = "nearest_mature")
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Asymptotes ("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ---------------- Asymptote Comparisons ------------------ #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#   Compare model R² performance for each asymptote reference:
+#   - nearest_mature
+#   - ecoreg_biomass
+#   - quarter_biomass
+#   - full_amazon)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 results <- data.frame()
 
@@ -42,14 +39,11 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
     data_pars_name <- "age_only"
     basic_pars_name <- "lag"
 
-    # Get parameters
     basic_pars <- basic_pars_options[[basic_pars_name]]
     data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
 
-    # Run cross-validation
     cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
 
-    # Return summary
     result <- data.frame(
         basic_pars_name = basic_pars_name,
         asymptote = asymptote,
@@ -62,9 +56,17 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
     write.csv(results, file = "./0_results/R2_asymptotes.csv", row.names = FALSE)
 }
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Land Use (non_aggregated_all, aggregated_all, non_aggregated_5yr, non_aggregated_10yr)
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ---------------- Land Use Comparisons ------------------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#   Compare R² increase from each Land Use aggregation:
+#   - non_aggregated_all
+#   - aggregated_all
+#   - non_aggregated_5yr
+#   - non_aggregated_10yr)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 
 results <- data.frame()
 
@@ -79,14 +81,11 @@ for (biome in c(1, 4)) {
 
         for (data_pars_name in c("age_only", "land_use", "fires")) {
 
-            # Get parameters
             basic_pars <- basic_pars_options[["lag"]]
             data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
 
-            # Run cross-validation
             cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
 
-            # Return summary
             result <- data.frame(
                 land_use_aggregation = land_use_aggregation,
                 data_pars_name = data_pars_name,

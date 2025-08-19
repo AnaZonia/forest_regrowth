@@ -4,25 +4,20 @@
 #
 #                            Ana Avila - August 2025
 #
-#     This script defines the core functions used in the data processing and
-#     preparation stages of the forest regrowth modeling process.
-#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-# Load required libraries
 library(foreach)
 library(doParallel)
 library(ggplot2)
 library(tidyverse)
 library(RColorBrewer)
 
-# Source other scripts
 source("2_modelling/1_parameters.r")
 source("2_modelling/1_data_processing.r")
 source("2_modelling/2_modelling.r")
 source("2_modelling/2_cross_validate.r")
-source("2_modelling/2_feature_selection.r")
+source("2_modelling/2_forward_selection.r")
 
 # Set up parallel processing
 set.seed(1)

@@ -4,7 +4,7 @@
 #
 #                   Ana Avila - August 2025
 #
-#     Evaluates the model performance using 5-fold cross-validation.
+#  Evaluates the model performance using 5-fold cross-validation.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 

@@ -206,50 +206,29 @@ forest_regrowth
     - "growth_curve"
 
 
+### 3_analysis
 
+- **0_asymptote_land_use.r**:
+    Compares the R2 values of different models trained on satellite data.
+    Comparisons:
+    - Asymptotes ("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")
+    - Land Use (non_aggregated_all, aggregated_all, non_aggregated_5yr, non_aggregated_10yr)
+    - Biomes (Amazon, Atlantic Forest)
 
-
-
-
-
-
-
-- **results_for_visualization.r**:
-    Prepares the results for visualization.
-    Functions:
-    - "calculate_permutation_importance"
     Inputs:
-      - "grid_1k_amazon_secondary": all CSVs in directory
-
+    - "grid_10k_amazon_secondary": all CSVs in directory
+    
     Outputs:
-    Trained models and their predictions:
-      - "grid_1k_amazon_secondary_train_stats.rds" - the normalization statistics for the training data
-      - amazon_model_lag.rds
-      - amazon_model_intercept.rds
-      - pred_vs_obs_amazon_lag.csv
-      - pred_vs_obs_amazon_intercept.csv
-    Feature importance dataframes:
-      - "importance_nearest_mature.csv"
-      - "importance_full_amazon.csv"
+    - "R2_asymptotes.csv": R2 values for each asymptote
+    - "R2_land_use.csv": R2 values for each land use type per biome
 
-- **R2_field.r**:
+- **0_field.r**:
     Obtains the R2 values for the field data based on the model trained from satellite data
     Inputs:
     - amazon_model_lag.rds 
 
-- **R2_satellite.r**:
-    Compares the R2 values of different models trained on satellite data.
-    Comparisons:
-    - Basic_pars (lag vs intercept)
-    - Data inputs (age_only, land_use_landscape, environment, all_mean_climate)
-    - Biomes (Amazon, Atlantic Forest)
-    - Asymptotes ("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")
-    - Land Use (non_aggregated_all, aggregated_all, non_aggregated_5yr, non_aggregated_10yr)
-    Inputs:
-    - "grid_10k_amazon_secondary": all CSVs in directory
 
 
-### 3_analysis
 - **1_model_performance.r**:
     Stacked barplot.
     Compares the R2 of full_amazon (inflexible) asymptote with the R2 of the nearest_mature (flexible) asymptote.
@@ -301,10 +280,5 @@ To get started with the project, follow these steps:
     ```sh
     pip install -r requirements.txt
     ```
-    ```R
-    renv::restore()
-    ```
 
 Refer to `requirements.txt` for the complete list of dependencies.
-
-

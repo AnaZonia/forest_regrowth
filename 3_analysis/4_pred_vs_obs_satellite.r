@@ -1,16 +1,20 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-#                 Forest Regrowth Model Data Processing Functions
+#         Predicted vs Observed AGB from Satellite Data
 #
-#                            Ana Avila - May 2025
-#
-#     This script defines the core functions used in the data processing and
-#     preparation stages of the forest regrowth modeling process.
+#                    Ana Avila - August 2025
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+source("3_modelling/1_parameters.r")
+source("3_modelling/1_data_processing.r")
+source("3_modelling/2_modelling.r")
+source("3_modelling/2_cross_validate.r")
+source("2_modelling/2_forward_selection.r")
 
+library(tidyverse)
 
+set.seed(1)
 
 data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000)
 

@@ -21,7 +21,7 @@
 #' @param conditions List of character strings. Parameter constraints expressed
 #'   as logical conditions (evaluated during optimization).
 #'
-#' @return A list. The output object from \code{optim()}, including
+#' @return A list. The output object from "optim()}, including
 #' optimized parameters, objective value, and convergence status.
 
 
@@ -48,21 +48,20 @@ run_optim <- function(train_data, pars, conditions) {
 #' and predictions from the Chapman-Richards growth curve.
 #'
 #' @param pars Named numeric vector. Candidate parameter values.
-#' @param data Data frame. Must include \code{age}, \code{biomass}, 
-#' \code{asymptote}, and predictors as needed.
-#' @param conditions List of character strings. Constraints on parameters 
+#' @param data Data frame. Must include "age", "biomass",
+#' "asymptote", and predictors as needed.
+#' @param conditions List of character strings. Constraints on parameters
 #' expressed as logical conditions.
 #'
-#' @return Numeric. The residual sum of squares value, or \code{-Inf}
+#' @return Numeric. The residual sum of squares value, or "-Inf"
 #' if constraints are violated or if residuals are invalid.
 #'
 #' @details
-#' - Constraint violations or invalid objective values automatically 
-#' return \code{-Inf}, so that they are rejected during optimization.
+#' - Constraint violations or invalid objective values automatically
+#' return "-Inf", so that they are rejected during optimization.
 
 
 calc_rss <- function(pars, data, conditions) {
-
     if ("lag" %in% names(pars)) {
         growth_curves <- growth_curve(pars, data, pars[["lag"]])
         residuals <- growth_curves - data$biomass
@@ -89,22 +88,20 @@ calc_rss <- function(pars, data, conditions) {
 #' with optional predictor effects and lag adjustment.
 #'
 #' @param pars Named numeric vector. Growth model parameters:
-#'   - \code{B0} : Initial biomass at age zero (baseline).
-#'   - \code{k0} : Baseline growth rate constant.
-#'   - \code{theta} : Curve shape parameter.
-#'   - \code{lag} : Optional regrowth lag (age offset).
+#'   - "B0" : Initial biomass at age zero (intercept).
+#'   - "k0" : Baseline growth rate constant.
+#'   - "theta" : Curve shape parameter.
+#'   - "lag" : Optional regrowth lag (age offset).
 #'   - Additional coefficients for predictor covariates.
-#' @param data Data frame. Must include \code{age}, \code{biomass}, \code{asymptote}, and predictors if present.
-#' @param lag Numeric (default = 0). Optional time adjustment for regrowth start.
+#' @param data Data frame. Must include "age", "biomass", "asymptote", and predictors if present.
+#' @param lag Numeric (default = 0). Optional time lag in regrowth detection.
 #'
-#' @return Numeric vector. Predicted biomass values for each row in \code{data}.
+#' @return Numeric vector. Predicted biomass values for each row in "data".
 #'
 #' @details
-#' - Growth rate (\code{k}) is computed from \code{k0}, covariates, and forest age.
 #' - Growth rates are constrained for numerical stability:
-#'   values below \code{1e-10} are floored, and values above 7 are capped.
-#' - If \code{theta} is specified, \code{B0} is internally fixed at 0 to avoid redundancy.
-#'
+#'   values below "1e-10" are floored, and values above 7 are capped.
+#' - If "theta" is being fit on field data (3_analysis/0_field), "B0" is internally fixed at 0.
 
 growth_curve <- function(pars, data, lag = 0) {
 
