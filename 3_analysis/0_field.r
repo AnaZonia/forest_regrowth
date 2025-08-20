@@ -43,20 +43,29 @@ apply_min_max_scaling <- function(data, train_stats) {
 
 field_data <- read.csv("./0_data/groa_field/field_predictors.csv")
 field_data <- subset(field_data, biome == 1)
-
 field_data <- field_data %>%
     rename(
         biomass = field_biom,
         asymptote = nearest_mature
     ) %>%
     mutate(age = floor(age + 0.5))
+    
+# Compute age frequencies
+age_freq <- field_data %>%
+    count(age, name = "freq")
 
+# Add frequency to df
+field_data <- field_data %>%
+    left_join(age_freq, by = "age") %>%
+    mutate(weight = 1 / freq)
+
+# For each site, sample one measurement, with higher chances for rarer ages
 field_data <- field_data %>%
     group_by(site_id) %>%
-    slice_sample(n = 1) %>%
+    slice_sample(n = 1, weight_by = weight) %>%
     ungroup() %>%
     select(-biome, -lat, -lon, -site_id, -plot_id) %>%
-    mutate(across(any_of(categorical), as.factor))
+        mutate(across(any_of(categorical), as.factor))
 
 field_data <- dummy_cols(field_data,
     select_columns = categorical,
@@ -64,6 +73,11 @@ field_data <- dummy_cols(field_data,
     remove_selected_columns = TRUE
 )
 
+
+# %>%
+# group_by(site_id) %>%
+# slice_sample(n = 1) %>%
+# ungroup() %>%
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------ Train Model on Satellite Data -------------- #
@@ -117,6 +131,7 @@ init_params$B0 <- 0
 field_fit_result <- run_optim(field_data_scaled, init_params, conditions)
 theta <- field_fit_result[["par"]]["theta"]
 
+theta
 # this value (1.05) is then used in 2_modelling/2_modelling.r
 # as the default theta value
 

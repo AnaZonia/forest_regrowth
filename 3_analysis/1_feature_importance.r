@@ -149,3 +149,35 @@ importance_results <- calculate_permutation_importance(model, norm_data, data_pa
 importance_results$importance_scaled <- importance_results$importance_pct * r2 / 100
 importance_results$group <- group_names[i]
 all_results[[i]] <- importance_results
+
+
+
+# ------------------------------------------------- #
+# Figure - R2 per Asymptote with age_only
+# ------------------------------------------------- #
+
+library(ggplot2)
+library(tidyverse)
+library(RColorBrewer)
+
+R2_asymptote <- read.csv("./0_results/0_asymptotes.csv")
+# Filter for the variables of interest
+R2_asymptote <- R2_asymptote %>%
+    filter(asymptote %in% c("nearest_mature", "quarter_biomass", "full_amazon"))
+
+p <- ggplot(
+    R2_asymptote %>% mutate(asymptote = reorder(asymptote, mean_r2)),
+    aes(x = asymptote, y = mean_r2)
+) +
+    geom_bar(stat = "identity", fill = "#003f5c") +
+    coord_flip() +
+    theme_minimal() +
+    theme(
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        legend.position = "none"
+    )
+
+p

@@ -35,169 +35,187 @@ data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 1000
 norm_data <- normalize_independently(data)
 norm_data <- norm_data$train_data
 
-all_pred_results <- list()
+predictions <- data.frame(age = 1:200)
 
 for (basic_pars_name in names(basic_pars_options)) {
     basic_pars <- basic_pars_options[[basic_pars_name]]
+    norm_data_iter <- norm_data
 
     if (basic_pars_name == "intercept") {
         # Force the data to intercept through zero
-        mean_biomass_at_zero_age <- median(norm_data$biomass[norm_data$age == 1], na.rm = TRUE)
-        norm_data$biomass <- norm_data$biomass - mean_biomass_at_zero_age
+        mean_biomass_at_zero_age <- median(norm_data_iter$biomass[norm_data_iter$age == 1], na.rm = TRUE)
+        norm_data_iter$biomass <- norm_data_iter$biomass - mean_biomass_at_zero_age
     }
 
     data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
-    init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
-    model <- run_optim(norm_data, init_pars, conditions)
+    init_pars <- find_combination_pars(basic_pars, data_pars, norm_data_iter)
+    model <- run_optim(norm_data_iter, init_pars, conditions)
 
-    pred_vs_obs <- data.frame(
-        age = norm_data$age,
-        pred = growth_curve(model$par, norm_data)
-    )
-
-    # get the biomass predictions for the ages 1 to 105 (in 35 year steps)
-    for (i in c(35, 70)) {
-        norm_data_future <- norm_data
-        norm_data_future$age <- norm_data_future$age + i
-        pred_future <- growth_curve(model$par, norm_data_future)
-        df_future <- data.frame(
-            age = norm_data_future$age,
-            pred = pred_future
-        )
-        pred_vs_obs <- rbind(pred_vs_obs, df_future)
+    if (basic_pars_name == "lag") {
+        lag <- round(model$par["lag"])
     }
 
-    if (basic_pars_name == "intercept") {
-        pred_vs_obs$pred <- round(pred_vs_obs$pred - model$par["B0"])
-    } else {
-        # add column obs with the age correspondent to that in norm_data
-        pred_vs_obs <- cbind(pred_vs_obs, data.frame(
-            obs = norm_data$biomass,
-            obs_age = round(norm_data$age + model$par["lag"])
-        ))
+    biomass_df <- data.frame(matrix(nrow = nrow(norm_data_iter), ncol = 0))
+    for (age in 1:nrow(predictions)) {
+        norm_data_iter$age <- age
+        pred <- growth_curve(model$par, norm_data_iter)
+        biomass_df[[as.character(age)]] <- pred
     }
 
-    all_pred_results[[basic_pars_name]] <- list(
-        model = model,
-        preds = pred_vs_obs
-    )
+    mean_biomass <- apply(biomass_df, 2, mean, na.rm = TRUE)
+    sd_biomass <- apply(biomass_df, 2, sd, na.rm = TRUE)
+    
+    predictions[[paste0("mean_", basic_pars_name)]] <- mean_biomass
+    predictions[[paste0("sd_", basic_pars_name)]] <- sd_biomass
 }
+
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Load and summarize field and satellite data
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-field <- read.csv("0_data/groa_field/field_predictors.csv")
-field <- subset(field, biome == 1) # Filter for Amazon biome
-field <- field %>%
-    rename(field_biomass = field_biom) %>%
+field_data <- read.csv("0_data/groa_field/field_predictors.csv")
+field_data <- subset(field_data, biome == 1) # Filter for Amazon biome
+field_data <- field_data %>%
+    rename(biomass = field_biom) %>%
     mutate(age = floor(age + 0.5))
 
-# get the average per age
-aggregated_field <- field %>%
-    select(site_id, age, field_biomass) %>%
-    group_by(age) %>%
-    summarise(field_biomass = mean(field_biomass, na.rm = TRUE))
+# Compute age frequencies
+age_freq <- field_data %>%
+    count(age, name = "freq")
 
-lag_preds <- all_pred_results[["lag"]]$preds
-intercept_preds <- all_pred_results[["intercept"]]$preds
-lag_model <- all_pred_results[["lag"]]$model
-lag <- round(lag_model$par["lag"])
+# Add frequency to df
+field_data <- field_data %>%
+    left_join(age_freq, by = "age") %>%
+    mutate(weight = 1 / freq)
 
+# For each site, sample one measurement, with higher chances for rarer ages
+field_data <- field_data %>%
+    group_by(site_id) %>%
+    slice_sample(n = 1, weight_by = weight) %>%
+    ungroup()
 
-# keep only sd_pred_lag for ages greater than lag
-intercept_summary <- intercept_preds %>%
-    group_by(age) %>%
-    summarise(
-        mean_pred_intercept = median(pred, na.rm = TRUE),
-        sd_pred_intercept = sd(pred, na.rm = TRUE)
-    ) %>%
-    mutate(sd_pred_intercept = if_else(age < lag + 1, 0, sd_pred_intercept))
-
-lag_summary <- lag_preds %>%
+# get average satellite biomass per age
+aggregated_satellite <- norm_data %>%
+    select(age, biomass) %>%
     group_by(age) %>%
     summarise(
-        mean_pred_lag = median(pred, na.rm = TRUE),
-        sd_pred_lag = sd(pred, na.rm = TRUE)
+        mean_obs = mean(biomass, na.rm = TRUE),
+        sd_obs = sd(biomass, na.rm = TRUE)
     ) %>%
-    mutate(sd_pred_lag = if_else(age < lag + 1, 0, sd_pred_lag))
-
-satellite_summary <- intercept_preds %>%
-    group_by(age) %>%
-    summarise(
-        mean_obs = median(pred, na.rm = TRUE),
-        sd_obs = sd(pred, na.rm = TRUE)
-    ) %>%
-    rename(age = age)
-
-# First, combine all data including future predictions
-all_pred_data <- full_join(aggregated_field, lag_summary, by = "age") %>%
-    full_join(intercept_summary, by = "age") %>%
-    full_join(satellite_summary, by = "age")
+    mutate(age = age + lag)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #        Plotting
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
+pred_plot <- subset(predictions, age >= 0 & age <= 75) #max(aggregated_satellite$age)
+
+# For pred_plot, clamp the ribbon lower bound at 0
+pred_plot <- pred_plot %>%
+    mutate(
+        ymin_lag = pmax(mean_lag - sd_lag, 0),
+        ymax_lag = mean_lag + sd_lag,
+        ymin_intercept = pmax(mean_intercept - sd_intercept, 0),
+        ymax_intercept = mean_intercept + sd_intercept
+    )
+
 # Update plot colors and linetypes to include future predictions
 plot_colors <- c(
     "Lag-corrected" = "#2f4b7c",
     "Uncorrected" = "#ffa600",
-    "Observed (Remote Sensing)" = "#f95d6a",
+    "Observed (Remote Sensing)" = "#b91523",
     "Field Measurements" = "black"
 )
 
 linetypes <- c(
     "Lag-corrected" = "solid",
     "Uncorrected" = "solid",
-    "Observed (Remote Sensing)" = "dashed"
+    "Observed (Remote Sensing)" = "21"
 )
 
-# Modify the plotting function
-p <- ggplot(all_pred_data, aes(x = age)) +
 
-    # # Field data points
-    # geom_point(
-    #     data = aggregated_field,
-    #     aes(x = age, y = field_biomass, color = "Field Measurements"),
-    #     size = 3, alpha = 0.7
-    # ) +
-
-    # Remote sensing data
-    geom_line(aes(y = mean_obs, color = "Observed (Remote Sensing)"), linewidth = 1.5) +
-    geom_ribbon(
-        aes(ymin = mean_obs - sd_obs, ymax = mean_obs + sd_obs, fill = "Observed (Remote Sensing)"),
-        alpha = 0.2, color = NA
-    ) +
+p <- ggplot() +
 
     # Predicted data - current
-    geom_line(aes(
-        y = mean_pred_lag, color = "Lag-corrected",
-        linetype = "Lag-corrected"
-    ), linewidth = 1.5) +
-    geom_ribbon(
+    geom_line(
+        data = pred_plot,
         aes(
-            ymin = mean_pred_lag - sd_pred_lag,
-            ymax = mean_pred_lag + sd_pred_lag,
+            x = age, y = mean_lag,
+            color = "Lag-corrected",
+            linetype = "Lag-corrected"
+        ),
+        linewidth = 1.5
+    ) +
+
+    geom_ribbon(
+        data = pred_plot,
+        aes(
+            x = age,
+            ymin = ymin_lag,
+            ymax = ymax_lag,
             fill = "Lag-corrected"
         ),
         alpha = 0.2, color = NA
     ) +
-    geom_line(aes(
-        y = mean_pred_intercept, color = "Uncorrected",
-        linetype = "Uncorrected"
-    ), linewidth = 1.5) +
+    
+    geom_line(
+        data = pred_plot,
+        aes(
+            x = age,
+            y = mean_intercept,
+            color = "Uncorrected",
+            linetype = "Uncorrected"
+        ),
+        linewidth = 1.5) +
 
-    # geom_ribbon(
-    #     aes(
-    #         ymin = mean_pred_intercept - sd_pred_intercept,
-    #         ymax = mean_pred_intercept + sd_pred_intercept,
-    #         fill = "Uncorrected"
-    #     ),
-    #     alpha = 0.2, color = NA
-    # ) +
+    geom_ribbon(
+        data = pred_plot,
+        aes(
+            x = age,
+            ymin = ymin_intercept,
+            ymax = ymax_intercept,
+            fill = "Uncorrected"
+        ),
+        alpha = 0.2, color = NA
+    ) +
+
+
+    # Field data points
+    geom_point(
+        data = aggregated_field,
+        aes(
+            x = age, y = biomass,
+            color = "Field Measurements"
+        ),
+        size = 3, alpha = 0.7
+    ) +
+
+    # Remote sensing data
+    geom_line(
+        data = aggregated_satellite,
+        aes(
+            x = age,
+            y = mean_obs,
+            color = "Observed (Remote Sensing)",
+            linetype = "Observed (Remote Sensing)"
+        ),
+        linewidth = 1.5
+    )  +
+
+    geom_ribbon(
+        data = aggregated_satellite,
+        aes(
+            x = age,
+            ymin = mean_obs - sd_obs,
+            ymax = mean_obs + sd_obs,
+            fill = "Observed (Remote Sensing)"
+        ),
+        alpha = 0.2, color = NA
+    ) +
+
+
 
     # Vertical line for age lag
     geom_vline(
@@ -215,7 +233,8 @@ p <- ggplot(all_pred_data, aes(x = age)) +
     scale_color_manual(values = plot_colors, name = NULL) +
     scale_fill_manual(values = plot_colors, name = NULL) +
     scale_linetype_manual(values = linetypes, name = NULL) +
-    scale_y_continuous(limits = c(0, 320), expand = expansion(mult = c(0, 0.05))) +
+    # scale_y_continuous(limits = c(0, 320), expand = expansion(0,0)) +
+    coord_cartesian(ylim = c(0, 330), expand = FALSE) +
 
     # Labels and theme
     labs(
@@ -235,34 +254,11 @@ p <- ggplot(all_pred_data, aes(x = age)) +
 p
 
 
-satellite_summary$age <- satellite_summary$age - lag
-p <- ggplot(satellite_summary, aes(x = age)) +
-    # Remote sensing data
-    geom_line(aes(y = mean_obs, color = "Observed (Remote Sensing)"), linewidth = 1.5) +
-    geom_ribbon(
-        aes(
-            ymin = mean_obs - sd_obs, ymax = mean_obs + sd_obs,
-            fill = "Observed (Remote Sensing)"
-        ),
-        alpha = 0.2, color = NA
-    ) +
 
-    # Labels and theme
-    labs(
-        x = "Forest Age (years)",
-        y = "Mean Biomass (Mg/ha)"
-    )
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#        Save outputs
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
-
-p
-
-
-head(satellite_summary)
-
-
-# ---------------------------- Save Outputs ----------------------------
-# Save main plot
 ggsave(
     filename = "0_results/figures/lag_field_biomass.jpeg",
     plot = p,
@@ -289,3 +285,7 @@ ggsave(
     units = "in",
     dpi = 300
 )
+
+
+
+

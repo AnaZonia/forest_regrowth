@@ -1,14 +1,21 @@
-# Gets the future predictions for different areas regrown
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#
+#    Predictions for Regrowth by 2050 (pasture and secondary)
+#
+#                 Ana Avila - August 2025
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 
 # select random 20% of pastureland in the Amazon
 # select all pasturelands in protected areas
 # select all pasturelands in the Amazon
 # select all secondary forests in the Amazon
 
-source("3_modelling/1_parameters.r")
-source("3_modelling/1_data_processing.r")
-source("3_modelling/2_modelling.r")
-source("3_modelling/2_cross_validate.r")
+source("2_modelling/1_parameters.r")
+source("2_modelling/1_data_processing.r")
+source("2_modelling/2_modelling.r")
+source("2_modelling/2_cross_validate.r")
 source("2_modelling/2_forward_selection.r")
 
 library(tidyverse)
@@ -16,13 +23,7 @@ library(terra)
 library(scales) # for label formatting
 
 set.seed(1)
-biome <- 1 # Amazon
 
-model_lag <- readRDS("./0_results/amazon_model_lag.rds")
-model_intercept <- readRDS("./0_results/amazon_model_intercept.rds")
-
-# Apply Min-Max scaling using the precomputed min and max
-train_stats <- readRDS("./0_results/grid_1k_amazon_secondary_train_stats.rds")
 
 # keep only the variables that are in the model
 train_stats <- train_stats %>%
@@ -38,7 +39,7 @@ apply_min_max_scaling <- function(data, train_stats) {
     return(data)
 }
 
-
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Biomass predictions for future years
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Estimated biomass x years after 2020
@@ -49,7 +50,7 @@ apply_min_max_scaling <- function(data, train_stats) {
 predict_future_biomass <- function(name, model, age_offset, pasture_selection = "random", delta = TRUE) {
 
     # Import Secondary Forest Data
-    data <- import_data(paste0("grid_1k_amazon_", name), biome_num = biome, n_samples = "all")
+    data <- import_data(paste0("grid_1k_amazon_", name), biome_num = 1, n_samples = "all")
     coords <- data$coords
 
     data <- apply_min_max_scaling(data$df, train_stats)
