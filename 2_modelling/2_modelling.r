@@ -105,7 +105,7 @@ calc_rss <- function(pars, data, conditions) {
 
 growth_curve <- function(pars, data, lag = 0) {
 
-    fit_data_pars <- setdiff(names(pars), c(non_data_pars, "age", "theta"))
+    fit_data_pars <- setdiff(names(pars), c(non_data_pars, "age"))
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Calculate the growth rate k
@@ -135,7 +135,7 @@ growth_curve <- function(pars, data, lag = 0) {
         theta <- pars[["theta"]]
         pars[["B0"]] <- 0
     } else {
-        theta <- 2
+        theta <- 1.05
     }
 
     return(pars[["B0"]] + (data[["asymptote"]] - pars[["B0"]]) * (1 - exp(-k))^theta)

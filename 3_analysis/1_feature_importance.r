@@ -1,14 +1,11 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-#                 Forest Regrowth Model Data Processing Functions
+#                Visualize Feature Importance
 #
-#                            Ana Avila - August 2025
+#                  Ana Avila - August 2025
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
-library(foreach)
-library(doParallel)
 library(ggplot2)
 library(tidyverse)
 library(RColorBrewer)
@@ -18,86 +15,17 @@ source("2_modelling/1_data_processing.r")
 source("2_modelling/2_modelling.r")
 source("2_modelling/2_cross_validate.r")
 source("2_modelling/2_forward_selection.r")
+source("2_modelling/2_permutation_importance.r")
 
 # Set up parallel processing
 set.seed(1)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# --------------- Calculate Permutation Importance -------- #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-
-# Function Description:
-#   Uses permutation importance to quantify variable contribution to model performance (R2).
-#   For categorical variables with multiple dummy columns (e.g., ecoregion, topography), permutes all columns as group.
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-
-calculate_permutation_importance <- function(model, data, data_pars) {
-    data_pars <- c(unlist(data_pars), "age")
-    # Get baseline performance
-    baseline_pred <- growth_curve(model$par, data, model$par["lag"])
-    baseline_r2 <- calc_r2(data, baseline_pred)
-
-    # Identify categorical variables
-    categorical_vars <- list(
-        ecoregion = grep("^ecoreg_", data_pars, value = TRUE),
-        topography = grep("^topography_", data_pars, value = TRUE)
-    )
-
-    # Calculate importance for each variable
-    importance <- numeric(length(data_pars))
-    names(importance) <- data_pars
-
-    for (i in seq_along(data_pars)) {
-        var_name <- data_pars[i]
-
-        # Skip if already permuted as part of a categorical variable
-        if (var_name %in% unlist(categorical_vars)) next
-
-        # Create permuted dataset
-        data_permuted <- data
-
-        if (var_name %in% unlist(categorical_vars$ecoregion)) {
-            # Permute all ecoregion dummy variables together
-            ecoregion_vars <- categorical_vars$ecoregion
-            permuted_indices <- sample(nrow(data))
-            data_permuted[ecoregion_vars] <- data[ecoregion_vars][permuted_indices, ]
-        } else if (var_name %in% unlist(categorical_vars$topography)) {
-            # Permute all topography dummy variables together
-            topography_vars <- categorical_vars$topography
-            permuted_indices <- sample(nrow(data))
-            data_permuted[topography_vars] <- data[topography_vars][permuted_indices, ]
-        } else {
-            # Permute single variable
-            data_permuted[[var_name]] <- sample(data[[var_name]])
-        }
-
-        # Get performance with permuted variable
-        permuted_pred <- growth_curve(model$par, data_permuted, model$par["lag"])
-        permuted_r2 <- calc_r2(data_permuted, permuted_pred)
-
-        # Importance = decrease in performance
-        importance[i] <- baseline_r2 - permuted_r2
-    }
-
-    # Create dataframe for plotting
-    importance_df <- data.frame(
-        variable = names(importance),
-        importance = importance,
-        importance_pct = 100 * importance / sum(importance)
-    )
-
-    # Sort by importance
-    importance_df <- importance_df[order(-importance_df$importance), ]
-
-    return(importance_df)
-}
-
-# ----------- Main Analysis ---------------------
+# ------------- Amazon barplot (two asymptotes) ----------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 all_results <- list()
 groups <- c("full_amazon", "nearest_mature")
@@ -201,3 +129,23 @@ ggsave(
     dpi = 300
 )
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ------------- Atlantic Forest ----------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+data <- import_data("grid_10k_amazon_secondary", biome_num = 4, n_samples = 10000)
+
+norm_data <- normalize_independently(data)$train_data
+basic_pars <- basic_pars_options[["lag"]]
+data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
+init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
+model <- run_optim(norm_data, init_pars, conditions)
+pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
+r2 <- calc_r2(norm_data, pred)
+r2
+
+
+importance_results <- calculate_permutation_importance(model, norm_data, data_pars)
+importance_results$importance_scaled <- importance_results$importance_pct * r2 / 100
+importance_results$group <- group_names[i]
+all_results[[i]] <- importance_results

@@ -1,11 +1,8 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-#           Field Data Analysis and Model Validation
+#       Plot the lag-corrected and uncorrected models
 #
 #                 Ana Avila - August 2025
-#
-#     Fit the model to the field data
-#     Find theta (shape parameter) value from the field data
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
@@ -39,7 +36,6 @@ norm_data <- normalize_independently(data)
 norm_data <- norm_data$train_data
 
 all_pred_results <- list()
-names(all_pred_results$lag)
 
 for (basic_pars_name in names(basic_pars_options)) {
     basic_pars <- basic_pars_options[[basic_pars_name]]
@@ -89,7 +85,7 @@ for (basic_pars_name in names(basic_pars_options)) {
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Load and plot field and satellite data
+# Load and summarize field and satellite data
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 field <- read.csv("0_data/groa_field/field_predictors.csv")
@@ -110,11 +106,7 @@ lag_model <- all_pred_results[["lag"]]$model
 lag <- round(lag_model$par["lag"])
 
 
-# ---------------------------- Data Preparation ----------------------------
-
-
 # keep only sd_pred_lag for ages greater than lag
-
 intercept_summary <- intercept_preds %>%
     group_by(age) %>%
     summarise(
@@ -131,13 +123,13 @@ lag_summary <- lag_preds %>%
     ) %>%
     mutate(sd_pred_lag = if_else(age < lag + 1, 0, sd_pred_lag))
 
-satellite_summary <- lag_data %>%
-    group_by(obs_age) %>%
+satellite_summary <- intercept_preds %>%
+    group_by(age) %>%
     summarise(
-        mean_obs = median(obs, na.rm = TRUE),
-        sd_obs = sd(obs, na.rm = TRUE)
+        mean_obs = median(pred, na.rm = TRUE),
+        sd_obs = sd(pred, na.rm = TRUE)
     ) %>%
-    rename(age = obs_age)
+    rename(age = age)
 
 # First, combine all data including future predictions
 all_pred_data <- full_join(aggregated_field, lag_summary, by = "age") %>%

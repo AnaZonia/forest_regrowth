@@ -34,26 +34,27 @@ registerDoParallel(cores = ncore)
 results <- data.frame()
 
 for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")) {
-    data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 50000, asymptote = asymptote)
+    for (basic_pars_name in c("intercept", "lag")) {
+        data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 50000, asymptote = asymptote)
 
-    data_pars_name <- "age_only"
-    basic_pars_name <- "lag"
+        data_pars_name <- "age_only"
 
-    basic_pars <- basic_pars_options[[basic_pars_name]]
-    data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
+        basic_pars <- basic_pars_options[[basic_pars_name]]
+        data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
 
-    cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
+        cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
 
-    result <- data.frame(
-        basic_pars_name = basic_pars_name,
-        asymptote = asymptote,
-        mean_r2 = mean(cv_results),
-        sd_r2 = sd(cv_results)
-    )
+        result <- data.frame(
+            basic_pars_name = basic_pars_name,
+            asymptote = asymptote,
+            mean_r2 = mean(cv_results),
+            sd_r2 = sd(cv_results)
+        )
 
-    print(result)
-    results <- rbind(results, result)
-    write.csv(results, file = "./0_results/R2_asymptotes.csv", row.names = FALSE)
+        print(result)
+        results <- rbind(results, result)
+        write.csv(results, file = "./0_results/0_asymptotes.csv", row.names = FALSE)
+    }
 }
 
 
@@ -96,7 +97,7 @@ for (biome in c(1, 4)) {
 
             print(result)
             results <- rbind(results, result)
-            write.csv(results, file = "./0_results/R2_land_use.csv", row.names = FALSE)
+            write.csv(results, file = "./0_results/0_land_use.csv", row.names = FALSE)
         }
     }
 }

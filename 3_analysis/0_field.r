@@ -27,27 +27,34 @@ set.seed(1)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
+apply_min_max_scaling <- function(data, train_stats) {
+    # Apply Min-Max scaling to each variable in the data
+    for (i in seq_along(train_stats$variable)) {
+        var <- train_stats$variable[i]
+        data[[var]] <- (data[[var]] - train_stats$min[i]) /
+            (train_stats$max[i] - train_stats$min[i])
+    }
+    return(data)
+}
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ----------------- Field Data Cleaning ------------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-field_data_full <- read.csv("./0_data/groa_field/field_predictors.csv")
-field_data_full <- subset(field_data_full, biome == 1)
+field_data <- read.csv("./0_data/groa_field/field_predictors.csv")
+field_data <- subset(field_data, biome == 1)
 
-field_data_full <- field_data_full %>%
+field_data <- field_data %>%
     rename(
         biomass = field_biom,
         asymptote = nearest_mature
     ) %>%
     mutate(age = floor(age + 0.5))
 
-field_data <- field_data_full %>%
+field_data <- field_data %>%
     group_by(site_id) %>%
     slice_sample(n = 1) %>%
-    ungroup()
-
-field_data <- field_data %>%
+    ungroup() %>%
     select(-biome, -lat, -lon, -site_id, -plot_id) %>%
     mutate(across(any_of(categorical), as.factor))
 
@@ -77,7 +84,7 @@ satellite_data <- satellite_data %>%
     remove_unused_dummies(field_data, "topography")
 
 sat_data_scaled <- normalize_independently(satellite_data)
-scaling_stats <- sat_data_scaled$train_stats
+train_stats <- sat_data_scaled$train_stats
 sat_data_scaled <- sat_data_scaled$train_data
 
 init_params <- find_combination_pars(
@@ -89,105 +96,64 @@ init_params <- find_combination_pars(
 sat_fit_result <- run_optim(sat_data_scaled, init_params, conditions)
 sat_pred_biomass <- growth_curve(sat_fit_result$par, data = sat_data_scaled, lag = sat_fit_result$par["lag"])
 r2_satellite <- calc_r2(sat_data_scaled, sat_pred_biomass)
-r2_satellite
-
-
-
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------- Get theta from field data --------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# we remove other predictors (keep only the basic)
+# - We remove other predictors (keep only the basic)
 # to avoid local minima
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-# for this we actually need the data without filtering one per site (full data)
+train_stats <- train_stats %>%
+    filter(variable %in% names(sat_fit_result$par))
 
-field_data_scaled <- apply_min_max_scaling(field_data_full, train_stats)
+field_data_scaled <- apply_min_max_scaling(field_data, train_stats)
 
 init_params <- init_params[c("k0")]
 init_params$theta <- 1
 init_params$B0 <- 0
 
 field_fit_result <- run_optim(field_data_scaled, init_params, conditions)
-field_fit_result[["par"]]
+theta <- field_fit_result[["par"]]["theta"]
 
-field_pred_biomass <- growth_curve(field_fit_result$par, data = field_data_scaled)
-r2 <- calc_r2(field_data_scaled, field_pred_biomass)
-r2
-
-# this value (1.8) is then used in 2_modelling/2_modelling.r
+# this value (1.05) is then used in 2_modelling/2_modelling.r
 # as the default theta value
-
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ----- Get R2 of sat_model when predicting field data ---- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-# keep only the variables that are in the model
-train_stats <- train_stats %>%
-    filter(variable %in% names(sat_model$par))
-
-apply_min_max_scaling <- function(data, train_stats) {
-    # Apply Min-Max scaling to each variable in the data
-    for (i in seq_along(train_stats$variable)) {
-        var <- train_stats$variable[i]
-        data[[var]] <- (data[[var]] - train_stats$min[i]) /
-            (train_stats$max[i] - train_stats$min[i])
-    }
-    return(data)
-}
-
 field_data_scaled <- apply_min_max_scaling(field_data, train_stats)
+
+theta <- field_fit_result[["par"]]["theta"]
 
 field_pred_biomass <- growth_curve(sat_fit_result$par, data = field_data_scaled)
 
-r2 <- calc_r2(field_data_scaled, field_pred_biomass)
-r2
-
-
+r2_field <- calc_r2(field_data_scaled, field_pred_biomass)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Identify and handle plots with repeated measurements
+# ---------------- Exporting results ------------------ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-# take only rows with more than 5 observations for the same plot_id
-field_repeats <- field_data_full %>%
-    group_by(plot_id) %>%
-    filter(n() > 2) %>%
-    ungroup()
-
-field_repeats_scaled <- apply_min_max_scaling(field_repeats, train_stats)
-
-pred_repeats <- growth_curve(sat_fit_result$par, data = field_repeats_scaled)
-
-plot(field_repeats$age, field_repeats$biomass, xlab = "Age", ylab = "Biomass", main = "Predictions for site with repeated measurements")
-points(field_repeats_scaled$age, pred_repeats, col = "red", pch = 19)
+# CSV with the R2 and the theta value
+write.csv(data.frame(
+    r2_field = r2_field,
+    r2_satellite = r2_satellite,
+    theta = theta
+), file = "./0_results/0_field_results.csv", row.names = FALSE)
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ---------------- Extended Data Figures ------------------ #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-png("./0_results/figures/extended/field_predictions_scatterplot.png", width = 800, height = 600)
-plot(field_non_repeats$age, field_non_repeats$biomass, xlab = "Field Age", ylab = "Field Biomass", main = "Age vs Biomass")
-points(field_non_repeats$age, pred_field, col = "red", pch = 19)
-dev.off()
-
-
+# Predicted vs. observed scatterplot
 png("./0_results/figures/extended/predicted_vs_observed_field.png", width = 800, height = 600)
-plot(pred_field, field_non_repeats$biomass, xlab = "Predicted AGB", ylab = "Observed AGB", main = "Predicted vs Observed AGB")
-# add 1-1 line to the plot
+plot(field_pred_biomass, field_data_scaled$biomass, xlab = "Predicted AGB", ylab = "Observed AGB", main = "Predicted vs Observed AGB")
 abline(0, 1, col = "red", lty = 2)
 dev.off()
 
 
-
+# Histogram of field ages
 png("./0_results/figures/extended/field_age_histogram.png", width = 1800, height = 1400, res = 300)
-
-ggplot(field, aes(x = age)) +
+ggplot(field_data, aes(x = age)) +
     geom_histogram(
         binwidth = 5,
         fill = "grey30",

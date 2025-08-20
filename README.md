@@ -219,15 +219,18 @@ forest_regrowth
     - "grid_10k_amazon_secondary": all CSVs in directory
     
     Outputs:
-    - "R2_asymptotes.csv": R2 values for each asymptote
-    - "R2_land_use.csv": R2 values for each land use type per biome
+    - "0_asymptotes.csv": R2 values for each asymptote
+    - "0_land_use.csv": R2 values for each land use type per biome
 
 - **0_field.r**:
     Obtains the R2 values for the field data based on the model trained from satellite data
     Inputs:
-    - amazon_model_lag.rds 
-
-
+    - grid_10k_amazon_secondary
+    - field_predictors.csv
+    Outputs:
+    - "0_field_results.csv": R2 value for the field data and fit theta value from field data
+    - "field_age_histogram.png": Histogram of field data ages
+    - "predicted_vs_observed_field.png": Scatterplot of predicted vs observed biomass for field data
 
 - **1_model_performance.r**:
     Stacked barplot.
