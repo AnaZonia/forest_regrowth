@@ -232,23 +232,18 @@ forest_regrowth
     - "field_age_histogram.png": Histogram of field data ages
     - "predicted_vs_observed_field.png": Scatterplot of predicted vs observed biomass for field data
 
-- **1_model_performance.r**:
-    Stacked barplot.
-    Compares the R2 of full_amazon (inflexible) asymptote with the R2 of the nearest_mature (flexible) asymptote.
-    Compares the relative importance of the parameters in the two models.
-    Inputs:
-      - "importance_nearest_mature.csv"
-      - "importance_full_amazon.csv"
+- **1_feature_importance.r**:
+    Figure 2: Barplots.
+    Compares the relative importance of the parameters of full_amazon (inflexible) asymptote with the R2 of the nearest_mature (flexible) asymptote.
+    Compares R2 with three levels of asymptote aggregation with just age as the only predictor.
+    Compares the relative importance of the parameters of the Amazon and Atlantic Forest models (NN asymptote) to show land use is not incorporated.
 
 - **2_lag_field.r**:
     Growth curve line graph.
     Compares the growth rate of intercept and lag models.
     Overlays the average biomass per age from the field data scatterplot.
     Inputs:
-      - "average_biomass_per_age.csv"
-      - "pred_vs_obs_amazon_lag.csv"
-      - "pred_vs_obs_amazon_intercept.csv"
-      - "amazon_model_lag.rds"
+
 
 - **3_future_predictions.r**:
     Barplot 1: Compares the biomass gain by 2050 for:
@@ -264,8 +259,6 @@ forest_regrowth
     Shapefile 1: Predicted biomass gain by 2050 for all pastureland.
     Shapefile 2: Predicted biomass gain by 2050 for all secondary forests.
     Inputs:
-      - "amazon_model_lag.rds"
-      - "amazon_model_intercept.rds"
       - "grid_1k_amazon_secondary": all CSVs in directory
       - "grid_1k_amazon_pastureland": all CSVs in directory
 

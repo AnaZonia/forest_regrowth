@@ -57,7 +57,6 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
     }
 }
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Land Use Comparisons ------------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -67,7 +66,6 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 #   - non_aggregated_5yr
 #   - non_aggregated_10yr)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
 
 results <- data.frame()
 
