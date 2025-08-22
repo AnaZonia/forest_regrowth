@@ -40,8 +40,6 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
 
     if ("lag" %in% basic_pars) {
         all_pars[["lag"]] <- 2.5
-    } else {
-        all_pars[["B0"]] <- mean(data[["biomass"]])
     }
 
     if ("theta" %in% basic_pars) {

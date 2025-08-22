@@ -17,7 +17,7 @@
 #' @param train_data Data frame. Training dataset containing forest attributes
 #'   such as age, biomass, and predictors.
 #' @param pars Named numeric vector. Initial parameter values 
-#' (e.g., B0, k0, theta, lag).
+#' (e.g., k0, theta, lag).
 #' @param conditions List of character strings. Parameter constraints expressed
 #'   as logical conditions (evaluated during optimization).
 #'
@@ -86,7 +86,6 @@ calc_rss <- function(pars, data, conditions) {
 #' with optional predictor effects and lag adjustment.
 #'
 #' @param pars Named numeric vector. Growth model parameters:
-#'   - "B0" : Initial biomass at age zero (intercept).
 #'   - "k0" : Baseline growth rate constant.
 #'   - "theta" : Curve shape parameter.
 #'   - "lag" : Optional regrowth lag (age offset).
@@ -108,11 +107,17 @@ growth_curve <- function(pars, data, lag = 0) {
     # Calculate the growth rate k
     k <- rep(pars[["k0"]], nrow(data))
 
-    age <- data[["age"]]
-
-    if ("lag" %in% names(pars)) {
-        age <- age + lag
+    if ("theta" %in% names(pars)) {
+        theta <- pars[["theta"]]
+        data <- data %>%
+            mutate(age = if_else(satellite == 1, age + lag, age))
+    } else {
+        theta <- 1.2
+        data <- data %>%
+            mutate(age = age + lag)
     }
+    
+    age <- data[["age"]]
 
     if (length(fit_data_pars) > 0) {
         k <- (k + rowSums(sapply(fit_data_pars, function(par) {
@@ -127,11 +132,6 @@ growth_curve <- function(pars, data, lag = 0) {
     # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
     k[which(k > 7)] <- 7
 
-    if ("theta" %in% names(pars)) {
-        theta <- pars[["theta"]]
-    } else {
-        theta <- 0.7787
-    }
 
     return((data[["asymptote"]]) * (1 - exp(-k))^theta)
 }
