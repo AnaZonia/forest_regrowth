@@ -18,10 +18,9 @@ source("2_modelling/2_forward_selection.r")
 source("2_modelling/2_permutation_importance.r")
 
 # Set up parallel processing
-set.seed(10)
+set.seed(1)
 ncore <- 4
 registerDoParallel(cores = ncore)
-
 
 barplot_feat_importance <- function(all_results, group_names) {
     # Combine importance results
@@ -69,7 +68,7 @@ barplot_feat_importance <- function(all_results, group_names) {
         "#003f5c", "#2f4b7c", "#665191", "#a05195",
         "#d45087", "#f95d6a", "#ff7c43", "#ffa600", "#ffc300", "#ffda6a"
     )
-    n_vars <- length(unique(all_data$variable))
+    n_vars <- 8#length(unique(all_data$variable))
     recycled_colors <- rep(custom_colors, length.out = n_vars)
 
     # Plot (final in-memory results)

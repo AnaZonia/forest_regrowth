@@ -23,7 +23,7 @@ non_data_pars <- c("k0", "B0", "lag", "theta")
 conditions <- list('pars["k0"] < 0')
 
 # "mean_def", "mean_temp", "mean_pr", "phh2o" excluded due to multicollinearity
-excluded_columns <- c("age", "biomass", "asymptote", "mean_def", "mean_srad")
+excluded_columns <- c("age", "biomass", "asymptote", "mean_def", "mean_srad", "phh2o")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------ Configurations of parameters ----------------#

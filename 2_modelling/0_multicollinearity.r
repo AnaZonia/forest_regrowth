@@ -89,7 +89,7 @@ df <- csv_files %>%
     filter(biome == 1) %>%
     select(-c("lon", "lat", "quarter_biomass", "ecoreg_biomass", "quarter", "secondary_area", "biome")) %>%
     select(-c(
-        "mean_def", "mean_srad"
+        "mean_def", "mean_srad", "phh2o"
     ))
     # List to update variables found to be multicollinear
 

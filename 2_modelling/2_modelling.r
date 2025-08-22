@@ -27,9 +27,7 @@
 
 run_optim <- function(train_data, pars, conditions) {
 
-    if ("B0" %in% names(pars)) {
-        conditions <- c(conditions, list('pars["B0"] < 0'))
-    } else {
+    if ("lag" %in% names(pars)) {
         conditions <- c(conditions, list('pars["lag"] < 0'))
     }
     if ("theta" %in% names(pars)) {
@@ -63,12 +61,12 @@ run_optim <- function(train_data, pars, conditions) {
 
 calc_rss <- function(pars, data, conditions) {
     if ("lag" %in% names(pars)) {
-        growth_curves <- growth_curve(pars, data, pars[["lag"]])
-        residuals <- growth_curves - data$biomass
-        result <- sum(residuals^2)
+        predictions <- growth_curve(pars, data, pars[["lag"]])
     } else {
-        result <- sum((growth_curve(pars, data) - data$biomass)^2)
+        predictions <- growth_curve(pars, data)
     }
+
+    result <- sum((predictions - data$biomass)^2)
 
     if (any(sapply(conditions, function(cond) eval(parse(text = cond))))) {
         return(-Inf)
@@ -101,7 +99,6 @@ calc_rss <- function(pars, data, conditions) {
 #' @details
 #' - Growth rates are constrained for numerical stability:
 #'   values below "1e-10" are floored, and values above 7 are capped.
-#' - If "theta" is being fit on field data (3_analysis/0_field), "B0" is internally fixed at 0.
 
 growth_curve <- function(pars, data, lag = 0) {
 
@@ -114,7 +111,6 @@ growth_curve <- function(pars, data, lag = 0) {
     age <- data[["age"]]
 
     if ("lag" %in% names(pars)) {
-        pars[["B0"]] <- 0
         age <- age + lag
     }
 
@@ -133,11 +129,10 @@ growth_curve <- function(pars, data, lag = 0) {
 
     if ("theta" %in% names(pars)) {
         theta <- pars[["theta"]]
-        pars[["B0"]] <- 0
     } else {
-        theta <- 1.211
+        theta <- 1.2
     }
 
-    return(pars[["B0"]] + (data[["asymptote"]] - pars[["B0"]]) * (1 - exp(-k))^theta)
+    return((data[["asymptote"]]) * (1 - exp(-k))^theta)
 }
 

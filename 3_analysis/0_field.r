@@ -37,6 +37,7 @@ apply_min_max_scaling <- function(data, train_stats) {
     return(data)
 }
 
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ----------------- Field Data Cleaning ------------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -78,7 +79,6 @@ field_data <- dummy_cols(field_data,
 # group_by(site_id) %>%
 # slice_sample(n = 1) %>%
 # ungroup() %>%
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------ Train Model on Satellite Data -------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -101,6 +101,31 @@ sat_data_scaled <- normalize_independently(satellite_data)
 train_stats <- sat_data_scaled$train_stats
 sat_data_scaled <- sat_data_scaled$train_data
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------------- Get theta from field data --------------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# - We use only age to find the shape parameter
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+field_data_scaled <- apply_min_max_scaling(field_data, train_stats)
+
+init_params <- c(
+    k0 = 0.05, # baseline growth rate constant
+    theta = 1 # shape parameter
+)
+
+field_fit_result <- run_optim(field_data_scaled, init_params, conditions)
+theta <- field_fit_result[["par"]]["theta"]
+theta
+
+# these values are then used in 2_modelling/2_modelling.r
+# as the default theta value
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ----- Get R2 of sat_model when predicting field data ---- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
 init_params <- find_combination_pars(
     basic_pars = basic_pars_options[["lag"]],
     data_pars = data_pars_options(colnames(satellite_data))[["all_mean_climate"]],
@@ -110,42 +135,44 @@ init_params <- find_combination_pars(
 sat_fit_result <- run_optim(sat_data_scaled, init_params, conditions)
 sat_pred_biomass <- growth_curve(sat_fit_result$par, data = sat_data_scaled, lag = sat_fit_result$par["lag"])
 r2_satellite <- calc_r2(sat_data_scaled, sat_pred_biomass)
+r2_satellite
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# --------------- Get theta from field data --------------- #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# - We remove other predictors (keep only the basic)
-# to avoid local minima
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-train_stats <- train_stats %>%
-    filter(variable %in% names(sat_fit_result$par))
-
-field_data_scaled <- apply_min_max_scaling(field_data, train_stats)
-
-init_params <- init_params[c("k0")]
-init_params$theta <- 1
-init_params$B0 <- 0
-
-field_fit_result <- run_optim(field_data_scaled, init_params, conditions)
-theta <- field_fit_result[["par"]]["theta"]
-
-theta
-# this value (1.05) is then used in 2_modelling/2_modelling.r
-# as the default theta value
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ----- Get R2 of sat_model when predicting field data ---- #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-field_data_scaled <- apply_min_max_scaling(field_data, train_stats)
-
-theta <- field_fit_result[["par"]]["theta"]
-
-field_pred_biomass <- growth_curve(sat_fit_result$par, data = field_data_scaled)
+field_pred_biomass <- growth_curve(field_fit_result$par, data = field_data_scaled)
 
 r2_field <- calc_r2(field_data_scaled, field_pred_biomass)
+r2_field
+
+
+df <- data.frame(
+    Predicted = field_pred_biomass,
+    Observed = field_data_scaled$biomass
+)
+
+ext <- ggplot(df, aes(x = Predicted, y = Observed)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red", linewidth = 2) +
+    labs(
+        x = "Predicted Biomass (Mg/ha)",
+        y = "Observed Biomass (Mg/ha)"
+    ) +
+    coord_cartesian(expand = FALSE) +
+    theme(
+        aspect.ratio = 1,
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white"),
+        axis.line = element_line(color = "black"),
+        axis.title = element_text(color = "black", size = 28, family = "Helvetica"),
+        axis.text = element_text(color = "black", size = 18, family = "Helvetica"),
+        legend.position = "none"
+    )
+
+# Save to file
+ggsave("./0_results/plot.png",
+    plot = ext
+)
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Exporting results ------------------ #
