@@ -18,7 +18,7 @@ source("2_modelling/2_forward_selection.r")
 source("2_modelling/2_permutation_importance.r")
 
 # Set up parallel processing
-set.seed(1)
+set.seed(10)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
@@ -184,9 +184,7 @@ for (land_use_aggregation in land_use_list) {
 # Figure - R2 per Asymptote with age_only
 # ------------------------------------------------- #
 
-library(ggplot2)
-library(tidyverse)
-library(RColorBrewer)
+
 
 R2_asymptote <- read.csv("./0_results/0_asymptotes.csv")
 # Filter for the variables of interest
@@ -208,4 +206,10 @@ p <- ggplot(
         legend.position = "none"
     )
 
-p
+ggsave(
+    paste0("./0_results/figures/figure_2_asymptote_barplot.jpg"),
+    plot = p,
+    width = 10,
+    height = 6,
+    dpi = 300
+)

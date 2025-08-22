@@ -88,7 +88,9 @@ df <- csv_files %>%
     bind_rows() %>%
     filter(biome == 1) %>%
     select(-c("lon", "lat", "quarter_biomass", "ecoreg_biomass", "quarter", "secondary_area", "biome")) %>%
-    select(-c("mean_def", "mean_temp", "mean_pr", "phh2o"))
+    select(-c(
+        "mean_def", "mean_srad"
+    ))
     # List to update variables found to be multicollinear
 
 predictors <- setdiff(colnames(df), "biomass")

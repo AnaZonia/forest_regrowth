@@ -46,10 +46,6 @@ import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest
         mutate(across(any_of(categorical), as.factor)) %>%
         filter(biome == biome_num)
 
-    # remove columns with less than 100 non-zero values
-    non_zero_counts <- colSums(df != 0, na.rm = TRUE)
-    df <- df[, non_zero_counts > 100]
-
     # remove columns with less than 50 unique values
     df <- df %>%
         group_by(across(any_of(categorical))) %>%

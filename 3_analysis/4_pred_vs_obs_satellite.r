@@ -13,23 +13,11 @@ source("3_modelling/2_cross_validate.r")
 source("2_modelling/2_forward_selection.r")
 
 library(tidyverse)
+library(ggplot2)
 
 set.seed(1)
 
 data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000)
-
-# remove the columns in data of the form ecoreg_xxx that have the value xxx not present in field_non_repeats$ecoreg
-remove_unused_onehot <- function(data, field_non_repeats, prefix) {
-    cols <- grep(paste0("^", prefix, "_"), colnames(data), value = TRUE)
-    valid <- paste0(prefix, "_", unique(field_non_repeats[[prefix]]))
-    cols_to_remove <- setdiff(cols, valid)
-    data %>% select(-all_of(cols_to_remove))
-}
-
-data <- data %>%
-    remove_unused_onehot(field_non_repeats, "ecoreg") %>%
-    remove_unused_onehot(field_non_repeats, "topography")
-
 
 # Fit the model on the full data
 norm_data <- normalize_independently(data)
@@ -46,8 +34,32 @@ final_model <- run_optim(norm_data, pars_init, conditions)
 
 pred <- growth_curve(final_model$par, data = norm_data, lag = final_model$par["lag"])
 
-# save plot as png
-png("./0_results/figures/extended/predicted_vs_observed_satellite.png", width = 800, height = 600)
-plot(pred, norm_data$biomass, xlab = "Predicted AGB", ylab = "Observed AGB", main = "Predicted vs Observed AGB")
-abline(0, 1, col = "red", lty = 2)
-dev.off()
+# Assuming pred = predicted AGB, obs = norm_data$biomass
+df <- data.frame(
+    Predicted = pred,
+    Observed = norm_data$biomass
+)
+
+ext <- ggplot(df, aes(x = Predicted, y = Observed)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red", linewidth = 2) +
+    labs(
+        x = "Predicted Biomass (Mg/ha)",
+        y = "Observed Biomass (Mg/ha)"
+    ) +
+    coord_cartesian(expand = FALSE) +
+    theme(
+        aspect.ratio = 1,
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white"),
+        axis.line = element_line(color = "black"),
+        axis.title = element_text(color = "black", size = 28, family = "Helvetica"),
+        axis.text = element_text(color = "black", size = 18, family = "Helvetica"),
+        legend.position = "none"
+    )
+
+# Save to file
+ggsave("./0_results/figures/extended/predicted_vs_observed_satellite.png", 
+    plot = ext
+)

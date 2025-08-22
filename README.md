@@ -215,8 +215,12 @@ forest_regrowth
     - Land Use (non_aggregated_all, aggregated_all, non_aggregated_5yr, non_aggregated_10yr)
     - Biomes (Amazon, Atlantic Forest)
 
-    Inputs:
-    - "grid_10k_amazon_secondary": all CSVs in directory
+    Inputs (all CSVs in directories):
+    - "grid_10k_amazon_secondary"
+    - "land_use_aggregated_all"
+    - "land_use_non_aggregated_all"
+    - "land_use_non_aggregated_5yr"
+    - "land_use_non_aggregated_10yr"
     
     Outputs:
     - "0_asymptotes.csv": R2 values for each asymptote
@@ -237,13 +241,28 @@ forest_regrowth
     Compares the relative importance of the parameters of full_amazon (inflexible) asymptote with the R2 of the nearest_mature (flexible) asymptote.
     Compares R2 with three levels of asymptote aggregation with just age as the only predictor.
     Compares the relative importance of the parameters of the Amazon and Atlantic Forest models (NN asymptote) to show land use is not incorporated.
+    Inputs (all CSVs in directories):
+    - "grid_10k_amazon_secondary"
+    - "land_use_aggregated_all"
+    - "land_use_non_aggregated_all"
+    - "land_use_non_aggregated_5yr"
+    - "land_use_non_aggregated_10yr"
+    Outputs:
+    - figure_2_model_performance.jpg
+    - figure_2_asymptote_barplot.jpg
+
+
 
 - **2_lag_field.r**:
     Growth curve line graph.
     Compares the growth rate of intercept and lag models.
     Overlays the average biomass per age from the field data scatterplot.
     Inputs:
-
+    - "grid_10k_amazon_secondary"
+    - "field_predictors.csv"
+    Outputs:
+    - "lag_field_biomass.jpeg"
+    - "lag_field_biomass_legend.jpeg"
 
 - **3_future_predictions.r**:
     Barplot 1: Compares the biomass gain by 2050 for:
@@ -261,6 +280,26 @@ forest_regrowth
     Inputs:
       - "grid_1k_amazon_secondary": all CSVs in directory
       - "grid_1k_amazon_pastureland": all CSVs in directory
+    Outputs:
+      - "figure_4_c.jpeg"
+      - "figure_4_d.jpeg"
+      - "pred_2050_pastureland_all.shp"
+      - "pred_2050_secondary_all.shp"
+
+- **4_mature_distance_edge.r**:
+    Shows the biomass of mature forests in relation to the distance to the nearest forest edge.
+    Inputs:
+      - "mature_biomass_distance.csv"
+    Outputs:
+      - "mature_biomass_distance_edge.jpeg"
+  
+- **4_pred_vs_obs_satellite.r**:
+    Shows the predicted vs observed biomass for the satellite data.
+    Inputs:
+      - "grid_10k_amazon_secondary"
+    Outputs:
+      - "predicted_vs_observed_satellite.png"
+  
 
 
 ## Getting Started

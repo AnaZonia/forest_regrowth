@@ -159,11 +159,42 @@ write.csv(data.frame(
 ), file = "./0_results/0_field_results.csv", row.names = FALSE)
 
 
-# Predicted vs. observed scatterplot
-png("./0_results/figures/extended/predicted_vs_observed_field.png", width = 800, height = 600)
-plot(field_pred_biomass, field_data_scaled$biomass, xlab = "Predicted AGB", ylab = "Observed AGB", main = "Predicted vs Observed AGB")
-abline(0, 1, col = "red", lty = 2)
-dev.off()
+
+
+
+# Assuming pred = predicted AGB, obs = norm_data$biomass
+df <- data.frame(
+    Predicted = field_pred_biomass,
+    Observed = field_data_scaled$biomass
+)
+
+ext <- ggplot(df, aes(x = Predicted, y = Observed)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red", linewidth = 2) +
+    labs(
+        x = "Predicted Biomass (Mg/ha)",
+        y = "Observed Biomass (Mg/ha)"
+    ) +
+    coord_cartesian(expand = FALSE) +
+    theme(
+        aspect.ratio = 1,
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white"),
+        axis.line = element_line(color = "black"),
+        axis.title = element_text(color = "black", size = 28, family = "Helvetica"),
+        axis.text = element_text(color = "black", size = 18, family = "Helvetica"),
+        legend.position = "none"
+    )
+
+# Save to file
+ggsave("./0_results/figures/extended/predicted_vs_observed_field.png",
+    plot = ext
+)
+
+
+
+
 
 
 # Histogram of field ages
