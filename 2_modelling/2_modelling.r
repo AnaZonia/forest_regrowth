@@ -6,6 +6,8 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+theta_lag <- read.csv("./0_results/theta_lag.csv")
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------ Optimization for Forest Regrowth ------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -59,6 +61,13 @@ run_optim <- function(train_data, pars, conditions) {
 #' return "-Inf", so that they are rejected during optimization.
 
 
+# if ("lag" %in% names(pars)) {
+#     lag <- pars[["lag"]]
+# } else {
+#     lag <- theta_lag$lag
+# }
+
+
 calc_rss <- function(pars, data, conditions) {
     if ("lag" %in% names(pars)) {
         predictions <- growth_curve(pars, data, pars[["lag"]])
@@ -109,12 +118,10 @@ growth_curve <- function(pars, data, lag = 0) {
 
     if ("theta" %in% names(pars)) {
         theta <- pars[["theta"]]
-        data <- data %>%
-            mutate(age = if_else(satellite == 1, age + lag, age))
+        data <- mutate(data, age = replace(age, satellite == 1, age + lag))
     } else {
-        theta <- 1.2
-        data <- data %>%
-            mutate(age = age + lag)
+        theta <- theta_lag$theta
+        data[["age"]] <- data[["age"]] + lag
     }
     
     age <- data[["age"]]

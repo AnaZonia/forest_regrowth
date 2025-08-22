@@ -37,8 +37,9 @@ library(fastDummies)
 import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest_mature") {
 
     csv_files <- list.files(paste0("./0_data/", path), pattern = "\\.csv$", full.names = TRUE)
+
     df <- csv_files %>%
-        map(read_csv) %>%
+        map(~ suppressMessages(read_csv(.x, show_col_types = FALSE, progress = FALSE))) %>%
         bind_rows()
 
     # Convert categorical to factors

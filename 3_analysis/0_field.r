@@ -23,6 +23,7 @@ source("2_modelling/2_cross_validate.r")
 source("2_modelling/2_forward_selection.r")
 
 # Set up parallel processing
+set.seed(1)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
@@ -36,15 +37,10 @@ apply_min_max_scaling <- function(data, train_stats) {
     return(data)
 }
 
+theta_vec <- numeric(5)
+lag_vec <- numeric(5)
 
-
-theta_list <- list()
-lag_list <- list()
-
-for (i in range(1:5)) {
-        
-    set.seed(i)
-
+for (i in 1:10) {
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     # ----------------- Field Data Cleaning ------------------- #
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -124,21 +120,32 @@ for (i in range(1:5)) {
     field_data_scaled$satellite <- 0
     unite_field_satellite <- rbind(field_data_scaled, sat_data_scaled)
 
-    init_params <- find_combination_pars(
-        basic_pars = c("theta", "lag", "k0"),
-        data_pars = data_pars_options(colnames(unite_field_satellite))[["all_mean_climate"]],
-        unite_field_satellite
+    init_params <- c(
+        "k0" = 0.01,  # Initial guess for k0
+        "theta" = 1.2,  # Initial guess for theta
+        "lag" = 2.5  # Initial guess for lag
     )
+
 
     model <- run_optim(unite_field_satellite, init_params, conditions)
 
-    theta_list[[i]] <- model[["par"]]["theta"]
-    lag_list[[i]] <- model[["par"]]["lag"]
+    theta_vec[i] <- model[["par"]]["theta"]
+    lag_vec[i] <- model[["par"]]["lag"]
+
 
 }
 
-# run this 5 times and get mean and sd of theta and lag
+# get indices of theta_vec where theta is greater than 1
+valid_indices <- which(theta_vec >= 1)
+# get mean of theta_vec and lag_vec for those indices
+theta <- mean(theta_vec[valid_indices])
+lag <- mean(lag_vec[valid_indices])
 
+# CSV with the R2 and the theta value
+write.csv(data.frame(
+    theta = theta,
+    lag = lag
+), file = "./0_results/theta_lag.csv", row.names = FALSE)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -146,10 +153,9 @@ for (i in range(1:5)) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-
 init_params <- find_combination_pars(
     basic_pars = basic_pars_options[["lag"]],
-    data_pars = data_pars_options(colnames(satellite_data))[["all_mean_climate"]],
+    data_pars = data_pars_options(colnames(sat_data_scaled))[["all_mean_climate"]],
     sat_data_scaled
 )
 
@@ -157,7 +163,6 @@ sat_fit_result <- run_optim(sat_data_scaled, init_params, conditions)
 sat_pred_biomass <- growth_curve(sat_fit_result$par, data = sat_data_scaled, lag = sat_fit_result$par["lag"])
 r2_satellite <- calc_r2(sat_data_scaled, sat_pred_biomass)
 r2_satellite
-
 
 field_pred_biomass <- growth_curve(field_fit_result$par, data = field_data_scaled)
 
@@ -168,13 +173,6 @@ r2_field
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Exporting results ------------------ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-# CSV with the R2 and the theta value
-write.csv(data.frame(
-    r2_field = r2_field,
-    r2_satellite = r2_satellite,
-    theta = theta
-), file = "./0_results/0_field_results.csv", row.names = FALSE)
 
 
 

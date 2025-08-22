@@ -25,12 +25,13 @@ train_stats <- norm_data$train_stats
 norm_data <- norm_data$train_data
 
 pars_init <- find_combination_pars(
-    basic_pars = basic_pars_options[["lag"]],
+    basic_pars = c("k0", "lag"),
     data_pars = data_pars_options(colnames(data))[["all_mean_climate"]],
     norm_data
 )
 
 final_model <- run_optim(norm_data, pars_init, conditions)
+final_model
 
 pred <- growth_curve(final_model$par, data = norm_data, lag = final_model$par["lag"])
 

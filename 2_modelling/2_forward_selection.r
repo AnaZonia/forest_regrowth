@@ -6,7 +6,6 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------- Identify Optimal Parameter Combination ------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -42,10 +41,6 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
         all_pars[["lag"]] <- 2.5
     }
 
-    if ("theta" %in% basic_pars) {
-        all_pars[["theta"]] <- 1
-    }
-
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Helper function to group dummy variables
     for (var in categorical) {
@@ -54,7 +49,6 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
             data_pars <- c(data_pars[-dummy_indices], var)
         }
     }
-
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Initialize the best model with basic parameters
