@@ -73,12 +73,11 @@ field_data <- dummy_cols(field_data,
     remove_first_dummy = TRUE,
     remove_selected_columns = TRUE
 )
+# remove points with biomass > 400
+field_data <- field_data %>%
+    filter(biomass <= 200)
 
 
-# %>%
-# group_by(site_id) %>%
-# slice_sample(n = 1) %>%
-# ungroup() %>%
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------ Train Model on Satellite Data -------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -107,23 +106,102 @@ sat_data_scaled <- sat_data_scaled$train_data
 # - We use only age to find the shape parameter
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+
 field_data_scaled <- apply_min_max_scaling(field_data, train_stats)
+
+# unite field and satellite data
+common_cols <- intersect(colnames(field_data_scaled), colnames(sat_data_scaled))
+field_data_scaled <- field_data_scaled[, common_cols]
+sat_data_scaled1 <- sat_data_scaled[, common_cols]
+sat_data_scaled1$satellite <- 1
+field_data_scaled$satellite <- 0
+unite_field_satellite <- rbind(field_data_scaled, sat_data_scaled1)
 
 init_params <- c(
     k0 = 0.05, # baseline growth rate constant
-    theta = 1 # shape parameter
+    theta = 1, # shape parameter
+    lag = 2.5
 )
 
-field_fit_result <- run_optim(field_data_scaled, init_params, conditions)
+growth_curve <- function(pars, data, lag = 0) {
+    fit_data_pars <- setdiff(names(pars), c(non_data_pars, "age"))
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Calculate the growth rate k
+    k <- rep(pars[["k0"]], nrow(data))
+
+    data <- data %>%
+        mutate(age = if_else(satellite == 1, age + lag, age))
+
+    age <- data[["age"]]
+
+    if (length(fit_data_pars) > 0) {
+        k <- (k + rowSums(sapply(fit_data_pars, function(par) {
+            pars[[par]] * data[[par]]
+        }, simplify = TRUE))) * (age)
+    } else {
+        k <- k * age
+    }
+
+    # Constrains k to avoid negative values
+    k[which(k < 1e-10)] <- 1e-10
+    # Constrains k to avoid increasinly small values for exp(k) (local minima at high k)
+    k[which(k > 7)] <- 7
+
+    if ("theta" %in% names(pars)) {
+        theta <- pars[["theta"]]
+    } else {
+        theta <- 0.7787
+    }
+
+    return((data[["asymptote"]]) * (1 - exp(-k))^theta)
+}
+
+
+field_fit_result <- run_optim(unite_field_satellite, init_params, conditions)
+
+
 theta <- field_fit_result[["par"]]["theta"]
+
+
+unite_field_satellite <- unite_field_satellite %>%
+    mutate(age = if_else(satellite == 1, age + field_fit_result[["par"]]["lag"], age))
+
+
+ages <- 1:40
+k <- field_fit_result[["par"]]["k0"] * ages
+
+df_growth <- data.frame(
+    Age = ages,
+    Growth = 234 * (1 - exp(-k))^theta
+)
+
+ggplot(df_growth, aes(x = Age, y = Growth)) +
+    geom_line(size = 1.2, color = "steelblue") +
+    geom_point(
+        data = unite_field_satellite,
+        aes(x = age, y = biomass),
+        color = "darkred", size = 2, alpha = 0.7
+    ) +
+    labs(
+        x = "Age (years)",
+        y = "Biomass",
+        title = paste("Growth Curve (Theta =", round(theta, 2), ")")
+    ) +
+    theme_minimal()
+
 theta
 
-# these values are then used in 2_modelling/2_modelling.r
-# as the default theta value
+# run this 5 times and get mean and sd of theta and lag
+
+
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ----- Get R2 of sat_model when predicting field data ---- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 
 
 init_params <- find_combination_pars(
@@ -142,36 +220,6 @@ field_pred_biomass <- growth_curve(field_fit_result$par, data = field_data_scale
 
 r2_field <- calc_r2(field_data_scaled, field_pred_biomass)
 r2_field
-
-
-df <- data.frame(
-    Predicted = field_pred_biomass,
-    Observed = field_data_scaled$biomass
-)
-
-ext <- ggplot(df, aes(x = Predicted, y = Observed)) +
-    geom_point() +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red", linewidth = 2) +
-    labs(
-        x = "Predicted Biomass (Mg/ha)",
-        y = "Observed Biomass (Mg/ha)"
-    ) +
-    coord_cartesian(expand = FALSE) +
-    theme(
-        aspect.ratio = 1,
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_rect(fill = "white"),
-        axis.line = element_line(color = "black"),
-        axis.title = element_text(color = "black", size = 28, family = "Helvetica"),
-        axis.text = element_text(color = "black", size = 18, family = "Helvetica"),
-        legend.position = "none"
-    )
-
-# Save to file
-ggsave("./0_results/plot.png",
-    plot = ext
-)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -225,26 +273,29 @@ ggsave("./0_results/figures/extended/predicted_vs_observed_field.png",
 
 
 # Histogram of field ages
-png("./0_results/figures/extended/field_age_histogram.png", width = 1800, height = 1400, res = 300)
-ggplot(field_data, aes(x = age)) +
-    geom_histogram(
-        binwidth = 5,
-        fill = "grey30",
-        color = "white",
-        boundary = 0
-    ) +
-    labs(
-        x = "Forest age (years)",
-        y = "Number of plots"
-    ) +
-    theme_minimal(base_size = 14) +
-    theme(
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.text = element_text(color = "black", size = 20),
-        axis.title = element_text(face = "bold", size = 22),
-        axis.ticks = element_line(color = "black"),
-        plot.margin = margin(10, 10, 10, 10)
-    )
 
-dev.off()
+ext <- ggplot(field_data, aes(x = age)) +
+            geom_histogram(
+                binwidth = 5,
+                fill = "grey30",
+                color = "white",
+                boundary = 0
+            ) +
+            labs(
+                x = "Forest age (years)",
+                y = "Number of plots"
+            ) +
+            theme_minimal(base_size = 14) +
+            theme(
+                panel.grid.major = element_blank(),
+                panel.grid.minor = element_blank(),
+                axis.text = element_text(color = "black", size = 20),
+                axis.title = element_text(face = "bold", size = 22),
+                axis.ticks = element_line(color = "black"),
+                plot.margin = margin(10, 10, 10, 10)
+            )
+
+# Save to file
+ggsave("./0_results/figures/extended/field_age_histogram.png",
+    plot = ext, width = 1800, height = 1400, res = 300
+)

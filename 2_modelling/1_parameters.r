@@ -17,7 +17,7 @@ categorical <- c("ecoreg", "topography", "last_lu")
 binary <- c("floodable_forests", "protec", "indig")
 soil <- c("nitro", "phh2o", "ocd", "cec", "sand", "clay", "soc", "cfvo")
 
-non_data_pars <- c("k0", "B0", "lag", "theta")
+non_data_pars <- c("k0", "lag", "theta")
 
 # Conditions for parameter constraints
 conditions <- list('pars["k0"] < 0')
@@ -31,7 +31,7 @@ excluded_columns <- c("age", "biomass", "asymptote", "mean_def", "mean_srad", "p
 
 basic_pars_options <- list(
     lag = c("lag", "k0"),
-    intercept = c("B0", "k0")
+    intercept = c("k0")
 )
 
 data_pars_options <- function(colnames) {
