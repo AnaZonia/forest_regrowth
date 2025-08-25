@@ -15,7 +15,7 @@ source("2_modelling/2_forward_selection.r")
 library(tidyverse)
 library(ggplot2)
 
-set.seed(1)
+set.seed(2)
 
 data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000)
 
@@ -24,16 +24,31 @@ norm_data <- normalize_independently(data)
 train_stats <- norm_data$train_stats
 norm_data <- norm_data$train_data
 
-pars_init <- find_combination_pars(
-    basic_pars = c("k0", "lag"),
-    data_pars = data_pars_options(colnames(data))[["all_mean_climate"]],
-    norm_data
+
+# pars_init <- find_combination_pars(
+#     basic_pars = c("k0"),
+#     data_pars = data_pars_options(colnames(data))[["all_mean_climate"]],
+#     norm_data
+# )
+
+pars_init <- c(
+    k0 = 0.01, # Initial guess for k0,
+    sur_cover = 0
 )
+
+source("2_modelling/2_modelling.r")
+
 
 final_model <- run_optim(norm_data, pars_init, conditions)
 final_model
 
-pred <- growth_curve(final_model$par, data = norm_data, lag = final_model$par["lag"])
+pred <- growth_curve(final_model$par, data = norm_data)
+
+
+r2 <- calc_r2(norm_data, pred)
+r2
+
+
 
 # Assuming pred = predicted AGB, obs = norm_data$biomass
 df <- data.frame(
@@ -59,6 +74,8 @@ ext <- ggplot(df, aes(x = Predicted, y = Observed)) +
         axis.text = element_text(color = "black", size = 18, family = "Helvetica"),
         legend.position = "none"
     )
+ext
+
 
 # Save to file
 ggsave("./0_results/figures/extended/predicted_vs_observed_satellite.png", 
