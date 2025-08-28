@@ -95,6 +95,18 @@ field_data <- field_data %>%
     slice_sample(n = 1, weight_by = weight) %>%
     ungroup()
 
+# # get average satellite biomass per age
+# field_data <- field_data %>%
+#     select(age, biomass) %>%
+#     group_by(age) %>%
+#     summarise(
+#         mean_obs = mean(biomass, na.rm = TRUE),
+#         sd_obs = sd(biomass, na.rm = TRUE)
+#     ) %>%
+#     mutate(age = age + lag)
+
+
+
 # get average satellite biomass per age
 aggregated_satellite <- norm_data %>%
     select(age, biomass) %>%
@@ -184,7 +196,7 @@ p <- ggplot() +
 
     # Field data points
     geom_point(
-        data = aggregated_field,
+        data = field_data,
         aes(
             x = age, y = biomass,
             color = "Field Measurements"

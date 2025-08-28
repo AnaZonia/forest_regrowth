@@ -6,8 +6,6 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-theta_lag <- read.csv("./0_results/theta_lag.csv")
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------ Optimization for Forest Regrowth ------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -60,27 +58,6 @@ run_optim <- function(train_data, pars, conditions) {
 #' - Constraint violations or invalid objective values automatically
 #' return "-Inf", so that they are rejected during optimization.
 
-# calc_rss <- function(pars, data, conditions) {
-#     if ("lag" %in% names(pars)) {
-#         predictions <- growth_curve(pars, data, pars[["lag"]])
-#     } else {
-#         predictions <- growth_curve(pars, data)
-#     }
-
-#     # Assign weights: higher (e.g., 2) where biomass < 25, otherwise 1
-#     weights <- ifelse(data$biomass < 25, 10, 1)
-
-#     # Weighted residual sum of squares
-#     result <- sum(weights * (predictions - data$biomass)^2)
-
-#     if (any(sapply(conditions, function(cond) eval(parse(text = cond))))) {
-#         return(-Inf)
-#     } else if (is.na(result) || result == 0) {
-#         return(-Inf)
-#     } else {
-#         return(result)
-#     }
-# }
 
 calc_rss <- function(pars, data, conditions) {
     if ("lag" %in% names(pars)) {
@@ -124,7 +101,6 @@ calc_rss <- function(pars, data, conditions) {
 
 growth_curve <- function(pars, data, lag = 0) {
 
-    # lag = 20
     fit_data_pars <- setdiff(names(pars), c(non_data_pars, "age"))
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -135,12 +111,11 @@ growth_curve <- function(pars, data, lag = 0) {
         theta <- pars[["theta"]]
         data <- mutate(data, age = ifelse(satellite == 1, age + lag, age))
     } else {
-        theta <- 2
+        theta <- 1
         data[["age"]] <- data[["age"]] + lag
+        # data <- mutate(data, age = ifelse(satellite == 1, age + lag, age))
     }
     
-    # theta <- 2
-    # data <- mutate(data, age = ifelse(satellite == 1, age + lag, age))
 
     age <- data[["age"]]
 
