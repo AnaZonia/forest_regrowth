@@ -54,14 +54,14 @@ calc_r2 <- function(data, pred) {
 #' - The model is trained using `run_optim` and evaluated using `calc_r2`.
 
 
-
-
 cross_validate <- function(data, basic_pars, data_pars, conditions) {
 
     indices <- sample(c(1:5), nrow(data), replace = TRUE)
     data$pred_cv <- NA
     data$pred_final <- NA
     r2_list <- numeric(5)
+
+    r2_df <- data.frame()
 
     for (index in 1:5) {
         # Define the test and train sets
@@ -75,9 +75,11 @@ cross_validate <- function(data, basic_pars, data_pars, conditions) {
 
         # Function to perform direct optimization
         pars_init <- find_combination_pars(basic_pars, data_pars, train_data)
+ 
+        r2_df <- rbind(r2_df, pars_init[[2]])
 
         # Run the model function on the training set and evaluate on the test set
-        model <- run_optim(train_data, pars_init, conditions)
+        model <- run_optim(train_data, pars_init[[1]], conditions)
 
         pred_cv <- growth_curve(model$par, test_data, lag = model$par["lag"])
 
@@ -88,5 +90,10 @@ cross_validate <- function(data, basic_pars, data_pars, conditions) {
         print(r2)
     }
 
+    mean_r2 <- mean(r2_list)
+    sd_r2 <- sd(r2_list)
+
+
     return(r2_list)
 }
+

@@ -18,19 +18,11 @@ source("2_modelling/2_forward_selection.r")
 source("2_modelling/2_permutation_importance.r")
 
 # Set up parallel processing
-set.seed(1)
+set.seed(2)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
-barplot_feat_importance <- function(all_results, group_names) {
-    # Combine importance results
-    all_data <- bind_rows(all_results) %>%
-        filter(importance_pct > 1)
-
-    all_data$group <- factor(
-        all_data$group,
-        levels = group_names
-    )
+barplot_r2_increase <- function(all_results, group_names) {
 
     # Map variable short names to full names
     variable_names <- c(
@@ -60,35 +52,31 @@ barplot_feat_importance <- function(all_results, group_names) {
         mean_pdsi = "Mean Palmer Drought Severity Index"
     )
 
+    r2_df$asymptote <- "nearest_mature"
 
-    all_data$variable <- factor(all_data$variable, levels = names(variable_names))
+    r2_df$par <- factor(r2_df$par, levels = r2_df$par)
 
-    # Custom colors as before
+    r2_df <- r2_df %>%
+        filter(par != "age")
+
     custom_colors <- c(
         "#003f5c", "#2f4b7c", "#665191", "#a05195",
         "#d45087", "#f95d6a", "#ff7c43", "#ffa600", "#ffc300", "#ffda6a"
     )
-    n_vars <- 8#length(unique(all_data$variable))
-    recycled_colors <- rep(custom_colors, length.out = n_vars)
 
-    # Plot (final in-memory results)
-    p <- ggplot(all_data, aes(x = group, y = importance_scaled, fill = variable)) +
-        geom_bar(stat = "identity") +
-        scale_x_discrete(
-            labels = group_names,
-            name = "Asymptote"
-        ) +
+    recycled_colors <- rep(custom_colors, length.out = 10)
+
+    p <- ggplot(r2_df, aes(x = asymptote, y = r2_diff, fill = par)) +
+        geom_bar(position = "stack", stat = "identity") +
         scale_y_continuous(
-            expand = expansion(mult = c(0, 0.05)),
-            name = "R²"
+            name = "R² Increase",
         ) +
-        scale_fill_manual(
-            values = recycled_colors,
-            labels = variable_names,
-            name = "Variable"
-        ) +
+        scale_fill_manual(values = recycled_colors, labels = variable_names[levels(r2_df$par)], name = "Variable") +
         theme_minimal(base_size = 12) +
         theme(
+            axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            plot.title = element_blank(),
             legend.position = "right",
             text = element_text(size = 12),
             axis.text = element_text(size = 16),
@@ -96,9 +84,16 @@ barplot_feat_importance <- function(all_results, group_names) {
             panel.grid.major.x = element_blank(),
             panel.grid.minor = element_blank()
         )
-    
+
+    p
+
+
     return(p)
 }
+ggplot(r2_df, aes(x = par, y = r2_diff, fill = group)) +
+    geom_bar(stat = "identity") +
+    labs(y = "R² Increase", x = "Variable") +
+    theme_minimal()
 
 
 
@@ -106,7 +101,6 @@ barplot_feat_importance <- function(all_results, group_names) {
 # ------------- Amazon barplot (two asymptotes) ----------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-all_results <- list()
 groups <- c("full_amazon", "nearest_mature")
 group_names <- c("Amazon-wide Average", "Nearest Neighbor")
 
@@ -123,12 +117,14 @@ for (i in seq_along(groups)) {
     importance_results <- calculate_permutation_importance(model, norm_data, data_pars)
     importance_results$importance_scaled <- importance_results$importance_pct * r2 / 100
     importance_results$group <- group_names[i]
-    all_results[[i]] <- importance_results
+
+
 }
 
 p <- barplot_feat_importance(all_results, group_names)
+p
 ggsave(
-    "./0_results/figures/model_performance.jpg",
+    "./0_results/figures/model_performance_def_phh2o_2.jpg",
     plot = p,
     width = 10,
     height = 6,
@@ -142,6 +138,7 @@ ggsave(
 
 
 land_use_list <- list.files(paste0("./0_data"), pattern = "land_use", full.names = FALSE)
+
 for (land_use_aggregation in land_use_list) {
     all_results <- list()
     group_names <- c("Amazon", "Atlantic Forest")
@@ -163,15 +160,8 @@ for (land_use_aggregation in land_use_list) {
         i <- i + 1
     }
 
-    p <- barplot_feat_importance(all_results, group_names)
 
-    ggsave(
-        paste0("./0_results/figures/model_performance", land_use_aggregation, ".jpg"),
-        plot = p,
-        width = 10,
-        height = 6,
-        dpi = 300
-    )
+
 
 }
 

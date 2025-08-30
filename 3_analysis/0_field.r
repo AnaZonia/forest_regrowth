@@ -37,6 +37,21 @@ apply_min_max_scaling <- function(data, train_stats) {
 }
 
 
+
+
+
+data_1k <- import_data(paste0("grid_1k_amazon_secondary"), biome_num = 1, n_samples = 10000)
+
+
+basic_pars <- basic_pars_options[[basic_pars_name]]
+data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
+
+
+
+
+
+
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ----------------- Field Data Cleaning ------------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

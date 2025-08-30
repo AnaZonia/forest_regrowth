@@ -69,9 +69,9 @@ calc_rss <- function(pars, data, conditions) {
     result <- sum((predictions - data$biomass)^2)
 
     if (any(sapply(conditions, function(cond) eval(parse(text = cond))))) {
-        return(-Inf)
+        return(Inf)
     } else if (is.na(result) || result == 0) {
-        return(-Inf)
+        return(Inf)
     } else {
         return(result)
     }
@@ -113,10 +113,8 @@ growth_curve <- function(pars, data, lag = 0) {
     } else {
         theta <- 1
         data[["age"]] <- data[["age"]] + lag
-        # data <- mutate(data, age = ifelse(satellite == 1, age + lag, age))
     }
     
-
     age <- data[["age"]]
 
     if (length(fit_data_pars) > 0) {

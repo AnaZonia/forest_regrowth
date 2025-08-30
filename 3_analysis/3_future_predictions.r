@@ -103,6 +103,9 @@ predict_future_biomass <- function(name, pasture_selection = "random", age_offse
 
     area <- data_1k[[grep("area", names(data_1k), value = TRUE)]] * 100 # convert to hectares
 
+    # get total biomass (assuming 25.8% of total biomass is belowground)
+    pred = pred + ((pred * 25.8) / 100)
+
     # convert biomass in Mg/ha to MgC/ha (assuming 50% C content)
     pred <- pred * 0.5
 

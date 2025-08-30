@@ -72,6 +72,12 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
     if (length(data_pars) == 0) {
         return(best$par)
     } else {
+
+        r2_df <- data.frame()
+        model_best <- run_optim(data, best$par, conditions)
+        r2 <- calc_r2(data, growth_curve(model_best$par, data, lag = model_best$par["lag"]))
+        r2_df <- rbind(r2_df, data.frame("par" = "age", "r2" = r2))
+
         for (i in 1:length(data_pars)) {
             if (!should_continue) break
 
@@ -92,16 +98,23 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
                 return(iter_row)
             }
 
-            iter_df <- as.data.frame(do.call(rbind, iter_df))
+            iter_df <- as.data.frame(do.call(rbind, iter_df))            
             best_model <- which.min(iter_df$RSS)
-            best_model_AIC <- 2 * (i + length(best$par)) + nrow(data) * log(iter_df$RSS[best_model] / nrow(data))
+            best_model_AIC <- 2 * i + nrow(data) * log(iter_df$RSS[best_model] / nrow(data))
 
             if (best$AIC == 0 | best_model_AIC < best$AIC) {
                 best$AIC <- best_model_AIC
                 best$par <- iter_df[best_model, names(all_pars)]
                 best$par <- Filter(function(x) !is.na(x), best$par)
+                
+                new_par <- names(best$par)[!names(best$par) %in% c(r2_df$par, basic_pars)]
+                model_best <- run_optim(data, best$par, conditions)
+                r2 <- calc_r2(data, growth_curve(model_best$par, data, lag = model_best$par["lag"]))
+                r2_df <- rbind(r2_df, data.frame("par" = new_par, "r2" = r2))
+
                 taken <- which(sapply(data_pars, function(x) any(grepl(x, names(best$par)))))
                 print(paste0(i, " parameters included: ", toString(data_pars[taken])))
+
             } else {
                 not_taken <- data_pars[!data_pars %in% data_pars[taken]]
                 print(paste("No improvement. Exiting loop. Parameters not taken:", toString(not_taken)))
@@ -109,7 +122,17 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
             }
         }
 
-        return(best$par)
+        for (var in categorical) {
+            r2 <- unique(r2_df$r2[grepl(paste0(var, "_"), r2_df$par)])
+            if (length(r2) == 0) next
+            r2_df <- r2_df[!grepl(paste0(var, "_"), r2_df$par), ]
+            r2_df <- rbind(r2_df, data.frame(par = var, r2 = r2))
+        }
+        
+        r2_df <- arrange(r2_df, r2)
+        r2_df <- mutate(r2_df, r2_diff = r2 - lag(r2, default = 0))
+
+        return(list(best$par, r2_df))
     }
 }
 

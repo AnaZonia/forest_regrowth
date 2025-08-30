@@ -22,8 +22,9 @@ non_data_pars <- c("k0", "lag", "theta")
 # Conditions for parameter constraints
 conditions <- list('pars["k0"] < 0')
 
-# "mean_def", "mean_temp", "mean_pr", "phh2o" excluded due to multicollinearity
-excluded_columns <- c("age", "biomass", "asymptote", "mean_def", "mean_srad", "phh2o")
+# "mean_def", "mean_temp", "mean_pr", "phh2o", "mean_srad" excluded due to multicollinearity
+
+excluded_columns <- c("age", "biomass", "asymptote", "mean_def", "phh2o")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------ Configurations of parameters ----------------#
@@ -44,7 +45,7 @@ data_pars_options <- function(colnames) {
 
         environment = colnames[!grepl(paste0(c(excluded_columns, land_use, landscape, "num_fires"), collapse = "|"), colnames)],
 
-        all_mean_climate = colnames[!grepl(paste0(c(excluded_columns), collapse = "|"), colnames)]
+        all = colnames[!grepl(paste0(c(excluded_columns), collapse = "|"), colnames)]
     ))
 }
 
