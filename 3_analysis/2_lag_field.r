@@ -37,7 +37,6 @@ norm_data <- norm_data$train_data
 predictions <- data.frame(age = 1:200)
 
 for (basic_pars_name in names(basic_pars_options)) {
-    basic_pars_name = "intercept"
     basic_pars <- basic_pars_options[[basic_pars_name]]
     norm_data_iter <- norm_data
 
@@ -52,9 +51,9 @@ for (basic_pars_name in names(basic_pars_options)) {
 
     model <- run_optim(norm_data_iter, init_pars[[1]], conditions)
 
-    if (basic_pars_name == "lag") {
-        lag <- round(model$par["lag"])
-    }
+    # if (basic_pars_name == "lag") {
+    #     lag <- 
+    # }
 
     biomass_df <- data.frame(matrix(nrow = nrow(norm_data_iter), ncol = 0))
     for (age in 1:nrow(predictions)) {
@@ -109,19 +108,19 @@ aggregated_satellite <- norm_data %>%
 pred_plot_lag <- pred_plot %>% mutate(
   ymin = ymin_lag, ymax = ymax_lag,
   y = mean_lag,
-  method = "Lag-corrected"
+  method = "Model with lag"
 )
 ## Uncorrected
 pred_plot_uncorrected <- pred_plot %>% mutate(
   ymin = ymin_intercept, ymax = ymax_intercept,
   y = mean_intercept,
-  method = "Uncorrected"
+  method = "Model without lag"
 )
 ## Observed (Remote Sensing)
 agg_satellite <- aggregated_satellite %>% mutate(
   ymin = mean_obs - sd_obs, ymax = mean_obs + sd_obs,
   y = mean_obs,
-  method = "Observed (Remote Sensing)"
+  method = "Satellite Measurements"
 )
 
 # Stack ribbons and lines for ggplot
@@ -156,7 +155,7 @@ p <- ggplot() +
   ) +
   annotate(
     "text", x = (lag + 1) + 2, y = 320,
-    label = paste(lag, "year lag"),
+    label = paste(round(model$par["lag"]), "year lag"),
     color = "black", size = 7, hjust = 0
   ) +
   # Scales

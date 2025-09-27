@@ -81,7 +81,8 @@ cross_validate <- function(data, basic_pars, data_pars, conditions) {
         # Run the model function on the training set and evaluate on the test set
         model <- run_optim(train_data, pars_init[[1]], conditions)
 
-        pred_cv <- growth_curve(model$par, test_data, lag = model$par["lag"])
+        pred_cv <- growth_curve(model$par, test_data,
+        lag = if ("lag" %in% names(model$par)) model$par["lag"] else 0)
 
         # save the predicted values of each iteration of the cross validation.
         data$pred_cv[indices == index] <- pred_cv
@@ -91,15 +92,18 @@ cross_validate <- function(data, basic_pars, data_pars, conditions) {
         print(r2)
     }
 
-    r2_df <- r2_df %>%
-        group_by(par) %>%
-        summarise(
-            mean_r2_diff = mean(r2_diff, na.rm = TRUE),
-            sd_r2_diff = sd(r2_diff, na.rm = TRUE),
-            n = n()
-        )
+    if (nrow(r2_df) > 5) {
+        r2_df <- r2_df %>%
+            group_by(par) %>%
+            summarise(
+                mean_r2_diff = mean(r2_diff, na.rm = TRUE),
+                sd_r2_diff = sd(r2_diff, na.rm = TRUE),
+                n = n()
+            )
 
-    r2_df <- r2_df[order(r2_df$mean_r2_diff, decreasing = FALSE), ]
+        r2_df <- r2_df[order(r2_df$mean_r2_diff, decreasing = FALSE), ]
+    }
+
 
     return(list(r2_list, r2_df, lag_list))
 }

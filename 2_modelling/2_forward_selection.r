@@ -70,12 +70,16 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
     should_continue <- TRUE
     # Iteratively add parameters and evaluate the model. Keep only AIC improvements.
     if (length(data_pars) == 0) {
-        return(best$par)
+        model <- run_optim(data, best$par, conditions)
+        r2 <- calc_r2(data, growth_curve(model$par, data, lag = if ("lag" %in% names(model$par)) model$par["lag"] else 0))
+        r2_df <- data.frame("par" = "age", "r2" = r2)
+        return(list(model$par, r2_df))
     } else {
-
         r2_df <- data.frame()
         model_best <- run_optim(data, best$par, conditions)
-        r2 <- calc_r2(data, growth_curve(model_best$par, data, lag = model_best$par["lag"]))
+        r2 <- calc_r2(data, growth_curve(model_best$par, data,
+            lag = if ("lag" %in% names(model_best$par)) model_best$par["lag"] else 0
+        ))
         r2_df <- rbind(r2_df, data.frame("par" = "age", "r2" = r2))
 
         for (i in 1:length(data_pars)) {
@@ -109,12 +113,10 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
                 
                 new_par <- names(best$par)[!names(best$par) %in% c(r2_df$par, basic_pars)]
                 model_best <- run_optim(data, best$par, conditions)
-                if ("lag" %in% names(model_best$par)) {
-                    lag_value <- model_best$par["lag"]
-                } else {
-                    lag_value <- 0
-                }
-                r2 <- calc_r2(data, growth_curve(model_best$par, data, lag = lag_value))
+
+                r2 <- calc_r2(data, growth_curve(model_best$par, data,
+                    lag = if ("lag" %in% names(model_best$par)) model_best$par["lag"] else 0
+                ))
                 r2_df <- rbind(r2_df, data.frame("par" = new_par, "r2" = r2))
 
                 taken <- which(sapply(data_pars, function(x) any(grepl(x, names(best$par)))))
