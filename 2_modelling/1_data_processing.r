@@ -43,7 +43,7 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
         map(~ suppressMessages(read_csv(.x, show_col_types = FALSE, progress = FALSE))) %>%
         bind_rows()
 
-    # remove any rows with NA values (important due to gaps in CMIP6 data)
+    # remove any rows with NA values
     df <- df %>% filter(rowSums(is.na(.)) == 0)
 
     # Convert categorical to factors
@@ -83,6 +83,9 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
     if ("distance_deep_forest" %in% names(df)) {
         df <- df %>% rename(dist = distance_deep_forest)
     }
+
+    # remove columns with less than 50 non-zero values
+    df <- df %>% select(where(~ sum(. != 0) >= 50))
 
     if (n_samples == "all") {
         coords <- df[, c("lat", "lon")]

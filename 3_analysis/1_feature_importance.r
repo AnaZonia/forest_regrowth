@@ -24,7 +24,6 @@ ncore <- 4
 registerDoParallel(cores = ncore)
 
 barplot_r2_increase <- function(r2_df, age_include = TRUE) {
-
     # Map variable short names to full names
     variable_names <- c(
         age = "Age",
@@ -51,7 +50,11 @@ barplot_r2_increase <- function(r2_df, age_include = TRUE) {
         mean_aet = "Mean Actual Evapotranspiration",
         mean_soil = "Mean Soil Moisture",
         mean_pdsi = "Mean Palmer Drought Severity Index",
-        topography = "Topography"
+        topography = "Topography",
+        lu_sum_10 = "Pasture Years",
+        lu_sum_20 = "Perennial Crop Years",
+        lu_sum_30 = "Annual Crop Years",
+        last_lu = "Last Land Use"
     )
 
 
@@ -61,7 +64,8 @@ barplot_r2_increase <- function(r2_df, age_include = TRUE) {
 
     r2_df$par <- factor(r2_df$par, levels = r2_df$par)
 
-    custom_colors <- c("#665191", "#a05195",
+    custom_colors <- c(
+        "#665191", "#a05195",
         "#d45087", "#f95d6a", "#ff7c43", "#ffa600",
         "#ffc300", "#ffda6a"
     )
@@ -70,8 +74,8 @@ barplot_r2_increase <- function(r2_df, age_include = TRUE) {
         custom_colors <- c("#003f5c", custom_colors)
     } else {
         r2_df <- r2_df[!(r2_df$par == "age"), ]
-    }    
-    
+    }
+
     custom_colors <- rev(custom_colors[1:nrow(r2_df)])
 
     # # Interpolate gradient spanning all colors, matching number of categories
@@ -98,7 +102,8 @@ barplot_r2_increase <- function(r2_df, age_include = TRUE) {
             panel.grid.minor = element_blank(),
             panel.background = element_blank(),
             axis.ticks.y = element_line(color = "black")
-        ) + scale_y_continuous(breaks = seq(0, 0.4, by = 0.10))
+        ) +
+        scale_y_continuous(breaks = seq(0, 0.4, by = 0.10))
 
     if (!age_include) {
         p <- p + theme(
@@ -112,13 +117,16 @@ barplot_r2_increase <- function(r2_df, age_include = TRUE) {
     return(p)
 }
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ------------- Amazon barplot (Nearest Mature) ----------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
 r2_df <- read.csv("./0_results/0_r2_nearest_mature.csv")
 r2_df$group <- "nearest_mature"
 
 p <- barplot_r2_increase(r2_df, age_include = TRUE)
-
 asymptote <- "nearest_mature"
-
 ggsave(
     paste0("./0_results/figures/model_performance_", asymptote, ".jpg"),
     plot = p,
@@ -127,46 +135,14 @@ ggsave(
     dpi = 300
 )
 
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ------------- Amazon barplot (two asymptotes) ----------- #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-groups <- c("full_amazon", "nearest_mature")
-group_names <- c("Amazon-wide Average", "Nearest Neighbor")
-
-results <- data.frame()
-
-for (i in seq_along(groups)) {
-    asymptote <- groups[i]
-    data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = asymptote)
-    norm_data <- normalize_independently(data)$train_data
-    basic_pars <- basic_pars_options[["lag"]]
-    data_pars <- data_pars_options(colnames(data))[["all"]]
-    cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
-
-    write.csv(cv_results[[2]], file = paste0("./0_results/0_r2_", asymptote, ".csv"), row.names = FALSE)
-
-    r2_df <- cv_results[[2]]
-    r2_df$group <- asymptote
-    p <- barplot_r2_increase(r2_df)
-
-    result <- data.frame(
-        asymptote = asymptote,
-        mean_r2 = mean(cv_results[[1]]),
-        sd_r2 = sd(cv_results[[1]])
-    )
-    results <- rbind(results, result)
-    write.csv(results, file = "./0_results/0_asymptotes_all_pars.csv", row.names = FALSE)
-
-    ggsave(
-        paste0("./0_results/figures/model_performance_", asymptote, ".jpg"),
-        plot = p,
-        width = 8,
-        height = 10,
-        dpi = 300
-    )
-}
+p <- barplot_r2_increase(r2_df, age_include = FALSE)
+ggsave(
+    paste0("./0_results/figures/model_performance_", asymptote, "_zoomed.jpg"),
+    plot = p,
+    width = 8,
+    height = 10,
+    dpi = 300
+)
 
 
 
@@ -174,58 +150,47 @@ for (i in seq_along(groups)) {
 # ------------- Atlantic Forest ----------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+r2_df <- read.csv("./0_results/0_r2_land_use_aggregated_all_1.csv")
+r2_df$group <- "aggregated_all"
 
+p <- barplot_r2_increase(r2_df, age_include = TRUE)
 
-land_use_list <- list.files(paste0("./0_data"), pattern = "land_use", full.names = FALSE)
+ggsave(
+    paste0("./0_results/figures/model_performance_", "aggregated_all", ".jpg"),
+    plot = p,
+    width = 8,
+    height = 10,
+    dpi = 300
+)
 
-biomes_r2 <- list()
-biomes_par_importance <- list()
-
-results <- data.frame()
-
-for (land_use_aggregation in land_use_list) {
-    all_results <- list()
-    group_names <- c("Amazon", "Atlantic Forest")
-
-    for (biome in c(1, 4)) {
-        data <- import_data(land_use_aggregation, biome = biome, n_samples = 10000, asymptote = "nearest_mature")
-        basic_pars <- basic_pars_options[["lag"]]
-        data_pars <- data_pars_options(colnames(data))[["all"]]
-
-        cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
-
-        write.csv(cv_results[[2]], file = paste0("./0_results/0_r2_", land_use_aggregation, "_", biome, ".csv"), row.names = FALSE)
-
-
-        result <- data.frame(
-            biome = biome,
-            land_use_aggregation = land_use_aggregation,
-            mean_r2 = mean(cv_results[[1]]),
-            sd_r2 = sd(cv_results[[1]])
-        )
-        results <- rbind(results, result)
-        write.csv(results, file = "./0_results/0_land_use_R2.csv", row.names = FALSE)
-
-    }
-
-}
 
 # ------------------------------------------------- #
 # Figure - R2 per Asymptote with age_only
 # ------------------------------------------------- #
 
 
-R2_asymptote <- read.csv("./0_results/0_asymptotes.csv")
+r2_asymptote <- read.csv("./0_results/0_asymptotes.csv")
 # Filter for the variables of interest
-R2_asymptote <- R2_asymptote %>%
-    filter(asymptote %in% c("nearest_mature", "quarter_biomass", "full_amazon"))
+r2_asymptote <- r2_asymptote %>%
+    filter(
+        asymptote %in% c("nearest_mature", "quarter_biomass", "full_amazon"),
+        basic_pars_name == "lag"
+    )
 
 p <- ggplot(
-    R2_asymptote %>% mutate(asymptote = reorder(asymptote, mean_r2)),
+    r2_asymptote %>% mutate(asymptote = reorder(asymptote, mean_r2)),
     aes(x = asymptote, y = mean_r2)
 ) +
     geom_bar(stat = "identity", fill = "#003f5c") +
-    coord_flip() +
+    geom_errorbar(
+        aes(
+            ymin = mean_r2 - sd_r2,
+            ymax = mean_r2 + sd_r2
+        ),
+        width = 0.4,
+        linewidth = 1,
+        color = "black"
+    ) +
     theme_minimal() +
     theme(
         axis.title = element_blank(),
@@ -238,7 +203,7 @@ p <- ggplot(
 ggsave(
     paste0("./0_results/figures/figure_2_asymptote_barplot.jpg"),
     plot = p,
-    width = 10,
-    height = 6,
+    width = 6,
+    height = 10,
     dpi = 300
 )

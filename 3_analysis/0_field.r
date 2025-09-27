@@ -90,7 +90,11 @@ for (index in 1:5) {
     r2_list[index] <- r2
 }
 
-
+results <- data.frame(
+    mean_r2 = mean(r2_list),
+    sd_r2 = sd(r2_list)
+)
+write.csv(results, file = "./0_results/0_field_r2.csv", row.names = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Exporting results ------------------ #
@@ -98,7 +102,7 @@ for (index in 1:5) {
 
 # Assuming pred = predicted AGB, obs = norm_data$biomass
 df <- data.frame(
-    Predicted = field_pred_biomass,
+    Predicted = pred,
     Observed = field_data_scaled$biomass
 )
 

@@ -80,6 +80,38 @@ result <- data.frame(
 write.csv(result, file = "./0_results/0_lag.csv", row.names = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ---------------- R2 increase per Asymptote ------------------ #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+groups <- c("full_amazon", "nearest_mature")
+group_names <- c("Amazon-wide Average", "Nearest Neighbor")
+
+results <- data.frame()
+
+for (i in seq_along(groups)) {
+    asymptote <- groups[i]
+    data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000, asymptote = asymptote)
+
+    basic_pars <- basic_pars_options[["lag"]]
+    data_pars <- data_pars_options(colnames(data))[["all"]]
+    cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
+
+    write.csv(cv_results[[2]], file = paste0("./0_results/0_r2_", asymptote, ".csv"), row.names = FALSE)
+
+    result <- data.frame(
+        asymptote = asymptote,
+        mean_r2 = mean(cv_results[[1]]),
+        sd_r2 = sd(cv_results[[1]])
+    )
+    results <- rbind(results, result)
+    write.csv(results, file = "./0_results/0_asymptotes_all_pars.csv", row.names = FALSE)
+}
+
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Land Use Comparisons ------------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #   Compare R² increase from each Land Use aggregation:
@@ -89,35 +121,27 @@ write.csv(result, file = "./0_results/0_lag.csv", row.names = FALSE)
 #   - non_aggregated_10yr)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-results <- data.frame()
-
 land_use_list <- list.files(paste0("./0_data"), pattern = "land_use", full.names = FALSE)
 
-for (biome in c(1, 4)) {
-    print(biome)
+biomes_r2 <- list()
+biomes_par_importance <- list()
 
-    for (land_use_aggregation in land_use_list) {
+results <- data.frame()
 
-        data <- import_data(land_use_aggregation, biome_num = biome, n_samples = 30000)
+for (land_use_aggregation in land_use_list) {
+    all_results <- list()
+    group_names <- c("Atlantic Forest") # "Amazon",
 
-        for (data_pars_name in c("age_only", "land_use", "fires")) {
+    for (biome in c(4)) { # 1
+        data <- import_data(land_use_aggregation, biome = biome, n_samples = 30000, asymptote = "nearest_mature")
 
-            basic_pars <- basic_pars_options[["lag"]]
-            data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
+        basic_pars <- basic_pars_options[["lag"]]
+        data_pars <- data_pars_options(colnames(data))[["all"]]
 
-            cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
+        cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
 
-            result <- data.frame(
-                land_use_aggregation = land_use_aggregation,
-                data_pars_name = data_pars_name,
-                biome = biome,
-                mean_r2 = mean(cv_results),
-                sd_r2 = sd(cv_results)
-            )
-
-            print(result)
-            results <- rbind(results, result)
-            write.csv(results, file = "./0_results/0_land_use.csv", row.names = FALSE)
-        }
+        write.csv(cv_results[[2]], file = paste0("./0_results/0_r2_", land_use_aggregation, "_", biome, ".csv"), row.names = FALSE)
     }
 }
+
+land_use_aggregation <- land_use_list[3]

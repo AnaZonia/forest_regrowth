@@ -26,7 +26,6 @@
 #' - Categorical variables are handled by grouping their dummy variables together.
 
 
-
 find_combination_pars <- function(basic_pars, data_pars, data) {
 
     # Initialize parameter vector with data parameters
@@ -86,6 +85,8 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
             if (!should_continue) break
 
             iter_df <- foreach(j = remaining[-taken]) %dopar% {
+            # i = 1
+            # for(j in remaining[-taken]) {
                 # check for categorical variables (to be included as a group)
                 if (data_pars[j] %in% c(categorical)) {
                     inipar <- c(best$par, all_pars[grep(paste0(data_pars[j], "_"), names(all_pars))])
@@ -98,7 +99,7 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
                 iter_row <- base_row
                 iter_row[names(inipar)] <- model$par
                 iter_row["RSS"] <- model$value
-
+                # print(iter_row)
                 return(iter_row)
             }
 
