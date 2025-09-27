@@ -36,8 +36,6 @@ pars_init <- c(
     sur_cover = 0
 )
 
-source("2_modelling/2_modelling.r")
-
 
 final_model <- run_optim(norm_data, pars_init, conditions)
 final_model

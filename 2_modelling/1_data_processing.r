@@ -34,7 +34,8 @@ library(fastDummies)
 #' - Drops rows with missing values.
 #'
 
-import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest_mature") {
+
+import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mature") {
 
     csv_files <- list.files(paste0("./0_data/", path), pattern = "\\.csv$", full.names = TRUE)
 
@@ -42,10 +43,13 @@ import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest
         map(~ suppressMessages(read_csv(.x, show_col_types = FALSE, progress = FALSE))) %>%
         bind_rows()
 
+    # remove any rows with NA values (important due to gaps in CMIP6 data)
+    df <- df %>% filter(rowSums(is.na(.)) == 0)
+
     # Convert categorical to factors
     df <- df %>%
         mutate(across(any_of(categorical), as.factor)) %>%
-        filter(biome == biome_num)
+        filter(biome == biome)
 
     # remove columns with less than 50 unique values
     df <- df %>%
@@ -74,8 +78,6 @@ import_data <- function(path, biome_num, n_samples = 10000, asymptote = "nearest
         )))
     }
 
-    # remove any rows with NA values (important due to gaps in CMIP6 data)
-    df <- df %>% filter(rowSums(is.na(.)) == 0)
 
     # if there is a column named distance_deep_forest rename it to dist
     if ("distance_deep_forest" %in% names(df)) {

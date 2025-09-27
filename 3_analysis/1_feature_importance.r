@@ -6,6 +6,8 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+library(foreach)
+library(doParallel)
 library(ggplot2)
 library(tidyverse)
 library(RColorBrewer)
@@ -15,14 +17,13 @@ source("2_modelling/1_data_processing.r")
 source("2_modelling/2_modelling.r")
 source("2_modelling/2_cross_validate.r")
 source("2_modelling/2_forward_selection.r")
-source("2_modelling/2_permutation_importance.r")
 
 # Set up parallel processing
 set.seed(2)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
-barplot_r2_increase <- function(all_results, group_names) {
+barplot_r2_increase <- function(r2_df, age_include = TRUE) {
 
     # Map variable short names to full names
     variable_names <- c(
@@ -49,52 +50,82 @@ barplot_r2_increase <- function(all_results, group_names) {
         mean_vpd = "Mean Vapor Pressure Deficit",
         mean_aet = "Mean Actual Evapotranspiration",
         mean_soil = "Mean Soil Moisture",
-        mean_pdsi = "Mean Palmer Drought Severity Index"
+        mean_pdsi = "Mean Palmer Drought Severity Index",
+        topography = "Topography"
     )
 
-    r2_df$asymptote <- "nearest_mature"
+
+    r2_df <- r2_df[r2_df$mean_r2_diff > 0.001, ]
+
+    r2_df <- r2_df[order(r2_df$mean_r2_diff, decreasing = FALSE), ]
 
     r2_df$par <- factor(r2_df$par, levels = r2_df$par)
 
-    r2_df <- r2_df %>%
-        filter(par != "age")
-
-    custom_colors <- c(
-        "#003f5c", "#2f4b7c", "#665191", "#a05195",
-        "#d45087", "#f95d6a", "#ff7c43", "#ffa600", "#ffc300", "#ffda6a"
+    custom_colors <- c("#665191", "#a05195",
+        "#d45087", "#f95d6a", "#ff7c43", "#ffa600",
+        "#ffc300", "#ffda6a"
     )
 
-    recycled_colors <- rep(custom_colors, length.out = 10)
+    if (age_include) {
+        custom_colors <- c("#003f5c", custom_colors)
+    } else {
+        r2_df <- r2_df[!(r2_df$par == "age"), ]
+    }    
+    
+    custom_colors <- rev(custom_colors[1:nrow(r2_df)])
 
-    p <- ggplot(r2_df, aes(x = asymptote, y = r2_diff, fill = par)) +
+    # # Interpolate gradient spanning all colors, matching number of categories
+    # n_cats <- length(levels(r2_df$par))
+    # color_palette <- colorRampPalette(custom_colors)(n_cats)
+
+    p <- ggplot(r2_df, aes(x = group, y = mean_r2_diff, fill = par)) +
         geom_bar(position = "stack", stat = "identity") +
         scale_y_continuous(
             name = "R² Increase",
         ) +
-        scale_fill_manual(values = recycled_colors, labels = variable_names[levels(r2_df$par)], name = "Variable") +
+        scale_fill_manual(values = custom_colors, labels = variable_names[levels(r2_df$par)], name = "Variable") +
         theme_minimal(base_size = 12) +
         theme(
             axis.title.x = element_blank(),
             axis.text.x = element_blank(),
+            axis.title.y = element_blank(),
             plot.title = element_blank(),
             legend.position = "right",
             text = element_text(size = 12),
             axis.text = element_text(size = 16),
             axis.title = element_text(size = 16, face = "bold"),
-            panel.grid.major.x = element_blank(),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            panel.background = element_blank(),
+            axis.ticks.y = element_line(color = "black")
+        ) + scale_y_continuous(breaks = seq(0, 0.4, by = 0.10))
+
+    if (!age_include) {
+        p <- p + theme(
+            axis.text.y = element_blank(),
+            legend.position = "none",
+            panel.grid.major = element_blank(),
             panel.grid.minor = element_blank()
         )
-
-    p
-
+    }
 
     return(p)
 }
-ggplot(r2_df, aes(x = par, y = r2_diff, fill = group)) +
-    geom_bar(stat = "identity") +
-    labs(y = "R² Increase", x = "Variable") +
-    theme_minimal()
 
+r2_df <- read.csv("./0_results/0_r2_nearest_mature.csv")
+r2_df$group <- "nearest_mature"
+
+p <- barplot_r2_increase(r2_df, age_include = TRUE)
+
+asymptote <- "nearest_mature"
+
+ggsave(
+    paste0("./0_results/figures/model_performance_", asymptote, ".jpg"),
+    plot = p,
+    width = 8,
+    height = 10,
+    dpi = 300
+)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -104,32 +135,40 @@ ggplot(r2_df, aes(x = par, y = r2_diff, fill = group)) +
 groups <- c("full_amazon", "nearest_mature")
 group_names <- c("Amazon-wide Average", "Nearest Neighbor")
 
+results <- data.frame()
+
 for (i in seq_along(groups)) {
     asymptote <- groups[i]
-    data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000, asymptote = asymptote)
+    data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 20000, asymptote = asymptote)
     norm_data <- normalize_independently(data)$train_data
     basic_pars <- basic_pars_options[["lag"]]
-    data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
-    init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
-    model <- run_optim(norm_data, init_pars, conditions)
-    pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
-    r2 <- calc_r2(norm_data, pred)
-    importance_results <- calculate_permutation_importance(model, norm_data, data_pars)
-    importance_results$importance_scaled <- importance_results$importance_pct * r2 / 100
-    importance_results$group <- group_names[i]
+    data_pars <- data_pars_options(colnames(data))[["all"]]
+    cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
 
+    write.csv(cv_results[[2]], file = paste0("./0_results/0_r2_", asymptote, ".csv"), row.names = FALSE)
 
+    r2_df <- cv_results[[2]]
+    r2_df$group <- asymptote
+    p <- barplot_r2_increase(r2_df)
+
+    result <- data.frame(
+        asymptote = asymptote,
+        mean_r2 = mean(cv_results[[1]]),
+        sd_r2 = sd(cv_results[[1]])
+    )
+    results <- rbind(results, result)
+    write.csv(results, file = "./0_results/0_asymptotes_all_pars.csv", row.names = FALSE)
+
+    ggsave(
+        paste0("./0_results/figures/model_performance_", asymptote, ".jpg"),
+        plot = p,
+        width = 8,
+        height = 10,
+        dpi = 300
+    )
 }
 
-p <- barplot_feat_importance(all_results, group_names)
-p
-ggsave(
-    "./0_results/figures/model_performance_def_phh2o_2.jpg",
-    plot = p,
-    width = 10,
-    height = 6,
-    dpi = 300
-)
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------- Atlantic Forest ----------- #
@@ -139,40 +178,41 @@ ggsave(
 
 land_use_list <- list.files(paste0("./0_data"), pattern = "land_use", full.names = FALSE)
 
+biomes_r2 <- list()
+biomes_par_importance <- list()
+
+results <- data.frame()
+
 for (land_use_aggregation in land_use_list) {
     all_results <- list()
     group_names <- c("Amazon", "Atlantic Forest")
 
-    i <- 1
     for (biome in c(1, 4)) {
-        data <- import_data(land_use_aggregation, biome_num = biome, n_samples = 10000, asymptote = "nearest_mature")
-        norm_data <- normalize_independently(data)$train_data
+        data <- import_data(land_use_aggregation, biome = biome, n_samples = 10000, asymptote = "nearest_mature")
         basic_pars <- basic_pars_options[["lag"]]
-        data_pars <- data_pars_options(colnames(data))[["all_mean_climate"]]
-        init_pars <- find_combination_pars(basic_pars, data_pars, norm_data)
-        model <- run_optim(norm_data, init_pars, conditions)
-        pred <- growth_curve(model$par, norm_data, lag = model$par["lag"])
-        r2 <- calc_r2(norm_data, pred)
-        importance_results <- calculate_permutation_importance(model, norm_data, data_pars)
-        importance_results$importance_scaled <- importance_results$importance_pct * r2 / 100
-        importance_results$group <- group_names[i]
-        all_results[[i]] <- importance_results
-        i <- i + 1
+        data_pars <- data_pars_options(colnames(data))[["all"]]
+
+        cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
+
+        write.csv(cv_results[[2]], file = paste0("./0_results/0_r2_", land_use_aggregation, "_", biome, ".csv"), row.names = FALSE)
+
+
+        result <- data.frame(
+            biome = biome,
+            land_use_aggregation = land_use_aggregation,
+            mean_r2 = mean(cv_results[[1]]),
+            sd_r2 = sd(cv_results[[1]])
+        )
+        results <- rbind(results, result)
+        write.csv(results, file = "./0_results/0_land_use_R2.csv", row.names = FALSE)
+
     }
 
-
-
-
 }
-
-
-
-
 
 # ------------------------------------------------- #
 # Figure - R2 per Asymptote with age_only
 # ------------------------------------------------- #
-
 
 
 R2_asymptote <- read.csv("./0_results/0_asymptotes.csv")

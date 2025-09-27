@@ -60,7 +60,7 @@ cross_validate <- function(data, basic_pars, data_pars, conditions) {
     data$pred_cv <- NA
     data$pred_final <- NA
     r2_list <- numeric(5)
-
+    lag_list <- numeric(5)
     r2_df <- data.frame()
 
     for (index in 1:5) {
@@ -87,13 +87,20 @@ cross_validate <- function(data, basic_pars, data_pars, conditions) {
         data$pred_cv[indices == index] <- pred_cv
         r2 <- calc_r2(data[indices == index, ], pred_cv)
         r2_list[index] <- r2
+        lag_list[index] <- model$par["lag"]
         print(r2)
     }
 
-    mean_r2 <- mean(r2_list)
-    sd_r2 <- sd(r2_list)
+    r2_df <- r2_df %>%
+        group_by(par) %>%
+        summarise(
+            mean_r2_diff = mean(r2_diff, na.rm = TRUE),
+            sd_r2_diff = sd(r2_diff, na.rm = TRUE),
+            n = n()
+        )
 
+    r2_df <- r2_df[order(r2_df$mean_r2_diff, decreasing = FALSE), ]
 
-    return(r2_list)
+    return(list(r2_list, r2_df, lag_list))
 }
 

@@ -21,48 +21,6 @@ set.seed(1)
 ncore = 4
 registerDoParallel(cores = ncore)
 
-
-
-print(head(iter_df))
-
-data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 50000, asymptote = "nearest_mature")
-
-data_pars_name <- "all"
-
-basic_pars <- basic_pars_options[["lag"]]
-data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
-
-pars_init <- find_combination_pars(basic_pars, data_pars, data)
-
-
-
-# Identify ecoreg rows
-ecoreg_mask <- grepl("^ecoreg_", df$par)
-
-# Check if all ecoreg r2 values are equal
-if (length(unique(df$r2[ecoreg_mask])) == 1) {
-    # Get the unique r2 value
-    ecoreg_r2 <- unique(df$r2[ecoreg_mask])
-    # Remove all ecoreg_* rows
-    df <- df[!ecoreg_mask, ]
-    # Add single "ecoreg" row
-    df <- rbind(df, data.frame(par = "ecoreg", r2 = ecoreg_r2))
-    # Optional: reorder rows if needed
-    rownames(df) <- NULL
-}
-
-print(df)
-
-cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
-cv_results
-
-
-
-
-
-
-
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Asymptote Comparisons ------------------ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -73,16 +31,17 @@ cv_results
 #   - full_amazon)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+
 results <- data.frame()
 
 for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")) {
     for (basic_pars_name in c("intercept", "lag")) {
-        data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 50000, asymptote = asymptote)
+        data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 30000, asymptote = asymptote)
 
         data_pars_name <- "age_only"
 
         basic_pars <- basic_pars_options[[basic_pars_name]]
-        data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
+        data_pars <- data_pars_options(colnames(data))[[data_pars_name]]    
 
         cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
 
@@ -98,6 +57,53 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
         write.csv(results, file = "./0_results/0_asymptotes.csv", row.names = FALSE)
     }
 }
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ---------------- Average Lag expected ------------------ #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+results <- data.frame()
+
+for (i in 1:5) {
+
+    set.seed(i)
+
+    for (nsample in c(10000, 20000, 30000, 40000)) {
+        data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = nsample, asymptote = "nearest_mature")
+        data <- normalize_independently(data)$train_data
+
+        basic_pars <- basic_pars_options[["lag"]]
+        data_pars <- data_pars_options(colnames(data))[["all"]]
+
+        pars_init <- find_combination_pars(basic_pars, data_pars, data)
+
+        result <- data.frame(
+            nrows = nsample,
+            lag = pars_init[[1]]["lag"],
+            r2 = pars_init[[2]]["r2"][nrow(pars_init[[2]]), ],
+            normalize = "true"
+        )
+
+        results <- rbind(results, result)
+        write.csv(results, file = "./0_results/compare_nrow.csv")
+    }
+
+}
+
+
+result <- data.frame(
+    basic_pars_name = basic_pars_name,
+    asymptote = asymptote,
+    mean_r2 = mean(cv_results),
+    sd_r2 = sd(cv_results)
+)
+
+results <- rbind(results, result)
+write.csv(results, file = "./0_results/0_asymptotes.csv", row.names = FALSE)
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Land Use Comparisons ------------------- #

@@ -22,11 +22,6 @@ source("2_modelling/1_data_processing.r")
 # ---------------------- Functions -------------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-calculate_correlation_matrix <- function(df) {
-    return(cor(df, use = "pairwise.complete.obs"))
-}
-
-
 plot_correlation_heatmap <- function(corr_matrix) {
     p <- ggcorrplot(corr_matrix,
         hc.order = TRUE,
@@ -81,17 +76,7 @@ find_highly_correlated <- function(corr_matrix, threshold = 0.8) {
 # -------------- Verify multicollinearity ------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-csv_files <- list.files("./0_data/grid_10k_amazon_secondary", pattern = "\\.csv$", full.names = TRUE)
-
-df <- csv_files %>%
-    map(read_csv) %>%
-    bind_rows() %>%
-    filter(biome == 1) %>%
-    select(-c("lon", "lat", "quarter_biomass", "ecoreg_biomass", "quarter", "secondary_area", "biome")) %>%
-    select(-c(
-        # "mean_def"
-    ))
-    # List to update variables found to be multicollinear
+df <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 20000, asymptote = "nearest_mature")
 
 predictors <- setdiff(colnames(df), "biomass")
 
@@ -101,7 +86,8 @@ vif_df <- data.frame(Feature = names(vif(mod)), VIF = vif(mod))
 vif_df <- vif_df[order(-vif_df$VIF), ]
 print(vif_df)
 
-corr_matrix <- calculate_correlation_matrix(df)
+corr_matrix <- cor(df, use = "pairwise.complete.obs")
 
 # Identify highly correlated features
 find_highly_correlated(corr_matrix, threshold = 0.4)
+

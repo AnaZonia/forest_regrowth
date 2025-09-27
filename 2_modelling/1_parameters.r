@@ -24,7 +24,7 @@ conditions <- list('pars["k0"] < 0')
 
 # "mean_def", "mean_temp", "mean_pr", "phh2o", "mean_srad" excluded due to multicollinearity
 
-excluded_columns <- c("age", "biomass", "asymptote", "mean_def", "phh2o")
+excluded_columns <- c("age", "biomass", "asymptote", "ecoreg")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------ Configurations of parameters ----------------#

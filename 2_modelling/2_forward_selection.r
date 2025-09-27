@@ -109,7 +109,12 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
                 
                 new_par <- names(best$par)[!names(best$par) %in% c(r2_df$par, basic_pars)]
                 model_best <- run_optim(data, best$par, conditions)
-                r2 <- calc_r2(data, growth_curve(model_best$par, data, lag = model_best$par["lag"]))
+                if ("lag" %in% names(model_best$par)) {
+                    lag_value <- model_best$par["lag"]
+                } else {
+                    lag_value <- 0
+                }
+                r2 <- calc_r2(data, growth_curve(model_best$par, data, lag = lag_value))
                 r2_df <- rbind(r2_df, data.frame("par" = new_par, "r2" = r2))
 
                 taken <- which(sapply(data_pars, function(x) any(grepl(x, names(best$par)))))
