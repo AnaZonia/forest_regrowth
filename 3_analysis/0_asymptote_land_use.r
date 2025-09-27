@@ -64,16 +64,20 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 # ---------------- Average Lag expected ------------------ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-results <- data.frame()
 
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000, asymptote = "nearest_mature")
+data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 150000, asymptote = "nearest_mature")
 
 basic_pars <- basic_pars_options[["lag"]]
 data_pars <- data_pars_options(colnames(data))[["all"]]
 
 cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
 
+result <- data.frame(
+    mean_lag = mean(cv_results[[3]]),
+    sd_lag = sd(cv_results[[3]])
+)
 
+write.csv(result, file = "./0_results/0_lag.csv", row.names = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Land Use Comparisons ------------------- #

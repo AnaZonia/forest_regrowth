@@ -14,39 +14,32 @@ source("2_modelling/2_forward_selection.r")
 
 library(tidyverse)
 library(ggplot2)
+library(foreach)
+library(doParallel)
 
-set.seed(2)
+set.seed(1)
+ncore <- 4
+registerDoParallel(cores = ncore)
 
-data <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000)
+data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000)
 
 # Fit the model on the full data
 norm_data <- normalize_independently(data)
 train_stats <- norm_data$train_stats
 norm_data <- norm_data$train_data
 
-
-# pars_init <- find_combination_pars(
-#     basic_pars = c("k0"),
-#     data_pars = data_pars_options(colnames(data))[["all_mean_climate"]],
-#     norm_data
-# )
-
-pars_init <- c(
-    k0 = 0.01, # Initial guess for k0,
-    sur_cover = 0
+pars_init <- find_combination_pars(
+    basic_pars = basic_pars_options[["lag"]],
+    data_pars = data_pars_options(colnames(norm_data))[["all"]],
+    norm_data
 )
 
+model <- run_optim(norm_data, pars_init[[1]], conditions)
 
-final_model <- run_optim(norm_data, pars_init, conditions)
-final_model
-
-pred <- growth_curve(final_model$par, data = norm_data)
-
+pred <- growth_curve(model$par, data = norm_data, lag = model$par["lag"])
 
 r2 <- calc_r2(norm_data, pred)
 r2
-
-
 
 # Assuming pred = predicted AGB, obs = norm_data$biomass
 df <- data.frame(

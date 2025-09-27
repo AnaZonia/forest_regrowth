@@ -1,6 +1,6 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-#       Plot the lag-corrected and uncorrected models
+#       Plot the Model with lag and Model without lag models
 #
 #                 Ana Avila - August 2025
 #
@@ -26,9 +26,13 @@ registerDoParallel(cores = ncore)
 # For plotting
 options(stringsAsFactors = FALSE)
 theme_set(theme_minimal(base_size = 20))
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #        Model fitting and prediction
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+lag <- read.csv("./0_results/0_lag.csv")$mean_lag
 
 data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000)
 norm_data <- normalize_independently(data)
@@ -50,10 +54,6 @@ for (basic_pars_name in names(basic_pars_options)) {
     init_pars <- find_combination_pars(basic_pars, data_pars, norm_data_iter)
 
     model <- run_optim(norm_data_iter, init_pars[[1]], conditions)
-
-    # if (basic_pars_name == "lag") {
-    #     lag <- 
-    # }
 
     biomass_df <- data.frame(matrix(nrow = nrow(norm_data_iter), ncol = 0))
     for (age in 1:nrow(predictions)) {
@@ -98,85 +98,153 @@ aggregated_satellite <- norm_data %>%
     ) %>%
     mutate(age = age + lag)
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Get R² for field data based on satellite-trained model
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+pred_plot <- subset(predictions, age >= 0 & age <= 75) # max(aggregated_satellite$age)
+pred_plot <- pred_plot %>%
+    mutate(
+        ymin_lag = mean_lag - sd_lag,
+        ymax_lag = mean_lag + sd_lag,
+        ymin_intercept = mean_intercept - sd_intercept,
+        ymax_intercept = mean_intercept + sd_intercept
+    )
+
+# Update plot colors and linetypes to include future predictions
+plot_colors <- c(
+    "Model with lag" = "#2f4b7c",
+    "Model without lag" = "#ffa600",
+    "Satellite Measurements" = "#b91523",
+    "Field Measurements" = "black"
+)
+
+linetypes <- c(
+    "Model with lag" = "solid",
+    "Model without lag" = "solid",
+    "Satellite Measurements" = "21"
+)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #        Plotting
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-## Lag-corrected
-pred_plot_lag <- pred_plot %>% mutate(
-  ymin = ymin_lag, ymax = ymax_lag,
-  y = mean_lag,
-  method = "Model with lag"
-)
-## Uncorrected
-pred_plot_uncorrected <- pred_plot %>% mutate(
-  ymin = ymin_intercept, ymax = ymax_intercept,
-  y = mean_intercept,
-  method = "Model without lag"
-)
-## Observed (Remote Sensing)
-agg_satellite <- aggregated_satellite %>% mutate(
-  ymin = mean_obs - sd_obs, ymax = mean_obs + sd_obs,
-  y = mean_obs,
-  method = "Satellite Measurements"
-)
-
-# Stack ribbons and lines for ggplot
-plot_data <- bind_rows(
-  pred_plot_lag %>% select(age, y, ymin, ymax, method),
-  pred_plot_uncorrected %>% select(age, y, ymin, ymax, method),
-  agg_satellite %>% select(age, y, ymin, ymax, method)
-)
-
-# Plot
 p <- ggplot() +
-  # Ribbon and line together (one per method)
-  geom_ribbon(
-    data = plot_data,
-    aes(x = age, ymin = ymin, ymax = ymax, fill = method, color = method),
-    alpha = 0.2
-  ) +
-  geom_line(
-    data = plot_data,
-    aes(x = age, y = y, color = method, linetype = method),
-    linewidth = 1.5
-  ) +
-  # Field points
-  geom_point(
-    data = field_data,
-    aes(x = age, y = biomass, color = "Field Measurements"),
-    size = 3, alpha = 0.7, show.legend = TRUE
-  ) +
-  # Age lag
-  geom_vline(
-    xintercept = (lag + 1), linetype = "dotted", color = "black", linewidth = 1
-  ) +
-  annotate(
-    "text", x = (lag + 1) + 2, y = 320,
-    label = paste(round(model$par["lag"]), "year lag"),
-    color = "black", size = 7, hjust = 0
-  ) +
-  # Scales
-  scale_color_manual(values = plot_colors, name = NULL) +
-  scale_fill_manual(values = plot_colors, name = NULL) +
-  scale_linetype_manual(values = linetypes, name = NULL) +
-  coord_cartesian(ylim = c(0, 330), expand = FALSE) +
-  labs(x = "Forest Age (years)", y = "Biomass (Mg/ha)") +
-  theme(
-    aspect.ratio = 0.5,
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    axis.line = element_line(color = "black"),
-    axis.title = element_text(color = "black", family = "Helvetica"),
-    axis.text = element_text(color = "black", size = 18, family = "Helvetica"),
-    legend.position = "none"
-  )
 
+    # Predicted data - current
+    geom_line(
+        data = pred_plot,
+        aes(
+            x = age, y = mean_lag,
+            color = "Model with lag",
+            linetype = "Model with lag"
+        ),
+        linewidth = 1.5
+    ) +
+
+    geom_ribbon(
+        data = pred_plot,
+        aes(
+            x = age,
+            ymin = ymin_lag,
+            ymax = ymax_lag,
+            fill = "Model with lag"
+        ),
+        alpha = 0.2, color = NA
+    ) +
+    
+    geom_line(
+        data = pred_plot,
+        aes(
+            x = age,
+            y = mean_intercept,
+            color = "Model without lag",
+            linetype = "Model without lag"
+        ),
+        linewidth = 1.5) +
+
+    geom_ribbon(
+        data = pred_plot,
+        aes(
+            x = age,
+            ymin = ymin_intercept,
+            ymax = ymax_intercept,
+            fill = "Model without lag"
+        ),
+        alpha = 0.2, color = NA
+    ) +
+
+
+    # Field data points
+    geom_point(
+        data = field_data,
+        aes(
+            x = age, y = biomass,
+            color = "Field Measurements"
+        ),
+        size = 3, alpha = 0.7
+    ) +
+
+    # Remote sensing data
+    geom_line(
+        data = aggregated_satellite,
+        aes(
+            x = age,
+            y = mean_obs,
+            color = "Satellite Measurements",
+            linetype = "Satellite Measurements"
+        ),
+        linewidth = 1.5
+    )  +
+
+    geom_ribbon(
+        data = aggregated_satellite,
+        aes(
+            x = age,
+            ymin = mean_obs - sd_obs,
+            ymax = mean_obs + sd_obs,
+            fill = "Satellite Measurements"
+        ),
+        alpha = 0.2, color = NA
+    ) +
+
+
+
+    # Vertical line for age lag
+    geom_vline(
+        xintercept = (lag + 1),
+        linetype = "dotted", color = "black", linewidth = 1
+    ) +
+    annotate(
+        "text",
+        x = (lag + 1) + 2, y = 320,
+        label = paste(round(lag), "year lag"),
+        color = "black", size = 7, hjust = 0
+    ) +
+
+    # Scale definitions
+    scale_color_manual(values = plot_colors, name = NULL) +
+    scale_fill_manual(values = plot_colors, name = NULL) +
+    scale_linetype_manual(values = linetypes, name = NULL) +
+    # scale_y_continuous(limits = c(0, 320), expand = expansion(0,0)) +
+    coord_cartesian(ylim = c(0, 330), expand = FALSE) +
+
+    # Labels and theme
+    labs(
+        x = "Forest Age (years)",
+        y = "Biomass (Mg/ha)"
+    ) +
+    theme(
+        aspect.ratio = 0.5,
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(color = "black"),
+        axis.title = element_text(color = "black", family = "Helvetica"),
+        axis.text = element_text(color = "black", size = 18, family = "Helvetica"),
+        legend.position = "none"
+    )
 
 p
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #        Save outputs
@@ -212,3 +280,72 @@ ggsave(
 
 
 
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ---------------- Exporting results ------------------ #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# Assuming pred = predicted AGB, obs = norm_data$biomass
+df <- data.frame(
+    Predicted = field_pred_biomass,
+    Observed = field_data_scaled$biomass
+)
+
+ext <- ggplot(df, aes(x = Predicted, y = Observed)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red", linewidth = 2) +
+    labs(
+        x = "Predicted Biomass (Mg/ha)",
+        y = "Observed Biomass (Mg/ha)"
+    ) +
+    coord_cartesian(expand = FALSE) +
+    theme(
+        aspect.ratio = 1,
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white"),
+        axis.line = element_line(color = "black"),
+        axis.title = element_text(color = "black", size = 28, family = "Helvetica"),
+        axis.text = element_text(color = "black", size = 18, family = "Helvetica"),
+        legend.position = "none"
+    )
+
+# Save to file
+ggsave("./0_results/figures/extended/predicted_vs_observed_field.png",
+    plot = ext
+)
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------------- Histogram of field ages ----------------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+ext <- ggplot(field_data, aes(x = age)) +
+    geom_histogram(
+        binwidth = 5,
+        fill = "grey30",
+        color = "white",
+        boundary = 0
+    ) +
+    labs(
+        x = "Forest age (years)",
+        y = "Number of plots"
+    ) +
+    theme_minimal(base_size = 14) +
+    theme(
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(color = "black", size = 20),
+        axis.title = element_text(face = "bold", size = 22),
+        axis.ticks = element_line(color = "black"),
+        plot.margin = margin(10, 10, 10, 10)
+    )
+
+# Save to file
+ggsave("./0_results/figures/extended/field_age_histogram.png",
+    plot = ext, width = 1800, height = 1400, res = 300
+)
