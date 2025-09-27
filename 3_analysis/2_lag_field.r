@@ -98,9 +98,6 @@ aggregated_satellite <- norm_data %>%
     ) %>%
     mutate(age = age + lag)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Get R² for field data based on satellite-trained model
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 pred_plot <- subset(predictions, age >= 0 & age <= 75) # max(aggregated_satellite$age)
 pred_plot <- pred_plot %>%
@@ -150,7 +147,7 @@ p <- ggplot() +
             ymax = ymax_lag,
             fill = "Model with lag"
         ),
-        alpha = 0.2, color = NA
+        alpha = 0.2, color = "#2f4b7c"
     ) +
     
     geom_line(
@@ -171,9 +168,8 @@ p <- ggplot() +
             ymax = ymax_intercept,
             fill = "Model without lag"
         ),
-        alpha = 0.2, color = NA
+        alpha = 0.2, color = "#ffa600"
     ) +
-
 
     # Field data points
     geom_point(
@@ -205,10 +201,8 @@ p <- ggplot() +
             ymax = mean_obs + sd_obs,
             fill = "Satellite Measurements"
         ),
-        alpha = 0.2, color = NA
+        alpha = 0.2, color = "#b91523"
     ) +
-
-
 
     # Vertical line for age lag
     geom_vline(
@@ -269,7 +263,7 @@ legend_plot <- cowplot::ggdraw(legend)
 
 # Save the legend
 ggsave(
-    filename = "0_results/figures/lag_field_biomass_legend.jpeg",
+    filename = "0_results/figures/figure_3_lag_field_biomass_legend.jpeg",
     plot = legend_plot,
     width = 15,
     height = 10,
@@ -277,75 +271,3 @@ ggsave(
     dpi = 300
 )
 
-
-
-
-
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ---------------- Exporting results ------------------ #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-# Assuming pred = predicted AGB, obs = norm_data$biomass
-df <- data.frame(
-    Predicted = field_pred_biomass,
-    Observed = field_data_scaled$biomass
-)
-
-ext <- ggplot(df, aes(x = Predicted, y = Observed)) +
-    geom_point() +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red", linewidth = 2) +
-    labs(
-        x = "Predicted Biomass (Mg/ha)",
-        y = "Observed Biomass (Mg/ha)"
-    ) +
-    coord_cartesian(expand = FALSE) +
-    theme(
-        aspect.ratio = 1,
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_rect(fill = "white"),
-        axis.line = element_line(color = "black"),
-        axis.title = element_text(color = "black", size = 28, family = "Helvetica"),
-        axis.text = element_text(color = "black", size = 18, family = "Helvetica"),
-        legend.position = "none"
-    )
-
-# Save to file
-ggsave("./0_results/figures/extended/predicted_vs_observed_field.png",
-    plot = ext
-)
-
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# --------------- Histogram of field ages ----------------- #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-
-ext <- ggplot(field_data, aes(x = age)) +
-    geom_histogram(
-        binwidth = 5,
-        fill = "grey30",
-        color = "white",
-        boundary = 0
-    ) +
-    labs(
-        x = "Forest age (years)",
-        y = "Number of plots"
-    ) +
-    theme_minimal(base_size = 14) +
-    theme(
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.text = element_text(color = "black", size = 20),
-        axis.title = element_text(face = "bold", size = 22),
-        axis.ticks = element_line(color = "black"),
-        plot.margin = margin(10, 10, 10, 10)
-    )
-
-# Save to file
-ggsave("./0_results/figures/extended/field_age_histogram.png",
-    plot = ext, width = 1800, height = 1400, res = 300
-)

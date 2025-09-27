@@ -21,6 +21,13 @@ set.seed(1)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ------------- Fitting Model to Satellite Data ----------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
 data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000)
 
 # Fit the model on the full data
@@ -38,8 +45,10 @@ model <- run_optim(norm_data, pars_init[[1]], conditions)
 
 pred <- growth_curve(model$par, data = norm_data, lag = model$par["lag"])
 
-r2 <- calc_r2(norm_data, pred)
-r2
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ------- Satellite Data Predicted vs. Observed ----------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Assuming pred = predicted AGB, obs = norm_data$biomass
 df <- data.frame(
