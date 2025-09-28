@@ -29,12 +29,13 @@ apply_min_max_scaling <- function(data, train_stats) {
             (train_stats$max[i] - train_stats$min[i])
     }
     return(data)
+}
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------------- Train model with 10k dataset ------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-data_10k <- import_data("grid_10k_amazon_secondary", biome_num = 1, n_samples = 10000)
+data_10k <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000)
 
 data_10k_scaled <- normalize_independently(data_10k)
 train_stats <- data_10k_scaled$train_stats
@@ -42,11 +43,11 @@ data_10k_scaled <- data_10k_scaled$train_data
 
 init_params <- find_combination_pars(
     basic_pars = basic_pars_options[["lag"]],
-    data_pars = setdiff(data_pars_options(colnames(data_10k))[["all_mean_climate"]], "floodable_forests"),
+    data_pars = setdiff(data_pars_options(colnames(data_10k))[["all"]], "floodable_forests"),
     data = data_10k_scaled
 )
 
-model <- run_optim(data_10k_scaled, init_params, conditions)
+model <- run_optim(data_10k_scaled, init_params[[1]], conditions)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Estimate biomass by 2050 --------------- #

@@ -146,22 +146,6 @@ ggsave(
 
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ------------- Atlantic Forest ----------- #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-r2_df <- read.csv("./0_results/0_r2_land_use_aggregated_all_1.csv")
-r2_df$group <- "aggregated_all"
-
-p <- barplot_r2_increase(r2_df, age_include = TRUE)
-
-ggsave(
-    paste0("./0_results/figures/model_performance_", "aggregated_all", ".jpg"),
-    plot = p,
-    width = 8,
-    height = 10,
-    dpi = 300
-)
 
 
 # ------------------------------------------------- #
