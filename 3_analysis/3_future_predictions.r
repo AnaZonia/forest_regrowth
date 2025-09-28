@@ -164,13 +164,14 @@ pred_2050_secondary_list <- numeric(5)
 pred_2050_secondary_df <- data.frame()
 
 scenarios <- c("top_5_percent", "random", "all")
-result_lists <- list()
-result_dfs <- list()
+carbon_lists <- list()
+area_lists <- list()
 
 for (scenario in scenarios) {
-    result_lists[[scenario]] <- numeric(5)
-    result_dfs[[scenario]] <- NULL
+    carbon_lists[[scenario]] <- numeric(5)
+    area_lists[[scenario]] <- numeric(5)
 }
+pred_2050_pastureland_all_df <- data.frame()
 
 for (index in 1:5) {
     train_data <- data[indices == index, ]
@@ -186,26 +187,56 @@ for (index in 1:5) {
 
     model <- run_optim(norm_data, pars_init[[1]], conditions)
 
-    for (scenario in scenarios) {
-        prediction <- predict_future_biomass("pastureland", model, train_stats, scenario)
-        result_lists[[scenario]][index] <- prediction[[1]]
-        if (index == 1) {
-            result_dfs[[scenario]] <- prediction[[2]]
-        } else {
-            result_dfs[[scenario]]$pred <-
-                (result_dfs[[scenario]]$pred + prediction[[2]]$pred)
-        }
-    }
-
     pred_2050_secondary <- predict_future_biomass("secondary", model, train_stats)
     pred_2050_secondary_list[index] <- pred_2050_secondary[[1]]
 
-    if (index == 1) {
-        pred_2050_secondary_df <- pred_2050_secondary[[2]]
-    } else {
-        pred_2050_secondary_df$pred <- (pred_2050_secondary_df$pred + pred_2050_secondary[[2]]$pred)
+    for (scenario in scenarios) {
+        prediction <- predict_future_biomass("pastureland", model, train_stats, scenario)
+        carbon_lists[[scenario]][index] <- prediction[[1]]
+        area_lists[[scenario]][index] <- prediction[[3]]
+
+        if (scenario == "all") {
+            if (index == 1) {
+                pred_2050_pastureland_all_df <- prediction[[2]]
+                pred_2050_secondary_df <- pred_2050_secondary[[2]]
+            } else {
+                pred_2050_pastureland_all_df <- cbind(pred_2050_pastureland_all_df, prediction[[2]]$pred)
+                pred_2050_secondary_df <- cbind(pred_2050_secondary_df, pred_2050_secondary[[2]]$pred)
+            }
+        }
     }
+    
 }
+
+results <- data.frame(
+    scenario = c("Secondary Forests", "Pasturelands (Random 5%)", "Pasturelands (Top 5%)", "Pasturelands (All)"),
+    mean_carbon = c(
+        mean(pred_2050_secondary_list),
+        mean(carbon_lists[["random"]]),
+        mean(carbon_lists[["top_5_percent"]]),
+        mean(carbon_lists[["all"]])
+    ),
+    sd_carbon = c(
+        sd(pred_2050_secondary_list),
+        sd(carbon_lists[["random"]]),
+        sd(carbon_lists[["top_5_percent"]]),
+        sd(carbon_lists[["all"]])
+    ),
+    mean_area = c(
+        pred_2050_secondary[[3]],
+        mean(area_lists[["random"]]),
+        mean(area_lists[["top_5_percent"]]),
+        mean(area_lists[["all"]])
+    ),
+    sd_area = c(
+        0,
+        sd(area_lists[["random"]]),
+        sd(area_lists[["top_5_percent"]]),
+        sd(area_lists[["all"]])
+    )
+)
+
+write.csv(results, file = "./0_results/0_future_predictions.csv", row.names = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------------- Figure 4 c ----------------------- #
@@ -225,7 +256,7 @@ fig_4_c <- data.frame(
 )
 
 fig_4_c <- ggplot(fig_4_c, aes(x = category, y = value)) + # removed fill aesthetic
-    geom_bar(stat = "identity", width = 0.5, fill = "black") + # set fill manually
+    geom_bar(stat = "identity", width = 0.5, fill = "#FDC229") + # set fill manually
     scale_y_continuous(
         labels = scales::label_comma(),
         name = "Area covered (million hectares)"
@@ -263,21 +294,13 @@ fig_4_d <- data.frame(
             "Random 5% of\nPasture Cover", 
             "Top 5% Priority\nPasture Cover")
     ),
-    value = c(
-        mean(pred_2050_secondary_list),
-        mean(pred_2050_pastureland_random_list),
-        mean(pred_2050_pastureland_top_5_list)
-    ),
-    sd = c(
-        sd(pred_2050_secondary_list),
-        sd(pred_2050_pastureland_random_list),
-        sd(pred_2050_pastureland_top_5_list)
-    )
+    value = results$mean_carbon[c(1,2,3)],
+    sd = results$sd_carbon[c(1,2,3)]
 )
 
 
 fig_4_d <- ggplot(fig_4_d, aes(x = category, y = value)) + # removed fill aesthetic
-    geom_bar(stat = "identity", width = 0.7, fill = "black") + # set fill manually
+    geom_bar(stat = "identity", width = 0.7, fill = "#FDC229") + # set fill manually
     geom_errorbar(
         aes(ymin = value - sd, ymax = value + sd),
         width = 0.3,
@@ -286,7 +309,7 @@ fig_4_d <- ggplot(fig_4_d, aes(x = category, y = value)) + # removed fill aesthe
     ) +
     scale_y_continuous(
         labels = scales::label_comma(),
-        name = "Carbon stored by 2050 (Tg CO₂e)"
+        name = "Carbon stored by 2050 (Tg C)"
     ) +
     labs(x = NULL) +
     theme_minimal(base_size = 16) +
@@ -310,16 +333,26 @@ ggsave("0_results/figures/figure_4_d.jpeg",
 # ---------------------- Export maps ---------------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+pred_2050_pastureland_all_df$pred <- rowMeans(pred_2050_pastureland_all_df[, c(3:7)])
+
+pred_2050_pastureland_all_df <- pred_2050_pastureland_all_df[, c("lon", "lat", "pred")]
+
+pred_2050_secondary_df$pred <- rowMeans(pred_2050_secondary_df[, c(3:7)])
+pred_2050_secondary_df <- pred_2050_secondary_df[, c("lon", "lat", "pred")]
+
+library(terra)
+
 writeVector(
-    vect(pred_2050_pastureland_all[[2]], geom = c("lon", "lat"), crs = "EPSG:4326"),
+    vect(pred_2050_pastureland_all_df, geom = c("lon", "lat"), crs = "EPSG:4326"),
     "0_results/figures/QGIS/predictions/pred_2050_pastureland_all.shp",
     overwrite = TRUE
 )
 
 writeVector(
-    vect(pred_2050_secondary[[2]], geom = c("lon", "lat"), crs = "EPSG:4326"), "0_results/figures/QGIS/predictions/pred_2050_secondary.shp",
+    vect(pred_2050_secondary_df, geom = c("lon", "lat"), crs = "EPSG:4326"), "0_results/figures/QGIS/predictions/pred_2050_secondary.shp",
     overwrite = TRUE
 )
+
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
