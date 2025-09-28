@@ -32,24 +32,6 @@ apply_min_max_scaling <- function(data, train_stats) {
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# -------------- Train model with 10k dataset ------------- #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-data_10k <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000)
-
-data_10k_scaled <- normalize_independently(data_10k)
-train_stats <- data_10k_scaled$train_stats
-data_10k_scaled <- data_10k_scaled$train_data
-
-init_params <- find_combination_pars(
-    basic_pars = basic_pars_options[["lag"]],
-    data_pars = setdiff(data_pars_options(colnames(data_10k))[["all"]], "floodable_forests"),
-    data = data_10k_scaled
-)
-
-model <- run_optim(data_10k_scaled, init_params[[1]], conditions)
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Estimate biomass by 2050 --------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #'
@@ -67,9 +49,10 @@ model <- run_optim(data_10k_scaled, init_params[[1]], conditions)
 #'   - coords: Data frame of pixel coordinates and predictions
 #'   - total_area: Total area included in the sum (million hectares)
 
-predict_future_biomass <- function(name, pasture_selection = "random", age_offset = 30, delta = TRUE) {
 
-    data_1k <- import_data(paste0("grid_1k_amazon_", name), biome_num = 1, n_samples = "all")
+predict_future_biomass <- function(name, model, train_stats, pasture_selection = "random", age_offset = 30, delta = TRUE) {
+
+    data_1k <- import_data(paste0("grid_1k_amazon_", name), biome = 1, n_samples = "all")
     coords <- data_1k$coords
 
     data_1k <- apply_min_max_scaling(data_1k$df, train_stats)
@@ -170,10 +153,59 @@ predict_future_biomass <- function(name, pasture_selection = "random", age_offse
 }
 
 
-pred_2050_secondary <- predict_future_biomass("secondary")
-pred_2050_pastureland_top_5 <- predict_future_biomass("pastureland", "top_5_percent")
-pred_2050_pastureland_random <- predict_future_biomass("pastureland", "random")
-pred_2050_pastureland_all <- predict_future_biomass("pastureland", "all")
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# -------------- Train model with 10k dataset ------------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 150000)
+indices <- sample(c(1:5), nrow(data), replace = TRUE)
+
+pred_2050_secondary_list <- numeric(5)
+pred_2050_secondary_df <- data.frame()
+
+scenarios <- c("top_5_percent", "random", "all")
+result_lists <- list()
+result_dfs <- list()
+
+for (scenario in scenarios) {
+    result_lists[[scenario]] <- numeric(5)
+    result_dfs[[scenario]] <- NULL
+}
+
+for (index in 1:5) {
+    train_data <- data[indices == index, ]
+    norm_data <- normalize_independently(train_data)
+    train_stats <- norm_data$train_stats
+    norm_data <- norm_data$train_data
+
+    pars_init <- find_combination_pars(
+        basic_pars = basic_pars_options[["lag"]],
+        data_pars = setdiff(data_pars_options(colnames(data_10k))[["all"]], "floodable_forests"),
+        data = norm_data
+    )
+
+    model <- run_optim(norm_data, pars_init[[1]], conditions)
+
+    for (scenario in scenarios) {
+        prediction <- predict_future_biomass("pastureland", model, train_stats, scenario)
+        result_lists[[scenario]][index] <- prediction[[1]]
+        if (index == 1) {
+            result_dfs[[scenario]] <- prediction[[2]]
+        } else {
+            result_dfs[[scenario]]$pred <-
+                (result_dfs[[scenario]]$pred + prediction[[2]]$pred)
+        }
+    }
+
+    pred_2050_secondary <- predict_future_biomass("secondary", model, train_stats)
+    pred_2050_secondary_list[index] <- pred_2050_secondary[[1]]
+
+    if (index == 1) {
+        pred_2050_secondary_df <- pred_2050_secondary[[2]]
+    } else {
+        pred_2050_secondary_df$pred <- (pred_2050_secondary_df$pred + pred_2050_secondary[[2]]$pred)
+    }
+}
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------------- Figure 4 c ----------------------- #
@@ -216,9 +248,6 @@ ggsave("0_results/figures/figure_4_c.jpeg",
     width = 10, height = 4, dpi = 300
 )
 
-
-
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------------- Figure 4 d ----------------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -235,15 +264,26 @@ fig_4_d <- data.frame(
             "Top 5% Priority\nPasture Cover")
     ),
     value = c(
-        pred_2050_secondary[[1]],
-        pred_2050_pastureland_random[[1]],
-        pred_2050_pastureland_top_5[[1]]
+        mean(pred_2050_secondary_list),
+        mean(pred_2050_pastureland_random_list),
+        mean(pred_2050_pastureland_top_5_list)
+    ),
+    sd = c(
+        sd(pred_2050_secondary_list),
+        sd(pred_2050_pastureland_random_list),
+        sd(pred_2050_pastureland_top_5_list)
     )
 )
 
 
 fig_4_d <- ggplot(fig_4_d, aes(x = category, y = value)) + # removed fill aesthetic
     geom_bar(stat = "identity", width = 0.7, fill = "black") + # set fill manually
+    geom_errorbar(
+        aes(ymin = value - sd, ymax = value + sd),
+        width = 0.3,
+        color = "black",
+        linewidth = 1.5
+    ) +
     scale_y_continuous(
         labels = scales::label_comma(),
         name = "Carbon stored by 2050 (Tg CO₂e)"
@@ -280,13 +320,6 @@ writeVector(
     vect(pred_2050_secondary[[2]], geom = c("lon", "lat"), crs = "EPSG:4326"), "0_results/figures/QGIS/predictions/pred_2050_secondary.shp",
     overwrite = TRUE
 )
-
-
-
-
-
-
-
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

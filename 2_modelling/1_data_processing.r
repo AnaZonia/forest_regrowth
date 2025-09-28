@@ -43,6 +43,9 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
         map(~ suppressMessages(read_csv(.x, show_col_types = FALSE, progress = FALSE))) %>%
         bind_rows()
 
+    # remove columns with all NA values
+    df <- df[, colSums(is.na(df)) < nrow(df)]
+
     # remove any rows with NA values
     df <- df %>% filter(rowSums(is.na(.)) == 0)
 
