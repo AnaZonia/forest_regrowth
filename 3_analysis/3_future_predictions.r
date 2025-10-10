@@ -15,6 +15,8 @@ source("2_modelling/2_forward_selection.r")
 library(tidyverse)
 library(terra)
 library(scales) # for label formatting
+library(foreach)
+library(doParallel)
 
 # Set up parallel processing
 set.seed(1)
@@ -181,7 +183,7 @@ for (index in 1:5) {
 
     pars_init <- find_combination_pars(
         basic_pars = basic_pars_options[["lag"]],
-        data_pars = setdiff(data_pars_options(colnames(data_10k))[["all"]], "floodable_forests"),
+        data_pars = setdiff(data_pars_options(colnames(data))[["all"]], "floodable_forests"),
         data = norm_data
     )
 
@@ -244,19 +246,21 @@ write.csv(results, file = "./0_results/0_future_predictions.csv", row.names = FA
 # ---- Barplot with areas of sec. forests and pastures ---- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+results <- read.csv("./0_results/0_future_predictions.csv")
+
 fig_4_c <- data.frame(
     category = factor(
         c("Secondary\nForests", "5% of\nPasture Cover"),
         levels = c("Secondary\nForests", "5% of\nPasture Cover")
     ),
     value = c(
-        pred_2050_secondary[[3]],
-        pred_2050_pastureland_random[[3]]
+        results$mean_area[1],
+        results$mean_area[2]
     )
 )
 
 fig_4_c <- ggplot(fig_4_c, aes(x = category, y = value)) + # removed fill aesthetic
-    geom_bar(stat = "identity", width = 0.5, fill = "#FDC229") + # set fill manually
+    geom_bar(stat = "identity", width = 0.5, fill = "#043927") + # set fill manually
     scale_y_continuous(
         labels = scales::label_comma(),
         name = "Area covered (million hectares)"
@@ -300,13 +304,39 @@ fig_4_d <- data.frame(
 
 
 fig_4_d <- ggplot(fig_4_d, aes(x = category, y = value)) + # removed fill aesthetic
-    geom_bar(stat = "identity", width = 0.7, fill = "#FDC229") + # set fill manually
-    geom_errorbar(
-        aes(ymin = value - sd, ymax = value + sd),
-        width = 0.3,
-        color = "black",
-        linewidth = 1.5
-    ) +
+    geom_bar(stat = "identity", width = 0.7, fill = "#043927") + # set fill manually
+    # geom_errorbar(
+    #     aes(ymin = value - sd, ymax = value + sd),
+    #     width = 0.3,
+    #     color = "black",
+    #     linewidth = 1.5
+    # ) +
+    # Lower half (white)
+    geom_segment(aes(
+        x = category, xend = category,
+        y = value - sd, yend = value
+    ),
+    color = "white", linewidth = 1.5) +
+    # Top half (black)
+    geom_segment(aes(
+        x = category, xend = category,
+        y = value, yend = value + sd
+    ),
+    color = "black", linewidth = 1.5) +
+    # Lower horizontal cap (white)
+    geom_segment(aes(
+        x = as.numeric(category) - 0.12,
+        xend = as.numeric(category) + 0.12,
+        y = value - sd,
+        yend = value - sd
+    ), color = "white", linewidth = 1.5) +
+    # Upper horizontal cap (black)
+    geom_segment(aes(
+        x = as.numeric(category) - 0.12,
+        xend = as.numeric(category) + 0.12,
+        y = value + sd,
+        yend = value + sd
+    ), color = "black", linewidth = 1.5) +
     scale_y_continuous(
         labels = scales::label_comma(),
         name = "Carbon stored by 2050 (Tg C)"
@@ -340,7 +370,6 @@ pred_2050_pastureland_all_df <- pred_2050_pastureland_all_df[, c("lon", "lat", "
 pred_2050_secondary_df$pred <- rowMeans(pred_2050_secondary_df[, c(3:7)])
 pred_2050_secondary_df <- pred_2050_secondary_df[, c("lon", "lat", "pred")]
 
-library(terra)
 
 writeVector(
     vect(pred_2050_pastureland_all_df, geom = c("lon", "lat"), crs = "EPSG:4326"),

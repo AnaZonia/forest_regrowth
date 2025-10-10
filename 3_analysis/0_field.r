@@ -26,6 +26,7 @@ registerDoParallel(cores = ncore)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ----------------- Field Data Cleaning ------------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 field_data <- read.csv("./0_data/groa_field/field_predictors.csv")
 field_data <- subset(field_data, biome == 1)
 field_data <- field_data %>%
@@ -35,6 +36,10 @@ field_data <- field_data %>%
     ) %>%
     mutate(age = floor(age + 0.5)) %>%
     drop_na()
+
+# get median biomass per age per site
+
+
 
 field_data <- dummy_cols(field_data,
     select_columns = categorical,

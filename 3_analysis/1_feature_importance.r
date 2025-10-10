@@ -166,15 +166,34 @@ p <- ggplot(
     aes(x = asymptote, y = mean_r2)
 ) +
     geom_bar(stat = "identity", fill = "#003f5c") +
-    geom_errorbar(
-        aes(
-            ymin = mean_r2 - sd_r2,
-            ymax = mean_r2 + sd_r2
-        ),
-        width = 0.4,
-        linewidth = 1,
-        color = "black"
-    ) +
+
+    # Lower half (white)
+    geom_segment(aes(
+        x = asymptote, xend = asymptote,
+        y = mean_r2 - sd_r2, yend = mean_r2
+    ),
+    color = "white", linewidth = 1.5) +
+    # Top half (black)
+    geom_segment(aes(
+        x = asymptote, xend = asymptote,
+        y = mean_r2, yend = mean_r2 + sd_r2
+    ),
+    color = "black", linewidth = 1.5) +
+    # Lower horizontal cap (white)
+    geom_segment(aes(
+        x = as.numeric(asymptote) - 0.12,
+        xend = as.numeric(asymptote) + 0.12,
+        y = mean_r2 - sd_r2,
+        yend = mean_r2 - sd_r2
+    ), color = "white", linewidth = 1.5) +
+    # Upper horizontal cap (black)
+    geom_segment(aes(
+        x = as.numeric(asymptote) - 0.12,
+        xend = as.numeric(asymptote) + 0.12,
+        y = mean_r2 + sd_r2,
+        yend = mean_r2 + sd_r2
+    ), color = "black", linewidth = 1.5) +
+
     theme_minimal() +
     theme(
         axis.title = element_blank(),
