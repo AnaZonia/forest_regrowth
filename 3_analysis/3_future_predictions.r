@@ -90,7 +90,7 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
     area <- data_1k[[grep("area", names(data_1k), value = TRUE)]] * 100 # convert to hectares
 
     # get total biomass (assuming 25.8% of total biomass is belowground)
-    pred = pred + ((pred * 25.8) / 100)
+    pred = pred + (pred * 0.258)
 
     # convert biomass in Mg/ha to MgC/ha (assuming 50% C content)
     pred <- pred * 0.5
@@ -115,6 +115,7 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
             pred <- pred[random_indices]
             area <- area[random_indices]
             coords <- coords[random_indices, ]
+
         } else if (pasture_selection == "protected") {
             # select all pasturelands in protected areas
             # get the indices where data$protedted is 1
@@ -365,9 +366,15 @@ ggsave("0_results/figures/figure_4_d.jpeg",
 
 pred_2050_pastureland_all_df$pred <- rowMeans(pred_2050_pastureland_all_df[, c(3:7)])
 
+# values are in teragrams per hectare. To convert to megagrams per hectare, multiply by 1,000,000
+pred_2050_pastureland_all_df$pred <- pred_2050_pastureland_all_df$pred * 1e6
+
 pred_2050_pastureland_all_df <- pred_2050_pastureland_all_df[, c("lon", "lat", "pred")]
 
 pred_2050_secondary_df$pred <- rowMeans(pred_2050_secondary_df[, c(3:7)])
+# values are in teragrams per hectare. To convert to megagrams per hectare, multiply by 1,000,000
+pred_2050_secondary_df$pred <- pred_2050_secondary_df$pred * 1e6
+
 pred_2050_secondary_df <- pred_2050_secondary_df[, c("lon", "lat", "pred")]
 
 

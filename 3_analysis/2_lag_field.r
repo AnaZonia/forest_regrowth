@@ -31,7 +31,6 @@ theme_set(theme_minimal(base_size = 20))
 #        Model fitting and prediction
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
 lag <- read.csv("./0_results/0_lag.csv")$mean_lag
 
 data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000)
@@ -69,7 +68,16 @@ for (basic_pars_name in names(basic_pars_options)) {
     predictions[[paste0("sd_", basic_pars_name)]] <- sd_biomass
 }
 
-write.csv(predictions, "0_results/0_lag_field_predictions.csv", row.names = FALSE)
+# write.csv(predictions, "0_results/0_lag_field_predictions.csv", row.names = FALSE)
+
+predictions <- read.csv("0_results/0_lag_field_predictions.csv")
+
+(predictions$mean_lag - predictions$mean_intercept)
+
+max(predictions$mean_lag - predictions$mean_intercept)
+# average growth rate per year in x years is maximum 
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Load and summarize field and satellite data
