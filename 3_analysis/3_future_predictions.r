@@ -33,6 +33,17 @@ apply_min_max_scaling <- function(data, train_stats) {
     return(data)
 }
 
+
+total_area_secondary <- 35657686 + 1696350
+
+area_per_grid_cell <- total_area_secondary / nrow(data_1k$df) # in hectares
+
+total_2020 <- sum(data_1k$df$biomass * area_per_grid_cell) / 1000000
+total_2020
+
+
+
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Estimate biomass by 2050 --------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -51,13 +62,14 @@ apply_min_max_scaling <- function(data, train_stats) {
 #'   - coords: Data frame of pixel coordinates and predictions
 #'   - total_area: Total area included in the sum (million hectares)
 
-
 predict_future_biomass <- function(name, model, train_stats, pasture_selection = "random", age_offset = 30, delta = TRUE) {
 
-    data_1k <- import_data(paste0("grid_1k_amazon_", name), biome = 1, n_samples = "all")
-    coords <- data_1k$coords
 
-    data_1k <- apply_min_max_scaling(data_1k$df, train_stats)
+    data_1k <- import_data(paste0("grid_1k_amazon_", name), biome = 1, n_samples = "all")
+
+    coords <- data_1k$coords
+    data_1k <- data_1k$df
+    data_1k <- apply_min_max_scaling(data_1k, train_stats)
 
     data_2020 <- data_1k
 
@@ -87,7 +99,7 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
     # (1 hectare = 10,000 m2)
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-    area <- data_1k[[grep("area", names(data_1k), value = TRUE)]] * 100 # convert to hectares
+    # area <- data_1k[[grep("area", names(data_1k), value = TRUE)]] * 100 # convert to hectares
 
     # get total biomass (assuming 25.8% of total biomass is belowground)
     pred = pred + (pred * 0.258)
@@ -100,59 +112,44 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
 
     coords$pred <- pred
 
+    total_area_secondary <- 35657686 + 1696350
+    total_area_pastureland <- 154669142
+
     if (name == "pastureland") {
+        area_per_grid_cell <- total_area_pastureland / length(pred) # in hectares
+
         if (pasture_selection == "random") {
             # shuffle the indices of pred
             random_indices <- sample(1:length(pred), size = 0.05 * length(pred), replace = FALSE)
-            sorted_area <- area[random_indices]
-
-            # Compute cumulative sum of area
-            cum_area <- cumsum(sorted_area)
-
-            # Find the number of pixels needed to reach 5% of total area
-            total_area <- sum(area)
 
             pred <- pred[random_indices]
-            area <- area[random_indices]
+            total_biomass <- sum(pred * area_per_grid_cell)
             coords <- coords[random_indices, ]
 
-        } else if (pasture_selection == "protected") {
-            # select all pasturelands in protected areas
-            # get the indices where data$protedted is 1
-            protected_indices <- which(data$protec == 1)
-            protected_areas <- data[protected_indices, ]
-            # filter coords and pred to only include protected areas
-            pred <- pred[protected_indices]
-            area <- area[protected_indices]
-            coords <- coords[protected_indices, ]
         } else if (pasture_selection == "top_5_percent") {
             # select top 5% of pastureland by biomass
             # Sort predictions and data by descending prediction value
             order_indices <- order(pred, decreasing = TRUE)
-            sorted_area <- area[order_indices]
 
-            # Compute cumulative sum of area
-            cum_area <- cumsum(sorted_area)
-
-            # Find the number of pixels needed to reach 5% of total area
-            total_area <- sum(area)
-            n_needed <- which(cum_area >= 0.05 * total_area)[1]
+            n_needed <- 0.05 * length(pred)
 
             # Select those indices
             selected_indices <- order_indices[1:n_needed]
+
+            area_per_grid_cell <- total_area_pastureland / length(pred) # in hectares
             pred <- pred[selected_indices]
-            area <- area[selected_indices]
+            total_biomass <- sum(pred * area_per_grid_cell)
             coords <- coords[selected_indices, ]
         } else if (pasture_selection == "all") {
             # use all pastureland
-            # nothing to do here, pred, area, and coords are already set
+            total_biomass <- sum(pred * area_per_grid_cell, na.rm = TRUE)
         }
+    } else if (name == "secondary") {
+        area_per_grid_cell <- total_area_secondary / length(pred) # in hectares
+        total_biomass <- sum(pred * area_per_grid_cell, na.rm = TRUE)
     }
-
-    total_biomass <- sum(pred * area, na.rm = TRUE)
-    total_area <- sum(area, na.rm = TRUE) / 1000000 # convert to million hectares
     
-    return(list(total_biomass, coords, total_area))
+    return(list(total_biomass, coords))
 }
 
 
@@ -168,12 +165,11 @@ pred_2050_secondary_df <- data.frame()
 
 scenarios <- c("top_5_percent", "random", "all")
 carbon_lists <- list()
-area_lists <- list()
 
 for (scenario in scenarios) {
     carbon_lists[[scenario]] <- numeric(5)
-    area_lists[[scenario]] <- numeric(5)
 }
+
 pred_2050_pastureland_all_df <- data.frame()
 
 for (index in 1:5) {
@@ -196,7 +192,6 @@ for (index in 1:5) {
     for (scenario in scenarios) {
         prediction <- predict_future_biomass("pastureland", model, train_stats, scenario)
         carbon_lists[[scenario]][index] <- prediction[[1]]
-        area_lists[[scenario]][index] <- prediction[[3]]
 
         if (scenario == "all") {
             if (index == 1) {
@@ -211,6 +206,7 @@ for (index in 1:5) {
     
 }
 
+
 results <- data.frame(
     scenario = c("Secondary Forests", "Pasturelands (Random 5%)", "Pasturelands (Top 5%)", "Pasturelands (All)"),
     mean_carbon = c(
@@ -224,22 +220,12 @@ results <- data.frame(
         sd(carbon_lists[["random"]]),
         sd(carbon_lists[["top_5_percent"]]),
         sd(carbon_lists[["all"]])
-    ),
-    mean_area = c(
-        pred_2050_secondary[[3]],
-        mean(area_lists[["random"]]),
-        mean(area_lists[["top_5_percent"]]),
-        mean(area_lists[["all"]])
-    ),
-    sd_area = c(
-        0,
-        sd(area_lists[["random"]]),
-        sd(area_lists[["top_5_percent"]]),
-        sd(area_lists[["all"]])
     )
 )
 
-write.csv(results, file = "./0_results/0_future_predictions.csv", row.names = FALSE)
+write.csv(results, file = "./0_results/0_future_predictions_2.csv", row.names = FALSE)
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------------- Figure 4 c ----------------------- #
@@ -247,16 +233,17 @@ write.csv(results, file = "./0_results/0_future_predictions.csv", row.names = FA
 # ---- Barplot with areas of sec. forests and pastures ---- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-results <- read.csv("./0_results/0_future_predictions.csv")
+total_area_secondary <- 35657686 + 1696350
+total_area_pastureland <- 154669142
 
 fig_4_c <- data.frame(
     category = factor(
-        c("Secondary\nForests", "5% of\nPasture Cover"),
-        levels = c("Secondary\nForests", "5% of\nPasture Cover")
+        c("Secondary\nForests", "25% of\nPasture Cover"),
+        levels = c("Secondary\nForests", "25% of\nPasture Cover")
     ),
     value = c(
-        results$mean_area[1],
-        results$mean_area[2]
+        (35657686 + 1696350)/1000000,
+        (154669142 * 0.25)/1000000
     )
 )
 
@@ -289,6 +276,8 @@ ggsave("0_results/figures/figure_4_c.jpeg",
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------- Barplot with carbon sequestered by 2050 -------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+results <- read.csv("./0_results/0_future_predictions_2.csv")
 
 fig_4_d <- data.frame(
     category = factor(
@@ -357,7 +346,6 @@ ggsave("0_results/figures/figure_4_d.jpeg",
     plot = fig_4_d,
     width = 10, height = 12, dpi = 300
 )
-
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
