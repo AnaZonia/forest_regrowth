@@ -34,14 +34,7 @@ apply_min_max_scaling <- function(data, train_stats) {
 }
 
 
-total_area_secondary <- 35657686 + 1696350
-
-area_per_grid_cell <- total_area_secondary / nrow(data_1k$df) # in hectares
-
-total_2020 <- sum(data_1k$df$biomass * area_per_grid_cell) / 1000000
-total_2020
-
-
+# total_area_pastureland <- 154669142
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -111,9 +104,6 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
     pred <- pred / 1000000
 
     coords$pred <- pred
-
-    total_area_secondary <- 35657686 + 1696350
-    total_area_pastureland <- 154669142
 
     if (name == "pastureland") {
         area_per_grid_cell <- total_area_pastureland / length(pred) # in hectares
