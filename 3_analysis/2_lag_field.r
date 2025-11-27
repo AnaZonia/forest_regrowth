@@ -72,10 +72,10 @@ for (basic_pars_name in names(basic_pars_options)) {
 
 predictions <- read.csv("0_results/0_lag_field_predictions.csv")
 
-(predictions$mean_lag - predictions$mean_intercept)
+# (predictions$mean_lag - predictions$mean_intercept)
 
-max(predictions$mean_lag - predictions$mean_intercept)
-# average growth rate per year in x years is maximum 
+# max(predictions$mean_lag - predictions$mean_intercept)
+# # average growth rate per year in x years is maximum 
 
 
 
@@ -130,12 +130,36 @@ linetypes <- c(
     "Satellite Measurements" = "21"
 )
 
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#        Estimate TgC/year
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# Heinrich et al. assumes all secondary forests today regrow at the rate of a 26-year-old forest - we agree for those that have been detected. So basically, our estimation of TgC/year by 2030 shouldn't be too different from theirs (~19).
+
+# The reason why we are arguing that the secondary forest sequestration potential is greater than previously estimated comes down to the undetected, young forests that sequester a lot of carbon. Basically, our predictions of total storage by 2050 shouldn't differ too much from the previous. They argue that in the first years, secondary forests sequester less than 30 TgC/year, but we argue that younger forests (less than 50 years old) in fact would sequester closer to 50 TgC/year.
+
+# Note that they are using Celso's area estimates, which are 13.8Mha (so almost twice that of MapBiomas)
+
+# get yearly sequestration rate plot
+
+yearly_sequestration <- pred_plot %>%
+    mutate(
+        yearly_sequestration_lag = c(NA, diff(mean_lag)),
+        yearly_sequestration_intercept = c(NA, diff(mean_intercept))
+    )
+
+head(yearly_sequestration)
+
+yearly_sequestration$yearly_sequestration_intercept
+sum(yearly_sequestration$yearly_sequestration_intercept[2:30])
+sum(yearly_sequestration$yearly_sequestration_lag[2:30])/2
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #        Plotting
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 p <- ggplot() +
-
     # Predicted data - current
     geom_line(
         data = pred_plot,

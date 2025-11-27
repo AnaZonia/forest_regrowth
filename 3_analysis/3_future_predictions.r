@@ -184,6 +184,8 @@ for (index in 1:5) {
 
     model <- run_optim(norm_data, pars_init[[1]], conditions)
 
+    
+
     pred_2050_secondary <- predict_future_biomass("secondary", model, train_stats)
     pred_2050_secondary_list[index] <- pred_2050_secondary[[1]]
 
@@ -365,6 +367,10 @@ ggsave("0_results/figures/figure_4_d.jpeg",
 # 1) Compute mean of columns 3:7
 # 2) Convert Tg/ha to Mg/ha (x 1e6)
 # 3) Keep only lon, lat, pred
+
+df <- pred_2050_pastureland_all_df
+
+
 prepare_prediction_df <- function(df) {
     df$pred <- rowMeans(df[, 3:7], na.rm = TRUE)
     df$pred <- df$pred * 1e6 # Tg/ha -> Mg/ha

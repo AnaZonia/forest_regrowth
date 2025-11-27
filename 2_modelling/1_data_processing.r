@@ -81,12 +81,6 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
         )))
     }
 
-
-    # if there is a column named distance_deep_forest rename it to dist
-    if ("distance_deep_forest" %in% names(df)) {
-        df <- df %>% rename(dist = distance_deep_forest)
-    }
-
     # remove columns with less than 50 non-zero values
     df <- df %>% select(where(~ sum(. != 0) >= 50))
 

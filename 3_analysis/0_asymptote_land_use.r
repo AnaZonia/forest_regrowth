@@ -32,7 +32,6 @@ registerDoParallel(cores = ncore)
 #   - full_amazon)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
 results <- data.frame()
 
 for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")) {
@@ -62,6 +61,29 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ---------------- Compare Edges ------------------ #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+asymptote <- "nearest_mature"
+
+data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000, asymptote = asymptote)
+
+
+
+data_pars_name <- "age_only"
+
+data_edge <- data[data$edge == 1, ]
+data_no_edge <- data[data$edge == 0, ]
+
+basic_pars <- basic_pars_options[[basic_pars_name]]
+data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
+
+cv_results_edge <- cross_validate(data, basic_pars, data_pars, conditions)
+
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Average Lag expected ------------------ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
@@ -78,7 +100,8 @@ result <- data.frame(
     sd_lag = sd(cv_results[[3]])
 )
 
-write.csv(result, file = "./0_results/0_lag.csv", row.names = FALSE)
+
+# write.csv(result, file = "./0_results/0_lag.csv", row.names = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- R2 increase per Asymptote ------------------ #
