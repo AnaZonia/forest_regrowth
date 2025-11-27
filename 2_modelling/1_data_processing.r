@@ -95,7 +95,7 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
         features <- df[, !names(df) %in% c("lat", "lon")]
         return(list(df = features, coords = coords))
     } else {
-        if ("secondary_area" %in% names(df)) df <- df[, names(df) != "secondary_area"]
+        if ("area" %in% names(df)) df <- df[, names(df) != "area"]
         df <- df[, !names(df) %in% c("lat", "lon")]
         df <- df[sample(nrow(df), min(n_samples, nrow(df)), replace = FALSE), ]
         return(df)
@@ -125,7 +125,7 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
 
 normalize_independently <- function(train_data, test_data = NULL) {
     # Identify numeric columns to normalize (excluding those in exclusion_list)
-    exclusion_list <- c(categorical, binary, "biomass", "asymptote", "age")
+    exclusion_list <- c(categorical, binary, "biomass", "asymptote", "age", "area", "edge")
 
     norm_cols <- names(train_data)[!grepl(paste0(exclusion_list, collapse = "|"), names(train_data))]
 

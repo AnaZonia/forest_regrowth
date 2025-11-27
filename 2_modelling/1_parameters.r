@@ -22,7 +22,7 @@ non_data_pars <- c("k0", "lag", "theta")
 # Conditions for parameter constraints
 conditions <- list('pars["k0"] < 0')
 
-excluded_columns <- c("age", "biomass", "asymptote", "ecoreg")
+excluded_columns <- c("age", "biomass", "asymptote", "ecoreg", "area", "edge")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------ Configurations of parameters ----------------#
