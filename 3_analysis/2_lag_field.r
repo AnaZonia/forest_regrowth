@@ -39,6 +39,8 @@ norm_data <- norm_data$train_data
 
 predictions <- data.frame(age = 1:200)
 
+basic_pars_name <- "lag"
+
 for (basic_pars_name in names(basic_pars_options)) {
     basic_pars <- basic_pars_options[[basic_pars_name]]
     norm_data_iter <- norm_data
@@ -55,9 +57,10 @@ for (basic_pars_name in names(basic_pars_options)) {
     model <- run_optim(norm_data_iter, init_pars[[1]], conditions)
 
     biomass_df <- data.frame(matrix(nrow = nrow(norm_data_iter), ncol = 0))
+ 
     for (age in 1:nrow(predictions)) {
         norm_data_iter$age <- age
-        pred <- growth_curve(model$par, norm_data_iter)
+        pred <- growth_curve(model$par, norm_data_iter) # don't correct those ages with lag here - they aren't coming from the satellite!
         biomass_df[[as.character(age)]] <- pred
     }
 
@@ -67,6 +70,8 @@ for (basic_pars_name in names(basic_pars_options)) {
     predictions[[paste0("mean_", basic_pars_name)]] <- mean_biomass
     predictions[[paste0("sd_", basic_pars_name)]] <- sd_biomass
 }
+
+mean(biomass_df$`30`)
 
 # write.csv(predictions, "0_results/0_lag_field_predictions.csv", row.names = FALSE)
 
@@ -135,12 +140,6 @@ linetypes <- c(
 #        Estimate TgC/year
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-# Heinrich et al. assumes all secondary forests today regrow at the rate of a 26-year-old forest - we agree for those that have been detected. So basically, our estimation of TgC/year by 2030 shouldn't be too different from theirs (~19).
-
-# The reason why we are arguing that the secondary forest sequestration potential is greater than previously estimated comes down to the undetected, young forests that sequester a lot of carbon. Basically, our predictions of total storage by 2050 shouldn't differ too much from the previous. They argue that in the first years, secondary forests sequester less than 30 TgC/year, but we argue that younger forests (less than 50 years old) in fact would sequester closer to 50 TgC/year.
-
-# Note that they are using Celso's area estimates, which are 13.8Mha (so almost twice that of MapBiomas)
-
 # get yearly sequestration rate plot
 
 yearly_sequestration <- pred_plot %>%
@@ -153,7 +152,7 @@ head(yearly_sequestration)
 
 yearly_sequestration$yearly_sequestration_intercept
 sum(yearly_sequestration$yearly_sequestration_intercept[2:30])
-sum(yearly_sequestration$yearly_sequestration_lag[2:30])/2
+sum(yearly_sequestration$yearly_sequestration_lag[2:30])
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #        Plotting

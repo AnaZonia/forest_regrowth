@@ -74,10 +74,10 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
         data_2020$age <- 1 # pastureland is 1 year old in 2020
     }
 
-    pred <- growth_curve(model$par, data_1k, model$par["lag"])
+    pred <- growth_curve(model$par, data_1k)
 
     if (delta) {
-        pred_2020 <- growth_curve(model$par, data_2020, model$par["lag"])
+        pred_2020 <- growth_curve(model$par, data_2020)
         # if delta is TRUE, we return the difference between the two predictions
         # otherwise, we return the prediction for 2050
         pred <- pred - pred_2020
@@ -154,7 +154,7 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
 # -------------- Train model with 10k dataset ------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 150000)
+data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000)
 indices <- sample(c(1:5), nrow(data), replace = TRUE)
 
 pred_2050_secondary_list <- numeric(5)
@@ -168,10 +168,12 @@ for (scenario in scenarios) {
     carbon_lists[[scenario]] <- numeric(5)
     area_lists[[scenario]] <- numeric(5)
 }
+
 pred_2050_pastureland_all_df <- data.frame()
 
 for (index in 1:5) {
     train_data <- data[indices == index, ]
+
     norm_data <- normalize_independently(train_data)
     train_stats <- norm_data$train_stats
     norm_data <- norm_data$train_data
@@ -183,8 +185,6 @@ for (index in 1:5) {
     )
 
     model <- run_optim(norm_data, pars_init[[1]], conditions)
-
-    
 
     pred_2050_secondary <- predict_future_biomass("secondary", model, train_stats)
     pred_2050_secondary_list[index] <- pred_2050_secondary[[1]]
@@ -370,6 +370,7 @@ ggsave("0_results/figures/figure_4_d.jpeg",
 
 df <- pred_2050_pastureland_all_df
 
+mean(pred_2050_pastureland_all_df$pred)
 
 prepare_prediction_df <- function(df) {
     df$pred <- rowMeans(df[, 3:7], na.rm = TRUE)
