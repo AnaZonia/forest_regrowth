@@ -66,10 +66,6 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 
 asymptote <- "nearest_mature"
 
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000, asymptote = asymptote)
-table(data$edge)
-
-
 data_pars_name <- "age_only"
 
 data_edge <- data[data$edge == 1, ]

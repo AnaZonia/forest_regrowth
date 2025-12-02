@@ -71,7 +71,6 @@ for (basic_pars_name in names(basic_pars_options)) {
     predictions[[paste0("sd_", basic_pars_name)]] <- sd_biomass
 }
 
-mean(biomass_df$`30`)
 
 # write.csv(predictions, "0_results/0_lag_field_predictions.csv", row.names = FALSE)
 

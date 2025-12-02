@@ -12,6 +12,8 @@ source("2_modelling/2_modelling.r")
 source("2_modelling/2_cross_validate.r")
 source("2_modelling/2_forward_selection.r")
 
+
+
 library(tidyverse)
 library(terra)
 library(scales) # for label formatting
@@ -33,8 +35,6 @@ apply_min_max_scaling <- function(data, train_stats) {
     return(data)
 }
 
-
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Estimate biomass by 2050 --------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -53,6 +53,7 @@ apply_min_max_scaling <- function(data, train_stats) {
 #'   - coords: Data frame of pixel coordinates and predictions
 #'   - total_area: Total area included in the sum (million hectares)
 
+
 predict_future_biomass <- function(name, model, train_stats, pasture_selection = "random", age_offset = 30, delta = TRUE) {
 
     data_1k <- import_data(paste0("grid_1k_amazon_", name), biome = 1, n_samples = "all")
@@ -67,17 +68,19 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
     # we want the values 30 years in the future
     if (name == "secondary") {
         data_1k <- data_1k %>% mutate(age = age + age_offset)
+        pred <- growth_curve(model$par, data_1k, model$par["lag"])
+        pred_2020 <- growth_curve(model$par, data_2020, model$par["lag"])
     } else if (name == "pastureland") {
         # pastureland does not have an age column, so we create one
         # assuming it starts regrowing at 2020
         data_1k$age <- age_offset
         data_2020$age <- 1 # pastureland is 1 year old in 2020
+        # pastureland data here is artificially set to 30 - it isn't lagged! adding lag here will make it artificially smaller
+        pred <- growth_curve(model$par, data_1k)
+        pred_2020 <- growth_curve(model$par, data_2020)
     }
 
-    pred <- growth_curve(model$par, data_1k)
-
     if (delta) {
-        pred_2020 <- growth_curve(model$par, data_2020)
         # if delta is TRUE, we return the difference between the two predictions
         # otherwise, we return the prediction for 2050
         pred <- pred - pred_2020
@@ -367,10 +370,6 @@ ggsave("0_results/figures/figure_4_d.jpeg",
 # 1) Compute mean of columns 3:7
 # 2) Convert Tg/ha to Mg/ha (x 1e6)
 # 3) Keep only lon, lat, pred
-
-df <- pred_2050_pastureland_all_df
-
-mean(pred_2050_pastureland_all_df$pred)
 
 prepare_prediction_df <- function(df) {
     df$pred <- rowMeans(df[, 3:7], na.rm = TRUE)
