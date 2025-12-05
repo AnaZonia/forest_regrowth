@@ -13,7 +13,6 @@ source("2_modelling/2_cross_validate.r")
 source("2_modelling/2_forward_selection.r")
 
 
-
 library(tidyverse)
 library(terra)
 library(scales) # for label formatting
@@ -34,6 +33,7 @@ apply_min_max_scaling <- function(data, train_stats) {
     }
     return(data)
 }
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Estimate biomass by 2050 --------------- #
@@ -157,7 +157,7 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
 # -------------- Train model with 10k dataset ------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000)
+data <- import_data("grid_10k_amazon_secondary_edge_IPCC", biome = 1, n_samples = 30000)
 indices <- sample(c(1:5), nrow(data), replace = TRUE)
 
 pred_2050_secondary_list <- numeric(5)
@@ -239,7 +239,7 @@ results <- data.frame(
     )
 )
 
-write.csv(results, file = "./0_results/0_future_predictions.csv", row.names = FALSE)
+# write.csv(results, file = "./0_results/0_future_predictions.csv", row.names = FALSE)
 
 
 

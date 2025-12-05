@@ -60,47 +60,45 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 }
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ---------------- Compare Edges ------------------ #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-asymptote <- "nearest_mature"
-
-data_pars_name <- "age_only"
-
-data_edge <- data[data$edge == 1, ]
-data_no_edge <- data[data$edge == 0, ]
-
-basic_pars <- basic_pars_options[[basic_pars_name]]
-data_pars <- data_pars_options(colnames(data))[[data_pars_name]]
-
-cv_results_edge <- cross_validate(data, basic_pars, data_pars, conditions)
-
-cv_results_edge <- cross_validate(data_edge, basic_pars, data_pars, conditions)
-
-cv_results_edge <- cross_validate(data_no_edge, basic_pars, data_pars, conditions)
-
-mean(cv_results_edge[[1]])
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Average Lag expected ------------------ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+names = c("edge_IPCC", "edge_removed", "allpixels")
 
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 150000, asymptote = "nearest_mature")
+million_hectares = c(2.25, 3.3, 8.8)
 
-basic_pars <- basic_pars_options[["lag"]]
-data_pars <- data_pars_options(colnames(data))[["all"]]
+result <- data.frame()
 
-cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
+for (name in names) {
+    data <- import_data(paste0('grid_10k_amazon_secondary_', name), biome = 1, n_samples = 50000, asymptote = "nearest_mature")
 
-result <- data.frame(
-    mean_lag = mean(cv_results[[3]]),
-    sd_lag = sd(cv_results[[3]])
-)
+    basic_pars <- basic_pars_options[["lag"]]
+    data_pars <- data_pars_options(colnames(data))[["all"]]
+
+    cv_all <- cross_validate(data, basic_pars, data_pars, conditions)
+
+    cv_age <- cross_validate(data, basic_pars, data_pars_options(colnames(data))[["age_only"]], conditions)
+
+    comparisons <- data.frame(
+                data = name,
+                mean_lag = mean(cv_all[[3]]),
+                sd_lag = sd(cv_all[[3]]),
+                million_hectares = million_hectares[which(names == name)],
+                mean_r2_all = mean(cv_all[[1]]),
+                sd_r2_all = sd(cv_all[[1]]),
+                mean_r2_age = mean(cv_age[[1]]),
+                sd_r2_age = sd(cv_age[[1]])
+            )
+
+    print(comparisons)
+
+    result <- rbind(result, comparisons)
+    write.csv(result, file = "./0_results/0_comparisons_edges_IPCC.csv", row.names = FALSE)
+}
 
 
-# write.csv(result, file = "./0_results/0_lag.csv", row.names = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- R2 increase per Asymptote ------------------ #

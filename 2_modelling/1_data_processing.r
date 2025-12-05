@@ -46,9 +46,16 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
     # remove columns with all NA values
     df <- df[, colSums(is.na(df)) < nrow(df)]
 
-    # remove any rows with NA values
-    df <- df %>% filter(rowSums(is.na(.)) == 0)
-
+    if (n_samples == "all") {
+        # remove biomass column (it's unnecessary and may lead to issues)
+        df <- df %>% select(-any_of("biomass"))
+        # for rows where a value is NA, add the mean of the column
+        df <- df %>% mutate(across(where(is.numeric), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+    } else {
+        # remove any rows with NA values
+        df <- df %>% filter(rowSums(is.na(.)) == 0)
+    }
+    
     # Convert categorical to factors
     df <- df %>%
         mutate(across(any_of(categorical), as.factor)) %>%
