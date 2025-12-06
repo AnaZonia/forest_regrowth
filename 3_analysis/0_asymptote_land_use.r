@@ -65,14 +65,14 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 # ---------------- Average Lag expected ------------------ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-names = c("edge_IPCC", "edge_removed", "allpixels")
+names = c("edge_IPCC", "edges_removed", "allpixels")
 
 million_hectares = c(2.25, 3.3, 8.8)
 
 result <- data.frame()
 
 for (name in names) {
-    data <- import_data(paste0('grid_10k_amazon_secondary_', name), biome = 1, n_samples = 50000, asymptote = "nearest_mature")
+    data <- import_data(paste0('grid_10k_amazon_secondary_', name), biome = 1, n_samples = 150000, asymptote = "nearest_mature")
 
     basic_pars <- basic_pars_options[["lag"]]
     data_pars <- data_pars_options(colnames(data))[["all"]]
@@ -95,8 +95,14 @@ for (name in names) {
     print(comparisons)
 
     result <- rbind(result, comparisons)
-    write.csv(result, file = "./0_results/0_comparisons_edges_IPCC.csv", row.names = FALSE)
+    write.csv(result, file = "./0_results/0_comparisons_edges_IPCC_2.csv", row.names = FALSE)
 }
+
+result$million_hectares <- million_hectares
+
+result
+
+data <- import_data(paste0("grid_10k_amazon_secondary_", name), biome = 1, n_samples = 150000, asymptote = "nearest_mature")
 
 
 
@@ -256,3 +262,35 @@ print(
     include.rownames = FALSE,
     booktabs = TRUE
 )
+
+
+
+
+
+
+data_1k <- import_data(paste0("grid_10k_amazon_", name), biome = 1, n_samples = "all")
+
+coords <- data_1k$coords
+data_1k <- data_1k$df
+
+data_1k <- apply_min_max_scaling(data_1k, train_stats)
+
+data_2020 <- data_1k
+
+
+
+data_1k <- data_1k %>% mutate(age = age + age_offset)
+pred <- growth_curve(model$par, data_1k)
+
+
+
+pred_2020_lag <- growth_curve(model$par, data_2020, model$par["lag"])
+
+pred_2020_no_lag <- growth_curve(model$par, data_2020)
+
+head(pred_2020_no_lag)
+head(pred_2020_lag)
+
+calc_r2(data_2020, pred_2020_no_lag)
+
+

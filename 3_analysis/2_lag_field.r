@@ -31,7 +31,9 @@ theme_set(theme_minimal(base_size = 20))
 #        Model fitting and prediction
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-lag <- read.csv("./0_results/0_lag.csv")$mean_lag
+# lag <- read.csv("./0_results/0_lag.csv")$mean_lag
+
+lag = 25
 
 data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000)
 norm_data <- normalize_independently(data)

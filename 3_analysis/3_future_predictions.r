@@ -68,6 +68,9 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
     # we want the values 30 years in the future
     if (name == "secondary") {
         data_1k <- data_1k %>% mutate(age = age + age_offset)
+        # include the lag term here since we aren't trying to find the biomass for those pixels if they were starting from zero.
+        # they start from the lag-corrected age (25 + age), so that's the same data that would be used for R2 estimation
+        # if they started from zero, the total biomass would be lesser, but the delta from zero to max would have been greater
         pred <- growth_curve(model$par, data_1k, model$par["lag"])
         pred_2020 <- growth_curve(model$par, data_2020, model$par["lag"])
     } else if (name == "pastureland") {
@@ -110,7 +113,7 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
 
         if (pasture_selection == "random") {
             # shuffle the indices of pred
-            random_indices <- sample(1:length(pred), size = 0.15 * length(pred), replace = FALSE)
+            random_indices <- sample(1:length(pred), size = 0.05 * length(pred), replace = FALSE)
 
             sorted_area <- area[random_indices]
             # Compute cumulative sum of area
@@ -122,7 +125,7 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
             area <- area[random_indices]
             coords <- coords[random_indices, ]
 
-        } else if (pasture_selection == "top_15_percent") {
+        } else if (pasture_selection == "top_5_percent") {
             # select top 5% of pastureland by biomass
             # Sort predictions and data by descending prediction value
             order_indices <- order(pred, decreasing = TRUE)
@@ -133,7 +136,7 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
 
             # Find the number of pixels needed to reach 15% of total area
             total_area <- sum(area)
-            n_needed <- which(cum_area >= 0.15 * total_area)[1]
+            n_needed <- which(cum_area >= 0.05 * total_area)[1]
 
             # Select those indices
             selected_indices <- order_indices[1:n_needed]
@@ -157,13 +160,13 @@ predict_future_biomass <- function(name, model, train_stats, pasture_selection =
 # -------------- Train model with 10k dataset ------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-data <- import_data("grid_10k_amazon_secondary_edge_IPCC", biome = 1, n_samples = 30000)
+data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000)
 indices <- sample(c(1:5), nrow(data), replace = TRUE)
 
 pred_2050_secondary_list <- numeric(5)
 pred_2050_secondary_df <- data.frame()
 
-scenarios <- c("top_15_percent", "random", "all")
+scenarios <- c("top_5_percent", "random", "all")
 carbon_lists <- list()
 area_lists <- list()
 
@@ -212,23 +215,23 @@ for (index in 1:5) {
 
 
 results <- data.frame(
-    scenario = c("Secondary Forests", "Pasturelands (Random 15%)", "Pasturelands (Top 15%)", "Pasturelands (All)"),
+    scenario = c("Secondary Forests", "Pasturelands (Random 5%)", "Pasturelands (Top 5%)", "Pasturelands (All)"),
     mean_carbon = c(
         mean(pred_2050_secondary_list),
         mean(carbon_lists[["random"]]),
-        mean(carbon_lists[["top_15_percent"]]),
+        mean(carbon_lists[["top_5_percent"]]),
         mean(carbon_lists[["all"]])
     ),
     sd_carbon = c(
         sd(pred_2050_secondary_list),
         sd(carbon_lists[["random"]]),
-        sd(carbon_lists[["top_15_percent"]]),
+        sd(carbon_lists[["top_5_percent"]]),
         sd(carbon_lists[["all"]])
     ),
     mean_area = c(
         pred_2050_secondary[[3]],
         mean(area_lists[["random"]]),
-        mean(area_lists[["top_15_percent"]]),
+        mean(area_lists[["top_5_percent"]]),
         mean(area_lists[["all"]])
     ),
     sd_area = c(
@@ -239,7 +242,7 @@ results <- data.frame(
     )
 )
 
-# write.csv(results, file = "./0_results/0_future_predictions.csv", row.names = FALSE)
+write.csv(results, file = "./0_results/0_future_predictions.csv", row.names = FALSE)
 
 
 
@@ -251,10 +254,11 @@ results <- data.frame(
 
 results <- read.csv("./0_results/0_future_predictions.csv")
 
+
 fig_4_c <- data.frame(
     category = factor(
-        c("Secondary\nForests", "15% of\nPasture Cover"),
-        levels = c("Secondary\nForests", "15% of\nPasture Cover")
+        c("Secondary\nForests", "5% of\nPasture Cover"),
+        levels = c("Secondary\nForests", "5% of\nPasture Cover")
     ),
     value = c(
         results$mean_area[1],
@@ -296,11 +300,11 @@ ggsave("0_results/figures/figure_4_c.jpeg",
 fig_4_d <- data.frame(
     category = factor(
         c("Secondary\nForests",
-        "Random 15% of\nPasture Cover",
-        "Top 15% Priority\nPasture Cover"),
+        "Random 5% of\nPasture Cover",
+        "Top 5% Priority\nPasture Cover"),
         levels = c("Secondary\nForests", 
-            "Random 15% of\nPasture Cover", 
-            "Top 15% Priority\nPasture Cover")
+            "Random 5% of\nPasture Cover", 
+            "Top 5% Priority\nPasture Cover")
     ),
     value = results$mean_carbon[c(1,2,3)],
     sd = results$sd_carbon[c(1,2,3)]
@@ -362,6 +366,17 @@ ggsave("0_results/figures/figure_4_d.jpeg",
 )
 
 
+
+
+
+head(results)
+
+pasturelands <- results$mean_carbon[4] / results$mean_area[4]
+secondary <- results$mean_carbon[1] / results$mean_area[1]
+
+pasturelands / secondary
+
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ---------------------- Export maps ----------------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -383,6 +398,13 @@ pred_2050_pastureland_all_df <- prepare_prediction_df(pred_2050_pastureland_all_
 
 # Prepare secondary vegetation predictions
 pred_2050_secondary_df <- prepare_prediction_df(pred_2050_secondary_df)
+
+
+
+range(pred_2050_pastureland_all_df$pred)
+
+
+
 
 # Export to shapefiles
 writeVector(

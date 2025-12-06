@@ -48,7 +48,7 @@ import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mat
 
     if (n_samples == "all") {
         # remove biomass column (it's unnecessary and may lead to issues)
-        df <- df %>% select(-any_of("biomass"))
+        # df <- df %>% select(-any_of("biomass"))
         # for rows where a value is NA, add the mean of the column
         df <- df %>% mutate(across(where(is.numeric), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
     } else {

@@ -3,6 +3,7 @@
 library(tidyverse)
 
 
+
 csv_files <- list.files(paste0("./0_data/grid_10k_amazon_secondary_allpixels"), pattern = "\\.csv$", full.names = TRUE)
 
 df <- csv_files %>%
