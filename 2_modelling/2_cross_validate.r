@@ -54,16 +54,17 @@ calc_r2 <- function(data, pred) {
 #' - The model is trained using `run_optim` and evaluated using `calc_r2`.
 
 
-cross_validate <- function(data, basic_pars, data_pars, conditions) {
+cross_validate <- function(data, basic_pars, data_pars, conditions, folds) {
 
-    indices <- sample(c(1:5), nrow(data), replace = TRUE)
+    indices <- sample(c(1:folds), nrow(data), replace = TRUE)
     data$pred_cv <- NA
     data$pred_final <- NA
-    r2_list <- numeric(5)
-    lag_list <- numeric(5)
+    r2_list <- numeric(folds)
+    lag_list <- numeric(folds)
     r2_df <- data.frame()
+    pars <- data.frame()
 
-    for (index in 1:5) {
+    for (index in 1:folds) {
         # Define the test and train sets
         test_data <- data[indices == index, -grep("pred", names(data))]
         train_data <- data[indices != index, -grep("pred", names(data))]
@@ -84,12 +85,18 @@ cross_validate <- function(data, basic_pars, data_pars, conditions) {
         pred_cv <- growth_curve(model$par, test_data,
         lag = if ("lag" %in% names(model$par)) model$par["lag"] else 0)
 
+        # save the parameters for each iteration
+        pars_df <- as.data.frame(t(model$par))
+        print(pars_df)
+        pars <- bind_rows(pars, pars_df)
+
         # save the predicted values of each iteration of the cross validation.
         data$pred_cv[indices == index] <- pred_cv
         r2 <- calc_r2(data[indices == index, ], pred_cv)
         r2_list[index] <- r2
         lag_list[index] <- model$par["lag"]
         print(r2)
+        print(model$par["lag"])
     }
 
     if (nrow(r2_df) > 5) {
@@ -104,7 +111,9 @@ cross_validate <- function(data, basic_pars, data_pars, conditions) {
         r2_df <- r2_df[order(r2_df$mean_r2_diff, decreasing = FALSE), ]
     }
 
+    pars <- pars[, !grepl("lag|k0", names(pars))]
 
-    return(list(r2_list, r2_df, lag_list))
+    return(list(r2_list, r2_df, lag_list, pars))
 }
+
 

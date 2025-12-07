@@ -4,13 +4,7 @@ library(tidyverse)
 
 
 
-csv_files <- list.files(paste0("./0_data/grid_10k_amazon_secondary_allpixels"), pattern = "\\.csv$", full.names = TRUE)
-
-df <- csv_files %>%
-    map(~ suppressMessages(read_csv(.x, show_col_types = FALSE, progress = FALSE))) %>%
-    bind_rows()
-
-csv_files <- list.files(paste0("./0_data/grid_10k_amazon_secondary_edge_IPCC"), pattern = "\\.csv$", full.names = TRUE)
+csv_files <- list.files(paste0("./0_data/grid_1k_amazon_secondary_allpixels"), pattern = "\\.csv$", full.names = TRUE)
 
 df <- csv_files %>%
     map(~ suppressMessages(read_csv(.x, show_col_types = FALSE, progress = FALSE))) %>%
@@ -20,18 +14,16 @@ df <- csv_files %>%
 edge <- df %>% filter(edge == 0)
 non_edge <- df %>% filter(edge == 1)
 
+
 edge_0 <- df %>%
     filter(edge == 0) %>%
-    slice_sample(n = 6000) # or sample_n(6000)
+    slice_sample(n = 20000)
 
 edge_1 <- df %>%
     filter(edge == 1) %>%
-    slice_sample(n = 6000) # or sample_n(6000)
+    slice_sample(n = 20000)
 
-IPCC <- df %>%
-    slice_sample(n = 6000) # or sample_n(6000)
-
-sampled_df <- bind_rows(edge_0, edge_1, IPCC)
+sampled_df <- bind_rows(edge_0, edge_1)
 
 p <- ggplot(sampled_df, aes(x = biomass, color = factor(edge))) +
     geom_histogram(
@@ -56,7 +48,7 @@ p <- ggplot(sampled_df, aes(x = biomass, color = factor(edge))) +
         name = ""
     ) +
     labs(
-        x = "Biomass",
+        x = "Biomass (Mg/ha)",
         y = "Density"
     ) +
     coord_cartesian(expand = FALSE) +
