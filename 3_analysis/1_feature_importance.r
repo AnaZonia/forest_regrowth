@@ -23,40 +23,41 @@ set.seed(2)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
-barplot_r2_increase <- function(r2_df, age_include = TRUE) {
-    # Map variable short names to full names
-    variable_names <- c(
-        age = "Age",
-        sur_cover = "Surrounding Mature Forest Cover",
-        num_fires = "Number of Fires",
-        dist = "Distance to Nearest Mature Forest",
-        indig = "Indigenous Area",
-        protec = "Protected Area",
-        floodable_forests = "Floodable Forests",
-        phh2o = "Soil pH",
-        sand = "Sand Content",
-        ocs = "Organic Carbon Stock",
-        ocd = "Organic Carbon Density",
-        cfvo = "Coarse Fragments Volume",
-        nitro = "Soil Nitrogen",
-        cec = "Cation Exchange Capacity",
-        clay = "Clay Content",
-        soc = "Soil Organic Carbon",
-        mean_pr = "Mean Precipitation",
-        mean_temp = "Mean Temperature",
-        mean_srad = "Mean Solar Radiation",
-        mean_def = "Mean Climatic Water Deficit",
-        mean_vpd = "Mean Vapor Pressure Deficit",
-        mean_aet = "Mean Actual Evapotranspiration",
-        mean_soil = "Mean Soil Moisture",
-        mean_pdsi = "Mean Palmer Drought Severity Index",
-        topography = "Topography",
-        lu_sum_10 = "Pasture Years",
-        lu_sum_20 = "Perennial Crop Years",
-        lu_sum_30 = "Annual Crop Years",
-        last_lu = "Last Land Use"
-    )
+# Map variable short names to full names
+variable_names <- c(
+    age = "Age",
+    sur_cover = "Surrounding Mature Forest Cover",
+    num_fires = "Number of Fires",
+    dist = "Distance to Nearest Mature Forest",
+    indig = "Indigenous Area",
+    protec = "Protected Area",
+    floodable_forests = "Floodable Forests",
+    phh2o = "Soil pH",
+    sand = "Sand Content",
+    ocs = "Organic Carbon Stock",
+    ocd = "Organic Carbon Density",
+    cfvo = "Coarse Fragments Volume",
+    nitro = "Soil Nitrogen",
+    cec = "Cation Exchange Capacity",
+    clay = "Clay Content",
+    soc = "Soil Organic Carbon",
+    mean_pr = "Precipitation",
+    mean_temp = "Temperature",
+    mean_srad = "Solar Radiation",
+    mean_def = "Climatic Water Deficit",
+    mean_vpd = "Vapor Pressure Deficit",
+    mean_aet = "Actual Evapotranspiration",
+    mean_soil = "Soil Moisture",
+    mean_pdsi = "Palmer Drought Severity Index",
+    topography = "Topography",
+    lu_sum_10 = "Pasture Years",
+    lu_sum_20 = "Perennial Crop Years",
+    lu_sum_30 = "Annual Crop Years",
+    last_lu = "Last Land Use"
+)
 
+
+barplot_r2_increase <- function(r2_df, age_include = TRUE) {
 
     r2_df <- r2_df[r2_df$mean_r2_diff > 0.001, ]
 
@@ -77,10 +78,6 @@ barplot_r2_increase <- function(r2_df, age_include = TRUE) {
     }
 
     custom_colors <- rev(custom_colors[1:nrow(r2_df)])
-
-    # # Interpolate gradient spanning all colors, matching number of categories
-    # n_cats <- length(levels(r2_df$par))
-    # color_palette <- colorRampPalette(custom_colors)(n_cats)
 
     p <- ggplot(r2_df, aes(x = group, y = mean_r2_diff, fill = par)) +
         geom_bar(position = "stack", stat = "identity") +
@@ -145,8 +142,22 @@ ggsave(
 )
 
 
+pars <- read.csv("./0_results/0_pars.csv")
+r2_df <- read.csv("./0_results/0_r2_nearest_mature.csv")
 
+r2_df <- r2_df[r2_df$mean_r2_diff > 0.001, ]
 
+col_means <- colMeans(pars, na.rm = TRUE)
+means_df <- as.data.frame(t(col_means))
+
+means_df <- means_df[, names(means_df) %in% r2_df$par]
+
+order_vec <- rev(r2_df$par[r2_df$par != "age"])
+
+means_df <- means_df[, match(order_vec, colnames(means_df))]
+names(means_df) <- variable_names[names(means_df)]
+
+write.csv(means_df, file = "./0_results/0_pars_included.csv", row.names = FALSE)
 
 # ------------------------------------------------- #
 # Figure - R2 per Asymptote with age_only

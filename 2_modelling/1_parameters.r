@@ -24,7 +24,6 @@ conditions <- list('pars["k0"] < 0')
 
 excluded_columns <- c("age", "biomass", "asymptote", "ecoreg", "area", "edge")
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------ Configurations of parameters ----------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

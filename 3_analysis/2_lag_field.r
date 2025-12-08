@@ -31,9 +31,7 @@ theme_set(theme_minimal(base_size = 20))
 #        Model fitting and prediction
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-# lag <- read.csv("./0_results/0_lag.csv")$mean_lag
-
-lag = 25
+lag <- read.csv("./0_results/0_lag.csv")$mean_lag
 
 data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000)
 norm_data <- normalize_independently(data)
@@ -49,7 +47,7 @@ for (basic_pars_name in names(basic_pars_options)) {
 
     if (basic_pars_name == "intercept") {
         # Force the data to intercept through zero
-        mean_biomass_at_zero_age <- median(norm_data_iter$biomass[norm_data_iter$age == 1], na.rm = TRUE)
+        mean_biomass_at_zero_age <- mean(norm_data_iter$biomass[norm_data_iter$age == 1], na.rm = TRUE)
         norm_data_iter$biomass <- norm_data_iter$biomass - mean_biomass_at_zero_age
     }
 
@@ -74,14 +72,7 @@ for (basic_pars_name in names(basic_pars_options)) {
 }
 
 
-# write.csv(predictions, "0_results/0_lag_field_predictions.csv", row.names = FALSE)
-
-predictions <- read.csv("0_results/0_lag_field_predictions.csv")
-
-# (predictions$mean_lag - predictions$mean_intercept)
-
-# max(predictions$mean_lag - predictions$mean_intercept)
-# # average growth rate per year in x years is maximum 
+write.csv(predictions, "0_results/0_lag_field_predictions.csv", row.names = FALSE)
 
 
 
@@ -99,7 +90,7 @@ field_data <- field_data %>%
     select(age, biomass) %>%
     group_by(age) %>%
     summarise(
-        biomass = mean(biomass, na.rm = TRUE)
+        biomass = median(biomass, na.rm = TRUE)
     )
 
 # get average satellite biomass per age
@@ -113,7 +104,7 @@ aggregated_satellite <- norm_data %>%
     mutate(age = age + lag)
 
 
-pred_plot <- subset(predictions, age >= 0 & age <= 75) # max(aggregated_satellite$age)
+pred_plot <- subset(predictions, age >= 0 & age <= 75)
 pred_plot <- pred_plot %>%
     mutate(
         ymin_lag = mean_lag - sd_lag,
@@ -303,3 +294,12 @@ ggsave(
     dpi = 300
 )
 
+
+
+
+predictions <- read.csv("0_results/0_lag_field_predictions.csv")
+
+(predictions$mean_lag - predictions$mean_intercept)
+
+max(predictions$mean_lag - predictions$mean_intercept)
+# average growth rate per year in x years is maximum

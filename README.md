@@ -1,5 +1,6 @@
 ## Project Overview
-ReSELVA (Remote sensing SEcondary forest Local Variability Analysis) is a model that predicts the age of secondary forests in Brazil based on satellite data. This script imports and processes remote sensing data from Google Earth Engine, and compares different models to predict the biomass of secondary forests in 2020 and in the future.
+
+We modelled the age of secondary forests in Brazil based on satellite data. This script imports and processes remote sensing data from Google Earth Engine, and compares different models to predict the biomass of secondary forests in 2020 and in the future.
 
 
 ```

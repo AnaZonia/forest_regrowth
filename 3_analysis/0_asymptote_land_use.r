@@ -65,106 +65,42 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 # ---------------- Average Lag expected ------------------ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+data <- import_data(paste0('grid_10k_amazon_secondary'), biome = 1, n_samples = 180000, asymptote = "nearest_mature")
 
-data <- import_data(paste0('grid_10k_amazon_secondary_modis'), biome = 1, n_samples = 240000, asymptote = "nearest_mature")
-
-# remove mean_aet and rename modis_aet to mean_aet
-data <- data %>%
-    select(-mean_aet) %>%
-    rename(mean_aet = modis_aet)
-
-# age_one <- data %>% filter(age == 1)
-# mean(age_one$biomass)
+age_one <- data %>%
+    filter(age == 1)
+mean(age_one$biomass)
 
 basic_pars <- basic_pars_options[["lag"]]
 data_pars <- data_pars_options(colnames(data))[["all"]]
 
-cv_all <- cross_validate(data, basic_pars, data_pars, conditions, 8)
-
-
-
-
+cv_results <- cross_validate(data, basic_pars, data_pars, conditions, 6)
 
 lag_mean <- data.frame(
-            mean_lag = mean(cv_all[[3]]),
-            sd_lag = sd(cv_all[[3]])
-        )
+    mean_lag = mean(cv_results[[3]]),
+    sd_lag = sd(cv_results[[3]])
+)
+
 lag_mean
 
 write.csv(lag_mean, file = "./0_results/0_lag.csv", row.names = FALSE)
 
-
-
-
-
-write.csv(pars, file = "./0_results/0_parameters.csv", row.names = FALSE)
-
-col_means <- colMeans(pars, na.rm = TRUE) # numeric named vector
-means_df <- as.data.frame(t(col_means)) # one row, columns = predictors
-
-# 2. Palette: red (min) -> white (0) -> blue (max)
-pal <- col_numeric(
-    palette = colorRampPalette(c("red", "white", "blue"))(100),
-    domain  = range(col_means, na.rm = TRUE)
-)
-
-# 3. Assign a color per cell
-cell_colors <- pal(as.numeric(means_df[1, ]))
-
-datatable(round(means_df, 4), options = list(dom = "t")) %>%
-    formatStyle(
-        columns = colnames(means_df),
-        backgroundColor = styleEqual(
-            levels = as.numeric(means_df[1, ]),
-            values = cell_colors
+r2_mean <- data.frame(
+            mean_r2 = mean(cv_results[[1]]),
+            sd_r2 = sd(cv_results[[1]])
         )
-    )
 
+r2_mean
 
+write.csv(r2_mean, file = "./0_results/0_r2.csv", row.names = FALSE)
 
+write.csv(cv_results[[2]], file = paste0("./0_results/0_r2_nearest_mature.csv"), row.names = FALSE)
 
-
-
-
-
-
-
-# variables to check
-vars <- c("mean_aet", "mean_temp", "mean_pr", "mean_vpd", "phh2o", "mean_srad", "mean_def")
-
-# 1) Correlation matrix (pairwise complete obs)
-cor_mat <- cor(data[, vars], use = "pairwise.complete.obs")
-print(cor_mat)
-
-# Optional quick visualization
-pairs(data[, vars])
-
-# 2) VIFs from a simple linear model
-#    (use any numeric response; here assume 'regrowth' exists in `data`)
-library(car)
-
-m <- lm(biomass ~ mean_temp + mean_vpd + phh2o + mean_srad + mean_pr + mean_aet,
-    data = data
-)
-
-summary(m)
-
-# summary(lm(biomass ~ mean_vpd, data = data))
-
-vif_values <- car::vif(m)
-print(vif_values)
-
-
-colnames(data)
-
-summary(lm(biomass ~ modis_aet, data = data))
-
-
+write.csv(cv_results[[4]], file = paste0("./0_results/0_pars.csv"), row.names = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- R2 increase per Asymptote ------------------ #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
 
 groups <- c("full_amazon", "nearest_mature")
 group_names <- c("Amazon-wide Average", "Nearest Neighbor")
@@ -323,5 +259,28 @@ print(
     booktabs = TRUE
 )
 
+
+
+
+
+
+csv_files <- list.files(paste0("./0_data/grid_1k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE)
+
+df <- csv_files %>%
+    map(~ suppressMessages(read_csv(.x, show_col_types = FALSE, progress = FALSE))) %>%
+    bind_rows()
+
+sum(df$secondary_area)
+
+
+
+data_1k <- import_data(paste0("grid_1k_amazon_pastureland"), biome = 1, n_samples = "all")
+
+names(data_1k$df)
+sum(data_1k$df$area)
+
+
+
+results
 
 

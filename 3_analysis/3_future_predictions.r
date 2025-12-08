@@ -12,7 +12,6 @@ source("2_modelling/2_modelling.r")
 source("2_modelling/2_cross_validate.r")
 source("2_modelling/2_forward_selection.r")
 
-
 library(tidyverse)
 library(terra)
 library(scales) # for label formatting
@@ -177,6 +176,7 @@ for (scenario in scenarios) {
 
 pred_2050_pastureland_all_df <- data.frame()
 
+
 for (index in 1:5) {
     train_data <- data[indices == index, ]
 
@@ -237,10 +237,13 @@ results <- data.frame(
     sd_area = c(
         0,
         sd(area_lists[["random"]]),
-        sd(area_lists[["top_15_percent"]]),
+        sd(area_lists[["top_5_percent"]]),
         sd(area_lists[["all"]])
     )
 )
+results
+
+
 
 write.csv(results, file = "./0_results/0_future_predictions.csv", row.names = FALSE)
 
@@ -376,6 +379,7 @@ secondary <- results$mean_carbon[1] / results$mean_area[1]
 
 pasturelands / secondary
 
+(results$mean_carbon[[3]] - results$mean_carbon[[2]])/results$mean_carbon[[2]]
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # ---------------------- Export maps ----------------------- #
