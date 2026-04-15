@@ -29,6 +29,7 @@ registerDoParallel(cores = ncore)
 
 field_data <- read.csv("./0_data/groa_field/field_predictors.csv")
 field_data <- subset(field_data, biome == 1)
+
 field_data <- field_data %>%
     rename(
         biomass = field_biom,

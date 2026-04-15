@@ -72,7 +72,7 @@ for (basic_pars_name in names(basic_pars_options)) {
 }
 
 
-write.csv(predictions, "0_results/0_lag_field_predictions.csv", row.names = FALSE)
+# write.csv(predictions, "0_results/0_lag_field_predictions.csv", row.names = FALSE)
 
 
 
@@ -268,7 +268,7 @@ p
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 ggsave(
-    filename = "0_results/figures/figure_3_lag_field_biomass.jpeg",
+    filename = "0_results/figures/figure_3_lag_field_biomass_GEDI.jpeg",
     plot = p,
     width = 15,
     height = 8,

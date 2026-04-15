@@ -39,6 +39,8 @@ field <- field %>%
 # Units are Mg/ha, matching ESA CCI standards
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+unique(field$variables.name)
+
 field <- subset(field, variables.name == "aboveground_biomass" & site.country == "Brazil")
 
 field <- field %>%

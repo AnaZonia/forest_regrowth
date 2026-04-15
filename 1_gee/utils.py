@@ -43,7 +43,7 @@ class ProjectConfig:
 
     def _initialize(self):
         """Initialize project configuration parameters."""
-        self.data_folder = "projects/amazon-forest-regrowth/assets"
+        self.data_folder = "projects/forestregrowth/assets"
         self.roi = ee.FeatureCollection(f"{self.data_folder}/raw/biomes_br").geometry().dissolve()
         self.first_year = 1985
         self.last_year = 2020
