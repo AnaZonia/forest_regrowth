@@ -49,21 +49,27 @@ forest_regrowth
 ## 1_categorical.ipynb:
 Exports images with binary masks for protected areas and indigenous land, or byte values for ecoregion and biome.
 
-Imports:
-    - Indigenous land from [FUNAI](https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/geoprocessamento-e-mapas)
-    - Ecoregion from [RESOLVE](https://developers.google.com/earth-engine/datasets/catalog/RESOLVE_ECOREGIONS_2017)
-    - Protected areas from [CEM - USP (2020)](https://centrodametropole.fflch.usp.br/pt-br/download-de-dados)
-    - Biome data from [IBGE](https://www.ibge.gov.br/geociencias/informacoes-ambientais/vegetacao/15842-biomas.html)
-        
-Exports:
-    - "categorical" to GEE asset
-    - "distance_to_border_mask" (pixels within 10km of a biome boundary - removing areas where the distance to nearest mature could be misinterpreted due to not including forests outside of Brazil, or forests of a different biome)
+* **Imports:**
+    * Indigenous land from [FUNAI](https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/geoprocessamento-e-mapas)
+    * Ecoregion from [RESOLVE](https://developers.google.com/earth-engine/datasets/catalog/RESOLVE_ECOREGIONS_2017)
+    * Protected areas from [CEM - USP (2020)](https://centrodametropole.fflch.usp.br/pt-br/download-de-dados)
+    * Biome data from [IBGE](https://www.ibge.gov.br/geociencias/informacoes-ambientais/vegetacao/15842-biomas.html)
+* **Exports:**
+    * `categorical` to GEE Image
+    * `distance_to_border_mask` to GEE Image (pixels within 10km of a biome boundary—removing areas where the distance to nearest mature could be misinterpreted due to not including forests outside of Brazil, or forests of a different biome)
 
-##  2_age_biomass.ipynb:
-Exports secondary forest age data from TMF and Mapbiomas
-    - removes pixels with ages that don't match the IPCC estimates
-    - removes isolated pixels (keeps only pixels within a patch of at least 1 hectare)
-    - removes pixels within 10km of a biome boundary (distance_to_border_mask)
+### 2_age_biomass.ipynb
+Exports secondary forest age data from TMF and Mapbiomas.
+* Removes pixels with ages that don't match the IPCC estimates.
+* Removes isolated pixels (keeps only pixels within a patch of at least 1 hectare).
+* Removes pixels within 10km of a biome boundary (`distance_to_border_mask`).
+
+
+
+
+
+
+
 
 ##  gee_3_climate_soil.ipynb:
     - TerraClim
