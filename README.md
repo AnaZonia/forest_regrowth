@@ -1,4 +1,4 @@
-## Project Overview
+# Project Overview
 
 We modelled the age of secondary forests in Brazil based on satellite data. This script imports and processes remote sensing data from Google Earth Engine, and compares different models to predict the biomass of secondary forests in 2020 and in the future.
 
@@ -44,9 +44,9 @@ forest_regrowth
 ```
 
 
-### 1_gee_scripts/
+# 1_gee_scripts/
 
-- **1_categorical.ipynb**:
+## **1_categorical.ipynb**:
   Exports images with binary masks for protected areas and indigenous land, or byte values for ecoregion and biome.
 
     Imports:
@@ -59,13 +59,13 @@ forest_regrowth
       - "categorical" to GEE asset
       - "distance_to_border_mask" (pixels within 10km of a biome boundary - removing areas where the distance to nearest mature could be misinterpreted due to not including forests outside of Brazil, or forests of a different biome)
 
-- **2_age_biomass.ipynb**:
+##  **2_age_biomass.ipynb**:
     Exports secondary forest age data from TMF and Mapbiomas
       - removes pixels with ages that don't match the IPCC estimates
       - removes isolated pixels (keeps only pixels within a patch of at least 1 hectare)
       - removes pixels within 10km of a biome boundary (distance_to_border_mask)
 
-- **gee_3_climate_soil.ipynb**:
+##  **gee_3_climate_soil.ipynb**:
     - TerraClim
     Calculated yearly metrics.
 
