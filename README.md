@@ -8,8 +8,8 @@ forest_regrowth
 ├── 0_data
 ├── 1_gee
 │   ├── 1_categorical.ipynb
-│   ├── 2_age_biomass.ipynb
-│   ├── 3_grids_area.ipynb
+│   ├── 2_edges_areas.ipynb
+│   ├── 3_grids.ipynb
 │   ├── 4_climate_soil.ipynb
 │   ├── 5_land_use.ipynb
 │   ├── 6_mature.ipynb
@@ -51,81 +51,96 @@ Exports images with binary masks for protected areas and indigenous land, or byt
 
 * **Imports:**
     * Indigenous land from [FUNAI](https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/geoprocessamento-e-mapas)
-    * Ecoregion from [RESOLVE](https://developers.google.com/earth-engine/datasets/catalog/RESOLVE_ECOREGIONS_2017)
     * Protected areas from [CEM - USP (2020)](https://centrodametropole.fflch.usp.br/pt-br/download-de-dados)
     * Biome data from [IBGE](https://www.ibge.gov.br/geociencias/informacoes-ambientais/vegetacao/15842-biomas.html)
+    * Ecoregion from [RESOLVE](https://developers.google.com/earth-engine/datasets/catalog/RESOLVE_ECOREGIONS_2017)
 * **Exports:**
-    * `categorical` to GEE Image
+    * `categorical` to GEE Image (indigenous, protected areas, biome)
+    * `ecoreg` to GEE Image
     * `distance_to_border_mask` to GEE Image (pixels within 10km of a biome boundary—removing areas where the distance to nearest mature could be misinterpreted due to not including forests outside of Brazil, or forests of a different biome)
 
-### 2_age_biomass.ipynb
-Exports secondary forest age data from TMF and Mapbiomas.
-* Removes pixels with ages that don't match the IPCC estimates.
-* Removes isolated pixels (keeps only pixels within a patch of at least 1 hectare).
-* Removes pixels within 10km of a biome boundary (`distance_to_border_mask`).
+## 2_edges_areas.ipynb
+Creates mask to consider for analysis only the secondary forest pixels that are surrounded by other secondary forest pixels on all sides (to avoid edge effects and biomass underestimations).
+Estimates area of secondary forests per 1km². This is used to make total carbon sequestration estimates/projections.
+
+* **Imports:**
+    * Collection 9 MapBiomas Secondary Vegetation Age
+
+* **Exports:**
+    * `distance_to_secondary` to GEE Image
+    * `secondary_area_1km` to GEE Image
+    * `pastureland_area_1km` to GEE Image
+
+## 3_grids
+To ensure proper spatial coverage while sparing compute time, we sample one pixel per 100km² grid cell to run the analysis.
+
+* **Imports:**
+
+* **Exports:**
+    * `grid_10k_amazon_pastureland` to GEE Image
+    * `grid_1k_amazon_pastureland` to GEE Image
+    * `grid_10k_amazon_secondary` to GEE Image
+    * `grid_1k_amazon_secondary` to GEE Image
 
 
+##  4_climate_soil.ipynb:
 
+* **Imports:**
+  - TerraClim
+  Calculated yearly metrics.
 
+      Summed:
+      - Solar Radiation
+      - Soil Moisture
+      - Precipitation
 
+      Averaged:
+      - Temperature
+      - Vapour Pressure
+      - Evapotranspiration
 
-
-
-##  gee_3_climate_soil.ipynb:
-    - TerraClim
-    Calculated yearly metrics.
-
-        Summed:
-        - Solar Radiation
-        - Soil Moisture
-        - Precipitation
   
-        Averaged:
-        - Temperature
-        - Vapour Pressure
-        - Evapotranspiration
+  - SoilGrids
+      - Bulk Density
+      - Cation Exchange Capacity
+      - Clay Content
+      - Coarse fragments (> 2 mm)
+      - Nitrogen
+      - Organic Carbon Density
+      - Soil Organic Carbon Stock
+      - pH
+      - Sand Content
+      - Soil Organic Carbon
+  All averaged from 0-30cm depth and converted to the correct units.
+  
 
-    "yearly_terraclim": values of the metrics across all years from 1985-2019, and the means across time
-    
-    - SoilGrids
-        - Bulk Density
-        - Cation Exchange Capacity
-        - Clay Content
-        - Coarse fragments (> 2 mm)
-        - Nitrogen
-        - Organic Carbon Density
-        - Soil Organic Carbon Stock
-        - pH
-        - Sand Content
-        - Soil Organic Carbon
-    All averaged from 0-30cm depth and converted to the correct units.
-    
-    - CMIP6 Climate
-    Gets yearly climate data from the CMIP6 dataset for the period 1985-2019, and averages it across all years.
-        - Near Surface Specific Humidity
-        - Near Surface Air Temperature
-        - Moisture in Upper Portion of Soil Column
-        - Precipitation
-        - Surface Downwelling Shortwave Radiation
-    Exports:
-        - "CMIP6_historical"
-        - "CMIP6_ssp245"
-        - "CMIP6_means"
+
+* **Exports:**
+    * `yearly_terraclim`: values of the metrics across all years from 1985-2019, and the means across time
+
+
+
+
+
 
 ## 4_mature.ipynb:
-    Imports:
-        - ESA CCI Biomass
-        - MapBiomas forest age
-        - TMF forest age
-        - Ecoregions
-        - Amazon quarters (Heinrich et al 2021)
-    Exports:
-        - "distance_to_forest_edge"
-        - "sur_cover"
-        - "mature_biomass"
-        - "mature¨biomass_exclude_edge"
-        - "nearest_mature_biomass"
-        - "quarters_ecoreg_biomass"
+
+* **Imports:**
+
+- ESA CCI Biomass
+- MapBiomas forest age
+- TMF forest age
+- Ecoregions
+- Amazon quarters (Heinrich et al 2021)
+
+* **Exports:**
+
+- "distance_to_forest_edge"
+- "sur_cover"
+- "mature_biomass"
+- "mature¨biomass_exclude_edge"
+- "nearest_mature_biomass"
+- "quarters_ecoreg_biomass"
 
 ## 5_land_use.ipynb:
     Imports land use Collection 9 data from MapBiomas.
@@ -158,6 +173,26 @@ Exports secondary forest age data from TMF and Mapbiomas.
 ## 8_field_data.ipynb:
     Imports field.shp from 2_modelling/groa_field_data.r
 
+## 9_projections.ipynb:
+    Imports field.shp from 2_modelling/groa_field_data.r
+
+
+
+
+## 10_extended_data.ipynb
+
+* **Imports:**
+    * EU TMF Transition Map and Annual Changes
+    * ESA CCI Biomass for 2020
+
+* **Exports:**
+    * `tmf_2020` to GEE Image
+    * `tmf_ESA_fc` to Drive as CSV
+
+
+
+
+
 
 ## utils.py:
     - defines project date range (1985-2020) and imports region of interest
@@ -165,6 +200,14 @@ Exports secondary forest age data from TMF and Mapbiomas.
     - imports files for data processing (from Google Earth Engine)
     - select only pixels with exclusively the desired land use histories (exclude all instances of land use types we are not interested in)
     - makes grid cells for exporting data in gee_5_mature and gee_6_write_csv
+
+
+
+
+
+
+
+
 
 
 

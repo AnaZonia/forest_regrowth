@@ -13,7 +13,7 @@ Key components:
 - Land use/land cover data processing
 
 Author: Ana Catarina Avila
-Date: 2024-08-29
+Date: 2026-05-01
 """
 
 import ee
@@ -44,7 +44,7 @@ class ProjectConfig:
     def _initialize(self):
         """Initialize project configuration parameters."""
         self.data_folder = "projects/forestregrowth/assets"
-        self.roi = ee.FeatureCollection(f"{self.data_folder}/raw/biomes_br").geometry().dissolve()
+        self.roi = ee.FeatureCollection(f"{self.data_folder}/raw/biomes_br").geometry().dissolve() # Brazil
         self.first_year = 1985
         self.last_year = 2020
         self.range_1986_2019 = range(self.first_year + 1, self.last_year)
