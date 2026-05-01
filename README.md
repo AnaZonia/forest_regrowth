@@ -45,7 +45,7 @@ forest_regrowth
 
 # 1_gee/
 
-Scripts 1-6 generate the data that that is then used to export the dataframe for analysis in `7_write_csv`.
+Scripts 1-6 process and export the data that that is then used to generate the dataframe for analysis in `7_write_csv`.
 
 ## 1_categorical.ipynb:
 Exports images with binary masks for protected areas and indigenous land, or byte values for ecoregion and biome.
@@ -95,33 +95,34 @@ These grids are used in 7_write_csv to export the final dataframe for analysis.
     * `grid_1k_amazon_secondary_edge_removed` to GEE Feature Collection
 
 ##  4_climate_soil.ipynb:
+Cleans and exports TerraClim and SoilGrids data for analysis.
 
-* **Imports:**
-  - TerraClim (yearly)
+* **TerraClim (yearly from 1958 to 2019):**
+  * Summed (raw data is monthly totals):
+    - Soil Moisture (mm)
+    - Evapotranspiration (mm)
+    - Precipitation (mm)
+    - Climate Water Deficit (mm)
 
-      Summed:
-      - Solar Radiation
-      - Soil Moisture
-      - Precipitation
+  * Averaged (raw data is monthly averages):
+    - Temperature (C)
+    - Vapour Pressure Deficit (kPa)
+    - Palmer Drought Severity Index (PDSI)
 
-      Averaged:
-      - Temperature
-      - Vapour Pressure
-      - Evapotranspiration
+  * Converted to kWh/m²/year (Total solar energy received per square meter over a year):
+    - Solar Radiation (W/m^2)
 
-    - SoilGrids
-      - Bulk Density
-      - Cation Exchange Capacity
-      - Clay Content
-      - Coarse fragments (> 2 mm)
-      - Nitrogen
-      - Organic Carbon Density
-      - Soil Organic Carbon Stock
-      - pH
-      - Sand Content
-      - Soil Organic Carbon
-  All averaged from 0-30cm depth and converted to the correct units.
-  
+* **SoilGrids (Averaged from 0-30cm depth and converted to the appropriate units):**
+    * Bulk Density
+    * Cation Exchange Capacity
+    * Clay Content
+    * Coarse fragments (> 2 mm)
+    * Nitrogen
+    * Organic Carbon Density
+    * Soil Organic Carbon Stock
+    * pH
+    * Sand Content
+    * Soil Organic Carbon
 
 * **Exports:**
     * `terraclim_1958_2019`
