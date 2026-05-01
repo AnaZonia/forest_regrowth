@@ -72,22 +72,27 @@ Estimates area of secondary forests per 1km². This is used to make total carbon
     * `pastureland_area_1km` to GEE Image
 
 ## 3_grids
-To ensure proper spatial coverage while sparing compute time, we sample one pixel per 100km² grid cell to run the analysis.
+To ensure proper spatial coverage while sparing compute time, we sample one pixel per 100km² grid cell to fit the model.
+
+For final predictions, to ensure local specificity, we extract one pixel per 1km².
 
 * **Imports:**
+    * `categorical`
+    * Collection 9 MapBiomas Secondary Vegetation Age
+    * Collection 9 MapBiomas Land Use Land Cover
+    * `distance_to_border_mask`
+    * `distance_to_secondary`
 
 * **Exports:**
     * `grid_10k_amazon_pastureland` to GEE Image
     * `grid_1k_amazon_pastureland` to GEE Image
-    * `grid_10k_amazon_secondary` to GEE Image
-    * `grid_1k_amazon_secondary` to GEE Image
-
+    * `grid_10k_amazon_secondary_edge_removed` to GEE Image
+    * `grid_1k_amazon_secondary_edge_removed` to GEE Image
 
 ##  4_climate_soil.ipynb:
 
 * **Imports:**
-  - TerraClim
-  Calculated yearly metrics.
+  - TerraClim (yearly)
 
       Summed:
       - Solar Radiation
@@ -99,8 +104,7 @@ To ensure proper spatial coverage while sparing compute time, we sample one pixe
       - Vapour Pressure
       - Evapotranspiration
 
-  
-  - SoilGrids
+    - SoilGrids
       - Bulk Density
       - Cation Exchange Capacity
       - Clay Content
@@ -114,10 +118,9 @@ To ensure proper spatial coverage while sparing compute time, we sample one pixe
   All averaged from 0-30cm depth and converted to the correct units.
   
 
-
 * **Exports:**
     * `yearly_terraclim`: values of the metrics across all years from 1985-2019, and the means across time
-
+    * `soilgrids`: 
 
 
 
