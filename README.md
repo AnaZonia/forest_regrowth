@@ -45,6 +45,8 @@ forest_regrowth
 
 # 1_gee/
 
+Scripts 1-6 generate the data that that is then used to export the dataframe for analysis in `7_write_csv`.
+
 ## 1_categorical.ipynb:
 Exports images with binary masks for protected areas and indigenous land, or byte values for ecoregion and biome.
 
@@ -53,6 +55,7 @@ Exports images with binary masks for protected areas and indigenous land, or byt
     * Protected areas from [CEM - USP (2020)](https://centrodametropole.fflch.usp.br/pt-br/download-de-dados)
     * Biome data from [IBGE](https://www.ibge.gov.br/geociencias/informacoes-ambientais/vegetacao/15842-biomas.html)
     * Ecoregion from [RESOLVE](https://developers.google.com/earth-engine/datasets/catalog/RESOLVE_ECOREGIONS_2017)
+
 * **Exports:**
     * `categorical` to GEE Image (indigenous, protected areas, biome)
     * `ecoreg` to GEE Image
@@ -60,6 +63,7 @@ Exports images with binary masks for protected areas and indigenous land, or byt
 
 ## 2_edges_areas.ipynb
 Creates mask to consider for analysis only the secondary forest pixels that are surrounded by other secondary forest pixels on all sides (to avoid edge effects and biomass underestimations).
+
 Estimates area of secondary forests per 1km². This is used to make total carbon sequestration estimates/projections.
 
 * **Imports:**
@@ -75,10 +79,12 @@ To ensure proper spatial coverage while sparing compute time, we sample one pixe
 
 For final predictions, to ensure local specificity, we extract one pixel per 1km².
 
+These grids are used in 7_write_csv to export the final dataframe for analysis.
+
 * **Imports:**
-    * `categorical`
     * Collection 9 MapBiomas Secondary Vegetation Age
     * Collection 9 MapBiomas Land Use Land Cover
+    * `categorical`
     * `distance_to_border_mask`
     * `distance_to_secondary`
 
@@ -118,16 +124,13 @@ For final predictions, to ensure local specificity, we extract one pixel per 1km
   
 
 * **Exports:**
-    * `yearly_terraclim`: values of the metrics across all years from 1985-2019, and the means across time
-    * `soilgrids`: 
-
-
-
-
+    * `terraclim_1958_2019`
+    * `soilgrids`
 
 ## 4_mature.ipynb:
 
 * **Imports:**
+    * Collection 9 MapBiomas Land Use Land Cover
 
 - ESA CCI Biomass
 - MapBiomas forest age
@@ -145,21 +148,19 @@ For final predictions, to ensure local specificity, we extract one pixel per 1km
 - "quarters_ecoreg_biomass"
 
 ## 5_land_use.ipynb:
-    Imports land use Collection 9 data from MapBiomas.
     Calculates:
         - Last observed land use type before regrowth
         - Sum of years under each land use type before regrowth
         - Number of fallow years
-    Five of such dataframes are exported:
-        - Land use history restricted to 15 years from first to last observation of anthropogenic land use
-        - Land use history restricted to 10 years from first to last observation of anthropogenic land use
-        - Land use history restricted to 5 years from first to last observation of anthropogenic land use
-        - Unrestricted land use history (All land use categories considered)
-        - Unrestricted land use history (Aggregated land use categories into 4 classes: pasture, perennial crops, annual crops, and mosaic)
 
 * **Imports:**
-* **Exports:**
+    * Collection 9 MapBiomas Land Use Land Cover
 
+* **Exports:**
+  * `land_use_non_aggregated_10yr`: Land use history restricted to 10 years from first to last observation of anthropogenic land use
+  * `land_use_non_aggregated_5yr`: Land use history restricted to 5 years from first to last observation of anthropogenic land use
+  * `land_use_non_aggregated_all`: Unrestricted land use history (All land use categories considered)
+  * `land_use_aggregated_all`: Unrestricted land use history (Aggregated land use categories into 4 classes: pasture, perennial crops, annual crops, and mosaic)
 
 ## 6_write_csv.ipynb:
     Imports all data previously generated and exports it as CSV files for analysis.
