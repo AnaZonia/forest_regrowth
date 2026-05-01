@@ -49,14 +49,10 @@ forest_regrowth
 - **1_categorical.ipynb**:
   Exports images with binary masks for protected areas and indigenous land, or byte values for ecoregion and biome.
     Imports:
-        Indigenous land from FUNAI
-            https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/geoprocessamento-e-mapas
-        Ecoregion from RESOLVE
-            https://developers.google.com/earth-engine/datasets/catalog/RESOLVE_ECOREGIONS_2017
-        Protected areas from CEM - USP (2020)
-            https://centrodametropole.fflch.usp.br/pt-br/download-de-dados
-        Biome data from IBGE
-            https://www.ibge.gov.br/geociencias/informacoes-ambientais/vegetacao/15842-biomas.html
+        - Indigenous land from [FUNAI](https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/geoprocessamento-e-mapas)
+        - Ecoregion from [RESOLVE](https://developers.google.com/earth-engine/datasets/catalog/RESOLVE_ECOREGIONS_2017)
+        - Protected areas from [CEM - USP (2020)](https://centrodametropole.fflch.usp.br/pt-br/download-de-dados)
+        - Biome data from [IBGE](https://www.ibge.gov.br/geociencias/informacoes-ambientais/vegetacao/15842-biomas.html)
             
     Exports:
       - "categorical" to GEE asset
@@ -71,14 +67,17 @@ forest_regrowth
 - **gee_3_climate_soil.ipynb**:
     - TerraClim
     Calculated yearly metrics.
+
         Summed:
         - Solar Radiation
         - Soil Moisture
         - Precipitation
+  
         Averaged:
         - Temperature
         - Vapour Pressure
         - Evapotranspiration
+
     "yearly_terraclim": values of the metrics across all years from 1985-2019, and the means across time
     
     - SoilGrids
