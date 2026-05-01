@@ -125,8 +125,8 @@ Cleans and exports TerraClim and SoilGrids data for analysis.
     * Soil Organic Carbon
 
 * **Exports:**
-    * `terraclim_1958_2019`
-    * `soilgrids`
+    * `terraclim_1958_2019` to GEE Image
+    * `soilgrids` to GEE Image
 
 ## 4_mature.ipynb:
 
