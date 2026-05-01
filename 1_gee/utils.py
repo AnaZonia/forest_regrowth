@@ -77,8 +77,30 @@ def export_image(img, name, region, folder = None, scale = None, crsTransform = 
 
 
 
+# ------------------------- Import all from folder -------------------------
 
-# ------------------------------ Land Use/Land Cover Data Processing ------------------------------
+# function to import all features or images from a folder into one collection
+
+def import_folder_features(folder_path, asset_type='fc'):
+    # 1. List all assets in the folder
+    # returns a list of dictionaries with 'name', 'type', and 'id'
+    asset_list = ee.data.listAssets({'parent': folder_path})['assets']
+
+    feature_ids = [a['name'] for a in asset_list]
+                       
+    if asset_type == 'fc':
+        collections = [ee.FeatureCollection(asset_id) for asset_id in feature_ids]
+    else:
+        collections = [ee.Image(asset_id) for asset_id in feature_ids]
+    
+    print(f"Found {len(collections)} {asset_type}s.")
+    return collections
+
+
+
+
+
+# ------------------- Land Use/Land Cover Data Processing -------------------
 
 # The MapBiomas Collection 9 land use/land cover data is mapped to the following classes:
 

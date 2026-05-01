@@ -1,45 +1,17 @@
-
-
 library(tidyverse)
 
-csv_files <- list.files(paste0("./0_data/grid_10k_amazon_secondary_allpixels"), pattern = "\\.csv$", full.names = TRUE)
+csv_files <- list.files(paste0("./0_data/gedi_esa"), pattern = "\\.csv$", full.names = TRUE)
 
 df <- csv_files %>%
     map(~ suppressMessages(read_csv(.x, show_col_types = FALSE, progress = FALSE))) %>%
     bind_rows()
 
-head(df)
 
-unique(df$ecoreg)
+tst <- read.csv("./0_data/gedi_esa/age_gedi_esa.csv")
 
-table(df$edge)
+summary(lm(biomass ~ age, data = tst))
 
-# df <- df %>%
-#     filter(ecoreg == 518)
-
-# nrow(df)
-
-# edge_pixels <- df %>%
-#     filter(edge == 1)
-
-# non_edge_pixels <- df %>%
-#     filter(edge == 0)
-
-# mean(edge_pixels$biomass, na.rm = TRUE)
-# mean(non_edge_pixels$biomass, na.rm = TRUE)
-
-
-csv_files <- list.files(paste0("./0_data/esacci_sd"), pattern = "\\.csv$", full.names = TRUE)
-
-df <- csv_files %>%
-    map(~ suppressMessages(read_csv(.x, show_col_types = FALSE, progress = FALSE))) %>%
-    bind_rows()
-
-head(df)
-
-plot(df$sd, df$biomass)
-
-
+summary(lm(ESA_biomass ~ age, data = tst))
 
 
 # ----------------------------------------------------
@@ -61,5 +33,3 @@ for (scenario in c("SSP1_RCP19", "SSP2_RCP45", "SSP3_RCP70")) {
     writeRaster(forest_2050, paste0("./0_data/forest_2050_", scenario, ".tif"), overwrite = TRUE)
     writeRaster(forest_2015, paste0("./0_data/forest_2015_", scenario, ".tif"), overwrite = TRUE)
 }
-
-

@@ -7,7 +7,6 @@ We modelled the age of secondary forests in Brazil based on satellite data. This
 forest_regrowth
 ├── 0_data
 ├── 1_gee
-│   ├── 0_utils.py
 │   ├── 1_categorical.ipynb
 │   ├── 2_age_biomass.ipynb
 │   ├── 3_grids_area.ipynb
@@ -15,24 +14,29 @@ forest_regrowth
 │   ├── 5_land_use.ipynb
 │   ├── 6_mature.ipynb
 │   ├── 7_write_csv.ipynb
-│   └── 8_field_data.ipynb
+│   ├── 8_field_data.ipynb
+│   ├── 9_projections.ipynb
+│   ├── utils.py
+│   └── visualize_maps.ipynb
 |
 ├── 2_modelling
-│   ├── 0_multicollinearity.r
 │   ├── 0_groa_field_data.r
 │   ├── 1_data_processing.r
 │   ├── 1_parameters.r
 │   ├── 2_cross_validate.r
-│   ├── 2_feature_selection.r
+│   ├── 2_forward_selection.r
 │   └── 2_modelling.r
 |
 ├── 3_analysis
 │   ├── 0_asymptote_land_use.r
 │   ├── 0_field.r
 │   ├── 1_feature_importance.r
-│   ├── 1_model_performance.r
 │   ├── 2_lag_field.r
 │   ├── 3_future predictions.r
+│   ├── 4_edge_biomass_hist.r
+│   ├── 4_mature_distance_edge.r
+│   ├── 4_pred_vs_obs_satellite
+│   ├── 4_tmf_comparison
 |   └── EXT_pred_vs_obs.r
 │
 ├── README.md
@@ -41,24 +45,24 @@ forest_regrowth
 
 
 ### 1_gee_scripts/
-- **gee_0_utils.py**:
-    - defines project date range (1985-2020) and imports region of interest
-    - defines export_image function
-    - imports files for data processing (from Google Earth Engine)
-    - select only pixels with exclusively the desired land use histories (exclude all instances of land use types we are not interested in)
-    - makes grid cells for exporting data in gee_5_mature and gee_6_write_csv
 
-- **gee_2_categorical.ipynb**:
+- **1_categorical.ipynb**:
+  Exports images with binary masks for protected areas and indigenous land, or byte values for ecoregion and biome.
     Imports:
-      - Indigenous Lands
-      - Protected Areas
-      - Ecoregions
-      - Biomes
+        Indigenous land from FUNAI
+            https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/geoprocessamento-e-mapas
+        Ecoregion from RESOLVE
+            https://developers.google.com/earth-engine/datasets/catalog/RESOLVE_ECOREGIONS_2017
+        Protected areas from CEM - USP (2020)
+            https://centrodametropole.fflch.usp.br/pt-br/download-de-dados
+        Biome data from IBGE
+            https://www.ibge.gov.br/geociencias/informacoes-ambientais/vegetacao/15842-biomas.html
+            
     Exports:
-      - "categorical" to GEE assets
+      - "categorical" to GEE asset
       - "distance_to_border_mask" (pixels within 10km of a biome boundary - removing areas where the distance to nearest mature could be misinterpreted due to not including forests outside of Brazil, or forests of a different biome)
 
-- **gee_2_age_biomass.ipynb**:
+- **2_age_biomass.ipynb**:
     - exports secondary forest age data from TMF and Mapbiomas
       - removes pixels with ages that don't match the IPCC estimates
       - removes isolated pixels (keeps only pixels within a patch of at least 1 hectare)
@@ -102,7 +106,7 @@ forest_regrowth
         - "CMIP6_ssp245"
         - "CMIP6_means"
 
-- **gee_4_mature.ipynb**:
+- **4_mature.ipynb**:
     Imports:
         - ESA CCI Biomass
         - MapBiomas forest age
@@ -117,7 +121,7 @@ forest_regrowth
         - "nearest_mature_biomass"
         - "quarters_ecoreg_biomass"
 
-- **gee_5_land_use.ipynb**:
+- **5_land_use.ipynb**:
     Imports land use Collection 9 data from MapBiomas.
     Calculates:
         - Last observed land use type before regrowth
@@ -130,7 +134,7 @@ forest_regrowth
         - Unrestricted land use history (All land use categories considered)
         - Unrestricted land use history (Aggregated land use categories into 4 classes: pasture, perennial crops, annual crops, and mosaic)
 
-- **gee_6_write_csv.ipynb**:
+- **6_write_csv.ipynb**:
     Imports all data previously generated and exports it as CSV files for analysis.
     - Biomass and age data source comparisons
     - Mature forest biomass comparisons
@@ -145,8 +149,16 @@ forest_regrowth
         - as tiles incorporating all pixels classified as secondary forests for 2020 (for future predictions)
 
 
-- **gee_8_field_data.ipynb**:
+- **8_field_data.ipynb**:
     Imports field.shp from 2_modelling/groa_field_data.r
+
+
+- **utils.py**:
+    - defines project date range (1985-2020) and imports region of interest
+    - defines export_image function
+    - imports files for data processing (from Google Earth Engine)
+    - select only pixels with exclusively the desired land use histories (exclude all instances of land use types we are not interested in)
+    - makes grid cells for exporting data in gee_5_mature and gee_6_write_csv
 
 
 
