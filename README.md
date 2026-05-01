@@ -44,28 +44,28 @@ forest_regrowth
 ```
 
 
-# 1_gee_scripts/
+# 1_gee/
 
-## **1_categorical.ipynb**:
-  Exports images with binary masks for protected areas and indigenous land, or byte values for ecoregion and biome.
+## 1_categorical.ipynb:
+Exports images with binary masks for protected areas and indigenous land, or byte values for ecoregion and biome.
 
-    Imports:
-        - Indigenous land from [FUNAI](https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/geoprocessamento-e-mapas)
-        - Ecoregion from [RESOLVE](https://developers.google.com/earth-engine/datasets/catalog/RESOLVE_ECOREGIONS_2017)
-        - Protected areas from [CEM - USP (2020)](https://centrodametropole.fflch.usp.br/pt-br/download-de-dados)
-        - Biome data from [IBGE](https://www.ibge.gov.br/geociencias/informacoes-ambientais/vegetacao/15842-biomas.html)
-            
-    Exports:
-      - "categorical" to GEE asset
-      - "distance_to_border_mask" (pixels within 10km of a biome boundary - removing areas where the distance to nearest mature could be misinterpreted due to not including forests outside of Brazil, or forests of a different biome)
+Imports:
+    - Indigenous land from [FUNAI](https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/geoprocessamento-e-mapas)
+    - Ecoregion from [RESOLVE](https://developers.google.com/earth-engine/datasets/catalog/RESOLVE_ECOREGIONS_2017)
+    - Protected areas from [CEM - USP (2020)](https://centrodametropole.fflch.usp.br/pt-br/download-de-dados)
+    - Biome data from [IBGE](https://www.ibge.gov.br/geociencias/informacoes-ambientais/vegetacao/15842-biomas.html)
+        
+Exports:
+    - "categorical" to GEE asset
+    - "distance_to_border_mask" (pixels within 10km of a biome boundary - removing areas where the distance to nearest mature could be misinterpreted due to not including forests outside of Brazil, or forests of a different biome)
 
-##  **2_age_biomass.ipynb**:
-    Exports secondary forest age data from TMF and Mapbiomas
-      - removes pixels with ages that don't match the IPCC estimates
-      - removes isolated pixels (keeps only pixels within a patch of at least 1 hectare)
-      - removes pixels within 10km of a biome boundary (distance_to_border_mask)
+##  2_age_biomass.ipynb:
+Exports secondary forest age data from TMF and Mapbiomas
+    - removes pixels with ages that don't match the IPCC estimates
+    - removes isolated pixels (keeps only pixels within a patch of at least 1 hectare)
+    - removes pixels within 10km of a biome boundary (distance_to_border_mask)
 
-##  **gee_3_climate_soil.ipynb**:
+##  gee_3_climate_soil.ipynb:
     - TerraClim
     Calculated yearly metrics.
 
@@ -106,7 +106,7 @@ forest_regrowth
         - "CMIP6_ssp245"
         - "CMIP6_means"
 
-- **4_mature.ipynb**:
+## 4_mature.ipynb:
     Imports:
         - ESA CCI Biomass
         - MapBiomas forest age
@@ -121,7 +121,7 @@ forest_regrowth
         - "nearest_mature_biomass"
         - "quarters_ecoreg_biomass"
 
-- **5_land_use.ipynb**:
+## 5_land_use.ipynb:
     Imports land use Collection 9 data from MapBiomas.
     Calculates:
         - Last observed land use type before regrowth
@@ -134,7 +134,7 @@ forest_regrowth
         - Unrestricted land use history (All land use categories considered)
         - Unrestricted land use history (Aggregated land use categories into 4 classes: pasture, perennial crops, annual crops, and mosaic)
 
-- **6_write_csv.ipynb**:
+## 6_write_csv.ipynb:
     Imports all data previously generated and exports it as CSV files for analysis.
     - Biomass and age data source comparisons
     - Mature forest biomass comparisons
@@ -149,11 +149,11 @@ forest_regrowth
         - as tiles incorporating all pixels classified as secondary forests for 2020 (for future predictions)
 
 
-- **8_field_data.ipynb**:
+## 8_field_data.ipynb:
     Imports field.shp from 2_modelling/groa_field_data.r
 
 
-- **utils.py**:
+## utils.py:
     - defines project date range (1985-2020) and imports region of interest
     - defines export_image function
     - imports files for data processing (from Google Earth Engine)
@@ -162,9 +162,9 @@ forest_regrowth
 
 
 
-### 2_modelling/
+# 2_modelling/
 
-- **0_groa_field_data.r**:
+## 0_groa_field_data.r:
     Imports and processes field data from the GROA project into a shapefile.
     Shapefile is then used in 1_gee/8_field_data.ipynb for visualization
     and to restrict the field data to the Amazon biome.
@@ -174,10 +174,7 @@ forest_regrowth
     Exports:
     - Shapefile with aboveground biomass data for Brazil (field.shp)
 
-- **0_multicollinearity.r**:
-    Tests for multicollinearity with VIF. Multicollinear variables are removed in 1_parameters.r
-
-- **1_data_processing.r**:
+## 1_data_processing.r:
     Imports and processes the data for modelling.
     Functions:
     - "import_data"
@@ -190,7 +187,7 @@ forest_regrowth
       - Intakes training and testing dataframes
       - Normalizes the data for both dataframes based on the training data
 
-- **1_parameters.r**:
+## 1_parameters.r:
     Defines the categories of parameters:
     - Land Use (lu, fallow, num_fires)
     - Soil
@@ -201,27 +198,27 @@ forest_regrowth
     - basic_pars_options
     - data_pars_options
 
-- **2_cross_validate.r**:
+## 2_cross_validate.r:
     Evaluates the model performance using 5-fold cross-validation.
     Functions:
     - "calc_r2"
     - "cross_validate"
 
-- **2_forward_selection.r**:
+## 2_forward_selection.r:
     Iteratively fits parameter combinations with `run_optim()` and selects the one that minimizes the Akaike Information Criterion (AIC), excluding parameters that do not improve the model.
     Functions:
       - "find_combination_pars"
 
-- **2_modelling.r**:
+## 2_modelling.r:
     Defines the main functions for modelling:
     - "run_optim"
     - "calc_rss"
     - "growth_curve"
 
 
-### 3_analysis
+# 3_analysis
 
-- **0_asymptote_land_use.r**:
+## 0_asymptote_land_use.r:
     Compares the R2 values of different models trained on satellite data.
     Comparisons:
     - Asymptotes ("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")
@@ -239,7 +236,7 @@ forest_regrowth
     - "0_asymptotes.csv": R2 values for each asymptote
     - "0_land_use.csv": R2 values for each land use type per biome
 
-- **0_field.r**:
+## 0_field.r:
     Obtains the R2 values for the field data based on the model trained from satellite data
     Inputs:
     - grid_10k_amazon_secondary
@@ -249,7 +246,7 @@ forest_regrowth
     - "field_age_histogram.png": Histogram of field data ages
     - "predicted_vs_observed_field.png": Scatterplot of predicted vs observed biomass for field data
 
-- **1_feature_importance.r**:
+## 1_feature_importance.r:
     Figure 2: Barplots.
     Compares the relative importance of the parameters of full_amazon (inflexible) asymptote with the R2 of the nearest_mature (flexible) asymptote.
     Compares R2 with three levels of asymptote aggregation with just age as the only predictor.
@@ -266,7 +263,7 @@ forest_regrowth
 
 
 
-- **2_lag_field.r**:
+## 2_lag_field.r:
     Growth curve line graph.
     Compares the growth rate of intercept and lag models.
     Overlays the average biomass per age from the field data scatterplot.
@@ -277,7 +274,7 @@ forest_regrowth
     - "lag_field_biomass.jpeg"
     - "lag_field_biomass_legend.jpeg"
 
-- **3_future_predictions.r**:
+## 3_future_predictions.r:
     Barplot 1: Compares the biomass gain by 2050 for:
         - random 5% of pastureland
         - 5% with top regrowth potential
@@ -299,14 +296,14 @@ forest_regrowth
       - "pred_2050_pastureland_all.shp"
       - "pred_2050_secondary_all.shp"
 
-- **4_mature_distance_edge.r**:
+## 4_mature_distance_edge.r:
     Shows the biomass of mature forests in relation to the distance to the nearest forest edge.
     Inputs:
       - "mature_biomass_distance.csv"
     Outputs:
       - "mature_biomass_distance_edge.jpeg"
   
-- **4_pred_vs_obs_satellite.r**:
+## 4_pred_vs_obs_satellite.r:
     Shows the predicted vs observed biomass for the satellite data.
     Inputs:
       - "grid_10k_amazon_secondary"
