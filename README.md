@@ -16,8 +16,8 @@ forest_regrowth
 │   ├── 7_write_csv.ipynb
 │   ├── 8_field_data.ipynb
 │   ├── 9_projections.ipynb
-│   ├── utils.py
-│   └── visualize_maps.ipynb
+│   ├── 10_extended_data.ipynb
+│   └── utils.py
 |
 ├── 2_modelling
 │   ├── 0_groa_field_data.r
@@ -36,8 +36,7 @@ forest_regrowth
 │   ├── 4_edge_biomass_hist.r
 │   ├── 4_mature_distance_edge.r
 │   ├── 4_pred_vs_obs_satellite
-│   ├── 4_tmf_comparison
-|   └── EXT_pred_vs_obs.r
+|   └── 4_tmf_comparison
 │
 ├── README.md
 └── requirements.txt
@@ -84,10 +83,10 @@ For final predictions, to ensure local specificity, we extract one pixel per 1km
     * `distance_to_secondary`
 
 * **Exports:**
-    * `grid_10k_amazon_pastureland` to GEE Image
-    * `grid_1k_amazon_pastureland` to GEE Image
-    * `grid_10k_amazon_secondary_edge_removed` to GEE Image
-    * `grid_1k_amazon_secondary_edge_removed` to GEE Image
+    * `grid_10k_amazon_pastureland` to GEE Feature Collection
+    * `grid_1k_amazon_pastureland` to GEE Feature Collection
+    * `grid_10k_amazon_secondary_edge_removed` to GEE Feature Collection
+    * `grid_1k_amazon_secondary_edge_removed` to GEE Feature Collection
 
 ##  4_climate_soil.ipynb:
 
@@ -158,6 +157,10 @@ For final predictions, to ensure local specificity, we extract one pixel per 1km
         - Unrestricted land use history (All land use categories considered)
         - Unrestricted land use history (Aggregated land use categories into 4 classes: pasture, perennial crops, annual crops, and mosaic)
 
+* **Imports:**
+* **Exports:**
+
+
 ## 6_write_csv.ipynb:
     Imports all data previously generated and exports it as CSV files for analysis.
     - Biomass and age data source comparisons
@@ -172,15 +175,20 @@ For final predictions, to ensure local specificity, we extract one pixel per 1km
         - as a random sample of 15000 pixels per biome (for model fitting and validation)
         - as tiles incorporating all pixels classified as secondary forests for 2020 (for future predictions)
 
+* **Imports:**
+* **Exports:**
 
 ## 8_field_data.ipynb:
     Imports field.shp from 2_modelling/groa_field_data.r
 
+* **Imports:**
+* **Exports:**
+
 ## 9_projections.ipynb:
     Imports field.shp from 2_modelling/groa_field_data.r
 
-
-
+* **Imports:**
+* **Exports:**
 
 ## 10_extended_data.ipynb
 
@@ -226,18 +234,24 @@ For final predictions, to ensure local specificity, we extract one pixel per 1km
     Exports:
     - Shapefile with aboveground biomass data for Brazil (field.shp)
 
+* **Imports:**
+* **Exports:**
+
+
 ## 1_data_processing.r:
     Imports and processes the data for modelling.
-    Functions:
-    - "import_data"
+
+* **Functions:**
+    -`import_data`
       - Converts categorical variables to factors
       - Removes columns with extremely rare occurrences (less than 100 non-zero values)
       - Removes categorical values that occur less than 50 times
       - Selects which asymptote to use for the model ("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")
       - Splits the coordinates into a separate dataframe for export of results as shapefile
-    - "normalize_independently"
+    -`normalize_independently`
       - Intakes training and testing dataframes
       - Normalizes the data for both dataframes based on the training data
+
 
 ## 1_parameters.r:
     Defines the categories of parameters:
@@ -252,20 +266,22 @@ For final predictions, to ensure local specificity, we extract one pixel per 1km
 
 ## 2_cross_validate.r:
     Evaluates the model performance using 5-fold cross-validation.
-    Functions:
-    - "calc_r2"
-    - "cross_validate"
+* **Functions:**
+    -`calc_r2`
+    -`cross_validate`
 
 ## 2_forward_selection.r:
     Iteratively fits parameter combinations with `run_optim()` and selects the one that minimizes the Akaike Information Criterion (AIC), excluding parameters that do not improve the model.
-    Functions:
-      - "find_combination_pars"
+* **Functions:**
+      -`find_combination_pars`
 
 ## 2_modelling.r:
-    Defines the main functions for modelling:
-    - "run_optim"
-    - "calc_rss"
-    - "growth_curve"
+Defines the main functions for the modelling process.
+
+* **Functions:**
+    -`run_optim`
+    -`calc_rss`
+    -`growth_curve`
 
 
 # 3_analysis
