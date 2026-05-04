@@ -65,7 +65,7 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-data <- import_data(paste0("grid_10k_amazon_secondary"), biome = 1, n_samples = 8500, asymptote = "nearest_mature")
+data <- import_data(paste0("tst"), biome = 1, n_samples = 8500, asymptote = "nearest_mature")
 
 basic_pars <- basic_pars_options[["lag"]]
 # data_pars <- data_pars_options(colnames(data))[["all"]]

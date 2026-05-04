@@ -47,6 +47,9 @@ forest_regrowth
 
 Scripts 1-6 process and export the data that that is then used to generate the dataframe for analysis in `7_write_csv`.
 
+
+
+
 ## 1_categorical.ipynb:
 Exports images with binary masks for protected areas and indigenous land, or byte values for ecoregion and biome.
 
@@ -61,6 +64,10 @@ Exports images with binary masks for protected areas and indigenous land, or byt
     * `ecoreg` to GEE Image
     * `distance_to_border_mask` to GEE Image (pixels within 10km of a biome boundary—removing areas where the distance to nearest mature could be misinterpreted due to not including forests outside of Brazil, or forests of a different biome)
 
+
+
+
+
 ## 2_edges_areas.ipynb
 Creates mask to consider for analysis only the secondary forest pixels that are surrounded by other secondary forest pixels on all sides (to avoid edge effects and biomass underestimations).
 
@@ -70,9 +77,12 @@ Estimates area of secondary forests per 1km². This is used to make total carbon
     * Collection 9 MapBiomas Secondary Vegetation Age
 
 * **Exports:**
-    * `distance_to_secondary` to GEE Image
+    * `distance_to_secondary_edge` to GEE Image
     * `secondary_area_1km` to GEE Image
     * `pastureland_area_1km` to GEE Image
+
+
+
 
 ## 3_grids
 To ensure proper spatial coverage while sparing compute time, we sample one pixel per 100km² grid cell to fit the model.
@@ -86,13 +96,17 @@ These grids are used in 7_write_csv to export the final dataframe for analysis.
     * Collection 9 MapBiomas Land Use Land Cover
     * `categorical`
     * `distance_to_border_mask`
-    * `distance_to_secondary`
+    * `distance_to_secondary_edge`
 
 * **Exports:**
     * `grid_10k_amazon_pastureland` to GEE Feature Collection
     * `grid_1k_amazon_pastureland` to GEE Feature Collection
     * `grid_10k_amazon_secondary_edge_removed` to GEE Feature Collection
     * `grid_1k_amazon_secondary_edge_removed` to GEE Feature Collection
+
+
+
+
 
 ##  4_climate_soil.ipynb:
 Cleans and exports TerraClim and SoilGrids data for analysis.
@@ -128,31 +142,12 @@ Cleans and exports TerraClim and SoilGrids data for analysis.
     * `terraclim_1958_2019` to GEE Image
     * `soilgrids` to GEE Image
 
-## 4_mature.ipynb:
-
-* **Imports:**
-    * Collection 9 MapBiomas Land Use Land Cover
-
-- ESA CCI Biomass
-- MapBiomas forest age
-- TMF forest age
-- Ecoregions
-- Amazon quarters (Heinrich et al 2021)
-
-* **Exports:**
-
-- "distance_to_forest_edge"
-- "sur_cover"
-- "mature_biomass"
-- "mature¨biomass_exclude_edge"
-- "nearest_mature_biomass"
-- "quarters_ecoreg_biomass"
 
 ## 5_land_use.ipynb:
-    Calculates:
-        - Last observed land use type before regrowth
-        - Sum of years under each land use type before regrowth
-        - Number of fallow years
+Calculates:
+    * Last observed land use type before regrowth
+    * Sum of years under each land use type before regrowth
+    * Number of fallow years
 
 * **Imports:**
     * Collection 9 MapBiomas Land Use Land Cover
@@ -163,22 +158,52 @@ Cleans and exports TerraClim and SoilGrids data for analysis.
   * `land_use_non_aggregated_all`: Unrestricted land use history (All land use categories considered)
   * `land_use_aggregated_all`: Unrestricted land use history (Aggregated land use categories into 4 classes: pasture, perennial crops, annual crops, and mosaic)
 
-## 6_write_csv.ipynb:
-    Imports all data previously generated and exports it as CSV files for analysis.
-    - Biomass and age data source comparisons
-    - Mature forest biomass comparisons
-    - Field Data
-    - Main model data assemblage
-      - New introductions:
-        - Fire from MapBiomas
-        - Floodable Forests from MapBiomas (dummy variable)
-        - Topography from ALOS
-        Exports all data required for the model:
-        - as a random sample of 15000 pixels per biome (for model fitting and validation)
-        - as tiles incorporating all pixels classified as secondary forests for 2020 (for future predictions)
+
+## 6_mature.ipynb:
+Process mature forest data to obtain surrounding mature forest cover and mature forest biomass estimates for the asymptote.
+
+* **Imports:**
+    * Collection 9 MapBiomas Land Use Land Cover
+    * ESA CCI Biomass
+    * MapBiomas forest age
+    * Ecoregion
+    * Amazon quarters (Heinrich et al 2021)
+
+* **Exports:**
+    * `distance_to_forest_edge`: distance to mature forest edge. Intermediate step to `distance_to_deep_forest`.
+    * `sur_cover`: surrounding mature forest cover.
+    * `distance_to_deep_forest`: distance to mature forests that are 1km or deeper.
+    * `nearest_mature`: nearest mature forest biomass (10km x 10km grid averaged)
+    * `quarters_ecoreg_biomass`: average biomass per Amazon quarter (from Heinrich et al 2021), used for Figure 2.
+
+
+
+## 7_write_csv.ipynb:
+Imports all data previously generated and exports it as CSV files for analysis.
+
+Allows for the inclusion or exclusion of edge pixels (not surrounded by secondary forest on all sides) into the analysis.
+
+- Biomass and age data source comparisons
+- Mature forest biomass comparisons
+- Field Data
+- Main model data assemblage
+    - New introductions:
+    - Fire from MapBiomas
+    - Floodable Forests from MapBiomas (dummy variable)
+    - Topography from ALOS
+  
+Exports all data required for the model:
+* as a sample of 1 pixel per 100km² grid cell (`grid_10k_amazon_secondary_allpixels`) for analysis, to ensure good spatial coverage
+* as a sample of 1 pixel per 1km² grid cell (`grid_1k_amazon_pastureland` and `grid_1k_amazon_secondary_allpixels`) for 
+* as tiles incorporating all pixels classified as secondary forests for 2020 (for future predictions)
+
+
 
 * **Imports:**
 * **Exports:**
+
+
+
 
 ## 8_field_data.ipynb:
     Imports field.shp from 2_modelling/groa_field_data.r
