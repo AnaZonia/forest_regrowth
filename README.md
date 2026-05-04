@@ -99,13 +99,11 @@ These grids are used in 7_write_csv to export the final dataframe for analysis.
     * `distance_to_secondary_edge`
 
 * **Exports:**
-    * `grid_10k_amazon_pastureland` to GEE Feature Collection
-    * `grid_1k_amazon_pastureland` to GEE Feature Collection
     * `grid_10k_amazon_secondary_edge_removed` to GEE Feature Collection
-    * `grid_1k_amazon_secondary_edge_removed` to GEE Feature Collection
-
-
-
+    * `grid_10k_atlantic_secondary_edge_removed` to GEE Feature Collection
+    * `grid_10k_amazon_secondary` to GEE Feature Collection
+    * `grid_1k_amazon_secondary` to GEE Feature Collection
+    * `grid_1k_amazon_pastureland` to GEE Feature Collection
 
 
 ##  4_climate_soil.ipynb:
@@ -113,18 +111,18 @@ Cleans and exports TerraClim and SoilGrids data for analysis.
 
 * **TerraClim (yearly from 1958 to 2019):**
   * Summed (raw data is monthly totals):
-    - Soil Moisture (mm)
-    - Evapotranspiration (mm)
-    - Precipitation (mm)
-    - Climate Water Deficit (mm)
+    * Soil Moisture (mm)
+    * Evapotranspiration (mm)
+    * Precipitation (mm)
+    * Climate Water Deficit (mm)
 
   * Averaged (raw data is monthly averages):
-    - Temperature (C)
-    - Vapour Pressure Deficit (kPa)
-    - Palmer Drought Severity Index (PDSI)
+    * Temperature (C)
+    * Vapour Pressure Deficit (kPa)
+    * Palmer Drought Severity Index (PDSI)
 
   * Converted to kWh/m²/year (Total solar energy received per square meter over a year):
-    - Solar Radiation (W/m^2)
+    * Solar Radiation (W/m^2)
 
 * **SoilGrids (Averaged from 0-30cm depth and converted to the appropriate units):**
     * Bulk Density
@@ -183,41 +181,33 @@ Imports all data previously generated and exports it as CSV files for analysis.
 
 Allows for the inclusion or exclusion of edge pixels (not surrounded by secondary forest on all sides) into the analysis.
 
-- Biomass and age data source comparisons
-- Mature forest biomass comparisons
-- Field Data
-- Main model data assemblage
-    - New introductions:
-    - Fire from MapBiomas
-    - Floodable Forests from MapBiomas (dummy variable)
-    - Topography from ALOS
+* **Imports:**
+    * Fire from MapBiomas Collection 3
+    * Floodable Forests from MapBiomas Collection 9 (dummy variable)
+    * Topography from ALOS
   
-Exports all data required for the model:
-* as a sample of 1 pixel per 100km² grid cell (`grid_10k_amazon_secondary_allpixels`) for analysis, to ensure good spatial coverage
-* as a sample of 1 pixel per 1km² grid cell (`grid_1k_amazon_pastureland` and `grid_1k_amazon_secondary_allpixels`) for 
-* as tiles incorporating all pixels classified as secondary forests for 2020 (for future predictions)
+* **Exports:** CSV dataframes to run the model.
+  * as a sample of 1 pixel per 100km² grid cell to ensure good spatial coverage without running into memory limits:
+    * `grid_10k_amazon_secondary_edge_removed`
+    * `grid_10k_amazon_secondary`: includes edges as a binary mask, to compare the biomass and conditions of the edge pixels
+    * `grid_10k_atlantic_secondary_edge_removed`: samples the Atlantic Forest for a comparison of the land use predictive power outside of the Amazon
+
+  * as a sample of 1 pixel per 1km² grid cell for future projections:
+    * `grid_1k_amazon_pastureland`
+    * `grid_1k_amazon_secondary`
+
+  * `field_predictors.csv`: The predictors for the locations of the field data, which are then used in `3_analysis/0_field.r` to predict the biomass accumulation in the validation plots.
 
 
 
-* **Imports:**
-* **Exports:**
-
-
-
-
-## 8_field_data.ipynb:
-    Imports field.shp from 2_modelling/groa_field_data.r
-
-* **Imports:**
-* **Exports:**
-
-## 9_projections.ipynb:
-    Imports field.shp from 2_modelling/groa_field_data.r
+## 8_projections.ipynb:
+Use the projections from [Bezerra et al. 2022](https://doi.org/10.1371/journal.pone.0256052) to predict the future biomass accumulated by secondary forests.
 
 * **Imports:**
+  * forest cover predictions for SSP1, SSP2 and SSP3 for 2015 and 2050.
 * **Exports:**
 
-## 10_extended_data.ipynb
+## 9_extended_data.ipynb
 
 * **Imports:**
     * EU TMF Transition Map and Annual Changes
@@ -230,14 +220,12 @@ Exports all data required for the model:
 
 
 
-
-
 ## utils.py:
-    - defines project date range (1985-2020) and imports region of interest
-    - defines export_image function
-    - imports files for data processing (from Google Earth Engine)
-    - select only pixels with exclusively the desired land use histories (exclude all instances of land use types we are not interested in)
-    - makes grid cells for exporting data in gee_5_mature and gee_6_write_csv
+    * defines project date range (1985-2020) and imports region of interest
+    * defines export_image function
+    * imports files for data processing (from Google Earth Engine)
+    * select only pixels with exclusively the desired land use histories (exclude all instances of land use types we are not interested in)
+    * makes grid cells for exporting data in gee_5_mature and gee_6_write_csv
 
 
 
@@ -256,10 +244,10 @@ Exports all data required for the model:
     Shapefile is then used in 1_gee/8_field_data.ipynb for visualization
     and to restrict the field data to the Amazon biome.
     Imports:
-    - Field data from GROA (biomass_litter_CWD.csv)
-    - site data from GROA (sites.csv)
+    * Field data from GROA (biomass_litter_CWD.csv)
+    * site data from GROA (sites.csv)
     Exports:
-    - Shapefile with aboveground biomass data for Brazil (field.shp)
+    * Shapefile with aboveground biomass data for Brazil (field.shp)
 
 * **Imports:**
 * **Exports:**
@@ -270,26 +258,26 @@ Exports all data required for the model:
 
 * **Functions:**
     -`import_data`
-      - Converts categorical variables to factors
-      - Removes columns with extremely rare occurrences (less than 100 non-zero values)
-      - Removes categorical values that occur less than 50 times
-      - Selects which asymptote to use for the model ("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")
-      - Splits the coordinates into a separate dataframe for export of results as shapefile
+      * Converts categorical variables to factors
+      * Removes columns with extremely rare occurrences (less than 100 non-zero values)
+      * Removes categorical values that occur less than 50 times
+      * Selects which asymptote to use for the model ("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")
+      * Splits the coordinates into a separate dataframe for export of results as shapefile
     -`normalize_independently`
-      - Intakes training and testing dataframes
-      - Normalizes the data for both dataframes based on the training data
+      * Intakes training and testing dataframes
+      * Normalizes the data for both dataframes based on the training data
 
 
 ## 1_parameters.r:
     Defines the categories of parameters:
-    - Land Use (lu, fallow, num_fires)
-    - Soil
-    - Categorical
-    - Binary
-    - Landscape (dist, sur_cover)
+    * Land Use (lu, fallow, num_fires)
+    * Soil
+    * Categorical
+    * Binary
+    * Landscape (dist, sur_cover)
     Defines the parameter lists for comparisons in 3_analysis.r
-    - basic_pars_options
-    - data_pars_options
+    * basic_pars_options
+    * data_pars_options
 
 ## 2_cross_validate.r:
     Evaluates the model performance using 5-fold cross-validation.
@@ -311,35 +299,49 @@ Defines the main functions for the modelling process.
     -`growth_curve`
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # 3_analysis
 
 ## 0_asymptote_land_use.r:
     Compares the R2 values of different models trained on satellite data.
     Comparisons:
-    - Asymptotes ("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")
-    - Land Use (non_aggregated_all, aggregated_all, non_aggregated_5yr, non_aggregated_10yr)
-    - Biomes (Amazon, Atlantic Forest)
+    * Asymptotes ("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")
+    * Land Use (non_aggregated_all, aggregated_all, non_aggregated_5yr, non_aggregated_10yr)
+    * Biomes (Amazon, Atlantic Forest)
 
     Inputs (all CSVs in directories):
-    - "grid_10k_amazon_secondary"
-    - "land_use_aggregated_all"
-    - "land_use_non_aggregated_all"
-    - "land_use_non_aggregated_5yr"
-    - "land_use_non_aggregated_10yr"
+    * "grid_10k_amazon_secondary"
+    * "land_use_aggregated_all"
+    * "land_use_non_aggregated_all"
+    * "land_use_non_aggregated_5yr"
+    * "land_use_non_aggregated_10yr"
     
     Outputs:
-    - "0_asymptotes.csv": R2 values for each asymptote
-    - "0_land_use.csv": R2 values for each land use type per biome
+    * "0_asymptotes.csv": R2 values for each asymptote
+    * "0_land_use.csv": R2 values for each land use type per biome
 
 ## 0_field.r:
     Obtains the R2 values for the field data based on the model trained from satellite data
     Inputs:
-    - grid_10k_amazon_secondary
-    - field_predictors.csv
+    * grid_10k_amazon_secondary
+    * field_predictors.csv
     Outputs:
-    - "0_field_results.csv": R2 value for the field data and fit theta value from field data
-    - "field_age_histogram.png": Histogram of field data ages
-    - "predicted_vs_observed_field.png": Scatterplot of predicted vs observed biomass for field data
+    * "0_field_results.csv": R2 value for the field data and fit theta value from field data
+    * "field_age_histogram.png": Histogram of field data ages
+    * "predicted_vs_observed_field.png": Scatterplot of predicted vs observed biomass for field data
 
 ## 1_feature_importance.r:
     Figure 2: Barplots.
@@ -347,14 +349,14 @@ Defines the main functions for the modelling process.
     Compares R2 with three levels of asymptote aggregation with just age as the only predictor.
     Compares the relative importance of the parameters of the Amazon and Atlantic Forest models (NN asymptote) to show land use is not incorporated.
     Inputs (all CSVs in directories):
-    - "grid_10k_amazon_secondary"
-    - "land_use_aggregated_all"
-    - "land_use_non_aggregated_all"
-    - "land_use_non_aggregated_5yr"
-    - "land_use_non_aggregated_10yr"
+    * "grid_10k_amazon_secondary"
+    * "land_use_aggregated_all"
+    * "land_use_non_aggregated_all"
+    * "land_use_non_aggregated_5yr"
+    * "land_use_non_aggregated_10yr"
     Outputs:
-    - figure_2_model_performance.jpg
-    - figure_2_asymptote_barplot.jpg
+    * figure_2_model_performance.jpg
+    * figure_2_asymptote_barplot.jpg
 
 
 
@@ -363,47 +365,47 @@ Defines the main functions for the modelling process.
     Compares the growth rate of intercept and lag models.
     Overlays the average biomass per age from the field data scatterplot.
     Inputs:
-    - "grid_10k_amazon_secondary"
-    - "field_predictors.csv"
+    * "grid_10k_amazon_secondary"
+    * "field_predictors.csv"
     Outputs:
-    - "lag_field_biomass.jpeg"
-    - "lag_field_biomass_legend.jpeg"
+    * "lag_field_biomass.jpeg"
+    * "lag_field_biomass_legend.jpeg"
 
 ## 3_future_predictions.r:
     Barplot 1: Compares the biomass gain by 2050 for:
-        - random 5% of pastureland
-        - 5% with top regrowth potential
-        - all secondary forests
+        * random 5% of pastureland
+        * 5% with top regrowth potential
+        * all secondary forests
     Barplot 2: Shows current area of:
-        - 5% of pastureland
-        - secondary forests
+        * 5% of pastureland
+        * secondary forests
     Barplot 3: Shows current biomass stocked in:
-        - random 5% of pastureland
-        - secondary forests
+        * random 5% of pastureland
+        * secondary forests
     Shapefile 1: Predicted biomass gain by 2050 for all pastureland.
     Shapefile 2: Predicted biomass gain by 2050 for all secondary forests.
     Inputs:
-      - "grid_1k_amazon_secondary": all CSVs in directory
-      - "grid_1k_amazon_pastureland": all CSVs in directory
+      * "grid_1k_amazon_secondary": all CSVs in directory
+      * "grid_1k_amazon_pastureland": all CSVs in directory
     Outputs:
-      - "figure_4_c.jpeg"
-      - "figure_4_d.jpeg"
-      - "pred_2050_pastureland_all.shp"
-      - "pred_2050_secondary_all.shp"
+      * "figure_4_c.jpeg"
+      * "figure_4_d.jpeg"
+      * "pred_2050_pastureland_all.shp"
+      * "pred_2050_secondary_all.shp"
 
 ## 4_mature_distance_edge.r:
     Shows the biomass of mature forests in relation to the distance to the nearest forest edge.
     Inputs:
-      - "mature_biomass_distance.csv"
+      * "mature_biomass_distance.csv"
     Outputs:
-      - "mature_biomass_distance_edge.jpeg"
+      * "mature_biomass_distance_edge.jpeg"
   
 ## 4_pred_vs_obs_satellite.r:
     Shows the predicted vs observed biomass for the satellite data.
     Inputs:
-      - "grid_10k_amazon_secondary"
+      * "grid_10k_amazon_secondary"
     Outputs:
-      - "predicted_vs_observed_satellite.png"
+      * "predicted_vs_observed_satellite.png"
   
 
 
