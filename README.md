@@ -89,6 +89,8 @@ To ensure proper spatial coverage while sparing compute time, we sample one pixe
 
 For final predictions, to ensure local specificity, we extract one pixel per 1km².
 
+Also, for final carbon accumulation predictions, we select 10 points per cell in the Bezerra et al. 2022 dataset of future land use change conditions.
+
 These grids are used in 7_write_csv to export the final dataframe for analysis.
 
 * **Imports:**
@@ -104,7 +106,7 @@ These grids are used in 7_write_csv to export the final dataframe for analysis.
     * `grid_10k_amazon_secondary` to GEE Feature Collection
     * `grid_1k_amazon_secondary` to GEE Feature Collection
     * `grid_1k_amazon_pastureland` to GEE Feature Collection
-
+    * `grid_Bezerra_10_points` to GEE Feature Collection: Samples 10 points per 100km² grid cell from the Bezerra et al. 2022 future predictions dataset.
 
 ##  4_climate_soil.ipynb:
 Cleans and exports TerraClim and SoilGrids data for analysis.
@@ -188,6 +190,12 @@ Uses the projections from [Bezerra et al. 2022](https://doi.org/10.1371/journal.
     * Floodable Forests from MapBiomas Collection 9 (dummy variable)
     * Topography from ALOS
     * forest cover predictions for SSP1, SSP2 and SSP3 for 2015 and 2050.
+    * `grid_10k_amazon_secondary_edge_removed` to GEE Feature Collection
+    * `grid_10k_atlantic_secondary_edge_removed`
+    * `grid_10k_amazon_secondary`
+    * `grid_1k_amazon_secondary`
+    * `grid_1k_amazon_pastureland`
+    * `grid_Bezerra_10_points`
 
 * **Exports:** CSV dataframes to run the model.
   * as a sample of 1 pixel per 100km² grid cell to ensure good spatial coverage without running into memory limits:
@@ -199,21 +207,22 @@ Uses the projections from [Bezerra et al. 2022](https://doi.org/10.1371/journal.
     * `grid_1k_amazon_pastureland`
     * `grid_1k_amazon_secondary`
 
+  * `grid_Bezerra_10_points`: exports the regrowth conditions in areas expected to regrow by 2050 in at least one of the SSP scenarios. Exports the expected area to regrow per point.
+
   * `field_predictors.csv`: The predictors for the locations of the field data, which are then used in `3_analysis/0_field.r` to predict the biomass accumulation in the validation plots.
 
 
 
-## 8_extended_data.ipynb
+## 8_visualization.ipynb
+Exports dataframes and maps that are not used for analysis, and are directly used to generate figures.
 
-* **Imports:**
-    * EU TMF Transition Map and Annual Changes
-    * ESA CCI Biomass for 2020
-
-* **Exports:**
-    * `nearest` to GEE Image
-    * `tmf_ESA_fc` to Drive as CSV
-
-
+* **Figures:**
+    * `Figure 2`: Asymptotes per aggregation level
+    * `Figure 4`: Map of expected carbon accumulation by 2050
+    * `Extended Data Fig. 1`: Biomass with EU TMF-obtained secondary forest age data
+    * `Extended Data Fig. 2`: Mature Forest Biomass - distance to edge
+    * `Extended Data Fig. 3`: Surrounding mature forest biomass across the Amazon
+    * `Extended Data Fig. 4`: Why it is important to remove secondary forest edges
 
 ## utils.py:
     * defines project date range (1985-2020) and imports region of interest
@@ -221,11 +230,6 @@ Uses the projections from [Bezerra et al. 2022](https://doi.org/10.1371/journal.
     * imports files for data processing (from Google Earth Engine)
     * select only pixels with exclusively the desired land use histories (exclude all instances of land use types we are not interested in)
     * makes grid cells for exporting data in gee_5_mature and gee_6_write_csv
-
-
-
-
-
 
 
 
