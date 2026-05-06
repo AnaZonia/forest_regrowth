@@ -210,9 +210,8 @@ Uses the projections from [Bezerra et al. 2022](https://doi.org/10.1371/journal.
     * ESA CCI Biomass for 2020
 
 * **Exports:**
-    * `tmf_2020` to GEE Image
+    * `nearest` to GEE Image
     * `tmf_ESA_fc` to Drive as CSV
-
 
 
 
