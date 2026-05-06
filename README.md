@@ -181,11 +181,14 @@ Imports all data previously generated and exports it as CSV files for analysis.
 
 Allows for the inclusion or exclusion of edge pixels (not surrounded by secondary forest on all sides) into the analysis.
 
+Uses the projections from [Bezerra et al. 2022](https://doi.org/10.1371/journal.pone.0256052) to predict the future biomass accumulated by secondary forests.
+
 * **Imports:**
     * Fire from MapBiomas Collection 3
     * Floodable Forests from MapBiomas Collection 9 (dummy variable)
     * Topography from ALOS
-  
+    * forest cover predictions for SSP1, SSP2 and SSP3 for 2015 and 2050.
+
 * **Exports:** CSV dataframes to run the model.
   * as a sample of 1 pixel per 100km² grid cell to ensure good spatial coverage without running into memory limits:
     * `grid_10k_amazon_secondary_edge_removed`
@@ -200,14 +203,7 @@ Allows for the inclusion or exclusion of edge pixels (not surrounded by secondar
 
 
 
-## 8_projections.ipynb:
-Use the projections from [Bezerra et al. 2022](https://doi.org/10.1371/journal.pone.0256052) to predict the future biomass accumulated by secondary forests.
-
-* **Imports:**
-  * forest cover predictions for SSP1, SSP2 and SSP3 for 2015 and 2050.
-* **Exports:**
-
-## 9_extended_data.ipynb
+## 8_extended_data.ipynb
 
 * **Imports:**
     * EU TMF Transition Map and Annual Changes
