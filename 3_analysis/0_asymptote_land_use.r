@@ -36,7 +36,7 @@ results <- data.frame()
 
 for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")) {
     for (basic_pars_name in c("intercept", "lag")) {
-
+        
         data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000, asymptote = asymptote)
 
         data_pars_name <- "age_only"
@@ -44,7 +44,7 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
         basic_pars <- basic_pars_options[[basic_pars_name]]
         data_pars <- data_pars_options(colnames(data))[[data_pars_name]]    
 
-        cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
+        cv_results <- cross_validate(data, basic_pars, data_pars, conditions, 5)
 
         result <- data.frame(
             basic_pars_name = basic_pars_name,

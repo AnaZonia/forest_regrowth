@@ -25,24 +25,48 @@ registerDoParallel(cores = ncore)
 
 # run monte carlo with sd from biomass as distribution of error (error propagation)
 
-csv_files <- list.files(paste0("./0_data/monte_carlo"), pattern = "\\.csv$", full.names = TRUE)
+data <- import_data("monte_carlo", biome = 1, n_samples = 30000, asymptote = "nearest_mature")
+
+basic_pars <- basic_pars_options[["lag"]]
+data_pars <- data_pars_options(colnames(data))[["all"]]
+
+error_prop_results <- error_prop(data, basic_pars, data_pars, conditions)
+
+cv_results <- cross_validate(data, basic_pars, data_pars, conditions, 5)
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------- One lag per ecoregion of the Amazon ----------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+
+csv_files <- list.files(paste0("./0_data/grid_10k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE)
 
 df <- csv_files %>%
     map(~ suppressMessages(read_csv(.x, show_col_types = FALSE, progress = FALSE))) %>%
     bind_rows()
 
-# sample one value given mean and standard deviation
-# do that 1000 times, for each one of those run optim
+df <- subset(df, ave(seq_along(ecoreg), ecoreg, FUN = length) >= 500)
 
-# sample size 1, mean biomass, sd
-prop_err = rnorm(nrow(df), df$biomass, df$sd)
+for (ecoregion in unique(df$ecoreg)) {
+    df_ecoreg <- subset(df, df$ecoreg == ecoregion)
 
-# and the distribution of R2
-# at the same time get the distribution of lag values
+    basic_pars <- basic_pars_options[["lag"]]
+    data_pars <- data_pars_options(colnames(data))[["all"]]
+
+    cv_results <- cross_validate(data, basic_pars, data_pars, conditions, 5)
+
+    result <- data.frame(
+        mean_r2 = mean(cv_results[[1]]),
+        mean_lag = mean(cv_results[[3]])
+    )
+    print(result)
+}
 
 
 
-
-
-
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------- Future predictions - Bezerra map ----------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 

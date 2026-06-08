@@ -76,9 +76,11 @@ find_combination_pars <- function(basic_pars, data_pars, data) {
     } else {
         r2_df <- data.frame()
         model_best <- run_optim(data, best$par, conditions)
+
         r2 <- calc_r2(data, growth_curve(model_best$par, data,
             lag = if ("lag" %in% names(model_best$par)) model_best$par["lag"] else 0
         ))
+        
         r2_df <- rbind(r2_df, data.frame("par" = "age", "r2" = r2))
 
         for (i in 1:length(data_pars)) {
