@@ -23,11 +23,8 @@ import geemap
 
 def initialize():
     """Initialize and authenticate Earth Engine."""
-    try:
-        ee.Initialize()
-    except Exception as e:
-        ee.Authenticate()
-        ee.Initialize()
+    ee.Authenticate(auth_mode='notebook')
+    ee.Initialize(project = 'extents-490617')
 
 # ------------------------------ Project Configuration ------------------------------
 

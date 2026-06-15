@@ -26,7 +26,7 @@
 #' - Categorical variables are handled by grouping their dummy variables together.
 
 
-find_combination_pars <- function(basic_pars, data_pars, data) {
+forward_selection <- function(basic_pars, data_pars, data) {
 
     # Initialize parameter vector with data parameters
     all_pars <- c(setNames(

@@ -32,16 +32,22 @@ data_pars <- data_pars_options(colnames(data))[["all"]]
 
 error_prop_results <- error_prop(data, basic_pars, data_pars, conditions)
 
+error_prop_results
+
+# get the distribution of lag values
+
+
 cv_results <- cross_validate(data, basic_pars, data_pars, conditions, 5)
 
+mean(cv_results[[1]])
+
+mean(cv_results[[3]])
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------- One lag per ecoregion of the Amazon ----------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
-
-csv_files <- list.files(paste0("./0_data/grid_10k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE)
+csv_files <- list.files(paste0("./0_data/monte_carlo"), pattern = "\\.csv$", full.names = TRUE)
 
 df <- csv_files %>%
     map(~ suppressMessages(read_csv(.x, show_col_types = FALSE, progress = FALSE))) %>%
@@ -69,4 +75,7 @@ for (ecoregion in unique(df$ecoreg)) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------- Future predictions - Bezerra map ----------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+# make future projections with the ecoregion-specific models or with the general model from error propagation?
 

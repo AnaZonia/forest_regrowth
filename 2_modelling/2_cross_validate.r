@@ -149,8 +149,8 @@ error_prop <- function(data, basic_pars, data_pars, conditions) {
     train_data <- norm_data$train_data
     test_data <- norm_data$test_data
 
-    # Function to perform direct optimization
-    pars_init <- find_combination_pars(basic_pars, data_pars, train_data)
+    # Function to perform forward selection
+    pars_init <- forward_selection(basic_pars, data_pars, train_data)
     r2_df <- pars_init[[2]] # save the r2 increase by adding each predictor
 
     pars <- data.frame()
