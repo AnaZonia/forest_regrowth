@@ -34,6 +34,40 @@ apply_min_max_scaling <- function(data, train_stats) {
 }
 
 
+
+
+
+
+
+
+# ----------------------------------------------------
+
+
+library(terra)
+
+# veg <- forest vegetation
+# gveg <- grassland vegetation
+# mosc <- mosaic vegetation
+# fores <- forestry
+
+for (scenario in c("SSP1_RCP19", "SSP2_RCP45", "SSP3_RCP70")) {
+    r <- rast(paste0("./0_data/LUCCMEBR_", scenario, "_land_cover_type_100km2_2015_2050.nc"))
+
+    forest_2050 <- r$veg_8
+    forest_2015 <- r$veg_1
+
+    writeRaster(forest_2050, paste0("./0_data/forest_2050_", scenario, ".tif"), overwrite = TRUE)
+    writeRaster(forest_2015, paste0("./0_data/forest_2015_", scenario, ".tif"), overwrite = TRUE)
+}
+
+
+
+
+
+
+
+
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Estimate biomass by 2050 --------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

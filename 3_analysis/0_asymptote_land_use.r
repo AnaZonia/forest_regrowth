@@ -29,7 +29,7 @@ registerDoParallel(cores = ncore)
 #   - nearest_mature
 #   - ecoreg_biomass
 #   - quarter_biomass
-#   - full_amazon)
+#   - full_amazon
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 results <- data.frame()
@@ -61,89 +61,17 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ---------------- Average Lag with GEDI ------------------ #
+# --------- Lag and R² - uncertainty propagation ---------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
-data <- import_data(paste0("tst"), biome = 1, n_samples = 8500, asymptote = "nearest_mature")
-
-basic_pars <- basic_pars_options[["lag"]]
-# data_pars <- data_pars_options(colnames(data))[["all"]]
-# data_pars <- c("mean_aet", "sur_cover", "num_fires", "dist")
-cv_results <- cross_validate(data, basic_pars, data_pars, conditions, 5)
-
-lag_mean <- data.frame(
-    mean_lag = mean(cv_results[[3]]),
-    sd_lag = sd(cv_results[[3]])
-)
-
-# write.csv(lag_mean, file = "./0_results/0_lag.csv", row.names = FALSE)
-
-r2_mean <- data.frame(
-            mean_r2 = mean(cv_results[[1]]),
-            sd_r2 = sd(cv_results[[1]])
-        )
-
-r2_mean
-
-# 0.022
-
-# what up with the asymptote?
-# why is gedi so bad???? probably because of the asymptote being a bad measurement?
-# plot the distributions - could this be because of the weird tail in the GEDI?
-# ho3w could it be possible to have a weird 
-# why did the others not use GEDI? why is it so bad?
-# did I exclude the edges?
-# have the same comparison with ESA CCI and GEDI - for the same points. That is the most compelling argument.
-# exclude edges.
-# folder with review scripts with GEDI comparison
-
-
-write.csv(r2_mean, file = "./0_results/0_r2.csv", row.names = FALSE)
-
-write.csv(cv_results[[2]], file = paste0("./0_results/0_r2_nearest_mature.csv"), row.names = FALSE)
-
-write.csv(cv_results[[4]], file = paste0("./0_results/0_pars.csv"), row.names = FALSE)
-
-
-
-library(dplyr)
-library(ggplot2)
-
-data_gedi %>%
-  group_by(age) %>%
-  summarise(mean_biomass = median(biomass, na.rm = TRUE), .groups = "drop") %>%
-  ggplot(aes(x = age, y = mean_biomass)) +
-  geom_line() +
-  geom_point() +
-  theme_minimal() +
-  theme(
-    axis.text = element_text(size = 14),
-    axis.title = element_text(size = 16),
-    plot.title = element_text(size = 18, face = "bold"),
-    aspect.ratio = 0.5
-  ) +
-  labs(
-    title = "Mean Biomass per Age",
-    x = "Age (years)",
-    y = "Mean Biomass (Mg/ha)"
-  )
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ---------------- Average Lag expected ------------------ #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-
-data <- import_data(paste0('grid_10k_amazon_secondary_allpixels'), biome = 1, n_samples = 180000, asymptote = "nearest_mature")
-
+data <- import_data("uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature")
 
 basic_pars <- basic_pars_options[["lag"]]
 data_pars <- data_pars_options(colnames(data))[["all"]]
 
-cv_results <- cross_validate(data, basic_pars, data_pars, conditions, 6)
+error_prop_results <- error_prop(data, basic_pars, data_pars, conditions)
 
-cv_results
+error_prop_results
 
 lag_mean <- data.frame(
     mean_lag = mean(cv_results[[3]]),
@@ -197,8 +125,6 @@ for (i in seq_along(groups)) {
     results <- rbind(results, result)
     write.csv(results, file = "./0_results/0_asymptotes_all_pars2.csv", row.names = FALSE)
 }
-
-lm(biomass ~ mean_temp, data = data) %>% summary()
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -327,27 +253,5 @@ print(
 )
 
 
-
-
-
-
-csv_files <- list.files(paste0("./0_data/grid_1k_amazon_secondary"), pattern = "\\.csv$", full.names = TRUE)
-
-df <- csv_files %>%
-    map(~ suppressMessages(read_csv(.x, show_col_types = FALSE, progress = FALSE))) %>%
-    bind_rows()
-
-sum(df$secondary_area)
-
-
-
-data_1k <- import_data(paste0("grid_1k_amazon_pastureland"), biome = 1, n_samples = "all")
-
-names(data_1k$df)
-sum(data_1k$df$area)
-
-
-
-results
 
 

@@ -78,7 +78,7 @@ cross_validate <- function(data, basic_pars, data_pars, conditions, folds = 5) {
         test_data <- norm_data$test_data
 
         # Function to perform direct optimization
-        pars_init <- find_combination_pars(basic_pars, data_pars, train_data)
+        pars_init <- forward_selection(basic_pars, data_pars, train_data)
         # save the R2 increase with each parameter included
         r2_df <- rbind(r2_df, pars_init[[2]])
 

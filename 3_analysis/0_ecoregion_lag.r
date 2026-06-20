@@ -79,3 +79,6 @@ for (ecoregion in unique(df$ecoreg)) {
 
 # make future projections with the ecoregion-specific models or with the general model from error propagation?
 
+
+# include gedi for the full model
+
