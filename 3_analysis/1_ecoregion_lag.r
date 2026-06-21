@@ -23,26 +23,6 @@ set.seed(1)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
-# run monte carlo with sd from biomass as distribution of error (error propagation)
-
-data <- import_data("monte_carlo", biome = 1, n_samples = 30000, asymptote = "nearest_mature")
-
-basic_pars <- basic_pars_options[["lag"]]
-data_pars <- data_pars_options(colnames(data))[["all"]]
-
-error_prop_results <- error_prop(data, basic_pars, data_pars, conditions)
-
-error_prop_results
-
-# get the distribution of lag values
-
-
-cv_results <- cross_validate(data, basic_pars, data_pars, conditions, 5)
-
-mean(cv_results[[1]])
-
-mean(cv_results[[3]])
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------- One lag per ecoregion of the Amazon ----------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -70,15 +50,7 @@ for (ecoregion in unique(df$ecoreg)) {
     print(result)
 }
 
+# save everything to make a map
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# --------- Future predictions - Bezerra map ----------- #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-
-# make future projections with the ecoregion-specific models or with the general model from error propagation?
-
-
-# include gedi for the full model
 

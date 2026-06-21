@@ -146,6 +146,7 @@ error_prop <- function(data, basic_pars, data_pars, conditions) {
 
     # Normalize training and test sets independently, but using training data's min/max for both
     norm_data <- normalize_independently(train_data, test_data)
+    train_stats <- norm_data$train_stats
     train_data <- norm_data$train_data
     test_data <- norm_data$test_data
 
@@ -177,6 +178,5 @@ error_prop <- function(data, basic_pars, data_pars, conditions) {
 
     r2 <- calc_r2(test_data, pred)
 
-    return(list(r2, pars))
-
+    return(list(r2, final_pars, train_stats))
 }

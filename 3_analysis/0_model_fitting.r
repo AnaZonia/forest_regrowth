@@ -64,6 +64,7 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 # --------- Lag and R² - uncertainty propagation ---------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+
 data <- import_data("uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature")
 
 basic_pars <- basic_pars_options[["lag"]]
@@ -73,25 +74,16 @@ error_prop_results <- error_prop(data, basic_pars, data_pars, conditions)
 
 error_prop_results
 
-lag_mean <- data.frame(
-    mean_lag = mean(cv_results[[3]]),
-    sd_lag = sd(cv_results[[3]])
-)
+write_rds(error_prop_results, file = "./0_results/0_error_prop.rds")
 
-write.csv(lag_mean, file = "./0_results/0_lag.csv", row.names = FALSE)
 
-r2_mean <- data.frame(
-            mean_r2 = mean(cv_results[[1]]),
-            sd_r2 = sd(cv_results[[1]])
-        )
 
-r2_mean
 
-write.csv(r2_mean, file = "./0_results/0_r2.csv", row.names = FALSE)
+# write.csv(r2_mean, file = "./0_results/0_r2.csv", row.names = FALSE)
 
-write.csv(cv_results[[2]], file = paste0("./0_results/0_r2_nearest_mature.csv"), row.names = FALSE)
+# write.csv(cv_results[[2]], file = paste0("./0_results/0_r2_nearest_mature.csv"), row.names = FALSE)
 
-write.csv(cv_results[[4]], file = paste0("./0_results/0_pars.csv"), row.names = FALSE)
+# write.csv(cv_results[[4]], file = paste0("./0_results/0_pars.csv"), row.names = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- R2 increase per Asymptote ------------------ #
