@@ -98,28 +98,52 @@ future <- dummy_cols(future,
 )
 
 # the area is in km2. To convert to hectares, multiply by 100
-
 future[, c(1:3)] <- future[, c(1:3)]*100
 
-ssp1 <- subset(future, !is.na(growth_SSP1_RCP19))
-ssp2 <- subset(future, !is.na(growth_SSP2_RCP45))
-ssp3 <- subset(future, !is.na(growth_SSP3_RCP70))
 
-ssp1$pred <- growth_curve(pars, ssp1, pars["lag"])
-ssp2$pred <- growth_curve(pars, ssp2, pars["lag"])
-ssp3$pred <- growth_curve(pars, ssp3, pars["lag"])
+compute_ssp_totals <- function(future, growth_col, pars) {
+    # Keep only rows with non-NA values in the growth column
+    df <- subset(future, !is.na(future[[growth_col]]))
 
-ssp1 <- subset(ssp1, !is.na(pred))
-ssp2 <- subset(ssp2, !is.na(pred))
-ssp3 <- subset(ssp3, !is.na(pred))
+    df$pred <- growth_curve(pars, df, pars["lag"])
 
-ssp1_total <- sum(ssp1$pred)
-ssp2_total <- sum(ssp2$pred)
-ssp3_total <- sum(ssp3$pred)
+    # Drop rows with NA predictions
+    df <- subset(df, !is.na(pred))
 
-ssp1_total_area <- sum(ssp1$growth_SSP1_RCP19)
-ssp2_total_area <- sum(ssp2$growth_SSP2_RCP45)
-ssp3_total_area <- sum(ssp3$growth_SSP3_RCP70)
+    total_biomass <- sum(df$pred)
+    total_area <- sum(df[[growth_col]])
+
+    # get total biomass (assuming 25.8% of total biomass is belowground)
+    total_biomass <- total_biomass * (1.258)
+
+    # Convert biomass Mg/ha to MgC/ha (assuming 50% C content)
+    total_biomass <- total_biomass * 0.5
+
+    # Convert to TgC (Teragrams of Carbon)
+    total_biomass_tgc <- total_biomass / 1e6
+
+    # Return both total TgC and area
+    list(
+        total_TgC = total_biomass_tgc,
+        total_area = total_area,
+        data = df # optional: return the filtered data with preds
+    )
+}
+
+
+ssp1_res <- compute_ssp_totals(future, "growth_SSP1_RCP19", pars)
+ssp2_res <- compute_ssp_totals(future, "growth_SSP2_RCP45", pars)
+ssp3_res <- compute_ssp_totals(future, "growth_SSP3_RCP70", pars)
+
+ssp1_total <- ssp1_res$total_TgC
+ssp2_total <- ssp2_res$total_TgC
+ssp3_total <- ssp3_res$total_TgC
+
+ssp1_total_area <- ssp1_res$total_area
+ssp2_total_area <- ssp2_res$total_area
+ssp3_total_area <- ssp3_res$total_area
+
+
 
 
 
@@ -173,3 +197,57 @@ area <- area[selected_indices]
 coords <- coords[selected_indices, ]
 
 
+total_biomass <- sum(pred * area, na.rm = TRUE)
+total_area <- sum(area, na.rm = TRUE) / 1000000 # convert to million hectares
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# ---------------------- Figure 4 d ----------------------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# -------- Barplot with carbon sequestered by 2050 -------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+fig_4_d <- data.frame(
+    category = factor(
+        c(
+            "SSP1",
+            "SSP2",
+            "SSP3",
+            "Top Priority\nPasture Cover"
+        ),
+        levels = c(
+            "SSP1",
+            "SSP2",
+            "SSP3",
+            "Top Priority\nPasture Cover"
+        )
+    ),
+    value <- c(ssp1_total, ssp2_total, ssp3_total, total_biomass)
+
+    # value = c(ssp1_total / ssp1_total_area, ssp2_total / ssp2_total_area, ssp3_total / ssp3_total_area, total_biomass / ssp1_total_area)*1000000
+    # sd = results$sd_carbon[c(1, 2, 3)]
+)
+
+
+fig_4_d <- ggplot(fig_4_d, aes(x = category, y = value)) + # removed fill aesthetic
+    geom_bar(stat = "identity", width = 0.7, fill = "#043927") + # set 
+    scale_y_continuous(
+        labels = scales::label_comma(),
+        name = "Carbon stored by 2050 (Tg C / ha)"
+    ) +
+    labs(x = NULL) +
+    theme_minimal(base_size = 16) +
+    theme(
+        axis.title.y = element_text(size = 30, color = "black", margin = margin(r = 15)),
+        axis.text.x = element_text(size = 25, color = "black", margin = margin(t = 15)),
+        axis.text.y = element_text(size = 25, color = "black"),
+        panel.grid = element_blank(),
+        axis.line = element_line(color = "black", linewidth = 0.8)
+    )
+
+# Save to file
+ggsave("0_results/figures/figure_4_Bezerra.jpeg",
+    plot = fig_4_d,
+    width = 10, height = 12, dpi = 300
+)
