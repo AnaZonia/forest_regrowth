@@ -76,8 +76,9 @@ error_prop_results
 
 write_rds(error_prop_results, file = "./0_results/0_error_prop.rds")
 
+# get average and sd of R²
 
-
+# check again the relative importance of the predictors.
 
 # write.csv(r2_mean, file = "./0_results/0_r2.csv", row.names = FALSE)
 

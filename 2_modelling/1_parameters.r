@@ -13,7 +13,7 @@
 land_use <- c("lu", "fallow")
 fires <- c("num_fires")
 landscape <- c("dist", "sur_cover")
-categorical <- c("ecoreg", "topography", "last_lu")
+categorical <- c("topography", "last_lu")
 binary <- c("floodable_forests", "protec", "indig")
 soil <- c("nitro", "phh2o", "ocd", "cec", "sand", "clay", "soc", "cfvo")
 

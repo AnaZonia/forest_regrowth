@@ -62,17 +62,6 @@ for (scenario in c("SSP1_RCP19", "SSP2_RCP45", "SSP3_RCP70")) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-apply_min_max_scaling <- function(data, train_stats) {
-    # Apply Min-Max scaling to each variable in the data
-    for (i in seq_along(train_stats$variable)) {
-        var <- train_stats$variable[i]
-        print(var)
-        data[[var]] <- (data[[var]] - train_stats$min[i]) /
-            (train_stats$max[i] - train_stats$min[i])
-    }
-    return(data)
-}
-
 error_prop_results <- readRDS("./0_results/0_error_prop.rds")
 
 pars <- error_prop_results[[2]]

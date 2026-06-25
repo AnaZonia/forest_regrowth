@@ -119,6 +119,20 @@ cross_validate <- function(data, basic_pars, data_pars, conditions, folds = 5) {
     return(list(r2_list, r2_df, lag_list, pars))
 }
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------------- Apply min-max scaling ------------------#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+apply_min_max_scaling <- function(data, train_stats) {
+    # Apply Min-Max scaling to each variable in the data
+    for (i in seq_along(train_stats$variable)) {
+        var <- train_stats$variable[i]
+        print(var)
+        data[[var]] <- (data[[var]] - train_stats$min[i]) /
+            (train_stats$max[i] - train_stats$min[i])
+    }
+    return(data)
+}
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------- Error propagation ------------------#
@@ -157,6 +171,18 @@ error_prop <- function(data, basic_pars, data_pars, conditions) {
     pars <- data.frame()
 
     for (index in 1:10) {
+
+        # Define the test and train sets
+        ind <- sample(c(TRUE, FALSE), nrow(data), replace = TRUE, prob = c(0.8, 0.2))
+        test_data <- data[!ind, ]
+        train_data <- data[ind, ]
+
+        norm_data <- normalize_independently(train_data, test_data)
+        train_stats <- norm_data$train_stats
+        train_data <- norm_data$train_data
+        test_data <- norm_data$test_data
+
+
         # randomly select 10,000 rows
         data_sampled <- train_data[sample(nrow(train_data), 10000), ]
         data_sampled$biomass <- rnorm(nrow(data_sampled), data_sampled$biomass, data_sampled$sd)
@@ -168,15 +194,84 @@ error_prop <- function(data, basic_pars, data_pars, conditions) {
         pars_df <- as.data.frame(t(model$par))
         print(pars_df)
         pars <- bind_rows(pars, pars_df)
+
+        pred <- growth_curve(pars, test_data,
+            lag = if ("lag" %in% names(pars)) final_pars["lag"] else 0
+        )
+
+        r2 <- calc_r2(test_data, pred)
     }
 
-    final_pars <- colMeans(pars)
+    return(list(r2, pars, train_stats))
+}
 
-    pred <- growth_curve(final_pars, test_data,
-        lag = if ("lag" %in% names(pars)) final_pars["lag"] else 0
+
+
+
+
+error_prop <- function(data, basic_pars, data_pars, conditions, n_iter = 1000) {
+    # ── Phase 1: Forward Selection (runs once on a stable split) ─────────────
+    # Keep this split separate and fixed — it only determines model structure,
+    # not parameter distributions. Don't reuse it in the bootstrap loop.
+    fs_idx <- sample(nrow(data), floor(0.8 * nrow(data)), replace = FALSE)
+    fs_train <- data[fs_idx, ]
+    fs_test <- data[-fs_idx, ]
+
+    fs_norm <- normalize_independently(fs_train, fs_test)
+    fs_train_norm <- fs_norm$train_data
+
+    fs_result <- forward_selection(basic_pars, data_pars, fs_train_norm)
+    selected_pars <- fs_result[[1]] # parameter structure carried into loop
+    r2_progression <- fs_result[[2]] # predictor-by-predictor R² table
+
+    # ── Phase 2: Bootstrap Monte Carlo (×n_iter) ─────────────────────────────
+    # Each iteration gets its own split + normalization. Normalization must be
+    # fit on that iteration's training data only, then applied to its test data.
+    pars_list <- vector("list", n_iter)
+    r2_vec <- numeric(n_iter)
+    stats_list <- vector("list", n_iter) # store all norm stats, not just last
+
+    for (i in seq_len(n_iter)) {
+        # 1. Bootstrap resample — deterministic size avoids degenerate small splits
+        train_idx <- sample(nrow(data), floor(0.8 * nrow(data)), replace = FALSE)
+        train_data <- data[train_idx, ]
+        test_data <- data[-train_idx, ]
+
+        # 2. Normalize using THIS iteration's training min/max
+        norm_out <- normalize_independently(train_data, test_data)
+        train_norm <- norm_out$train_data
+        test_norm <- norm_out$test_data
+        stats_list[[i]] <- norm_out$train_stats
+
+        # 3. Subsample + Monte Carlo noise injection
+        #    replace = TRUE allows proper bootstrap resampling of the 10k draw
+        sample_idx <- sample(nrow(train_norm), 10000, replace = TRUE)
+        data_sampled <- train_norm[sample_idx, ]
+        data_sampled$biomass <- rnorm(
+            nrow(data_sampled),
+            mean = data_sampled$biomass,
+            sd   = data_sampled$sd
+        )
+
+        # 4. Optimize — always starts from the forward-selected structure
+        model <- run_optim(data_sampled, selected_pars, conditions)
+        pars_df <- as.data.frame(t(model$par))
+
+        # 5. Evaluate on normalized test set using THIS iteration's parameters
+        lag_val <- if ("lag" %in% names(pars_df)) pars_df[["lag"]] else 0
+        pred <- growth_curve(pars_df, test_norm, lag = lag_val)
+        r2_vec[i] <- calc_r2(test_norm, pred)
+        pars_list[[i]] <- pars_df
+
+        if (i %% 100 == 0) {
+            message(sprintf("Iter %4d / %d  |  R² = %.3f", i, n_iter, r2_vec[i]))
+        }
+    }
+
+    list(
+        r2             = r2_vec,
+        pars           = bind_rows(pars_list),
+        r2_progression = r2_progression, # forward selection diagnostics
+        train_stats    = stats_list # all iterations, not just last
     )
-
-    r2 <- calc_r2(test_data, pred)
-
-    return(list(r2, final_pars, train_stats))
 }

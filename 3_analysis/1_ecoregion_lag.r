@@ -27,81 +27,50 @@ registerDoParallel(cores = ncore)
 # --------- One lag per ecoregion of the Amazon ----------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+# 10k per ecoregion
+# check range and distribution per ecoregions
 
-asymptote <- "nearest_mature"
-path = "uncertainty_propagation"
-
-csv_files <- list.files(paste0("./0_data/", path), pattern = "\\.csv$", full.names = TRUE)
-
-df <- csv_files %>%
-    map(~ suppressMessages(read_csv(.x, show_col_types = FALSE, progress = FALSE))) %>%
-    bind_rows()
-
-# remove columns with all NA values
-df <- df[, colSums(is.na(df)) < nrow(df)]
-
-# remove any rows with NA values
-df <- df %>% filter(rowSums(is.na(.)) == 0)
-
-# Convert categorical to factors
-df <- df %>%
-    mutate(across(any_of(categorical), as.factor)) %>%
-    filter(biome == biome)
-
-# remove columns with less than 50 unique values
-df <- df %>%
-    group_by(across(any_of(categorical))) %>%
-    ungroup() %>%
-    mutate(across(any_of(categorical), droplevels))
-
-df <- dummy_cols(df,
-    select_columns = "topography",
-    remove_first_dummy = TRUE,
-    remove_selected_columns = TRUE
-)
-
-asymptotes <- c("nearest_mature", "ecoreg_biomass", "quarter_biomass")
-
-if (asymptote == "full_amazon") {
-    df$asymptote <- mean(df$nearest_mature, na.rm = TRUE)
-    df <- df %>% select(-any_of(c(asymptotes, "quarter", "biome")))
-} else {
-    # remove the columns in asymptotes that are not the designated asymptote
-    # rename to asymptote the column named the same as the value of asymptote
-    df <- df %>% rename(asymptote = !!sym(asymptote))
-    df <- df %>% select(-any_of(c(
-        asymptotes[asymptotes != asymptote],
-        "quarter", "biome"
-    )))
-}
-
-# remove columns with less than 50 non-zero values
-df <- df %>% select(where(~ sum(. != 0) >= 50))
-
-
-df <- subset(df, ave(seq_along(ecoreg), ecoreg, FUN = length) >= 500)
-
-# names(df)
-
-df <- df[, -which(names(df) %in% c("lat", "lon", "area", "sd"))]
+data <- import_data("ecoreg_stratify", biome = 1, n_samples = 240000, asymptote = "nearest_mature")
 
 results <- c()
 
-for (ecoregion in unique(df$ecoreg)) {
+# error_prop <- readRDS("./0_results/0_error_prop.rds")
+
+apply_min_max_scaling <- function(data, train_stats) {
+    # Apply Min-Max scaling to each variable in the data
+    for (i in seq_along(train_stats$variable)) {
+        var <- train_stats$variable[i]
+        print(var)
+        data[[var]] <- (data[[var]] - train_stats$min[i]) /
+            (train_stats$max[i] - train_stats$min[i])
+    }
+    return(data)
+}
+
+
+for (ecoregion in c(508, 518, 507, 481, 476, 497)) {
     print(ecoregion)
 
-    df_ecoreg <- subset(df, df$ecoreg == ecoregion)
+    df_ecoreg <- subset(data, data$ecoreg == ecoregion)
 
     basic_pars <- basic_pars_options[["lag"]]
     data_pars <- data_pars_options(colnames(df_ecoreg))[["all"]]
 
     cv_results <- cross_validate(df_ecoreg, basic_pars, data_pars, conditions, folds = 2)
 
-    print(cv_results[[3]])
+    # norm_df <- apply_min_max_scaling(future[, names(future) %in% train_stats$variable], train_stats)
+    # print(cv_results[[3]])
 
     results <- c(results, mean(cv_results[[3]]))
 }
 
+nrow_ecoreg <- c()
+for (ecoregion in unique(df$ecoreg)) {
+    df_ecoreg <- subset(df, df$ecoreg == ecoregion)
+    nrow_ecoreg <- c(nrow_ecoreg, nrow(df_ecoreg))
+}
 
+df_results <- data.frame(ecoreg = unique(df$ecoreg), lag = results, nrow = nrow_ecoreg)
 
+df_results
 
