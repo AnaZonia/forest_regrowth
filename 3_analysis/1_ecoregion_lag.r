@@ -34,8 +34,6 @@ data <- import_data("ecoreg_stratify", biome = 1, n_samples = 240000, asymptote 
 
 results <- c()
 
-# error_prop <- readRDS("./0_results/0_error_prop.rds")
-
 apply_min_max_scaling <- function(data, train_stats) {
     # Apply Min-Max scaling to each variable in the data
     for (i in seq_along(train_stats$variable)) {
@@ -47,8 +45,12 @@ apply_min_max_scaling <- function(data, train_stats) {
     return(data)
 }
 
+data <- subset(data, ave(seq_along(ecoreg), ecoreg, FUN = length) >= 1000)
 
-for (ecoregion in c(508, 518, 507, 481, 476, 497)) {
+
+df_results <- data.frame()
+
+for (ecoregion in unique(data$ecoreg)) {
     print(ecoregion)
 
     df_ecoreg <- subset(data, data$ecoreg == ecoregion)
@@ -56,21 +58,12 @@ for (ecoregion in c(508, 518, 507, 481, 476, 497)) {
     basic_pars <- basic_pars_options[["lag"]]
     data_pars <- data_pars_options(colnames(df_ecoreg))[["all"]]
 
-    cv_results <- cross_validate(df_ecoreg, basic_pars, data_pars, conditions, folds = 2)
+    cv_results <- cross_validate(df_ecoreg, basic_pars, data_pars, conditions, folds = 3)
 
-    # norm_df <- apply_min_max_scaling(future[, names(future) %in% train_stats$variable], train_stats)
-    # print(cv_results[[3]])
-
-    results <- c(results, mean(cv_results[[3]]))
+    result <- c(ecoregion, mean(cv_results[[3]]), sd(cv_results[[3]]))
+    df_results <- rbind(df_results, result)
 }
-
-nrow_ecoreg <- c()
-for (ecoregion in unique(df$ecoreg)) {
-    df_ecoreg <- subset(df, df$ecoreg == ecoregion)
-    nrow_ecoreg <- c(nrow_ecoreg, nrow(df_ecoreg))
-}
-
-df_results <- data.frame(ecoreg = unique(df$ecoreg), lag = results, nrow = nrow_ecoreg)
 
 df_results
 
+write_rds(df_results, file = "./0_results/lag_per_ecoregion.rds")
