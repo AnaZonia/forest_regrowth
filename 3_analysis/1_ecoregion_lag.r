@@ -30,7 +30,7 @@ registerDoParallel(cores = ncore)
 # 10k per ecoregion
 # check range and distribution per ecoregions
 
-data <- import_data("ecoreg_stratify", biome = 1, n_samples = 240000, asymptote = "nearest_mature")
+data <- import_data("ecoreg_stratify", biome = 1, n_samples = 240000, asymptote = "nearest_mature", categorical = c("topography", "last_lu"))
 
 results <- c()
 
@@ -47,6 +47,19 @@ apply_min_max_scaling <- function(data, train_stats) {
 
 data <- subset(data, ave(seq_along(ecoreg), ecoreg, FUN = length) >= 1000)
 
+norm_data <- normalize_independently(data)$train_data
+
+pars_init <- forward_selection(basic_pars, data_pars, norm_data)
+
+ini_par <- pars_init[[1]]
+
+for (j in 2:ncore) {
+    for (name in names(ini_par)) {
+        ini_par[j, name] <- c(
+            ini_par[1, name] * (1.5 * runif(1) + .5)
+        )
+    }
+}
 
 df_results <- data.frame()
 
@@ -54,16 +67,22 @@ for (ecoregion in unique(data$ecoreg)) {
     print(ecoregion)
 
     df_ecoreg <- subset(data, data$ecoreg == ecoregion)
+    norm_data <- normalize_independently(df_ecoreg)$train_data
 
     basic_pars <- basic_pars_options[["lag"]]
     data_pars <- data_pars_options(colnames(df_ecoreg))[["all"]]
 
-    cv_results <- cross_validate(df_ecoreg, basic_pars, data_pars, conditions, folds = 3)
+    min_pars <- optim_ga(ini_par, df_ecoreg)
 
-    result <- c(ecoregion, mean(cv_results[[3]]), sd(cv_results[[3]]))
-    df_results <- rbind(df_results, result)
+    df_results <- rbind(df_results, cbind(min_pars, ecoregion))
+    print(df_results)
 }
 
 df_results
 
 write_rds(df_results, file = "./0_results/lag_per_ecoregion.rds")
+
+
+
+# conditions <- list('pars[["theta"]] > 10', 'pars[["theta"]] < 0', 'pars[["k0"]] < 0')
+

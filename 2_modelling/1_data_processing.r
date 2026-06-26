@@ -35,7 +35,7 @@ library(fastDummies)
 #'
 
 
-import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mature") {
+import_data <- function(path, biome, n_samples = 10000, asymptote = "nearest_mature", categorical = categorical) {
 
     csv_files <- list.files(paste0("./0_data/", path), pattern = "\\.csv$", full.names = TRUE)
 

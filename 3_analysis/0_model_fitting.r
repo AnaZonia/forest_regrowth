@@ -65,26 +65,20 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-data <- import_data("uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature")
+data <- import_data("uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
 
 basic_pars <- basic_pars_options[["lag"]]
 data_pars <- data_pars_options(colnames(data))[["all"]]
 
-error_prop_results <- error_prop(data, basic_pars, data_pars, conditions)
+error_prop_results <- error_prop(data, basic_pars, data_pars, conditions, 10)
 
-error_prop_results
+results <- data.frame(mean_r2 = mean(error_prop_results[[1]]),
+            sd_r2 = sd(error_prop_results[[1]]),
+            mean_lag = mean(error_prop_results$pars[["lag"]]),
+            sd_lag = sd(error_prop_results$pars[["lag"]]))
 
 write_rds(error_prop_results, file = "./0_results/0_error_prop.rds")
 
-# get average and sd of R²
-
-# check again the relative importance of the predictors.
-
-# write.csv(r2_mean, file = "./0_results/0_r2.csv", row.names = FALSE)
-
-# write.csv(cv_results[[2]], file = paste0("./0_results/0_r2_nearest_mature.csv"), row.names = FALSE)
-
-# write.csv(cv_results[[4]], file = paste0("./0_results/0_pars.csv"), row.names = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- R2 increase per Asymptote ------------------ #
@@ -161,10 +155,10 @@ land_use_list <- list.files(
     full.names = FALSE
 )
 
-# Step 2: Initialize results dataframe
+# Initialize results dataframe
 results <- data.frame()
 
-# Step 3: Aggregate results from each group and filter
+# Aggregate results from each group and filter
 for (land_use_aggregation in land_use_list) {
     # Read CSV for each aggregation group
     r2_df <- read.csv(
@@ -184,7 +178,7 @@ for (land_use_aggregation in land_use_list) {
 # Keep naming consistent for aggregated and non_aggregated
 results$par[results$par == "lu_sum_15"] <- "lu_sum_10"
 
-# Step 4: Reshape to wide format, each group gets mean and sd columns
+# Reshape to wide format, each group gets mean and sd columns
 results_wide <- results %>%
     select(par, mean_r2_diff, sd_r2_diff, group) %>%
     pivot_wider(
@@ -192,7 +186,7 @@ results_wide <- results %>%
         values_from = c(mean_r2_diff, sd_r2_diff)
     )
 
-# Step 5: Set row names and remove parameter column
+# Set row names and remove parameter column
 results_wide <- as.data.frame(results_wide)
 rownames(results_wide) <- results_wide$par
 results_wide$par <- NULL
@@ -238,7 +232,6 @@ table_combined$par <- par_labels[table_combined$par]
 colnames(table_combined) <- c("", "Aggregated All", "Non-Aggregated 10yr", "Non-Aggregated 5yr", "Non-Aggregated All")
 table_combined[is.na(table_combined) | table_combined == "NA ± NA"] <- "---"
 
-# Step 8: Print an xtable LaTeX table (include booktabs for quality lines)
 print(
     xtable(table_combined),
     include.rownames = FALSE,
