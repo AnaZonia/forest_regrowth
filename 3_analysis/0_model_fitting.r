@@ -55,7 +55,7 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 
         print(result)
         results <- rbind(results, result)
-        write.csv(results, file = "./0_results/0_asymptotes.csv", row.names = FALSE)
+        write.csv(results, file = "./0_results/asymptotes.csv", row.names = FALSE)
     }
 }
 
@@ -63,8 +63,6 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------- Lag and R² - uncertainty propagation ---------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-
 
 
 data <- import_data("uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
@@ -79,7 +77,7 @@ results <- data.frame(mean_r2 = mean(error_prop_results[[1]]),
             mean_lag = mean(error_prop_results$pars[["lag"]]),
             sd_lag = sd(error_prop_results$pars[["lag"]]))
 
-write_rds(error_prop_results, file = "./0_results/0_error_prop.rds")
+write_rds(error_prop_results, file = "./0_results/error_prop.rds")
 
 
 
@@ -110,7 +108,7 @@ for (land_use_aggregation in land_use_list) {
 
     cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
 
-    write.csv(cv_results[[2]], file = paste0("./0_results/0_r2_", land_use_aggregation, "_", biome, ".csv"), row.names = FALSE)
+    write.csv(cv_results[[2]], file = paste0("./0_results/r2_", land_use_aggregation, "_", biome, ".csv"), row.names = FALSE)
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -124,14 +122,13 @@ land_use_list <- list.files(
     full.names = FALSE
 )
 
-# Initialize results dataframe
 results <- data.frame()
 
 # Aggregate results from each group and filter
 for (land_use_aggregation in land_use_list) {
     # Read CSV for each aggregation group
     r2_df <- read.csv(
-        paste0("./0_results/0_r2_", land_use_aggregation, "_4.csv")
+        paste0("./0_results/r2_", land_use_aggregation, "_4.csv")
     )
     r2_df$group <- land_use_aggregation # Tag with group
 

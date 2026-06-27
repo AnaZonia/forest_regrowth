@@ -100,7 +100,7 @@ results <- data.frame(
     mean_r2 = mean(r2_list),
     sd_r2 = sd(r2_list)
 )
-write.csv(results, file = "./0_results/0_field_r2_2.csv", row.names = FALSE)
+write.csv(results, file = "./0_results/field_r2.csv", row.names = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Exporting results ------------------ #

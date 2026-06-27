@@ -61,7 +61,7 @@ for (scenario in c("SSP1_RCP19", "SSP2_RCP45", "SSP3_RCP70")) {
 # -------- Calculate future carbon sequestration ---------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-error_prop_results <- readRDS("./0_results/0_error_prop.rds")
+error_prop_results <- readRDS("./0_results/error_prop.rds")
 pars <- colMeans(error_prop_results[[2]])
 
 future <- read.csv("./0_data/future_scenarios_area.csv") %>%

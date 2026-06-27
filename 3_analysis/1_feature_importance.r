@@ -119,7 +119,7 @@ barplot_r2_increase <- function(r2_df, age_include = TRUE) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-r2_df <- read.csv("./0_results/0_r2_nearest_mature.csv")
+r2_df <- read.csv("./0_results/r2_nearest_mature.csv")
 r2_df$group <- "nearest_mature"
 
 p <- barplot_r2_increase(r2_df, age_include = TRUE)
@@ -142,8 +142,8 @@ ggsave(
 )
 
 
-pars <- read.csv("./0_results/0_pars.csv")
-r2_df <- read.csv("./0_results/0_r2_nearest_mature.csv")
+pars <- read.csv("./0_results/pars.csv")
+r2_df <- read.csv("./0_results/r2_nearest_mature.csv")
 
 r2_df <- r2_df[r2_df$mean_r2_diff > 0.001, ]
 
@@ -157,14 +157,14 @@ order_vec <- rev(r2_df$par[r2_df$par != "age"])
 means_df <- means_df[, match(order_vec, colnames(means_df))]
 names(means_df) <- variable_names[names(means_df)]
 
-write.csv(means_df, file = "./0_results/0_pars_included.csv", row.names = FALSE)
+write.csv(means_df, file = "./0_results/pars_included.csv", row.names = FALSE)
 
 # ------------------------------------------------- #
 # Figure - R2 per Asymptote with age_only
 # ------------------------------------------------- #
 
 
-r2_asymptote <- read.csv("./0_results/0_asymptotes.csv")
+r2_asymptote <- read.csv("./0_results/asymptotes.csv")
 # Filter for the variables of interest
 r2_asymptote <- r2_asymptote %>%
     filter(
