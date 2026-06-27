@@ -49,6 +49,9 @@ data <- subset(data, ave(seq_along(ecoreg), ecoreg, FUN = length) >= 1000)
 
 norm_data <- normalize_independently(data)$train_data
 
+basic_pars <- basic_pars_options[["lag"]]
+data_pars <- data_pars_options(colnames(data))[["all"]]
+
 pars_init <- forward_selection(basic_pars, data_pars, norm_data)
 
 ini_par <- pars_init[[1]]

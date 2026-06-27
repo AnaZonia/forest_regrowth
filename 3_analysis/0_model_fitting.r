@@ -65,6 +65,8 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
+
+
 data <- import_data("uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
 
 basic_pars <- basic_pars_options[["lag"]]
@@ -79,39 +81,6 @@ results <- data.frame(mean_r2 = mean(error_prop_results[[1]]),
 
 write_rds(error_prop_results, file = "./0_results/0_error_prop.rds")
 
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ---------------- R2 increase per Asymptote ------------------ #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-groups <- c("full_amazon", "nearest_mature")
-group_names <- c("Amazon-wide Average", "Nearest Neighbor")
-
-results <- data.frame()
-
-for (i in seq_along(groups)) {
-    asymptote <- groups[i]
-    data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 240000, asymptote = asymptote)
-
-    basic_pars <- basic_pars_options[["lag"]]
-    # data_pars <- data_pars_options(colnames(data))[["all"]]
-
-    data_pars <- c("mean_aet", "sur_cover", "num_fires", "dist", "sand")
-
-    cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
-
-    cv_results
-
-    write.csv(cv_results[[2]], file = paste0("./0_results/0_r2_", asymptote, "2.csv"), row.names = FALSE)
-
-    result <- data.frame(
-        asymptote = asymptote,
-        mean_r2 = mean(cv_results[[1]]),
-        sd_r2 = sd(cv_results[[1]])
-    )
-    results <- rbind(results, result)
-    write.csv(results, file = "./0_results/0_asymptotes_all_pars2.csv", row.names = FALSE)
-}
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
