@@ -38,8 +38,6 @@ registerDoParallel(cores = ncore)
 
 # ----------------------------------------------------
 
-library(terra)
-
 # veg <- forest vegetation
 # gveg <- grassland vegetation
 # mosc <- mosaic vegetation

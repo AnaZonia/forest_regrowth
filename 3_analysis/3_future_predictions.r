@@ -23,17 +23,6 @@ set.seed(1)
 ncore <- 4
 registerDoParallel(cores = ncore)
 
-apply_min_max_scaling <- function(data, train_stats) {
-    # Apply Min-Max scaling to each variable in the data
-    for (i in seq_along(train_stats$variable)) {
-        var <- train_stats$variable[i]
-        data[[var]] <- (data[[var]] - train_stats$min[i]) /
-            (train_stats$max[i] - train_stats$min[i])
-    }
-    return(data)
-}
-
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Estimate biomass by 2050 --------------- #
