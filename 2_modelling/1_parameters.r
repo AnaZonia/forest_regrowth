@@ -17,12 +17,12 @@ categorical <- c("topography", "last_lu", "ecoreg")
 binary <- c("floodable_forests", "protec", "indig")
 soil <- c("nitro", "phh2o", "ocd", "cec", "sand", "clay", "soc", "cfvo")
 
-non_data_pars <- c("k0", "lag", "theta")
+non_data_pars <- c("k0", "lag", "theta", "ecoreg")
 
 # Conditions for parameter constraints
 conditions <- list('pars["k0"] < 0')
 
-excluded_columns <- c("age", "biomass", "asymptote", "ecoreg", "area", "edge", "sd", "lat", "lon", "nearest_mature", "quarter", "biome")
+excluded_columns <- c("age", "biomass", "asymptote", "area", "edge", "sd", "lat", "lon", "nearest_mature", "quarter", "biome")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------ Configurations of parameters ----------------#

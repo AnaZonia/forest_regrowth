@@ -114,7 +114,7 @@ cross_validate <- function(data, basic_pars, data_pars, conditions, folds = 5) {
         r2_df <- r2_df[order(r2_df$mean_r2_diff, decreasing = FALSE), ]
     }
 
-    pars <- pars[, !grepl("lag|k0", names(pars))]
+    # pars <- pars[, !grepl("lag|k0", names(pars))]
 
     return(list(r2_list, r2_df, lag_list, pars))
 }

@@ -59,13 +59,18 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
     }
 }
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------- Lag and R² - uncertainty propagation ---------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
 
-data <- import_data("uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
+table(data$ecoreg_476)
+
+table(data$ecoreg_508)
+
+
+# data <- import_data("grid_10k_amazon_removed_by_age", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
 
 basic_pars <- basic_pars_options[["lag"]]
 data_pars <- data_pars_options(colnames(data))[["all"]]
