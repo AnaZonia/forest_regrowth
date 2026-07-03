@@ -119,7 +119,11 @@ barplot_r2_increase <- function(r2_df, age_include = TRUE) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-r2_df <- read.csv("./0_results/r2_nearest_mature.csv")
+# r2_df <- read.csv("./0_results/r2_nearest_mature.csv")
+error_prop_results <- readRDS("./0_results/error_prop.rds")
+r2_df <- error_prop_results[[3]] %>%
+    rename(mean_r2_diff = r2_diff)
+
 r2_df$group <- "nearest_mature"
 
 p <- barplot_r2_increase(r2_df, age_include = TRUE)

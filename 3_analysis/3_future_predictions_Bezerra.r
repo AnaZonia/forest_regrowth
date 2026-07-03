@@ -49,8 +49,8 @@ for (scenario in c("SSP1_RCP19", "SSP2_RCP45", "SSP3_RCP70")) {
     forest_2050 <- r$veg_8
     forest_2015 <- r$veg_1
 
-    writeRaster(forest_2050, paste0("./0_data/forest_2050_", scenario, ".tif"), overwrite = TRUE)
-    writeRaster(forest_2015, paste0("./0_data/forest_2015_", scenario, ".tif"), overwrite = TRUE)
+    # writeRaster(forest_2050, paste0("./0_data/forest_2050_", scenario, ".tif"), overwrite = TRUE)
+    # writeRaster(forest_2015, paste0("./0_data/forest_2015_", scenario, ".tif"), overwrite = TRUE)
 }
 
 
@@ -65,8 +65,10 @@ pars <- colMeans(error_prop_results[[2]])
 future <- read.csv("./0_data/future_scenarios_area.csv") %>%
         rename(asymptote = nearest_mature)
 
-future <- subset(future, !is.na(cec)) # remove rows where cec is NA (deal with this later)
-norm_future <- normalize_independently(future)$train_data
+future <- subset(future, !is.na(cec)) # remove rows where cec is NA (there was no soil data available)
+norm_stats <- normalize_independently(future)
+norm_future <- norm_stats$train_data
+train_stats
 
 future <- future %>%
         select(
@@ -146,19 +148,19 @@ total_pasture_area <- sum(area[sel], na.rm = TRUE) # ha
 
 ssp_summary <- data.frame(
     category = factor(
-        c("SSP1", "SSP2", "SSP3", "Top Priority\nPasture"),
-        levels = c("SSP1", "SSP2", "SSP3", "Top Priority\nPasture")
+        c("SSP3", "SSP2", "SSP1", "SSP1\n(Prioritized)"),
+        levels = c("SSP3", "SSP2", "SSP1", "SSP1\n(Prioritized)")
     ),
     total_TgC = c(
-        ssp_results$SSP1$total_TgC,
-        ssp_results$SSP2$total_TgC,
         ssp_results$SSP3$total_TgC,
+        ssp_results$SSP2$total_TgC,
+        ssp_results$SSP1$total_TgC,
         total_pasture_tgc
     ),
     total_area_Mha = c(
-        ssp_results$SSP1$total_area_ha,
-        ssp_results$SSP2$total_area_ha,
         ssp_results$SSP3$total_area_ha,
+        ssp_results$SSP2$total_area_ha,
+        ssp_results$SSP1$total_area_ha,
         total_pasture_area
     ) / 1e6
 ) %>%
@@ -185,7 +187,6 @@ plot_carbon_bars <- function(df, y_col, y_label) {
         )
 }
 
-
 # ── Figure 4d: Total carbon (TgC) ────────────────────────────────────────────
 
 fig_4d_total <- plot_carbon_bars(
@@ -199,14 +200,3 @@ ggsave("0_results/figures/figure_4d_total_carbon.jpeg",
 )
 
 
-# ── Figure 4e: Carbon per unit area (TgC / Mha) ──────────────────────────────
-
-fig_4e_per_area <- plot_carbon_bars(
-    ssp_summary,
-    y_col   = "TgC_per_Mha",
-    y_label = "Carbon stored by 2050 (TgC / Mha)"
-)
-
-ggsave("0_results/figures/figure_4e_carbon_per_area.jpeg",
-    plot = fig_4e_per_area, width = 10, height = 12, dpi = 300
-)

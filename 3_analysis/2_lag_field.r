@@ -31,9 +31,9 @@ theme_set(theme_minimal(base_size = 20))
 #        Model fitting and prediction
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-lag <- read.csv("./0_results/lag.csv")$mean_lag
+lag <- read.csv("./0_results/r2_full_amazon_error_prop.csv")$mean_lag
 
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000)
+data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000, categorical = categorical)
 norm_data <- normalize_independently(data)
 norm_data <- norm_data$train_data
 
@@ -52,7 +52,7 @@ for (basic_pars_name in names(basic_pars_options)) {
     }
 
     data_pars <- data_pars_options(colnames(data))[["all"]]
-    init_pars <- find_combination_pars(basic_pars, data_pars, norm_data_iter)
+    init_pars <- forward_selection(basic_pars, data_pars, norm_data_iter)
 
     model <- run_optim(norm_data_iter, init_pars[[1]], conditions)
 
@@ -71,6 +71,7 @@ for (basic_pars_name in names(basic_pars_options)) {
     predictions[[paste0("sd_", basic_pars_name)]] <- sd_biomass
 }
 
+predictions
 
 # write.csv(predictions, "0_results/lag_field_predictions.csv", row.names = FALSE)
 

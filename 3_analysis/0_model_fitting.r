@@ -65,11 +65,6 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 
 data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
 
-table(data$ecoreg_476)
-
-table(data$ecoreg_508)
-
-
 # data <- import_data("grid_10k_amazon_removed_by_age", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
 
 basic_pars <- basic_pars_options[["lag"]]
@@ -83,8 +78,7 @@ results <- data.frame(mean_r2 = mean(error_prop_results[[1]]),
             sd_lag = sd(error_prop_results$pars[["lag"]]))
 
 write_rds(error_prop_results, file = "./0_results/error_prop.rds")
-
-
+write_csv(results, "./0_results/r2_full_amazon_error_prop.csv")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Land Use Comparisons ------------------- #

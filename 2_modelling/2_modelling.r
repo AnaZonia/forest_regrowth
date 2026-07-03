@@ -6,9 +6,6 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
-library(stringr)
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ------------ Optimization for Forest Regrowth ------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -115,11 +112,7 @@ growth_curve <- function(pars, data, lag = 0) {
         data <- mutate(data, age = ifelse(satellite == 1, age + lag, age))
     } else {
         theta <- 1
-        ecoreg_pars <- names(pars)[str_detect(names(pars), "ecoreg")]
-        ecoreg_pars <- rowSums(sapply(ecoreg_pars, function(par) {
-            pars[[par]] * data[[par]]
-        }, simplify = TRUE))
-        data[["age"]] <- data[["age"]] + lag + ecoreg_pars
+        data[["age"]] <- data[["age"]] + lag
     }
     
     age <- data[["age"]]
