@@ -107,13 +107,8 @@ growth_curve <- function(pars, data, lag = 0) {
     # Calculate the growth rate k
     k <- rep(pars[["k0"]], nrow(data))
 
-    if ("theta" %in% names(pars)) {
-        theta <- pars[["theta"]]
-        data <- mutate(data, age = ifelse(satellite == 1, age + lag, age))
-    } else {
-        theta <- 1
-        data[["age"]] <- data[["age"]] + lag
-    }
+    data[["age"]] <- data[["age"]] + lag
+
     
     age <- data[["age"]]
 
@@ -131,6 +126,6 @@ growth_curve <- function(pars, data, lag = 0) {
     k[which(k > 7)] <- 7
 
 
-    return((data[["asymptote"]]) * (1 - exp(-k))^theta)
+    return((data[["asymptote"]]) * (1 - exp(-k)))
 }
 

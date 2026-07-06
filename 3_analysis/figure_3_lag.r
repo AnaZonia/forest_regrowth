@@ -31,9 +31,11 @@ theme_set(theme_minimal(base_size = 20))
 #        Model fitting and prediction
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-lag <- read.csv("./0_results/r2_full_amazon_error_prop.csv")$mean_lag
+error_prop_results <- readRDS("./0_results/error_prop.rds")
+lag <- pars[["lag"]]
+predictions <- data.frame(age = 1:200)
 
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000, categorical = categorical)
+data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samples = 30000, categorical = categorical)
 norm_data <- normalize_independently(data)
 norm_data <- norm_data$train_data
 
@@ -49,18 +51,21 @@ for (basic_pars_name in names(basic_pars_options)) {
         # Force the data to intercept through zero
         mean_biomass_at_zero_age <- mean(norm_data_iter$biomass[norm_data_iter$age == 1], na.rm = TRUE)
         norm_data_iter$biomass <- norm_data_iter$biomass - mean_biomass_at_zero_age
+
+        data_pars <- data_pars_options(colnames(data))[["all"]]
+        init_pars <- forward_selection(basic_pars, data_pars, norm_data_iter)
+
+        model <- run_optim(norm_data_iter, init_pars[[1]], conditions)
+        pars <- model$par
+    } else {
+        pars <- colMeans(error_prop_results[[2]])
     }
-
-    data_pars <- data_pars_options(colnames(data))[["all"]]
-    init_pars <- forward_selection(basic_pars, data_pars, norm_data_iter)
-
-    model <- run_optim(norm_data_iter, init_pars[[1]], conditions)
 
     biomass_df <- data.frame(matrix(nrow = nrow(norm_data_iter), ncol = 0))
  
     for (age in 1:nrow(predictions)) {
         norm_data_iter$age <- age
-        pred <- growth_curve(model$par, norm_data_iter) # don't correct those ages with lag here - they aren't coming from the satellite!
+        pred <- growth_curve(pars, norm_data_iter) # don't correct those ages with lag here - they aren't coming from the satellite!
         biomass_df[[as.character(age)]] <- pred
     }
 
@@ -73,7 +78,7 @@ for (basic_pars_name in names(basic_pars_options)) {
 
 predictions
 
-# write.csv(predictions, "0_results/lag_field_predictions.csv", row.names = FALSE)
+write.csv(predictions, "0_results/lag_field_predictions.csv", row.names = FALSE)
 
 
 
@@ -91,7 +96,7 @@ field_data <- field_data %>%
     select(age, biomass) %>%
     group_by(age) %>%
     summarise(
-        biomass = median(biomass, na.rm = TRUE)
+        biomass = mean(biomass, na.rm = TRUE)
     )
 
 # get average satellite biomass per age
@@ -269,7 +274,7 @@ p
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 ggsave(
-    filename = "0_results/figures/figure_3_lag_field_biomass_GEDI.jpeg",
+    filename = "0_results/figures/figure_3_lag_field_biomass.jpeg",
     plot = p,
     width = 15,
     height = 8,
@@ -296,9 +301,6 @@ ggsave(
 )
 
 
-
-
-predictions <- read.csv("0_results/lag_field_predictions.csv")
 
 (predictions$mean_lag - predictions$mean_intercept)
 

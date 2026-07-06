@@ -66,9 +66,8 @@ future <- read.csv("./0_data/future_scenarios_area.csv") %>%
         rename(asymptote = nearest_mature)
 
 future <- subset(future, !is.na(cec)) # remove rows where cec is NA (there was no soil data available)
-norm_stats <- normalize_independently(future)
-norm_future <- norm_stats$train_data
-train_stats
+train_stats <- subset(train_stats, !variable %in% c("sd"))
+future <- apply_min_max_scaling(future, train_stats)
 
 future <- future %>%
         select(
@@ -195,8 +194,6 @@ fig_4d_total <- plot_carbon_bars(
     y_label = "Total carbon stored by 2050 (TgC)"
 )
 
-ggsave("0_results/figures/figure_4d_total_carbon.jpeg",
+ggsave("0_results/figures/figure_5b_total_carbon.jpeg",
     plot = fig_4d_total, width = 10, height = 12, dpi = 300
 )
-
-

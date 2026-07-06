@@ -29,81 +29,16 @@ registerDoParallel(cores = ncore)
 field_data <- read.csv("./0_data/groa_field/field_predictors.csv")
 field_data <- subset(field_data, biome == 1)
 
-
-field_data_rondonia <- subset(field_data, site_id == 105)
-field_data_rondonia
-
-error_prop = readRDS("./0_results/error_prop.rds")
+error_prop <- readRDS("./0_results/error_prop.rds")
 
 pars <- colMeans(error_prop$pars)
+
+
 
 data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
 norm_out <- normalize_independently(data)$train_stats
 norm_out <- norm_out[1:20, ]
 field_data_scaled <- apply_min_max_scaling(field_data_rondonia, norm_out)
-
-# add column in field_data_scaled for columns present in model$par but not in field_data_scaled, fill with 0
-for (col in (names(pars)[!names(pars) %in% c("k0", "lag")])) {
-    if (!(col %in% colnames(field_data_scaled))) {
-        field_data_scaled[[col]] <- 0
-    }
-}
-
-field_data_scaled$pred_amazon <- growth_curve(pars, data = field_data_scaled)
-
-
-
-data <- import_data("ecoreg_stratify", biome = 1, n_samples = 103000, asymptote = "nearest_mature", categorical = c("topography", "last_lu"))
-df_ecoreg_508 <- subset(data, data$ecoreg == 508)
-df_ecoreg_476 <- subset(data, data$ecoreg == 476)
-
-mean(df_ecoreg_476$biomass)
-mean(df_ecoreg_508$biomass)
-
-
-basic_pars <- basic_pars_options[["lag"]]
-data_pars <- data_pars_options(colnames(df_ecoreg))[["all"]]
-
-# Normalize training and test sets independently, but using training data's min/max for both
-df_ecoreg <- apply_min_max_scaling(df_ecoreg, norm_out)
-
-# Function to perform direct optimization
-pars_init <- forward_selection(basic_pars, data_pars, df_ecoreg)
-
-model <- run_optim(df_ecoreg, pars_init[[1]], conditions)
-
-data_pars <- model$par[!names(model$par) %in% c("k0", "lag")]
-
-# data_pars <- pars[!names(pars) %in% c("k0", "lag")]
-
-k <- rowSums(sapply(names(data_pars), function(par) {
-    data_pars[[par]] * df_ecoreg[[par]]
-}, simplify = TRUE)) + model$par["k0"]
-mean(k)
-
-#0.03977 amazon model w rondonia
-#0.02 rondonia specific
-# 0.035 
-
-field_data_scaled$pred_ecoreg <- growth_curve(model$par, data = field_data_scaled)
-
-field_data_scaled
-
-
-
-df <- field_data_scaled
-
-ggplot(df, aes(x = age)) +
-    geom_line(aes(y = pred_amazon, colour = "pred_amazon"), linewidth = 1.2) +
-    geom_line(aes(y = pred_ecoreg, colour = "pred_ecoreg"), linewidth = 1.2) +
-    geom_line(aes(y = biomass, colour = "biomass"), linewidth = 1.2) +
-    labs(x = "Age", y = "Value", colour = NULL) +
-    theme_minimal(base_size = 18) +
-    theme(
-        axis.title = element_text(size = 22),
-        axis.text = element_text(size = 16),
-        legend.position = "top"
-    )
 
 
 

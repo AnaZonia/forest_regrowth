@@ -119,17 +119,18 @@ barplot_r2_increase <- function(r2_df, age_include = TRUE) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-# r2_df <- read.csv("./0_results/r2_nearest_mature.csv")
 error_prop_results <- readRDS("./0_results/error_prop.rds")
 r2_df <- error_prop_results[[3]] %>%
     rename(mean_r2_diff = r2_diff)
 
+r2_df <- r2_df[r2_df$mean_r2_diff > 0.001, ]
 r2_df$group <- "nearest_mature"
 
 p <- barplot_r2_increase(r2_df, age_include = TRUE)
-asymptote <- "nearest_mature"
+
+
 ggsave(
-    paste0("./0_results/figures/model_performance_", asymptote, ".jpg"),
+    paste0("./0_results/figures/figure_2_model_performance_nearest_mature.jpg"),
     plot = p,
     width = 8,
     height = 10,
@@ -137,8 +138,9 @@ ggsave(
 )
 
 p <- barplot_r2_increase(r2_df, age_include = FALSE)
+
 ggsave(
-    paste0("./0_results/figures/model_performance_", asymptote, "_zoomed.jpg"),
+    paste0("./0_results/figures/figure_2_model_performance_nearest_mature_zoomed.jpg"),
     plot = p,
     width = 8,
     height = 10,
@@ -146,22 +148,6 @@ ggsave(
 )
 
 
-pars <- read.csv("./0_results/pars.csv")
-r2_df <- read.csv("./0_results/r2_nearest_mature.csv")
-
-r2_df <- r2_df[r2_df$mean_r2_diff > 0.001, ]
-
-col_means <- colMeans(pars, na.rm = TRUE)
-means_df <- as.data.frame(t(col_means))
-
-means_df <- means_df[, names(means_df) %in% r2_df$par]
-
-order_vec <- rev(r2_df$par[r2_df$par != "age"])
-
-means_df <- means_df[, match(order_vec, colnames(means_df))]
-names(means_df) <- variable_names[names(means_df)]
-
-write.csv(means_df, file = "./0_results/pars_included.csv", row.names = FALSE)
 
 # ------------------------------------------------- #
 # Figure - R2 per Asymptote with age_only
@@ -169,12 +155,7 @@ write.csv(means_df, file = "./0_results/pars_included.csv", row.names = FALSE)
 
 
 r2_asymptote <- read.csv("./0_results/asymptotes.csv")
-# Filter for the variables of interest
-r2_asymptote <- r2_asymptote %>%
-    filter(
-        asymptote %in% c("nearest_mature", "quarter_biomass", "full_amazon"),
-        basic_pars_name == "lag"
-    )
+
 
 p <- ggplot(
     r2_asymptote %>% mutate(asymptote = reorder(asymptote, mean_r2)),

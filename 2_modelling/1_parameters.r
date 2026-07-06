@@ -17,7 +17,7 @@ categorical <- c("topography", "last_lu", "ecoreg")
 binary <- c("floodable_forests", "protec", "indig")
 soil <- c("nitro", "phh2o", "ocd", "cec", "sand", "clay", "soc", "cfvo")
 
-non_data_pars <- c("k0", "lag", "theta", "ecoreg")
+non_data_pars <- c("k0", "lag")
 
 # Conditions for parameter constraints
 conditions <- list('pars["k0"] < 0')

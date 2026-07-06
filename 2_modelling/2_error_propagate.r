@@ -31,93 +31,6 @@ calc_r2 <- function(data, pred) {
 }
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# --------------- 5-Fold Cross-Validation ------------------#
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-#' Each fold is used once as a test set while training on
-#' the remaining folds. Computes R² values for each fold.
-#'
-#' @param data A dataframe containing the full dataset to be split.
-#' @param basic_pars List of basic parameters to pass to the model.
-#' @param data_pars Vector of predictor names to include in the model.
-#' @param conditions Additional conditions to pass to optim.
-#' @param folds How many times to run the cross-validation (default 5 times)
-#'
-#' @return list with:
-#' - r2_list - list of R² for each one of the five folds
-#' - r2_df - dataframe with the R² added per parameter addition (forward selection)
-#' - lag_list - list of lag values predicted in each fold of the cross validation
-#' - pars - dataframe with the parameters fit in each iteration
-#'
-#' @details
-#' - Each fold is randomly assigned using equal probability.
-#' - Training and test sets are normalized independently, with the test set
-#'   scaled according to the training set's min/max values.
-#' - The model is trained using `run_optim` and evaluated using `calc_r2`.
-
-
-cross_validate <- function(data, basic_pars, data_pars, conditions, folds = 5) {
-
-    indices <- sample(c(1:folds), nrow(data), replace = TRUE)
-    data$pred_cv <- NA
-    data$pred_final <- NA
-    r2_list <- numeric(folds)
-    lag_list <- numeric(folds)
-    r2_df <- data.frame()
-    pars <- data.frame()
-
-    for (index in 1:folds) {
-        # Define the test and train sets
-        test_data <- data[indices == index, -grep("pred", names(data))]
-        train_data <- data[indices != index, -grep("pred", names(data))]
-
-        # Normalize training and test sets independently, but using training data's min/max for both
-        norm_data <- normalize_independently(train_data, test_data)
-        train_data <- norm_data$train_data
-        test_data <- norm_data$test_data
-
-        # Function to perform direct optimization
-        pars_init <- forward_selection(basic_pars, data_pars, train_data)
-        # save the R2 increase with each parameter included
-        r2_df <- rbind(r2_df, pars_init[[2]])
-
-        # Run the model function on the training set and evaluate on the test set
-        model <- run_optim(train_data, pars_init[[1]], conditions)
-
-        pred_cv <- growth_curve(model$par, test_data,
-        lag = if ("lag" %in% names(model$par)) model$par["lag"] else 0)
-
-        # save the parameters for each iteration
-        pars_df <- as.data.frame(t(model$par))
-        print(pars_df)
-        pars <- bind_rows(pars, pars_df)
-
-        # save the predicted values of each iteration of the cross validation.
-        data$pred_cv[indices == index] <- pred_cv
-        r2 <- calc_r2(data[indices == index, ], pred_cv)
-        r2_list[index] <- r2
-        lag_list[index] <- model$par["lag"]
-        print(r2)
-        print(model$par["lag"])
-    }
-
-    if (nrow(r2_df) > 5) {
-        r2_df <- r2_df %>%
-            group_by(par) %>%
-            summarise(
-                mean_r2_diff = mean(r2_diff, na.rm = TRUE),
-                sd_r2_diff = sd(r2_diff, na.rm = TRUE),
-                n = n()
-            )
-
-        r2_df <- r2_df[order(r2_df$mean_r2_diff, decreasing = FALSE), ]
-    }
-
-    # pars <- pars[, !grepl("lag|k0", names(pars))]
-
-    return(list(r2_list, r2_df, lag_list, pars))
-}
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------------- Apply min-max scaling ------------------#
@@ -209,7 +122,6 @@ error_prop <- function(data, basic_pars, data_pars, conditions, n_iter = 1000) {
     list(
         r2             = r2_vec,
         pars           = bind_rows(pars_list),
-        r2_progression = r2_progression, # forward selection R2 increase by parameter inclusion
-        train_stats = train_stats
+        r2_progression = r2_progression # forward selection R2 increase by parameter inclusion
     )
 }

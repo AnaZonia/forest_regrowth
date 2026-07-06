@@ -14,7 +14,7 @@ library(xtable)
 source("2_modelling/1_parameters.r")
 source("2_modelling/1_data_processing.r")
 source("2_modelling/2_modelling.r")
-source("2_modelling/2_cross_validate.r")
+source("2_modelling/2_error_propagate.r")
 source("2_modelling/2_forward_selection.r")
 
 # Set up parallel processing
@@ -34,29 +34,23 @@ registerDoParallel(cores = ncore)
 
 results <- data.frame()
 
-for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full_amazon")) {
-    for (basic_pars_name in c("intercept", "lag")) {
-        
-        data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 30000, asymptote = asymptote)
+for (asymptote in c("nearest_mature", "quarter_biomass", "full_amazon")) {
+    data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = asymptote, categorical = categorical)
 
-        data_pars_name <- "age_only"
+    basic_pars <- basic_pars_options[["lag"]]
+    data_pars <- data_pars_options(colnames(data))[["age_only"]]
 
-        basic_pars <- basic_pars_options[[basic_pars_name]]
-        data_pars <- data_pars_options(colnames(data))[[data_pars_name]]    
+    error_prop_results <- error_prop(data, basic_pars, data_pars, conditions, 50)
 
-        cv_results <- cross_validate(data, basic_pars, data_pars, conditions, 5)
+    result <- data.frame(
+        asymptote = asymptote,
+        mean_r2 = mean(error_prop_results[[1]]),
+        sd_r2 = sd(error_prop_results[[1]])
+    )
 
-        result <- data.frame(
-            basic_pars_name = basic_pars_name,
-            asymptote = asymptote,
-            mean_r2 = mean(cv_results[[1]]),
-            sd_r2 = sd(cv_results[[1]])
-        )
-
-        print(result)
-        results <- rbind(results, result)
-        write.csv(results, file = "./0_results/asymptotes.csv", row.names = FALSE)
-    }
+    print(result)
+    results <- rbind(results, result)
+    write.csv(results, file = "./0_results/asymptotes.csv", row.names = FALSE)
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -64,8 +58,6 @@ for (asymptote in c("nearest_mature", "ecoreg_biomass", "quarter_biomass", "full
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
-
-# data <- import_data("grid_10k_amazon_removed_by_age", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
 
 basic_pars <- basic_pars_options[["lag"]]
 data_pars <- data_pars_options(colnames(data))[["all"]]
@@ -76,6 +68,8 @@ results <- data.frame(mean_r2 = mean(error_prop_results[[1]]),
             sd_r2 = sd(error_prop_results[[1]]),
             mean_lag = mean(error_prop_results$pars[["lag"]]),
             sd_lag = sd(error_prop_results$pars[["lag"]]))
+
+results
 
 write_rds(error_prop_results, file = "./0_results/error_prop.rds")
 write_csv(results, "./0_results/r2_full_amazon_error_prop.csv")
