@@ -14,29 +14,29 @@ forest_regrowth
 │   ├── 5_land_use.ipynb
 │   ├── 6_mature.ipynb
 │   ├── 7_write_csv.ipynb
-│   ├── 8_field_data.ipynb
-│   ├── 9_projections.ipynb
-│   ├── 10_extended_data.ipynb
+│   ├── 8_visualization.ipynb
+│   ├── objects.ipynb
 │   └── utils.py
 |
 ├── 2_modelling
 │   ├── 0_groa_field_data.r
 │   ├── 1_data_processing.r
 │   ├── 1_parameters.r
-│   ├── 2_cross_validate.r
+│   ├── 2_error_propagate.r
 │   ├── 2_forward_selection.r
 │   └── 2_modelling.r
 |
 ├── 3_analysis
-│   ├── 0_asymptote_land_use.r
 │   ├── 0_field.r
-│   ├── 1_feature_importance.r
-│   ├── 2_lag_field.r
-│   ├── 3_future predictions.r
-│   ├── 4_edge_biomass_hist.r
-│   ├── 4_mature_distance_edge.r
-│   ├── 4_pred_vs_obs_satellite
-|   └── 4_tmf_comparison
+│   ├── 1_model_fitting.r
+│   ├── figure_2_feature_importance.r
+│   ├── figure_3_lag.r
+│   ├── figure_4_Bezerra_future.r
+│   ├── figure_4_map_future.r
+│   ├── figure_extended_edge_biomass_hist.r
+│   ├── figure_extended_mature_distance_edge.r
+│   ├── figure_extended_pred_vs_obs_satellite
+|   └── figure_extended_tmf_comparison
 │
 ├── README.md
 └── requirements.txt

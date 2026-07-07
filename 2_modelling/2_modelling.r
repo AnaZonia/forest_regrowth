@@ -17,7 +17,7 @@
 #' @param train_data Data frame. Training dataset containing forest attributes
 #'   such as age, biomass, and predictors.
 #' @param pars Named numeric vector. Initial parameter values 
-#' (e.g., k0, theta, lag).
+#' (e.g., k0, lag).
 #' @param conditions List of character strings. Parameter constraints expressed
 #'   as logical conditions (evaluated during optimization).
 #'
@@ -29,9 +29,6 @@ run_optim <- function(train_data, pars, conditions) {
 
     if ("lag" %in% names(pars)) {
         conditions <- c(conditions, list('pars["lag"] < 0'))
-    }
-    if ("theta" %in% names(pars)) {
-        conditions <- c(conditions, list('pars["theta"] < 0'))
     }
 
     return(optim(pars, calc_rss, data = train_data, conditions = conditions))
@@ -87,7 +84,6 @@ calc_rss <- function(pars, data, conditions) {
 #'
 #' @param pars Named numeric vector. Growth model parameters:
 #'   - "k0" : Baseline growth rate constant.
-#'   - "theta" : Curve shape parameter.
 #'   - "lag" : Optional regrowth lag (age offset).
 #'   - Additional coefficients for predictor covariates.
 #' @param data Data frame. Must include "age", "biomass", "asymptote", and predictors if present.
@@ -109,15 +105,12 @@ growth_curve <- function(pars, data, lag = 0) {
 
     data[["age"]] <- data[["age"]] + lag
 
-    
-    age <- data[["age"]]
-
     if (length(fit_data_pars) > 0) {
         k <- (k + rowSums(sapply(fit_data_pars, function(par) {
             pars[[par]] * data[[par]]
-        }, simplify = TRUE))) * (age)
+        }, simplify = TRUE))) * (data[["age"]])
     } else {
-        k <- k * age
+        k <- k * data[["age"]]
     }
 
     # Constrains k to avoid negative values

@@ -9,7 +9,7 @@
 source("2_modelling/1_parameters.r")
 source("2_modelling/1_data_processing.r")
 source("2_modelling/2_modelling.r")
-source("2_modelling/2_cross_validate.r")
+source("2_modelling/2_error_propagation.r")
 source("2_modelling/2_forward_selection.r")
 
 library(tidyverse)

@@ -2,8 +2,6 @@
 #
 #           Field Data Analysis and Model Validation
 #
-#                 Ana Avila - September 2025
-#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 library(terra)

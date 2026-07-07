@@ -57,10 +57,10 @@ apply_min_max_scaling <- function(data, train_stats) {
 #' @param basic_pars List of basic parameters to pass to the model.
 #' @param data_pars Vector of predictor names to include in the model.
 #' @param conditions Additional conditions to pass to optim.
+#' @param n_iter Number of iterations to run Monte Carlo (default 1000)
 #'
 #' @return list with:
 #' - r2 - the final calculated r2 with the 
-#' - lag_list - list of lag values predicted in each fold of the cross validation
 #' - pars - dataframe with the parameters fit in each iteration
 #'
 
@@ -96,16 +96,15 @@ error_prop <- function(data, basic_pars, data_pars, conditions, n_iter = 1000) {
         test_norm <- norm_out$test_data
 
         # Subsample + Monte Carlo
-        sample_idx <- sample(nrow(train_norm), 10000, replace = TRUE)
-        data_sampled <- train_norm[sample_idx, ]
-        data_sampled$biomass <- rnorm(
-            nrow(data_sampled),
-            mean = data_sampled$biomass,
-            sd   = data_sampled$sd
+        # data_sampled <- train_norm[sample_idx, ]
+        train_norm$biomass <- rnorm(
+            nrow(train_norm),
+            mean = train_norm$biomass,
+            sd = train_norm$sd
         )
 
         # Optim starting from the forward-selected structure
-        model <- run_optim(data_sampled, selected_pars, conditions)
+        model <- run_optim(train_norm, selected_pars, conditions)
         pars_df <- as.data.frame(t(model$par))
 
         # Evaluate on normalized test set using THIS iteration's parameters
@@ -115,8 +114,9 @@ error_prop <- function(data, basic_pars, data_pars, conditions, n_iter = 1000) {
         pars_list[[i]] <- pars_df
 
         if (i %% 100 == 0) {
-            message(sprintf("Iter %4d / %d  |  R² = %.3f", i, n_iter, r2_vec[i]))
+            message(sprintf("Iter %4d / %d  |  R² = %.3f |  Lag = %.2f", i, n_iter, r2_vec[i], lag_val))
         }
+
     }
 
     list(

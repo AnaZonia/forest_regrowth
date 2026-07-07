@@ -9,7 +9,7 @@
 source("2_modelling/1_parameters.r")
 source("2_modelling/1_data_processing.r")
 source("2_modelling/2_modelling.r")
-source("2_modelling/2_cross_validate.r")
+source("2_modelling/2_error_propagation.r")
 source("2_modelling/2_forward_selection.r")
 
 library(tidyverse)
@@ -60,7 +60,7 @@ for (scenario in c("SSP1_RCP19", "SSP2_RCP45", "SSP3_RCP70")) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 error_prop_results <- readRDS("./0_results/error_prop.rds")
-pars <- colMeans(error_prop_results[[2]])
+# pars <- colMeans(error_prop_results[[2]])
 
 future <- read.csv("./0_data/future_scenarios_area.csv") %>%
         rename(asymptote = nearest_mature)
@@ -114,6 +114,10 @@ ssp_results <- list(
     SSP3 = compute_ssp_totals(future, "growth_SSP3_RCP70", pars)
 )
 
+# save mean, sd, and area per SSP
+# add error bars
+
+
 
 # ── Pastureland baseline ──────────────────────────────────────────────────────
 
@@ -139,31 +143,40 @@ cum_area <- cumsum(area[order_idx])
 n_needed <- which(cum_area >= ssp_results$SSP1$total_area_ha)[1]
 sel <- order_idx[seq_len(n_needed)]
 
-total_pasture_tgc <- sum(pred_tgc_per_ha[sel] * area[sel], na.rm = TRUE)
+total_pasture_tgc_prioritized <- sum(pred_tgc_per_ha[sel] * area[sel], na.rm = TRUE)
 total_pasture_area <- sum(area[sel], na.rm = TRUE) # ha
+
+# Select random pastureland pixels and add up their area until the total area = SSP1 area
+# shuffle the indices of pred
+random_indices <- sample(1:length(pred_tgc_per_ha), size = length(pred_tgc_per_ha), replace = FALSE)
+
+area_sum <- 0
+total_pasture_tgc_random <- 0
+for (i in random_indices) {
+    if (area_sum < ssp_results$SSP1$total_area_ha) {
+        area_sum <- area_sum + area[i]
+        total_pasture_tgc_random <- total_pasture_tgc_random + pred_tgc_per_ha[i] * area[i]
+    } else {
+        break
+    }
+}
 
 
 # ── Build summary data frame ──────────────────────────────────────────────────
 
 ssp_summary <- data.frame(
     category = factor(
-        c("SSP3", "SSP2", "SSP1", "SSP1\n(Prioritized)"),
-        levels = c("SSP3", "SSP2", "SSP1", "SSP1\n(Prioritized)")
+        c("SSP3", "SSP2", "SSP1", "SSP1\nRandom", "SSP1\nPrioritized"),
+        levels = c("SSP3", "SSP2", "SSP1", "SSP1\nRandom", "SSP1\nPrioritized")
     ),
     total_TgC = c(
         ssp_results$SSP3$total_TgC,
         ssp_results$SSP2$total_TgC,
         ssp_results$SSP1$total_TgC,
-        total_pasture_tgc
-    ),
-    total_area_Mha = c(
-        ssp_results$SSP3$total_area_ha,
-        ssp_results$SSP2$total_area_ha,
-        ssp_results$SSP1$total_area_ha,
-        total_pasture_area
-    ) / 1e6
-) %>%
-    mutate(TgC_per_Mha = total_TgC / total_area_Mha)
+        total_pasture_tgc_random,
+        total_pasture_tgc_prioritized
+    )
+)
 
 
 # ── Reusable plot function ────────────────────────────────────────────────────
@@ -177,6 +190,7 @@ plot_carbon_bars <- function(df, y_col, y_label) {
         ) +
         labs(x = NULL) +
         theme_minimal(base_size = 16) +
+        scale_x_discrete(expand = expansion(mult = 0.002, 0.5)) +
         theme(
             axis.title.y = element_text(size = 30, color = "black", margin = margin(r = 15)),
             axis.text.x  = element_text(size = 25, color = "black", margin = margin(t = 15)),
@@ -194,6 +208,6 @@ fig_4d_total <- plot_carbon_bars(
     y_label = "Total carbon stored by 2050 (TgC)"
 )
 
-ggsave("0_results/figures/figure_5b_total_carbon.jpeg",
+ggsave("0_results/figures/figure_4b_total_carbon.jpeg",
     plot = fig_4d_total, width = 10, height = 12, dpi = 300
 )

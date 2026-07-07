@@ -25,7 +25,6 @@
 #' @details
 #' - Categorical variables are handled by grouping their dummy variables together.
 
-
 forward_selection <- function(basic_pars, data_pars, data) {
 
     # Initialize parameter vector with data parameters
@@ -38,10 +37,6 @@ forward_selection <- function(basic_pars, data_pars, data) {
 
     if ("lag" %in% basic_pars) {
         all_pars[["lag"]] <- 2.5
-    }
-
-    if ("theta" %in% basic_pars) {
-        all_pars[["theta"]] <- 1
     }
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

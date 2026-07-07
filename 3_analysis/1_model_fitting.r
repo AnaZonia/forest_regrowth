@@ -1,10 +1,14 @@
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#
-#      Compare R2 of different asymptotes and land use aggregations
-#
-#                     Ana Avila - August 2025
-#
+# --------- Fit model through error propagation ----------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#   Compare model R² performance for each asymptote reference:
+#   - nearest_mature
+#   - ecoreg_biomass
+#   - quarter_biomass
+#   - full_amazon
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
 
 library(foreach)
 library(doParallel)
@@ -14,13 +18,35 @@ library(xtable)
 source("2_modelling/1_parameters.r")
 source("2_modelling/1_data_processing.r")
 source("2_modelling/2_modelling.r")
-source("2_modelling/2_error_propagate.r")
+source("2_modelling/2_error_propagation.r")
 source("2_modelling/2_forward_selection.r")
 
 # Set up parallel processing
 set.seed(1)
 ncore = 4
 registerDoParallel(cores = ncore)
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# --------- Lag and R² - uncertainty propagation ---------- #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
+
+basic_pars <- basic_pars_options[["lag"]]
+data_pars <- data_pars_options(colnames(data))[["all"]]
+
+error_prop_results <- error_prop(data, basic_pars, data_pars, conditions, 1000)
+
+results <- data.frame(
+    mean_r2 = mean(error_prop_results[[1]]),
+    sd_r2 = sd(error_prop_results[[1]]),
+    mean_lag = mean(error_prop_results$pars[["lag"]]),
+    sd_lag = sd(error_prop_results$pars[["lag"]])
+)
+
+write_rds(error_prop_results, file = "./0_results/error_prop.rds")
+write_csv(results, "./0_results/r2_full_amazon_error_prop.csv")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Asymptote Comparisons ------------------ #
@@ -40,7 +66,7 @@ for (asymptote in c("nearest_mature", "quarter_biomass", "full_amazon")) {
     basic_pars <- basic_pars_options[["lag"]]
     data_pars <- data_pars_options(colnames(data))[["age_only"]]
 
-    error_prop_results <- error_prop(data, basic_pars, data_pars, conditions, 50)
+    error_prop_results <- error_prop(data, basic_pars, data_pars, conditions, 500)
 
     result <- data.frame(
         asymptote = asymptote,
@@ -53,26 +79,6 @@ for (asymptote in c("nearest_mature", "quarter_biomass", "full_amazon")) {
     write.csv(results, file = "./0_results/asymptotes.csv", row.names = FALSE)
 }
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# --------- Lag and R² - uncertainty propagation ---------- #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
-
-basic_pars <- basic_pars_options[["lag"]]
-data_pars <- data_pars_options(colnames(data))[["all"]]
-
-error_prop_results <- error_prop(data, basic_pars, data_pars, conditions, 10)
-
-results <- data.frame(mean_r2 = mean(error_prop_results[[1]]),
-            sd_r2 = sd(error_prop_results[[1]]),
-            mean_lag = mean(error_prop_results$pars[["lag"]]),
-            sd_lag = sd(error_prop_results$pars[["lag"]]))
-
-results
-
-write_rds(error_prop_results, file = "./0_results/error_prop.rds")
-write_csv(results, "./0_results/r2_full_amazon_error_prop.csv")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Land Use Comparisons ------------------- #
