@@ -2,11 +2,13 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------- Fit model through error propagation ----------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#   Compare model R² performance for each asymptote reference:
-#   - nearest_mature
-#   - ecoreg_biomass
-#   - quarter_biomass
-#   - full_amazon
+#   - Obtain mean lag and R² through uncertainty propagation
+#     - error_prop.rds
+#     - r2_full_amazon_error_prop.csv
+#   - Obtain R² through different asymptote aggregations
+#     - asymptotes.csv
+#   - Compare R² increase from each Land Use aggregation
+#   - Compare R² with land use as predictors for the Atlantic Forest
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
@@ -114,7 +116,7 @@ for (land_use_aggregation in land_use_list) {
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# ------------- Atlantic Forest ----------- #
+# --------------------- Atlantic Forest ------------------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 

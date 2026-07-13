@@ -1,8 +1,6 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-#    Predictions for Regrowth by 2050 (pasture and secondary)
-#
-#                 Ana Avila - August 2025
+#    Predictions for Regrowth by 2050 (Bezerra et al.)
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
@@ -86,8 +84,7 @@ future <- dummy_cols(future,
 )
 
 
-# ── Compute SSP totals ────────────────────────────────────────────────────────
-
+# Compute SSP totals 
 compute_ssp_totals <- function(future, growth_col) {
     df <- subset(future, !is.na(future[[growth_col]]))
     df$pred <- growth_curve(pars, df, pars["lag"])
@@ -119,7 +116,7 @@ ssp_results <- list(
 
 
 
-# ── Pastureland baseline ──────────────────────────────────────────────────────
+# Pastureland baseline 
 
 pars_no_flood <- pars[names(pars) != "floodable_forests"]
 
@@ -162,8 +159,7 @@ for (i in random_indices) {
 }
 
 
-# ── Build summary data frame ──────────────────────────────────────────────────
-
+# Build summary data frame 
 ssp_summary <- data.frame(
     category = factor(
         c("SSP3", "SSP2", "SSP1", "SSP1\nRandom", "SSP1\nPrioritized"),
@@ -179,8 +175,7 @@ ssp_summary <- data.frame(
 )
 
 
-# ── Reusable plot function ────────────────────────────────────────────────────
-
+# Reusable plot function 
 plot_carbon_bars <- function(df, y_col, y_label) {
     ggplot(df, aes(x = category, y = .data[[y_col]])) +
         geom_bar(stat = "identity", width = 0.7, fill = "#043927") +
@@ -200,8 +195,7 @@ plot_carbon_bars <- function(df, y_col, y_label) {
         )
 }
 
-# ── Figure 4d: Total carbon (TgC) ────────────────────────────────────────────
-
+# Figure 4d: Total carbon (TgC) 
 fig_4d_total <- plot_carbon_bars(
     ssp_summary,
     y_col   = "total_TgC",

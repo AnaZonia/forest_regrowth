@@ -1,8 +1,6 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-#    Predictions for Regrowth by 2050 (pasture and secondary)
-#
-#                 Ana Avila - August 2025
+#    Map with total carbon accumulation by 2050 (pasturelands)
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 

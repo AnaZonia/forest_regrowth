@@ -2,8 +2,6 @@
 #
 #       Plot the Model with lag and Model without lag models
 #
-#                 Ana Avila - August 2025
-#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 library(foreach)

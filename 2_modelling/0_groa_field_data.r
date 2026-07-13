@@ -2,8 +2,6 @@
 #
 #            Field Data Analysis and Model Validation
 #
-#                  Ana Avila - August 2025
-#
 #   Imports and processes field data from the
 #   GROA project into a shapefile.
 #   Shapefile is then used in 1_gee/8_field_data.ipynb

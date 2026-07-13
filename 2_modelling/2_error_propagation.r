@@ -1,10 +1,8 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #
-#              Cross-Validation and R-Squared
+#              Uncertainty Propagation and R-Squared
 #
-#                   Ana Avila - August 2025
-#
-#  Evaluates the model performance using 5-fold cross-validation.
+#  Evaluates the model performance using uncertainty propagation
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
@@ -48,7 +46,7 @@ apply_min_max_scaling <- function(data, train_stats) {
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# --------------- Error propagation ------------------#
+# ------------------ Error propagation ---------------------#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 #' Considering the standard deviation of the biomass values, here we make predictions with a biomass value extracted from a distribution with mean biomass and the given standard deviation by ESA CCI.
