@@ -67,6 +67,7 @@ apply_min_max_scaling <- function(data, train_stats) {
 
 
 error_prop <- function(data, basic_pars, data_pars, conditions, n_iter = 1000) {
+
     # Forward selection
     fs_idx <- sample(nrow(data), floor(0.8 * nrow(data)), replace = FALSE)
     fs_train <- data[fs_idx, ]
@@ -75,7 +76,7 @@ error_prop <- function(data, basic_pars, data_pars, conditions, n_iter = 1000) {
     fs_norm <- normalize_independently(fs_train, fs_test)
     fs_train_norm <- fs_norm$train_data
     fs_train_stats <- fs_norm$train_stats
-
+        
     fs_result <- forward_selection(basic_pars, data_pars, fs_train_norm)
     selected_pars <- fs_result[[1]] # parameter structure carried into loop
     r2_progression <- fs_result[[2]] # predictor-by-predictor R² table
@@ -86,6 +87,7 @@ error_prop <- function(data, basic_pars, data_pars, conditions, n_iter = 1000) {
     r2_vec <- numeric(n_iter)
 
     for (i in seq_len(n_iter)) {
+        
         train_idx <- sample(nrow(data), floor(0.8 * nrow(data)), replace = FALSE)
         train_data <- data[train_idx, ]
         test_data <- data[-train_idx, ]
@@ -109,6 +111,7 @@ error_prop <- function(data, basic_pars, data_pars, conditions, n_iter = 1000) {
 
         # Evaluate on normalized test set using THIS iteration's parameters
         lag_val <- if ("lag" %in% names(pars_df)) pars_df[["lag"]] else 0
+        print(lag_val)
         pred <- growth_curve(pars_df, test_norm, lag = lag_val)
         r2_vec[i] <- calc_r2(test_norm, pred)
         pars_list[[i]] <- pars_df
@@ -125,3 +128,5 @@ error_prop <- function(data, basic_pars, data_pars, conditions, n_iter = 1000) {
         r2_progression = r2_progression # forward selection R2 increase by parameter inclusion
     )
 }
+
+

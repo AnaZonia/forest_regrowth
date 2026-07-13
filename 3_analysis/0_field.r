@@ -12,7 +12,7 @@ library(doParallel)
 source("2_modelling/1_parameters.r")
 source("2_modelling/1_data_processing.r")
 source("2_modelling/2_modelling.r")
-source("2_modelling/2_cross_validate.r")
+source("2_modelling/2_error_propagation.r")
 source("2_modelling/2_forward_selection.r")
 
 # Set up parallel processing
@@ -27,18 +27,10 @@ registerDoParallel(cores = ncore)
 field_data <- read.csv("./0_data/groa_field/field_predictors.csv")
 field_data <- subset(field_data, biome == 1)
 
-error_prop <- readRDS("./0_results/error_prop.rds")
-
-pars <- colMeans(error_prop$pars)
-
-
 
 data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
 norm_out <- normalize_independently(data)$train_stats
 norm_out <- norm_out[1:20, ]
-field_data_scaled <- apply_min_max_scaling(field_data_rondonia, norm_out)
-
-
 
 field_data <- field_data %>%
     rename(
@@ -59,45 +51,19 @@ field_data <- dummy_cols(field_data,
 field_data <- field_data %>%
     filter(biomass < 400)
 
-apply_min_max_scaling <- function(data, train_stats) {
-    # Apply Min-Max scaling to each variable in the data
-    for (i in seq_along(train_stats$variable)) {
-        var <- train_stats$variable[i]
-        data[[var]] <- (data[[var]] - train_stats$min[i]) /
-            (train_stats$max[i] - train_stats$min[i])
-    }
-    return(data)
-}
+field_data_scaled <- apply_min_max_scaling(field_data, norm_out)
 
 
-data <- import_data("grid_10k_amazon_secondary", biome = 1, n_samples = 150000)
-indices <- sample(c(1:5), nrow(data), replace = TRUE)
+error_prop <- readRDS("./0_results/error_prop.rds")
+pars <- error_prop$pars
 
-r2_list <- numeric(5)
-for (index in 1:5) {
-    train_data <- data[indices == index, ]
-    norm_data <- normalize_independently(train_data)
-    train_stats <- norm_data$train_stats
-    norm_data <- norm_data$train_data
+pars$topography_21 <- NULL
 
-    pars_init <- find_combination_pars(
-        basic_pars = basic_pars_options[["lag"]],
-        data_pars = data_pars_options(colnames(norm_data))[["all"]],
-        norm_data
-    )
+r2_list <- numeric(1000)
 
-    model <- run_optim(norm_data, pars_init[[1]], conditions)
-
-    field_data_scaled <- apply_min_max_scaling(field_data, train_stats)
-
-    # add column in field_data_scaled for columns present in model$par but not in field_data_scaled, fill with 0
-    for (col in (names(model$par)[!names(model$par) %in% c("k0", "lag")])) {
-        if (!(col %in% colnames(field_data_scaled))) {
-            field_data_scaled[[col]] <- 0
-        }
-    }
-
-    pred <- growth_curve(model$par, data = field_data_scaled)
+for (index in 1:nrow(pars)) {
+    # index = 1
+    pred <- growth_curve(pars[index,], data = field_data_scaled)
 
     r2 <- calc_r2(field_data_scaled, pred)
     r2_list[index] <- r2
@@ -107,6 +73,9 @@ results <- data.frame(
     mean_r2 = mean(r2_list),
     sd_r2 = sd(r2_list)
 )
+
+
+
 write.csv(results, file = "./0_results/field_r2.csv", row.names = FALSE)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

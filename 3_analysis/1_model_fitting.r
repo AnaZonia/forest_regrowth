@@ -33,20 +33,47 @@ registerDoParallel(cores = ncore)
 
 data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
 
+
 basic_pars <- basic_pars_options[["lag"]]
 data_pars <- data_pars_options(colnames(data))[["all"]]
 
-error_prop_results <- error_prop(data, basic_pars, data_pars, conditions, 1000)
+error_prop_results <- error_prop(data, basic_pars, data_pars, conditions, 10)
 
-results <- data.frame(
+results_data <- data.frame(
     mean_r2 = mean(error_prop_results[[1]]),
     sd_r2 = sd(error_prop_results[[1]]),
     mean_lag = mean(error_prop_results$pars[["lag"]]),
     sd_lag = sd(error_prop_results$pars[["lag"]])
 )
 
-write_rds(error_prop_results, file = "./0_results/error_prop.rds")
-write_csv(results, "./0_results/r2_full_amazon_error_prop.csv")
+results_data
+
+
+
+
+
+
+
+basic_pars <- basic_pars_options[["lag"]]
+data_pars <- data_pars_options(colnames(data_quarters))[["all"]]
+
+error_prop_results <- error_prop(data_quarters, basic_pars, data_pars, conditions, 10)
+
+results_data_quarters <- data.frame(
+    mean_r2 = mean(error_prop_results[[1]]),
+    sd_r2 = sd(error_prop_results[[1]]),
+    mean_lag = mean(error_prop_results$pars[["lag"]]),
+    sd_lag = sd(error_prop_results$pars[["lag"]])
+)
+
+
+
+
+
+results
+
+# write_rds(error_prop_results, file = "./0_results/error_prop.rds")
+# write_csv(results, "./0_results/r2_full_amazon_error_prop.csv")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # ---------------- Asymptote Comparisons ------------------ #

@@ -32,7 +32,7 @@ theme_set(theme_minimal(base_size = 20))
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 error_prop_results <- readRDS("./0_results/error_prop.rds")
-lag <- pars[["lag"]]
+lag <- mean(error_prop_results$pars[["lag"]])
 predictions <- data.frame(age = 1:200)
 
 data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samples = 30000, categorical = categorical)
@@ -75,8 +75,6 @@ for (basic_pars_name in names(basic_pars_options)) {
     predictions[[paste0("mean_", basic_pars_name)]] <- mean_biomass
     predictions[[paste0("sd_", basic_pars_name)]] <- sd_biomass
 }
-
-predictions
 
 write.csv(predictions, "0_results/lag_field_predictions.csv", row.names = FALSE)
 
@@ -261,6 +259,8 @@ p <- ggplot() +
         aspect.ratio = 0.5,
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA),
+        plot.background = element_rect(fill = "white", color = NA),
         axis.line = element_line(color = "black"),
         axis.title = element_text(color = "black", family = "Helvetica"),
         axis.text = element_text(color = "black", size = 18, family = "Helvetica"),
@@ -299,7 +299,6 @@ ggsave(
     units = "in",
     dpi = 300
 )
-
 
 
 (predictions$mean_lag - predictions$mean_intercept)

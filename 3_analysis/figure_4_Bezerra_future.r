@@ -60,7 +60,7 @@ for (scenario in c("SSP1_RCP19", "SSP2_RCP45", "SSP3_RCP70")) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 error_prop_results <- readRDS("./0_results/error_prop.rds")
-# pars <- colMeans(error_prop_results[[2]])
+pars <- error_prop_results[[2]]
 
 future <- read.csv("./0_data/future_scenarios_area.csv") %>%
         rename(asymptote = nearest_mature)
@@ -88,7 +88,7 @@ future <- dummy_cols(future,
 
 # ── Compute SSP totals ────────────────────────────────────────────────────────
 
-compute_ssp_totals <- function(future, growth_col, pars) {
+compute_ssp_totals <- function(future, growth_col) {
     df <- subset(future, !is.na(future[[growth_col]]))
     df$pred <- growth_curve(pars, df, pars["lag"])
     df <- subset(df, !is.na(pred))

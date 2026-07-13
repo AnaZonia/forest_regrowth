@@ -22,7 +22,7 @@ forest_regrowth
 │   ├── 0_groa_field_data.r
 │   ├── 1_data_processing.r
 │   ├── 1_parameters.r
-│   ├── 2_error_propagate.r
+│   ├── 2_error_propagation.r
 │   ├── 2_forward_selection.r
 │   └── 2_modelling.r
 |
@@ -282,7 +282,7 @@ Defines the parameter lists for comparisons in `3_analysis.r`
 
 
 
-## 2_cross_validate.r:
+## 2_error_propagation.r:
   Evaluates the model performance using 5-fold cross-validation.
 * **Functions:**
   *`calc_r2`
@@ -313,7 +313,19 @@ Defines the main functions for the modelling process.
 
 # 3_analysis
 
-## 0_asymptote_land_use.r:
+## 0_field.r:
+Obtains the R2 values for the field data based on the model trained from satellite data
+
+* **Imports:**
+  * `grid_10k_amazon_secondary`
+  * `field_predictors.csv`
+* **Exports:**
+  * `0_field_results.csv`: R2 value for the field data and fit theta value from field data
+  * `field_age_histogram.png`: Histogram of field data ages
+  * `predicted_vs_observed_field.png`: Scatterplot of predicted vs observed biomass for field data
+
+
+## 1_model_fitting.r:
 Compares the R2 values of different models trained on satellite data.
 
 Comparisons:
@@ -334,21 +346,7 @@ Comparisons:
 
 
 
-## 0_field.r:
-Obtains the R2 values for the field data based on the model trained from satellite data
-
-* **Imports:**
-  * `grid_10k_amazon_secondary`
-  * `field_predictors.csv`
-* **Exports:**
-  * `0_field_results.csv`: R2 value for the field data and fit theta value from field data
-  * `field_age_histogram.png`: Histogram of field data ages
-  * `predicted_vs_observed_field.png`: Scatterplot of predicted vs observed biomass for field data
-
-
-
-
-## 1_feature_importance.r:
+## figure_2_feature_importance.r:
 Figure 2: Barplots.
 Compares the relative importance of the parameters of full_amazon (inflexible) asymptote with the R2 of the nearest_mature (flexible) asymptote.
 Compares R2 with three levels of asymptote aggregation with just age as the only predictor.
@@ -366,7 +364,7 @@ Compares the relative importance of the parameters of the Amazon and Atlantic Fo
 
 
 
-## 2_lag_field.r:
+## figure_3_lag.r:
 Growth curve line graph.
 Compares the growth rate of intercept and lag models.
 Overlays the average biomass per age from the field data scatterplot.
@@ -380,11 +378,9 @@ Overlays the average biomass per age from the field data scatterplot.
 
 
 
-## 3_future_predictions.r:
+## figure_4_Bezerra_future.r:
 Barplot 1: Compares the biomass gain by 2050 for:
-  * random 5% of pastureland
-  * 5% with top regrowth potential
-  * all secondary forests
+  * SSP1 by Bezerra
 Barplot 2: Shows current area of:
   * 5% of pastureland
   * secondary forests
@@ -395,17 +391,20 @@ Shapefile 1: Predicted biomass gain by 2050 for all pastureland.
 Shapefile 2: Predicted biomass gain by 2050 for all secondary forests.
 
 * **Imports:**
-  * `grid_1k_amazon_secondary`: all CSVs in directory
   * `grid_1k_amazon_pastureland`: all CSVs in directory
 * **Exports:**
   * `figure_4_c.jpeg`
   * `figure_4_d.jpeg`
   * `pred_2050_pastureland_all.shp`
-  * `pred_2050_secondary_all.shp`
+
+## figure_4_map_future.r:
+
+
+## figure_extended_edge_biomass_hist.r:
 
 
 
-## 4_mature_distance_edge.r:
+## figure_extended_mature_distance_edge.r:
 Shows the biomass of mature forests in relation to the distance to the nearest forest edge.
 
 * **Imports:**
@@ -415,7 +414,7 @@ Shows the biomass of mature forests in relation to the distance to the nearest f
 
 
 
-## 4_pred_vs_obs_satellite.r:
+## figure_extended_pred_vs_obs_satellite.r:
 Shows the predicted vs observed biomass for the satellite data.
 
 * **Imports:**
@@ -423,20 +422,4 @@ Shows the predicted vs observed biomass for the satellite data.
 * **Exports:**
   * `predicted_vs_observed_satellite.png`
 
-
-
-## Getting Started
-To get started with the project, follow these steps:
-
-1. Clone the repository:
-  ```sh
-  git clone <repository-url>
-  cd forest_regrowth
-  ```
-
-2. Install the required dependencies:
-  ```sh
-  pip install -r requirements.txt
-  ```
-
-Refer to `requirements.txt` for the complete list of dependencies.
+## figure_extended_tmf_comparison.r:
