@@ -37,38 +37,14 @@ data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samp
 basic_pars <- basic_pars_options[["lag"]]
 data_pars <- data_pars_options(colnames(data))[["all"]]
 
-error_prop_results <- error_prop(data, basic_pars, data_pars, conditions, 10)
+error_prop_results <- error_prop(data, basic_pars, data_pars, conditions, 1000)
 
-results_data <- data.frame(
+results <- data.frame(
     mean_r2 = mean(error_prop_results[[1]]),
     sd_r2 = sd(error_prop_results[[1]]),
     mean_lag = mean(error_prop_results$pars[["lag"]]),
     sd_lag = sd(error_prop_results$pars[["lag"]])
 )
-
-results_data
-
-
-
-
-
-
-
-basic_pars <- basic_pars_options[["lag"]]
-data_pars <- data_pars_options(colnames(data_quarters))[["all"]]
-
-error_prop_results <- error_prop(data_quarters, basic_pars, data_pars, conditions, 10)
-
-results_data_quarters <- data.frame(
-    mean_r2 = mean(error_prop_results[[1]]),
-    sd_r2 = sd(error_prop_results[[1]]),
-    mean_lag = mean(error_prop_results$pars[["lag"]]),
-    sd_lag = sd(error_prop_results$pars[["lag"]])
-)
-
-
-
-
 
 results
 
@@ -132,7 +108,7 @@ for (land_use_aggregation in land_use_list) {
     basic_pars <- basic_pars_options[["lag"]]
     data_pars <- data_pars_options(colnames(data))[["all"]]
 
-    cv_results <- cross_validate(data, basic_pars, data_pars, conditions)
+    cv_results <- error_prop(data, basic_pars, data_pars, conditions, 1000)
 
     write.csv(cv_results[[2]], file = paste0("./0_results/r2_", land_use_aggregation, "_", biome, ".csv"), row.names = FALSE)
 }
