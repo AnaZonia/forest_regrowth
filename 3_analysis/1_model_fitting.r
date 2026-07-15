@@ -31,8 +31,7 @@ registerDoParallel(cores = ncore)
 # --------- Lag and R² - uncertainty propagation ---------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
-
+data <- import_data("grid_10k_amazon_uncertainty_propagation_1", biome = 1, n_samples = 30000, asymptote = "nearest_mature", categorical = categorical)
 
 basic_pars <- basic_pars_options[["lag"]]
 data_pars <- data_pars_options(colnames(data))[["all"]]

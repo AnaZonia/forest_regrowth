@@ -6,6 +6,8 @@ We modelled the age of secondary forests in Brazil based on satellite data. This
 ```
 forest_regrowth
 ├── 0_data
+│   └── grid_10k_uncertainty_propagation
+├── 0_results
 ├── 1_gee
 │   ├── 1_categorical.ipynb
 │   ├── 2_edges_areas.ipynb
@@ -80,6 +82,8 @@ Estimates area of secondary forests per 1km². This is used to make total carbon
 ## 3_grids
 To ensure proper spatial coverage while sparing compute time, we sample one pixel per 100km² grid cell to fit the model.
 
+To ensure the proper assignment of biomass data uncertainty to each secondary forest age pixel, we create a grid including only age pixels (30m) that are completely included in biomass pixels (100m).
+
 For final predictions, to ensure local specificity, we extract one pixel per 1km².
 
 Also, for final carbon accumulation predictions, we select 10 points per cell in the Bezerra et al. 2022 dataset of future land use change conditions.
@@ -96,8 +100,7 @@ These grids are used in 7_write_csv to export the final dataframe for analysis.
 * **Exports:**
   * `grid_10k_amazon_secondary_edge_removed` to GEE Feature Collection
   * `grid_10k_atlantic_secondary_edge_removed` to GEE Feature Collection
-  * `grid_10k_amazon_secondary` to GEE Feature Collection
-  * `grid_1k_amazon_secondary` to GEE Feature Collection
+  * `grid_10k_amazon_ESACCI_interior` to GEE Feature Collection
   * `grid_1k_amazon_pastureland` to GEE Feature Collection
   * `grid_Bezerra_10_points` to GEE Feature Collection: Samples 10 points per 100km² grid cell from the Bezerra et al. 2022 future predictions dataset.
 
@@ -189,8 +192,7 @@ Uses the projections from [Bezerra et al. 2022](https://doi.org/10.1371/journal.
   * forest cover predictions for SSP1, SSP2 and SSP3 for 2015 and 2050.
   * `grid_10k_amazon_secondary_edge_removed` to GEE Feature Collection
   * `grid_10k_atlantic_secondary_edge_removed`
-  * `grid_10k_amazon_secondary`
-  * `grid_1k_amazon_secondary`
+  * `grid_10k_amazon_ESACCI_interior`
   * `grid_1k_amazon_pastureland`
   * `grid_Bezerra_10_points`
 
