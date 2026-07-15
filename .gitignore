@@ -1,6 +1,9 @@
-# Ignore directories with "data" in their name
-**/*0_data*/
-**/*results*/
+# Ignore everything in 0_data/
+0_data/*
+# But keep this one file
+!0_data/grid_10k_amazon_uncertainty_propagation
+
+0_results/figures/*
 
 # Ignore virtual environment directories
 venv/

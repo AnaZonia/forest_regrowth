@@ -11,7 +11,6 @@
 #   - Compare R² with land use as predictors for the Atlantic Forest
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-
 library(foreach)
 library(doParallel)
 library(tidyverse)
@@ -25,9 +24,8 @@ source("2_modelling/2_forward_selection.r")
 
 # Set up parallel processing
 set.seed(1)
-ncore = 4
+ncore <- 4
 registerDoParallel(cores = ncore)
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # --------- Lag and R² - uncertainty propagation ---------- #
@@ -39,7 +37,7 @@ data <- import_data("grid_10k_amazon_uncertainty_propagation", biome = 1, n_samp
 basic_pars <- basic_pars_options[["lag"]]
 data_pars <- data_pars_options(colnames(data))[["all"]]
 
-error_prop_results <- error_prop(data, basic_pars, data_pars, conditions, 1000)
+error_prop_results <- error_prop(data, basic_pars, data_pars, conditions, 10)
 
 results <- data.frame(
     mean_r2 = mean(error_prop_results[[1]]),

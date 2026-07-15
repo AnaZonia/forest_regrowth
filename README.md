@@ -31,8 +31,8 @@ forest_regrowth
 │   ├── 1_model_fitting.r
 │   ├── figure_2_feature_importance.r
 │   ├── figure_3_lag.r
-│   ├── figure_4_Bezerra_future.r
-│   ├── figure_4_map_future.r
+│   ├── figure_4a_map_future.r
+│   ├── figure_4b_Bezerra_future.r
 │   ├── figure_extended_edge_biomass_hist.r
 │   ├── figure_extended_mature_distance_edge.r
 │   ├── figure_extended_pred_vs_obs_satellite
@@ -46,8 +46,6 @@ forest_regrowth
 # 1_gee/
 
 Scripts 1-6 process and export the data that that is then used to generate the dataframe for analysis in `7_write_csv`.
-
-
 
 ## 1_categorical.ipynb:
 Exports images with binary masks for protected areas and indigenous land, or byte values for ecoregion and biome.
@@ -75,7 +73,6 @@ Estimates area of secondary forests per 1km². This is used to make total carbon
 
 * **Exports:**
   * `distance_to_secondary_edge` to GEE Image
-  * `secondary_area_1km` to GEE Image
   * `pastureland_area_1km` to GEE Image
 
 
@@ -378,7 +375,12 @@ Overlays the average biomass per age from the field data scatterplot.
 
 
 
-## figure_4_Bezerra_future.r:
+## figure_4a_map_future.r:
+
+
+
+
+## figure_4b_Bezerra_future.r:
 Barplot 1: Compares the biomass gain by 2050 for:
   * SSP1 by Bezerra
 Barplot 2: Shows current area of:
@@ -397,7 +399,6 @@ Shapefile 2: Predicted biomass gain by 2050 for all secondary forests.
   * `figure_4_d.jpeg`
   * `pred_2050_pastureland_all.shp`
 
-## figure_4_map_future.r:
 
 
 ## figure_extended_edge_biomass_hist.r:

@@ -52,7 +52,6 @@ for (scenario in c("SSP1_RCP19", "SSP2_RCP45", "SSP3_RCP70")) {
 }
 
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # -------- Calculate future carbon sequestration ---------- #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -111,13 +110,8 @@ ssp_results <- list(
     SSP3 = compute_ssp_totals(future, "growth_SSP3_RCP70", pars)
 )
 
-# save mean, sd, and area per SSP
-# add error bars
-
-
 
 # Pastureland baseline 
-
 pars_no_flood <- pars[names(pars) != "floodable_forests"]
 
 data_1k <- import_data("grid_1k_amazon_pastureland", biome = 1, n_samples = "all", categorical = categorical)
